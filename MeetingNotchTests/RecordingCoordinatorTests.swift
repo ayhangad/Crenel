@@ -1,0 +1,196 @@
+import Foundation
+import XCTest
+@testable import MeetingNotch
+
+@MainActor
+final class RecordingCoordinatorTests: XCTestCase {
+    private var temporaryRoot: URL!
+
+    override func setUpWithError() throws {
+        temporaryRoot = FileManager.default.temporaryDirectory
+            .appending(path: "MeetingNotchTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: temporaryRoot)
+    }
+
+    func testStartsOnlyAfterBothSourcesAreReadyAndPreservesMeetingID() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+        var statuses: [RecordingCaptureStatus] = []
+        coordinator.onStatusChange = { statuses.append($0) }
+        let meeting = Meeting(
+            title: "Weekly",
+            startDate: .now,
+            endDate: .now.addingTimeInterval(1_800)
+        )
+
+        let session = try await coordinator.start(meeting: meeting)
+
+        XCTAssertEqual(session.meetingID, meeting.id)
+        XCTAssertEqual(session.sourceMeeting, meeting)
+        XCTAssertTrue(microphone.didPrepare)
+        XCTAssertTrue(systemAudio.didPrepare)
+        XCTAssertTrue(microphone.didStart)
+        XCTAssertTrue(systemAudio.didStart)
+        XCTAssertEqual(statuses.last?.microphone.isReady, true)
+        XCTAssertEqual(statuses.last?.systemAudio.isReady, true)
+    }
+
+    func testStopFinalizesBothTracksAndWritesCaptureManifest() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+        let session = try await coordinator.start(meeting: nil)
+
+        let result = try await coordinator.stop()
+
+        XCTAssertEqual(Set(result.tracks.map(\.source)), Set(AudioSourceKind.allCases))
+        XCTAssertNotNil(result.session.endedAt)
+        XCTAssertEqual(result.session.audioFileURL?.lastPathComponent, "recording.m4a")
+        let manifest = temporaryRoot
+            .appending(path: "MeetingNotch/Temporary/\(session.id.uuidString)/capture.json")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: manifest.path))
+    }
+
+    func testStartFailureCancelsBothSourcesAndRemovesTemporaryDirectory() async {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        systemAudio.startError = RecordingCaptureError.sourceFailed(.systemAudio, "test")
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+
+        do {
+            _ = try await coordinator.start(meeting: nil)
+            XCTFail("Start should fail")
+        } catch {
+            XCTAssertTrue(microphone.didCancel)
+            XCTAssertTrue(systemAudio.didCancel)
+        }
+
+        let temporaryDirectory = temporaryRoot.appending(path: "MeetingNotch/Temporary")
+        let remaining = (try? FileManager.default.contentsOfDirectory(
+            at: temporaryDirectory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        XCTAssertTrue(remaining.isEmpty)
+    }
+
+    func testRejectsRecordingWhenRequiredDiskSpaceIsUnavailable() async {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = RecordingCoordinator(
+            microphoneFactory: { microphone },
+            systemAudioFactory: { systemAudio },
+            minimumFreeDiskSpace: .max,
+            storageRoot: temporaryRoot
+        )
+
+        do {
+            _ = try await coordinator.start(meeting: nil)
+            XCTFail("Start should fail")
+        } catch let error as RecordingCaptureError {
+            XCTAssertEqual(error, .insufficientDiskSpace)
+            XCTAssertFalse(microphone.didPrepare)
+            XCTAssertFalse(systemAudio.didPrepare)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testMixFailurePreservesRawTracksAndRecoveryManifest() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = RecordingCoordinator(
+            microphoneFactory: { microphone },
+            systemAudioFactory: { systemAudio },
+            minimumFreeDiskSpace: 0,
+            storageRoot: temporaryRoot,
+            mixer: FailingAudioTrackMixer()
+        )
+        let session = try await coordinator.start(meeting: nil)
+        let directory = temporaryRoot
+            .appending(path: "MeetingNotch/Temporary/\(session.id.uuidString)")
+
+        do {
+            _ = try await coordinator.stop()
+            XCTFail("Stop should fail")
+        } catch {
+            XCTAssertTrue(FileManager.default.fileExists(
+                atPath: directory.appending(path: "microphone.m4a").path
+            ))
+            XCTAssertTrue(FileManager.default.fileExists(
+                atPath: directory.appending(path: "system-audio.m4a").path
+            ))
+            XCTAssertTrue(FileManager.default.fileExists(
+                atPath: directory.appending(path: "capture.json").path
+            ))
+        }
+    }
+
+    private func makeCoordinator(
+        microphone: MockAudioCaptureSource,
+        systemAudio: MockAudioCaptureSource
+    ) -> RecordingCoordinator {
+        RecordingCoordinator(
+            microphoneFactory: { microphone },
+            systemAudioFactory: { systemAudio },
+            minimumFreeDiskSpace: 0,
+            storageRoot: temporaryRoot,
+            mixer: MockAudioTrackMixer()
+        )
+    }
+}
+
+private final class MockAudioTrackMixer: AudioTrackMixing, @unchecked Sendable {
+    func mix(tracks: [CapturedAudioTrack], outputURL: URL) async throws -> URL {
+        try Data("mixed-audio".utf8).write(to: outputURL)
+        return outputURL
+    }
+}
+
+private final class FailingAudioTrackMixer: AudioTrackMixing, @unchecked Sendable {
+    func mix(tracks: [CapturedAudioTrack], outputURL: URL) async throws -> URL {
+        throw AudioMixError.renderFailed("test")
+    }
+}
+
+private final class MockAudioCaptureSource: AudioCaptureSource {
+    let kind: AudioSourceKind
+    var onLevelChange: (@Sendable (Float) -> Void)?
+    var startError: Error?
+    private var outputURL: URL?
+
+    private(set) var didPrepare = false
+    private(set) var didStart = false
+    private(set) var didCancel = false
+
+    init(kind: AudioSourceKind) {
+        self.kind = kind
+    }
+
+    func prepare(outputURL: URL) async throws {
+        self.outputURL = outputURL
+        didPrepare = true
+    }
+
+    func start() async throws {
+        if let startError { throw startError }
+        didStart = true
+        onLevelChange?(0.5)
+    }
+
+    func stop() async throws -> CapturedAudioTrack {
+        guard let outputURL else {
+            throw RecordingCaptureError.sourceFailed(kind, "not prepared")
+        }
+        try Data("audio".utf8).write(to: outputURL)
+        return CapturedAudioTrack(source: kind, fileURL: outputURL, firstSampleTime: 1)
+    }
+
+    func cancel() async {
+        didCancel = true
+    }
+}

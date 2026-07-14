@@ -6,133 +6,430 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		080E6C633BBBD1D8D0FA645D /* CalendarMeetingProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DA5AD7F741BEF49053949BB /* CalendarMeetingProvider.swift */; };
+		2272B1033BE8D7D7FD687B35 /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ADD999FF280D9D468B0200A /* TaskItem.swift */; };
+		25D9829D839710EAD5B83926 /* MeetingNotchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 423322D79E48F3E075E9C5E5 /* MeetingNotchApp.swift */; };
+		2814DCCAE803794F6FB0D0EE /* AudioLevelMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AD8EBF5385E00E1D4B67542 /* AudioLevelMeter.swift */; };
+		28FD40C851DFBDD1553CBD52 /* MeetingURLMatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65E8F50B1768CCB2B7FB4F77 /* MeetingURLMatcherTests.swift */; };
+		2D40EB2C9F697E50E7006AF7 /* MeetingURLMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F5DAA20EFD5D35A32AAF959 /* MeetingURLMatcher.swift */; };
+		3216D93D73143D429B480F21 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 94F1B32B60432FBA9EC9A915 /* Assets.xcassets */; };
+		3C240AF3B3F56BD6A5C44C51 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCB0E2DB2414C3311B00570 /* AppState.swift */; };
+		3F3454549456BFC9B03E693A /* MeetingMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BBC95FAA7DD7D1604037DEB /* MeetingMonitor.swift */; };
+		48DA54EF97940813DC165197 /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D325D4B71E55FF2DAA7DCAE /* AppPreferences.swift */; };
+		4F077BDFD1B665ADD0B1E01D /* AppFailure.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90D587B894BDBD9194675805 /* AppFailure.swift */; };
+		4FB59286E4C5ABC9A5927F38 /* MeetingFlowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A5ABC3B172E6084943DDEBA /* MeetingFlowState.swift */; };
+		507D521165B2B8EFD7CEDFCE /* AudioTrackMixer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F55CBC3C0A6B79B4652FE0B1 /* AudioTrackMixer.swift */; };
+		52D875DDBCBD1C69C4CC39D3 /* AudioTrackMixerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFE14D2040A02175A935DE59 /* AudioTrackMixerTests.swift */; };
+		68D2588D5B07F30DD9E8FA47 /* AudioCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 289A661E932E23B6C9BBA2D4 /* AudioCapture.swift */; };
+		68E701B5422E25DA0015D14F /* DomainModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 654F3A921384CD07B05E631F /* DomainModelTests.swift */; };
+		6A95E1FF7EADF92D9E21A3C0 /* AppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14987BF480F6B14A698AA793 /* AppStateTests.swift */; };
+		75A6E6C68EBAABFEE35B31A6 /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = A77B183372E5CAD31E20014D /* AppLogger.swift */; };
+		776F60A4496A58A294F32E88 /* AudioCaptureSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE5E539B3A480B8F88CD2953 /* AudioCaptureSource.swift */; };
+		77D6F7BC6D66FF5F53C3CF17 /* MeetingFlowMachineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E8C6E617A522E90234CF17D /* MeetingFlowMachineTests.swift */; };
+		8AB92DB294D6901FA19B435D /* DynamicNotchKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3B677DA71FF4DB9DB35EF13E /* DynamicNotchKit */; };
+		90B1B70805C20EB0C146F434 /* RecordingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E6249A0D26B5CD320F8C723 /* RecordingCoordinator.swift */; };
+		98E6555D2331CE37E9F8E75B /* MeetingReminderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DDC2075327D1EA9DCD7A0E8 /* MeetingReminderTests.swift */; };
+		B5B947385A08C2CC49449734 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B35D53199DC1C17A774305A /* SettingsView.swift */; };
+		C49263BF171AB6209EC9E57D /* NotchPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB190D962EB39C1A28C42B25 /* NotchPanelView.swift */; };
+		D0F58A1CF87F1F6A3DA427AB /* Transcript.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C519E2297079FFA5C3E9095 /* Transcript.swift */; };
+		D1F96725966DBED469817F2D /* RecordingCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 349BFC738C6F1C41D9C3924F /* RecordingCoordinatorTests.swift */; };
+		D23BF58E1A46445F28C60D81 /* SampleBufferAudioWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7045FBA50E3408E11AE8B9CD /* SampleBufferAudioWriter.swift */; };
+		DA91105F561399130D5A6DA7 /* RecordingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF9AC71AE8A4342CBD833E00 /* RecordingSession.swift */; };
+		DD665B2F56210476E6D138CF /* SystemAudioCaptureSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D8F579E773C2BE882F3252 /* SystemAudioCaptureSource.swift */; };
+		EF43BF587AF615C50CBA5432 /* MeetingReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82106D6E6424FD9D0242C00A /* MeetingReminder.swift */; };
+		EF6B8ABBBF6F08EEE9E2158B /* AppFailureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB936A671B3CCF91FF3BE286 /* AppFailureTests.swift */; };
+		F3D1020BF4E36C0D05EACD9A /* MicrophoneCaptureSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63787D748158315B24209706 /* MicrophoneCaptureSource.swift */; };
+		F41B98AC2027728236D83DB4 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1528D42EFA5CD2E6C57C0B73 /* AppDelegate.swift */; };
+		FE9B2FDEE696FBA48D87D793 /* Meeting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8110324C9C94F2C8A24909D1 /* Meeting.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4ECB954C93607A9DF24890FA /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7BE6DBCA1B00E9E3A546A91D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C03F5E4F7F432B8AF451F912;
+			remoteInfo = MeetingNotch;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
-		DB55B3BB3006405600E8CE2F /* MeetingNotch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MeetingNotch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0D325D4B71E55FF2DAA7DCAE /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
+		14987BF480F6B14A698AA793 /* AppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateTests.swift; sourceTree = "<group>"; };
+		1528D42EFA5CD2E6C57C0B73 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		1B35D53199DC1C17A774305A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		1DDC2075327D1EA9DCD7A0E8 /* MeetingReminderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingReminderTests.swift; sourceTree = "<group>"; };
+		289A661E932E23B6C9BBA2D4 /* AudioCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCapture.swift; sourceTree = "<group>"; };
+		2BBC95FAA7DD7D1604037DEB /* MeetingMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingMonitor.swift; sourceTree = "<group>"; };
+		349BFC738C6F1C41D9C3924F /* RecordingCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCoordinatorTests.swift; sourceTree = "<group>"; };
+		3AD8EBF5385E00E1D4B67542 /* AudioLevelMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelMeter.swift; sourceTree = "<group>"; };
+		3C519E2297079FFA5C3E9095 /* Transcript.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transcript.swift; sourceTree = "<group>"; };
+		3E8C6E617A522E90234CF17D /* MeetingFlowMachineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingFlowMachineTests.swift; sourceTree = "<group>"; };
+		423322D79E48F3E075E9C5E5 /* MeetingNotchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingNotchApp.swift; sourceTree = "<group>"; };
+		5DA5AD7F741BEF49053949BB /* CalendarMeetingProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarMeetingProvider.swift; sourceTree = "<group>"; };
+		5E6249A0D26B5CD320F8C723 /* RecordingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCoordinator.swift; sourceTree = "<group>"; };
+		63787D748158315B24209706 /* MicrophoneCaptureSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneCaptureSource.swift; sourceTree = "<group>"; };
+		654F3A921384CD07B05E631F /* DomainModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainModelTests.swift; sourceTree = "<group>"; };
+		65E8F50B1768CCB2B7FB4F77 /* MeetingURLMatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingURLMatcherTests.swift; sourceTree = "<group>"; };
+		7045FBA50E3408E11AE8B9CD /* SampleBufferAudioWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleBufferAudioWriter.swift; sourceTree = "<group>"; };
+		8110324C9C94F2C8A24909D1 /* Meeting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Meeting.swift; sourceTree = "<group>"; };
+		82106D6E6424FD9D0242C00A /* MeetingReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingReminder.swift; sourceTree = "<group>"; };
+		8A5ABC3B172E6084943DDEBA /* MeetingFlowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingFlowState.swift; sourceTree = "<group>"; };
+		8ADD999FF280D9D468B0200A /* TaskItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItem.swift; sourceTree = "<group>"; };
+		8F5DAA20EFD5D35A32AAF959 /* MeetingURLMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingURLMatcher.swift; sourceTree = "<group>"; };
+		90D587B894BDBD9194675805 /* AppFailure.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFailure.swift; sourceTree = "<group>"; };
+		94F1B32B60432FBA9EC9A915 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A77B183372E5CAD31E20014D /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
+		AE5E539B3A480B8F88CD2953 /* AudioCaptureSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioCaptureSource.swift; sourceTree = "<group>"; };
+		AF9AC71AE8A4342CBD833E00 /* RecordingSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingSession.swift; sourceTree = "<group>"; };
+		BB190D962EB39C1A28C42B25 /* NotchPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchPanelView.swift; sourceTree = "<group>"; };
+		C12209C1A47CB2156934C878 /* MeetingNotch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MeetingNotch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DDCB0E2DB2414C3311B00570 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		DFE14D2040A02175A935DE59 /* AudioTrackMixerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrackMixerTests.swift; sourceTree = "<group>"; };
+		E6D8F579E773C2BE882F3252 /* SystemAudioCaptureSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemAudioCaptureSource.swift; sourceTree = "<group>"; };
+		F55CBC3C0A6B79B4652FE0B1 /* AudioTrackMixer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrackMixer.swift; sourceTree = "<group>"; };
+		FB936A671B3CCF91FF3BE286 /* AppFailureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppFailureTests.swift; sourceTree = "<group>"; };
+		FCCCD8A04CF6314894A79EA2 /* MeetingNotchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetingNotchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedRootGroup section */
-		DB55B3BD3006405600E8CE2F /* MeetingNotch */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MeetingNotch;
-			sourceTree = "<group>";
-		};
-/* End PBXFileSystemSynchronizedRootGroup section */
-
 /* Begin PBXFrameworksBuildPhase section */
-		DB55B3B83006405600E8CE2F /* Frameworks */ = {
+		F2D5F6D8463CF951880DA7DF /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8AB92DB294D6901FA19B435D /* DynamicNotchKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		DB55B3B23006405600E8CE2F = {
+		04315D07DF93E5B4956709FE /* MeetingNotch */ = {
 			isa = PBXGroup;
 			children = (
-				DB55B3BD3006405600E8CE2F /* MeetingNotch */,
-				DB55B3BC3006405600E8CE2F /* Products */,
+				D0A589C24B1FDC6608145914 /* App */,
+				1EEED1B2DEAC36D25AA43DE8 /* Domain */,
+				28C169A0979716418DD51724 /* Features */,
+				6B7DF0F3F3C402B5074D6A5D /* Infrastructure */,
+				5FDB587BE2F58F80A6E87898 /* Services */,
+				94F1B32B60432FBA9EC9A915 /* Assets.xcassets */,
+				423322D79E48F3E075E9C5E5 /* MeetingNotchApp.swift */,
 			);
+			path = MeetingNotch;
 			sourceTree = "<group>";
 		};
-		DB55B3BC3006405600E8CE2F /* Products */ = {
+		117A3F123B5A9F74FC6CBFD7 /* Logging */ = {
 			isa = PBXGroup;
 			children = (
-				DB55B3BB3006405600E8CE2F /* MeetingNotch.app */,
+				A77B183372E5CAD31E20014D /* AppLogger.swift */,
+			);
+			path = Logging;
+			sourceTree = "<group>";
+		};
+		1EEED1B2DEAC36D25AA43DE8 /* Domain */ = {
+			isa = PBXGroup;
+			children = (
+				90D587B894BDBD9194675805 /* AppFailure.swift */,
+				0D325D4B71E55FF2DAA7DCAE /* AppPreferences.swift */,
+				289A661E932E23B6C9BBA2D4 /* AudioCapture.swift */,
+				8110324C9C94F2C8A24909D1 /* Meeting.swift */,
+				8A5ABC3B172E6084943DDEBA /* MeetingFlowState.swift */,
+				82106D6E6424FD9D0242C00A /* MeetingReminder.swift */,
+				AF9AC71AE8A4342CBD833E00 /* RecordingSession.swift */,
+				8ADD999FF280D9D468B0200A /* TaskItem.swift */,
+				3C519E2297079FFA5C3E9095 /* Transcript.swift */,
+			);
+			path = Domain;
+			sourceTree = "<group>";
+		};
+		28C169A0979716418DD51724 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A7C1DD691DB3AF71754AD03A /* Notch */,
+				E34178B2E2624D4E314B09D4 /* Settings */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		4DE04A9D417B2C43D42D8951 /* MeetingNotchTests */ = {
+			isa = PBXGroup;
+			children = (
+				FB936A671B3CCF91FF3BE286 /* AppFailureTests.swift */,
+				14987BF480F6B14A698AA793 /* AppStateTests.swift */,
+				DFE14D2040A02175A935DE59 /* AudioTrackMixerTests.swift */,
+				654F3A921384CD07B05E631F /* DomainModelTests.swift */,
+				3E8C6E617A522E90234CF17D /* MeetingFlowMachineTests.swift */,
+				1DDC2075327D1EA9DCD7A0E8 /* MeetingReminderTests.swift */,
+				65E8F50B1768CCB2B7FB4F77 /* MeetingURLMatcherTests.swift */,
+				349BFC738C6F1C41D9C3924F /* RecordingCoordinatorTests.swift */,
+			);
+			path = MeetingNotchTests;
+			sourceTree = "<group>";
+		};
+		5253C4F90F37BB69A482D12B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C12209C1A47CB2156934C878 /* MeetingNotch.app */,
+				FCCCD8A04CF6314894A79EA2 /* MeetingNotchTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		5FDB587BE2F58F80A6E87898 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				76D1D697960F0219BDE6D7DA /* Audio */,
+				A06F94E2A78CE3C0869509F2 /* Calendar */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		6B7DF0F3F3C402B5074D6A5D /* Infrastructure */ = {
+			isa = PBXGroup;
+			children = (
+				117A3F123B5A9F74FC6CBFD7 /* Logging */,
+			);
+			path = Infrastructure;
+			sourceTree = "<group>";
+		};
+		76D1D697960F0219BDE6D7DA /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				AE5E539B3A480B8F88CD2953 /* AudioCaptureSource.swift */,
+				3AD8EBF5385E00E1D4B67542 /* AudioLevelMeter.swift */,
+				F55CBC3C0A6B79B4652FE0B1 /* AudioTrackMixer.swift */,
+				63787D748158315B24209706 /* MicrophoneCaptureSource.swift */,
+				5E6249A0D26B5CD320F8C723 /* RecordingCoordinator.swift */,
+				7045FBA50E3408E11AE8B9CD /* SampleBufferAudioWriter.swift */,
+				E6D8F579E773C2BE882F3252 /* SystemAudioCaptureSource.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		A06F94E2A78CE3C0869509F2 /* Calendar */ = {
+			isa = PBXGroup;
+			children = (
+				5DA5AD7F741BEF49053949BB /* CalendarMeetingProvider.swift */,
+				2BBC95FAA7DD7D1604037DEB /* MeetingMonitor.swift */,
+				8F5DAA20EFD5D35A32AAF959 /* MeetingURLMatcher.swift */,
+			);
+			path = Calendar;
+			sourceTree = "<group>";
+		};
+		A7C1DD691DB3AF71754AD03A /* Notch */ = {
+			isa = PBXGroup;
+			children = (
+				BB190D962EB39C1A28C42B25 /* NotchPanelView.swift */,
+			);
+			path = Notch;
+			sourceTree = "<group>";
+		};
+		D0A589C24B1FDC6608145914 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				1528D42EFA5CD2E6C57C0B73 /* AppDelegate.swift */,
+				DDCB0E2DB2414C3311B00570 /* AppState.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		E34178B2E2624D4E314B09D4 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				1B35D53199DC1C17A774305A /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		ED3954D87BC1B5CDA3388167 = {
+			isa = PBXGroup;
+			children = (
+				04315D07DF93E5B4956709FE /* MeetingNotch */,
+				4DE04A9D417B2C43D42D8951 /* MeetingNotchTests */,
+				5253C4F90F37BB69A482D12B /* Products */,
+			);
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		DB55B3BA3006405600E8CE2F /* MeetingNotch */ = {
+		C03F5E4F7F432B8AF451F912 /* MeetingNotch */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DB55B3C63006405700E8CE2F /* Build configuration list for PBXNativeTarget "MeetingNotch" */;
+			buildConfigurationList = C9C9B47B223692F88EA32343 /* Build configuration list for PBXNativeTarget "MeetingNotch" */;
 			buildPhases = (
-				DB55B3B73006405600E8CE2F /* Sources */,
-				DB55B3B83006405600E8CE2F /* Frameworks */,
-				DB55B3B93006405600E8CE2F /* Resources */,
+				B0ACD43CC92A008F296293E4 /* Sources */,
+				C864FBED79A44915C0399D97 /* Resources */,
+				F2D5F6D8463CF951880DA7DF /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				DB55B3BD3006405600E8CE2F /* MeetingNotch */,
-			);
 			name = MeetingNotch;
 			packageProductDependencies = (
+				3B677DA71FF4DB9DB35EF13E /* DynamicNotchKit */,
 			);
 			productName = MeetingNotch;
-			productReference = DB55B3BB3006405600E8CE2F /* MeetingNotch.app */;
+			productReference = C12209C1A47CB2156934C878 /* MeetingNotch.app */;
 			productType = "com.apple.product-type.application";
+		};
+		C6ACBD655918B949E2B26C3A /* MeetingNotchTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8350896830BD704B586C001F /* Build configuration list for PBXNativeTarget "MeetingNotchTests" */;
+			buildPhases = (
+				1CB6907F9E9BAA4B8528A1B4 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3AEA5804FCED52BD607082D5 /* PBXTargetDependency */,
+			);
+			name = MeetingNotchTests;
+			packageProductDependencies = (
+			);
+			productName = MeetingNotchTests;
+			productReference = FCCCD8A04CF6314894A79EA2 /* MeetingNotchTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		DB55B3B33006405600E8CE2F /* Project object */ = {
+		7BE6DBCA1B00E9E3A546A91D /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2660;
-				LastUpgradeCheck = 2660;
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
 				TargetAttributes = {
-					DB55B3BA3006405600E8CE2F = {
-						CreatedOnToolsVersion = 26.6;
+					C03F5E4F7F432B8AF451F912 = {
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
-			buildConfigurationList = DB55B3B63006405600E8CE2F /* Build configuration list for PBXProject "MeetingNotch" */;
+			buildConfigurationList = 71026B42A49BCA1BE639A426 /* Build configuration list for PBXProject "MeetingNotch" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				en,
 				Base,
+				en,
 			);
-			mainGroup = DB55B3B23006405600E8CE2F;
+			mainGroup = ED3954D87BC1B5CDA3388167;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2AFC67D077973E23E35D8F8D /* XCRemoteSwiftPackageReference "DynamicNotchKit" */,
+			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = DB55B3BC3006405600E8CE2F /* Products */;
+			productRefGroup = 5253C4F90F37BB69A482D12B /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				DB55B3BA3006405600E8CE2F /* MeetingNotch */,
+				C03F5E4F7F432B8AF451F912 /* MeetingNotch */,
+				C6ACBD655918B949E2B26C3A /* MeetingNotchTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		DB55B3B93006405600E8CE2F /* Resources */ = {
+		C864FBED79A44915C0399D97 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3216D93D73143D429B480F21 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		DB55B3B73006405600E8CE2F /* Sources */ = {
+		1CB6907F9E9BAA4B8528A1B4 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EF6B8ABBBF6F08EEE9E2158B /* AppFailureTests.swift in Sources */,
+				6A95E1FF7EADF92D9E21A3C0 /* AppStateTests.swift in Sources */,
+				52D875DDBCBD1C69C4CC39D3 /* AudioTrackMixerTests.swift in Sources */,
+				68E701B5422E25DA0015D14F /* DomainModelTests.swift in Sources */,
+				77D6F7BC6D66FF5F53C3CF17 /* MeetingFlowMachineTests.swift in Sources */,
+				98E6555D2331CE37E9F8E75B /* MeetingReminderTests.swift in Sources */,
+				28FD40C851DFBDD1553CBD52 /* MeetingURLMatcherTests.swift in Sources */,
+				D1F96725966DBED469817F2D /* RecordingCoordinatorTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B0ACD43CC92A008F296293E4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F41B98AC2027728236D83DB4 /* AppDelegate.swift in Sources */,
+				4F077BDFD1B665ADD0B1E01D /* AppFailure.swift in Sources */,
+				75A6E6C68EBAABFEE35B31A6 /* AppLogger.swift in Sources */,
+				48DA54EF97940813DC165197 /* AppPreferences.swift in Sources */,
+				3C240AF3B3F56BD6A5C44C51 /* AppState.swift in Sources */,
+				68D2588D5B07F30DD9E8FA47 /* AudioCapture.swift in Sources */,
+				776F60A4496A58A294F32E88 /* AudioCaptureSource.swift in Sources */,
+				2814DCCAE803794F6FB0D0EE /* AudioLevelMeter.swift in Sources */,
+				507D521165B2B8EFD7CEDFCE /* AudioTrackMixer.swift in Sources */,
+				080E6C633BBBD1D8D0FA645D /* CalendarMeetingProvider.swift in Sources */,
+				FE9B2FDEE696FBA48D87D793 /* Meeting.swift in Sources */,
+				4FB59286E4C5ABC9A5927F38 /* MeetingFlowState.swift in Sources */,
+				3F3454549456BFC9B03E693A /* MeetingMonitor.swift in Sources */,
+				25D9829D839710EAD5B83926 /* MeetingNotchApp.swift in Sources */,
+				EF43BF587AF615C50CBA5432 /* MeetingReminder.swift in Sources */,
+				2D40EB2C9F697E50E7006AF7 /* MeetingURLMatcher.swift in Sources */,
+				F3D1020BF4E36C0D05EACD9A /* MicrophoneCaptureSource.swift in Sources */,
+				C49263BF171AB6209EC9E57D /* NotchPanelView.swift in Sources */,
+				90B1B70805C20EB0C146F434 /* RecordingCoordinator.swift in Sources */,
+				DA91105F561399130D5A6DA7 /* RecordingSession.swift in Sources */,
+				D23BF58E1A46445F28C60D81 /* SampleBufferAudioWriter.swift in Sources */,
+				B5B947385A08C2CC49449734 /* SettingsView.swift in Sources */,
+				DD665B2F56210476E6D138CF /* SystemAudioCaptureSource.swift in Sources */,
+				2272B1033BE8D7D7FD687B35 /* TaskItem.swift in Sources */,
+				D0F58A1CF87F1F6A3DA427AB /* Transcript.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		3AEA5804FCED52BD607082D5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C03F5E4F7F432B8AF451F912 /* MeetingNotch */;
+			targetProxy = 4ECB954C93607A9DF24890FA /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
-		DB55B3C43006405700E8CE2F /* Debug */ = {
+		39FE5DFDB136600FD81FC397 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = MeetingNotch/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = gad.MeetingNotch;
+				PRODUCT_NAME = MeetingNotch;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		666096320E8C3CF0D7B96344 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -160,17 +457,15 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 37G38FM2D2;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
 					"$(inherited)",
+					"DEBUG=1",
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -178,25 +473,45 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
-		DB55B3C53006405700E8CE2F /* Release */ = {
+		9F286429A56400C96D4CC55C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				PRODUCT_BUNDLE_IDENTIFIER = gad.MeetingNotchTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MeetingNotch.app/Contents/MacOS/MeetingNotch";
+			};
+			name = Debug;
+		};
+		B2359AC384C207AD73364483 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -224,11 +539,9 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 37G38FM2D2;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -236,16 +549,18 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 26.5;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
-		DB55B3C73006405700E8CE2F /* Debug */ = {
+		C1892947884AE0020A128A74 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -253,84 +568,90 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 37G38FM2D2;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_FILE = MeetingNotch/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = gad.MeetingNotch;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				PRODUCT_NAME = MeetingNotch;
+				SDKROOT = macosx;
 			};
-			name = Debug;
+			name = Release;
 		};
-		DB55B3C83006405700E8CE2F /* Release */ = {
+		DC75B04A37D02C33D6BA97CB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 37G38FM2D2;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
+				ENABLE_APP_SANDBOX = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = gad.MeetingNotch;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.4;
+				PRODUCT_BUNDLE_IDENTIFIER = gad.MeetingNotchTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MeetingNotch.app/Contents/MacOS/MeetingNotch";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		DB55B3B63006405600E8CE2F /* Build configuration list for PBXProject "MeetingNotch" */ = {
+		71026B42A49BCA1BE639A426 /* Build configuration list for PBXProject "MeetingNotch" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				DB55B3C43006405700E8CE2F /* Debug */,
-				DB55B3C53006405700E8CE2F /* Release */,
+				666096320E8C3CF0D7B96344 /* Debug */,
+				B2359AC384C207AD73364483 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
 		};
-		DB55B3C63006405700E8CE2F /* Build configuration list for PBXNativeTarget "MeetingNotch" */ = {
+		8350896830BD704B586C001F /* Build configuration list for PBXNativeTarget "MeetingNotchTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				DB55B3C73006405700E8CE2F /* Debug */,
-				DB55B3C83006405700E8CE2F /* Release */,
+				9F286429A56400C96D4CC55C /* Debug */,
+				DC75B04A37D02C33D6BA97CB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
+			defaultConfigurationName = Debug;
+		};
+		C9C9B47B223692F88EA32343 /* Build configuration list for PBXNativeTarget "MeetingNotch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				39FE5DFDB136600FD81FC397 /* Debug */,
+				C1892947884AE0020A128A74 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2AFC67D077973E23E35D8F8D /* XCRemoteSwiftPackageReference "DynamicNotchKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/MrKai77/DynamicNotchKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		3B677DA71FF4DB9DB35EF13E /* DynamicNotchKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2AFC67D077973E23E35D8F8D /* XCRemoteSwiftPackageReference "DynamicNotchKit" */;
+			productName = DynamicNotchKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
-	rootObject = DB55B3B33006405600E8CE2F /* Project object */;
+	rootObject = 7BE6DBCA1B00E9E3A546A91D /* Project object */;
 }

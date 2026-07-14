@@ -1,0 +1,20 @@
+import XCTest
+@testable import MeetingNotch
+
+final class AppFailureTests: XCTestCase {
+    func testNetworkFailureIsRetryable() {
+        let failure = AppFailure.network("Bağlantı yok.")
+
+        XCTAssertEqual(failure.category, .network)
+        XCTAssertTrue(failure.isRetryable)
+        XCTAssertEqual(failure.recoveryButtonTitle, "Bağlantıyı Kontrol Et")
+    }
+
+    func testInvalidCredentialsRequireSettingsUpdate() {
+        let failure = AppFailure.provider("API anahtarı geçersiz.", credentialsInvalid: true)
+
+        XCTAssertEqual(failure.category, .provider)
+        XCTAssertFalse(failure.isRetryable)
+        XCTAssertEqual(failure.recoveryAction, .updateCredentials)
+    }
+}

@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct MeetingNotchApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        Settings {
+            SettingsView()
         }
     }
 }

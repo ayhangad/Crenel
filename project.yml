@@ -1,0 +1,95 @@
+name: MeetingNotch
+
+options:
+  minimumXcodeGenVersion: 2.45.4
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+configs:
+  Debug: debug
+  Release: release
+
+packages:
+  DynamicNotchKit:
+    url: https://github.com/MrKai77/DynamicNotchKit
+    from: 1.1.0
+
+settings:
+  base:
+    MACOSX_DEPLOYMENT_TARGET: 14.4
+    SWIFT_VERSION: 5.0
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+      SWIFT_OPTIMIZATION_LEVEL: -Onone
+    Release:
+      SWIFT_COMPILATION_MODE: wholemodule
+      SWIFT_OPTIMIZATION_LEVEL: -O
+
+targets:
+  MeetingNotch:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.4"
+    sources:
+      - path: MeetingNotch
+        excludes:
+          - Info.plist
+    info:
+      path: MeetingNotch/Info.plist
+      properties:
+        CFBundleDisplayName: MeetingNotch
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSUIElement: true
+        NSMicrophoneUsageDescription: MeetingNotch toplantılarda sesinizi kaydetmek için mikrofon erişimi kullanır.
+        NSAudioCaptureUsageDescription: MeetingNotch toplantının sistem sesini kaydetmek için ses yakalama erişimi kullanır.
+        NSCalendarsUsageDescription: MeetingNotch yaklaşan çevrim içi toplantıları göstermek için takvim erişimi kullanır.
+        NSCalendarsFullAccessUsageDescription: MeetingNotch yaklaşan çevrim içi toplantıları göstermek için takvim erişimi kullanır.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: gad.MeetingNotch
+        PRODUCT_NAME: MeetingNotch
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - package: DynamicNotchKit
+
+  MeetingNotchTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.4"
+    sources:
+      - path: MeetingNotchTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: gad.MeetingNotchTests
+        GENERATE_INFOPLIST_FILE: YES
+        ENABLE_APP_SANDBOX: NO
+    dependencies:
+      - target: MeetingNotch
+
+schemes:
+  MeetingNotch:
+    build:
+      targets:
+        MeetingNotch: all
+        MeetingNotchTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - MeetingNotchTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
