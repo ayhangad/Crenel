@@ -153,7 +153,7 @@ private final class MockAudioTrackMixer: AudioTrackMixing, @unchecked Sendable {
 
 private final class FailingAudioTrackMixer: AudioTrackMixing, @unchecked Sendable {
     func mix(tracks: [CapturedAudioTrack], outputURL: URL) async throws -> URL {
-        throw AudioMixError.renderFailed("test")
+        throw AudioMixError.renderFailed
     }
 }
 

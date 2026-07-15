@@ -80,6 +80,7 @@ final class AudioCapturePermissionService {
 
     private func systemAudioPermissionStatus() -> AudioCapturePermissionStatus {
         if dependencies.hasSystemAudioAccess() {
+            defaults.set(true, forKey: Key.requestedSystemAudioAccess)
             return .authorized
         }
         return defaults.bool(forKey: Key.requestedSystemAudioAccess) ? .denied : .notDetermined

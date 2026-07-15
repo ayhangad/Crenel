@@ -31,7 +31,11 @@ struct MeetingReminderSnapshot: Equatable, Sendable {
         return "\(source)|\(nextMeeting.startDate.timeIntervalSince1970)|\(level.rawValue)"
     }
 
-    static func evaluate(meetings: [Meeting], now: Date) -> MeetingReminderSnapshot {
+    static func evaluate(
+        meetings: [Meeting],
+        now: Date,
+        reminderLeadTime: TimeInterval = 10 * 60
+    ) -> MeetingReminderSnapshot {
         let relevant = meetings
             .filter { $0.endDate > now }
             .sorted { lhs, rhs in
@@ -52,7 +56,7 @@ struct MeetingReminderSnapshot: Equatable, Sendable {
             level = .started
         } else if seconds <= 60 {
             level = .oneMinute
-        } else if seconds <= 10 * 60 {
+        } else if seconds <= max(60, reminderLeadTime) {
             level = .tenMinutes
         } else {
             level = .none

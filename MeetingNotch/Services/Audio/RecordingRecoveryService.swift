@@ -44,7 +44,7 @@ actor RecordingRecoveryService {
         } catch {
             AppLogger.persistenceFailed(
                 operation: "prepare-recording-recovery",
-                message: error.localizedDescription
+                error: error
             )
             return .empty
         }
@@ -59,7 +59,7 @@ actor RecordingRecoveryService {
         } catch {
             AppLogger.persistenceFailed(
                 operation: "scan-recording-recovery",
-                message: error.localizedDescription
+                error: error
             )
             return .empty
         }
@@ -81,7 +81,7 @@ actor RecordingRecoveryService {
                 preserveForManualRecovery(directory)
                 AppLogger.persistenceFailed(
                     operation: "recover-interrupted-recording",
-                    message: error.localizedDescription
+                    error: error
                 )
             }
         }
@@ -182,7 +182,7 @@ actor RecordingRecoveryService {
         } catch {
             AppLogger.persistenceFailed(
                 operation: "preserve-interrupted-recording",
-                message: error.localizedDescription
+                error: error
             )
         }
     }

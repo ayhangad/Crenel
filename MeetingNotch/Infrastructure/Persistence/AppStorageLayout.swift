@@ -6,6 +6,7 @@ struct AppStorageLayout: Sendable {
     let tasks: URL
     let temporary: URL
     let recovery: URL
+    let processingQueue: URL
 
     init(root: URL) {
         self.root = root
@@ -13,6 +14,7 @@ struct AppStorageLayout: Sendable {
         tasks = root.appending(path: "Tasks", directoryHint: .isDirectory)
         temporary = root.appending(path: "Temporary", directoryHint: .isDirectory)
         recovery = root.appending(path: "Recovery", directoryHint: .isDirectory)
+        processingQueue = root.appending(path: "ProcessingQueue", directoryHint: .isDirectory)
     }
 
     static func applicationSupport(
@@ -35,7 +37,7 @@ struct AppStorageLayout: Sendable {
     }
 
     func createDirectories(fileManager: FileManager = .default) throws {
-        for directory in [root, meetings, tasks, temporary, recovery] {
+        for directory in [root, meetings, tasks, temporary, recovery, processingQueue] {
             try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
         }
     }

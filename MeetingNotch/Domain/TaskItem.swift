@@ -1,6 +1,8 @@
 import Foundation
 
 struct TaskItem: Identifiable, Codable, Equatable, Sendable {
+    static let maximumTitleLength = 500
+
     let id: UUID
     var title: String
     let createdAt: Date
@@ -20,5 +22,11 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
 
     var isArchived: Bool {
         completedAt != nil
+    }
+
+    static func normalizedTitle(_ title: String) -> String? {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return String(trimmed.prefix(maximumTitleLength))
     }
 }

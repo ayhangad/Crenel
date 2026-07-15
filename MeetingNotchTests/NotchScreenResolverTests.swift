@@ -72,4 +72,67 @@ final class NotchScreenResolverTests: XCTestCase {
             notchlessMain
         )
     }
+
+    func testStartupPolicySupportsCommonNotchedMacBookGeometries() {
+        let commonMacBookScreens = [
+            NotchScreenDescriptor(
+                id: 13,
+                frame: CGRect(x: 0, y: 0, width: 1_470, height: 956),
+                hasNotch: true,
+                isMain: true
+            ),
+            NotchScreenDescriptor(
+                id: 14,
+                frame: CGRect(x: 0, y: 0, width: 1_512, height: 982),
+                hasNotch: true,
+                isMain: true
+            ),
+            NotchScreenDescriptor(
+                id: 15,
+                frame: CGRect(x: 0, y: 0, width: 1_710, height: 1_107),
+                hasNotch: true,
+                isMain: true
+            ),
+            NotchScreenDescriptor(
+                id: 16,
+                frame: CGRect(x: 0, y: 0, width: 1_728, height: 1_117),
+                hasNotch: true,
+                isMain: true
+            ),
+        ]
+
+        for screen in commonMacBookScreens {
+            XCTAssertEqual(
+                NotchScreenSelectionPolicy.startupScreen(from: [external, screen]),
+                screen,
+                "Notched MacBook geometry \(screen.frame.size) should be selected"
+            )
+        }
+    }
+
+    func testPresentationSupportsExternalDisplayWithNegativeOrigin() {
+        let leftExternal = NotchScreenDescriptor(
+            id: 3,
+            frame: CGRect(x: -1_920, y: -98, width: 1_920, height: 1_080),
+            hasNotch: false,
+            isMain: false
+        )
+
+        let result = NotchScreenSelectionPolicy.presentationScreen(
+            from: [builtIn, leftExternal],
+            pointerLocation: CGPoint(x: -960, y: 400)
+        )
+
+        XCTAssertEqual(result, leftExternal)
+    }
+
+    func testEmptyScreenListDoesNotProduceAnInvalidSelection() {
+        XCTAssertNil(NotchScreenSelectionPolicy.startupScreen(from: []))
+        XCTAssertNil(
+            NotchScreenSelectionPolicy.presentationScreen(
+                from: [],
+                pointerLocation: .zero
+            )
+        )
+    }
 }

@@ -64,23 +64,49 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 
 ### 0.2 V1 ürün kararları
 
-- [ ] Birincil kullanıcı akışını yazmak: ilk açılış → izinler → toplantı → kayıt → sonuç.
+V1 için birincil akış şöyledir: kullanıcı ilk açılışta ürünün kayıt ve bulut işleme
+sınırlarını görür; mikrofon ve sistem sesi izinlerini bağlam içinde, isteğe bağlı takvim
+iznini bunların ardından verir. Panelden yaklaşan toplantıyı açar veya her zaman erişilebilir
+manuel kaydı başlatır, görünür kayıt göstergesi üzerinden kaydı durdurur ve yerel ses
+güvenceye alındıktan sonra arka plandaki transkripsiyon sonucuna geçmişten ulaşır. İzin ya
+da ağ hatası bu akışı kilitlemez; kullanıcı ayarı düzeltebilir veya kaybolmayan kayıt için
+tekrar deneyebilir.
+
+Tamamlanan işlem notch üzerinde 8 saniye gösterilir; kullanıcı etkileşimi yoksa panel
+kompakt duruma döner. Geçmiş kaydı kararlı kimlik, başlık, başlangıç/bitiş ve süre, kaynak
+takvim kimliği ve toplantı URL'si, işlem/provider durumu ve normalize hata kodu, birleşik
+M4A dosya adı, konuşmacı-zaman damgalı transkript, genel özet, kararlar ve aksiyon
+maddeleriyle saklanır. Şema sürümü bütün kalıcı belgelerde bulunur.
+
+V1 arayüz dili Türkçedir. Transkript dili otomatik algılama, Türkçe veya İngilizce olarak
+seçilebilir; arayüz lokalizasyonu ile transkript dili birbirinden bağımsızdır. Özet; kısa
+genel özet, açıkça ifade edilen kararlar ve varsa sorumlu/tarih bilgili aksiyon maddelerinden
+oluşur, belirsiz bilgi uydurulmaz.
+
+Birleşik M4A kayıt toplantı verisinin parçasıdır ve varsayılan olarak süresiz saklanır;
+kullanıcı tüm toplantı verileri için 7, 30 veya 90 günlük otomatik silme seçebilir. Ayrı
+mikrofon/sistem ham parçaları başarılı işlemeden sonra silinir, hata veya kurtarma halinde
+yeniden işleme için korunur. V1, sandbox gerektirmeyen ses yakalama yolundan ötürü Developer
+ID ile imzalanıp notarize edilen doğrudan dağıtımı hedefler; Mac App Store bu sürümün dağıtım
+kanalı değildir.
+
+- [x] Birincil kullanıcı akışını yazmak: ilk açılış → izinler → toplantı → kayıt → sonuç.
 - [x] Meeting kaydını ürünün ana modülü, görevleri ikincil araç olarak konumlandırmak.
 - [x] Manuel kayıt başlatmanın her durumda erişilebilir olacağını kesinleştirmek.
 - [x] Takvimden otomatik kayıt yerine 10 dakika ve 1 dakika kala notch hatırlatmaları
   kullanılacağını kararlaştırmak.
 - [x] Kayıt sırasında minimum notch üzerinde kayıt göstergesi ve canlı süre gösterileceğini
   kesinleştirmek.
-- [ ] Tamamlanan toplantının kullanıcıya ne kadar süre gösterileceğini belirlemek.
-- [ ] Geçmiş toplantılarda saklanacak alanları belirlemek.
-- [ ] Kısa özetin kapsamını belirlemek: genel özet, kararlar ve aksiyon maddeleri.
-- [ ] V1'in destekleyeceği dilleri belirlemek; arayüz ve transkript dili kararlarını ayırmak.
-- [ ] Ham sesin varsayılan saklama ve otomatik silme politikasını belirlemek.
-- [ ] Ana dağıtım kanalını kesinleştirmek: doğrudan dağıtım veya Mac App Store.
+- [x] Tamamlanan toplantının kullanıcıya ne kadar süre gösterileceğini belirlemek.
+- [x] Geçmiş toplantılarda saklanacak alanları belirlemek.
+- [x] Kısa özetin kapsamını belirlemek: genel özet, kararlar ve aksiyon maddeleri.
+- [x] V1'in destekleyeceği dilleri belirlemek; arayüz ve transkript dili kararlarını ayırmak.
+- [x] Ham sesin varsayılan saklama ve otomatik silme politikasını belirlemek.
+- [x] Ana dağıtım kanalını kesinleştirmek: doğrudan dağıtım veya Mac App Store.
 
 ### 0.3 Teknik risk prototipleri
 
-- [ ] Notch penceresinin farklı Mac modellerinde açılma/kapanma prototipini yapmak.
+- [x] Notch penceresinin farklı Mac modellerinde açılma/kapanma prototipini yapmak.
 - [ ] Notch bulunmayan cihaz için floating panel davranışını doğrulamak.
 - [ ] Mikrofon kaydını bağımsız bir teknik prototiple doğrulamak.
 - [ ] Sistem sesi kaydını bağımsız bir teknik prototiple doğrulamak.
@@ -108,7 +134,7 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 - [x] Menü çubuğu ikonunu ve temel menüyü eklemek.
 - [x] Menüye `MeetingNotch'u Aç`, `Kaydı Başlat`, `Ayarlar` ve `Çıkış` aksiyonlarını eklemek.
 - [x] Kayıt devam ederken çıkış davranışını güvenli şekilde ele almak.
-- [ ] Uygulamanın login sırasında otomatik açılma seçeneği için altyapı hazırlamak.
+- [x] Uygulamanın login sırasında otomatik açılma seçeneği için altyapı hazırlamak.
 - [x] Tek uygulama instance'ı ve temel app coordinator yapısını oluşturmak.
 
 ### 1.2 Katmanlar ve modeller
@@ -120,7 +146,7 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 - [x] Provider ayarları ve uygulama tercihleri modellerini oluşturmak.
 - [x] UI, domain servisleri ve dosya erişimi sorumluluklarını ayırmak.
 - [x] Ana uygulama state'ini tek bir gözlemlenebilir store/coordinator altında toplamak.
-- [ ] Uzun süren işleri Swift concurrency ile iptal edilebilir şekilde modellemek.
+- [x] Uzun süren işleri Swift concurrency ile iptal edilebilir şekilde modellemek.
 
 ### 1.3 Durum makinesi
 
@@ -194,14 +220,14 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 
 ### 3.1 İlk açılış deneyimi
 
-- [ ] Kısa ürün tanıtım ekranını hazırlamak.
-- [ ] Mikrofon izninin neden gerektiğini açıklamak.
-- [ ] Sistem sesi yakalama izninin neden gerektiğini açıklamak.
-- [ ] Takvim izninin isteğe bağlı faydasını açıklamak.
-- [ ] Bulut transkripsiyonunda sesin üçüncü taraf servise yükleneceğini açıklamak.
-- [ ] İzinleri bağlam içinde ve sırayla istemek.
+- [x] Kısa ürün tanıtım ekranını hazırlamak.
+- [x] Mikrofon izninin neden gerektiğini açıklamak.
+- [x] Sistem sesi yakalama izninin neden gerektiğini açıklamak.
+- [x] Takvim izninin isteğe bağlı faydasını açıklamak.
+- [x] Bulut transkripsiyonunda sesin üçüncü taraf servise yükleneceğini açıklamak.
+- [x] İzinleri bağlam içinde ve sırayla istemek.
 - [x] Kullanıcı takvim iznini reddetse bile manuel kayıtla devam edebilmek.
-- [ ] Onboarding tamamlandı durumunu saklamak.
+- [x] Onboarding tamamlandı durumunu saklamak.
 
 ### 3.2 İzin yönetimi
 
@@ -209,24 +235,24 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 - [x] Sistem sesi yakalama yetki durumunu yönetmek.
 - [x] Takvim full-access yetki durumunu yönetmek.
 - [x] Gerekli Info.plist açıklamalarını eklemek.
-- [ ] Gerekli entitlement'ları dağıtım stratejisine göre eklemek.
+- [x] Gerekli entitlement'ları dağıtım stratejisine göre eklemek.
 - [x] Reddedilen veya sonradan kaldırılan izin için Sistem Ayarları bağlantısı sunmak.
 - [x] Kayıt öncesi gerekli izinleri tekrar doğrulamak.
 
 ### 3.3 Ayarlar ekranı
 
-- [ ] Genel ayarlar bölümünü oluşturmak.
+- [x] Genel ayarlar bölümünü oluşturmak.
 - [ ] Seçili mikrofon ayarını eklemek.
-- [ ] Transkripsiyon provider seçimini eklemek.
-- [ ] Provider API anahtarı girişini ve doğrulamasını eklemek.
-- [ ] Transkript dili otomatik algılama/sabit dil seçimini eklemek.
-- [ ] Toplantı öncesi hatırlatma süresi ayarını eklemek.
-- [ ] Takvim entegrasyonunu açma/kapatma seçeneğini eklemek.
-- [ ] Otomatik açılış seçeneğini eklemek.
-- [ ] Kayıt ve transkript saklama seçeneklerini eklemek.
-- [ ] Veri klasörünü Finder'da açma aksiyonu eklemek.
-- [ ] Tüm verileri silme aksiyonunu onay diyaloğuyla eklemek.
-- [ ] Onboarding'i yeniden gösterme aksiyonu eklemek.
+- [x] Transkripsiyon provider seçimini eklemek.
+- [x] Provider API anahtarı girişini ve doğrulamasını eklemek.
+- [x] Transkript dili otomatik algılama/sabit dil seçimini eklemek.
+- [x] Toplantı öncesi hatırlatma süresi ayarını eklemek.
+- [x] Takvim entegrasyonunu açma/kapatma seçeneğini eklemek.
+- [x] Otomatik açılış seçeneğini eklemek.
+- [x] Kayıt ve transkript saklama seçeneklerini eklemek.
+- [x] Veri klasörünü Finder'da açma aksiyonu eklemek.
+- [x] Tüm verileri silme aksiyonunu onay diyaloğuyla eklemek.
+- [x] Onboarding'i yeniden gösterme aksiyonu eklemek.
 
 ### Faz 3 çıkış kriterleri
 
@@ -265,7 +291,7 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 - [x] Kullanıcının tek bir toplantıyı tüm bağlı dosyalarıyla silebilmesini sağlamak.
 - [x] Otomatik saklama süresi seçilmişse periyodik temizleme uygulamak.
 - [x] Uygulama çökmesi sonrası kurtarılabilir dosyaları tespit etmek.
-- [ ] Hassas içeriklerin hata ve analytics kayıtlarına girmediğini doğrulamak.
+- [x] Hassas içeriklerin hata ve analytics kayıtlarına girmediğini doğrulamak.
 
 ### Faz 4 çıkış kriterleri
 
@@ -277,35 +303,35 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 
 ### 5.1 Aktif görevler
 
-- [ ] Yeni görev ekleme alanını oluşturmak.
-- [ ] Boş veya yalnızca whitespace içeren görevleri engellemek.
-- [ ] Her göreve kararlı benzersiz kimlik vermek.
-- [ ] Aktif görevleri belleğe yüklemek ve UI'da göstermek.
-- [ ] Görevi tamamlandı olarak işaretlemeyi uygulamak.
-- [ ] Görevi düzenlemeyi uygulamak.
-- [ ] Görevi silmeyi onay veya geri alma davranışıyla uygulamak.
-- [ ] Görev sırasını değiştirme ihtiyacını ürün kararına göre uygulamak.
-- [ ] Aktif görev sayısını kompakt notch rozetine bağlamak.
+- [x] Yeni görev ekleme alanını oluşturmak.
+- [x] Boş veya yalnızca whitespace içeren görevleri engellemek.
+- [x] Her göreve kararlı benzersiz kimlik vermek.
+- [x] Aktif görevleri belleğe yüklemek ve UI'da göstermek.
+- [x] Görevi tamamlandı olarak işaretlemeyi uygulamak.
+- [x] Görevi düzenlemeyi uygulamak.
+- [x] Görevi silmeyi onay veya geri alma davranışıyla uygulamak.
+- [x] Görev sırasını değiştirme ihtiyacını ürün kararına göre uygulamak.
+- [x] Aktif görev sayısını kompakt notch rozetine bağlamak.
 
 ### 5.2 Arşiv
 
-- [ ] Tamamlanan görevi completion timestamp ile arşivlemek.
-- [ ] Arşiv listesini göstermek.
-- [ ] Arşivlenmiş görevi tekrar aktife almayı uygulamak.
-- [ ] Tek görevi veya tüm arşivi silmeyi uygulamak.
-- [ ] Aktif dosya ile arşiv dosyası arasındaki taşıma işlemini atomik hale getirmek.
+- [x] Tamamlanan görevi completion timestamp ile arşivlemek.
+- [x] Arşiv listesini göstermek.
+- [x] Arşivlenmiş görevi tekrar aktife almayı uygulamak.
+- [x] Tek görevi veya tüm arşivi silmeyi uygulamak.
+- [x] Aktif dosya ile arşiv dosyası arasındaki taşıma işlemini atomik hale getirmek.
 
 ### 5.3 Görev testleri
 
-- [ ] Aynı metne sahip birden fazla görevi test etmek.
-- [ ] Özel karakter, emoji ve çok uzun görev metinlerini test etmek.
-- [ ] Hızlı art arda ekleme/tamamlama işlemlerini test etmek.
-- [ ] Bozuk görev dosyası kurtarma davranışını test etmek.
+- [x] Aynı metne sahip birden fazla görevi test etmek.
+- [x] Özel karakter, emoji ve çok uzun görev metinlerini test etmek.
+- [x] Hızlı art arda ekleme/tamamlama işlemlerini test etmek.
+- [x] Bozuk görev dosyası kurtarma davranışını test etmek.
 
 ### Faz 5 çıkış kriterleri
 
-- [ ] Kullanıcı notch panelinden görev yaşam döngüsünü yönetebiliyor.
-- [ ] Görev sayısı her durumda doğru.
+- [x] Kullanıcı notch panelinden görev yaşam döngüsünü yönetebiliyor.
+- [x] Görev sayısı her durumda doğru.
 - [ ] Dosya hatasında görevler sessizce kaybolmuyor.
 
 ## Faz 6 — Takvim ve toplantı algılama
@@ -411,24 +437,24 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 
 ### 8.1 Ortak provider sözleşmesi
 
-- [ ] Provider bağımsız transcription protokolünü tanımlamak.
-- [ ] Normalize edilmiş transcript ve segment sonuçlarını kullanmak.
-- [ ] Provider capability modelini tanımlamak.
-- [ ] Dosya boyutu/format uygunluk kontrolünü ortak katmana eklemek.
-- [ ] Upload progress bildirimini state machine'e bağlamak.
-- [ ] Timeout, iptal, authentication ve rate-limit hatalarını normalize etmek.
-- [ ] Retry politikasını idempotent ve sınırlı yapmak.
+- [x] Provider bağımsız transcription protokolünü tanımlamak.
+- [x] Normalize edilmiş transcript ve segment sonuçlarını kullanmak.
+- [x] Provider capability modelini tanımlamak.
+- [x] Dosya boyutu/format uygunluk kontrolünü ortak katmana eklemek.
+- [x] Upload progress bildirimini state machine'e bağlamak.
+- [x] Timeout, iptal, authentication ve rate-limit hatalarını normalize etmek.
+- [x] Retry politikasını idempotent ve sınırlı yapmak.
 
 ### 8.2 Birincil provider
 
-- [ ] Birincil provider client'ını uygulamak.
-- [ ] API anahtarını Keychain'den kullanmak.
-- [ ] Dosya upload isteğini ve progress takibini uygulamak.
-- [ ] Diarization seçeneğini etkinleştirmek.
-- [ ] Türkçe ve otomatik dil algılamayı doğrulamak.
-- [ ] Provider yanıtını ortak transcript modeline dönüştürmek.
-- [ ] Provider hatalarını kullanıcı dostu hale getirmek.
-- [ ] Fixture/mock yanıtlarla birim testleri yazmak.
+- [x] Birincil provider client'ını uygulamak.
+- [x] API anahtarını Keychain'den kullanmak.
+- [x] Dosya upload isteğini ve progress takibini uygulamak.
+- [x] Diarization seçeneğini etkinleştirmek.
+- [x] Türkçe ve otomatik dil algılamayı doğrulamak.
+- [x] Provider yanıtını ortak transcript modeline dönüştürmek.
+- [x] Provider hatalarını kullanıcı dostu hale getirmek.
+- [x] Fixture/mock yanıtlarla birim testleri yazmak.
 
 ### 8.3 Alternatif provider
 
@@ -453,12 +479,14 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 
 ### 8.5 İşleme kuyruğu ve kurtarma
 
-- [ ] Finalize edilmiş kayıtları kalıcı işleme kuyruğuna eklemek.
-- [ ] Uygulama yeniden açıldığında yarım kalan işlemleri göstermek.
-- [ ] Başarısız upload/transkripsiyon için `Tekrar Dene` aksiyonu sunmak.
+- [x] Finalize edilmiş kayıtları kalıcı işleme kuyruğuna eklemek.
+- [x] Uygulama yeniden açıldığında yarım kalan işlemleri göstermek.
+- [x] Başarısız upload/transkripsiyon için `Tekrar Dene` aksiyonu sunmak.
 - [ ] Provider değiştirerek tekrar işleme seçeneğini değerlendirmek.
-- [ ] Aynı kaydın yanlışlıkla paralel iki kez işlenmesini engellemek.
-- [ ] Başarılı işlemden sonra geçici parçaları temizlemek.
+- [x] Aynı kaydın yanlışlıkla paralel iki kez işlenmesini engellemek.
+- [x] Kalıcı kuyruğu seçili provider'ı çalıştıran arka plan worker'ına bağlamak.
+- [x] Normalize transkript sonucunu toplantı dizinine atomik olarak kaydetmek.
+- [x] Başarılı işlemden sonra geçici parçaları temizlemek.
 
 ### Faz 8 çıkış kriterleri
 
@@ -484,22 +512,22 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 - [ ] Özet bölümünü göstermek.
 - [ ] Kararlar bölümünü göstermek.
 - [ ] Aksiyon maddeleri bölümünü göstermek.
-- [ ] Konuşmacı ayrımlı transkripti göstermek.
+- [x] Konuşmacı ayrımlı transkripti göstermek.
 - [ ] Konuşmacı adlarını kullanıcı tarafından düzenlenebilir yapmak.
-- [ ] Segment timestamp'ine tıklayarak kayıtta ilgili noktaya gitmeyi uygulamak.
-- [ ] Ses oynatma kontrollerini eklemek.
+- [x] Segment timestamp'ine tıklayarak kayıtta ilgili noktaya gitmeyi uygulamak.
+- [x] Ses oynatma kontrollerini eklemek.
 - [ ] Uzun transkriptlerde performanslı kaydırmayı doğrulamak.
 
 ### 9.3 Dışa aktarma ve yönetim
 
 - [ ] Transkripti Markdown olarak dışa aktarmak.
-- [ ] Transkripti düz metin olarak kopyalamak.
+- [x] Transkripti düz metin olarak kopyalamak.
 - [ ] Özet ve aksiyon maddelerini kopyalamak.
-- [ ] Ses dosyasını Finder'da göstermek.
+- [x] Ses dosyasını Finder'da göstermek.
 - [ ] Toplantı dosyalarını kullanıcı seçtiği konuma export etmek.
-- [ ] Toplantıyı ve bağlı verileri silmek.
-- [ ] Silme sonrası geri alma veya güçlü onay davranışı sunmak.
-- [ ] Transkripsiyonu yeniden deneme aksiyonu eklemek.
+- [x] Toplantıyı ve bağlı verileri silmek.
+- [x] Silme sonrası geri alma veya güçlü onay davranışı sunmak.
+- [x] Transkripsiyonu yeniden deneme aksiyonu eklemek.
 
 ### 9.4 Tamamlandı deneyimi
 
@@ -518,12 +546,12 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 
 ### 10.1 Hata ve edge-case testleri
 
-- [ ] Mikrofon izni reddi ve sonradan kaldırılmasını test etmek.
-- [ ] Sistem sesi izni reddi ve sonradan kaldırılmasını test etmek.
+- [x] Mikrofon izni reddi ve sonradan kaldırılmasını test etmek.
+- [x] Sistem sesi izni reddi ve sonradan kaldırılmasını test etmek.
 - [ ] Takvim izni reddini test etmek.
 - [ ] Geçersiz API anahtarını test etmek.
 - [ ] İnternet kesintisi ve bağlantının geri gelmesini test etmek.
-- [ ] Provider 401, 429, 5xx ve timeout yanıtlarını test etmek.
+- [x] Provider 401, 429, 5xx ve timeout yanıtlarını test etmek.
 - [ ] Kayıt sırasında ses cihazı değişimini test etmek.
 - [ ] Kayıt sırasında uyku/uyanma ve ekran kilidini test etmek.
 - [ ] Disk dolması veya yazma hatasını test etmek.
@@ -555,10 +583,10 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 - [ ] State machine birim testlerini tamamlamak.
 - [ ] Repository ve migration testlerini tamamlamak.
 - [ ] Calendar matcher testlerini tamamlamak.
-- [ ] Provider response parsing testlerini tamamlamak.
+- [x] Provider response parsing testlerini tamamlamak.
 - [ ] Audio utility ve timeline hesaplama testlerini tamamlamak.
 - [ ] Kritik onboarding ve kayıt akışı için UI testleri eklemek.
-- [ ] Test fixture'larında gerçek kullanıcı veya hassas toplantı verisi kullanmamak.
+- [x] Test fixture'larında gerçek kullanıcı veya hassas toplantı verisi kullanmamak.
 
 ### Faz 10 çıkış kriterleri
 
@@ -638,6 +666,37 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
 
+- 2026-07-15 — Notch açılma/kapanma prototipi yaygın 13/14/15/16 inç MacBook ekran
+  geometrileri, negatif koordinatlı harici ekranlar, tekrarlı hover döngüleri ve iptal
+  davranışıyla genişletildi. M4 MacBook Air `Mac16,13` üzerinde fiziksel notch algısı ve
+  imzalı agent pencere yaşam döngüsü doğrulandı; toplam 137 test geçti.
+
+- 2026-07-15 — V1 birincil akışı, sonuç süresi, geçmiş alanları, özet/dil/saklama ve
+  doğrudan dağıtım kararları belgelendi. Beş adımlı izin ve bulut bilgilendirmeli onboarding,
+  kalıcı tamamlanma durumu ve yeniden gösterme akışı eklendi. Genel Ayarlar artık gerçek
+  takvim polling/hatırlatma yapılandırmasını, ServiceManagement login item'ını, 7/30/90 gün
+  saklamayı, Finder erişimini ve toplantı/görev/kuyruk/UserDefaults/Keychain'i kapsayan güçlü
+  onaylı tüm veri silmeyi yönetiyor. Toplam 132 test ve imzalı Debug build geçti.
+
+- 2026-07-15 — Debug uygulaması kararlı Apple Development kimliği ve Hardened Runtime
+  audio-input entitlement'ıyla imzalandı; sistem sesi izin dönüşü polling, açık yeniden
+  isteme ve kontrollü relaunch akışıyla sağlamlaştırıldı. Görevler sekmesi aktif/arşiv
+  yaşam döngüsüyle tamamlandı. Geçmiş toplantılar artık konuşmacı ayrımlı transkript,
+  timestamp seek, audio player, kopyalama, Finder, retry ve güçlü silme onayı içeren detay
+  penceresinde açılıyor. Toplam 128 test ve imzalı Debug build geçti.
+
+- 2026-07-15 — ElevenLabs `scribe_v2` birincil provider adaptörü; Keychain anahtarı ve
+  resmi endpoint ile doğrulanan Ayarlar akışı, multipart upload progress, diarization,
+  Türkçe/otomatik dil, speaker segment parser'ı ve normalize hata matrisiyle tamamlandı.
+  Kalıcı queue gerçek arka plan worker'ına bağlandı; sürümlü `transcript.json` atomik
+  kaydediliyor, başarıda ham parçalar ve geçici upload gövdeleri temizleniyor. Toplam 119
+  test ve Debug test build geçti.
+- 2026-07-15 — Provider bağımsız transkripsiyon sözleşmesi, capability/dosya doğrulama,
+  güvenli hata normalizasyonu, sınırlı idempotent retry ve state-machine upload progress
+  köprüsü kuruldu. Finalize kayıtları atomik kalıcı kuyruğa alan, açılışta yarım işi
+  kurtaran, paralel çift claim'i engelleyen ve hata için Tekrar Dene sunan işleme iskeleti
+  tamamlandı; ham hata/toplantı içeriği tanılama kayıtlarından çıkarıldı ve uzun işler
+  iptal edilebilir modellendi. Toplam 109 test ve Debug build geçti.
 - 2026-07-15 — Geriye uyumlu toplantı saklama politikası ve açılışta/günlük çalışan
   otomatik temizleme eklendi; varsayılan süresiz bırakıldı, kısmi silme hataları izole
   edildi. Toplam 90 test ve Debug build geçti.

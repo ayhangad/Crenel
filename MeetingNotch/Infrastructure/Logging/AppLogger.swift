@@ -1,5 +1,13 @@
 import OSLog
 
+struct PrivacySafeDiagnostic: Equatable, Sendable {
+    let errorType: String
+
+    init(error: Error) {
+        errorType = String(reflecting: type(of: error))
+    }
+}
+
 enum AppLogger {
     private static let subsystem = Bundle.main.bundleIdentifier ?? "MeetingNotch"
     private static let flow = Logger(subsystem: subsystem, category: "meeting-flow")
@@ -19,17 +27,34 @@ enum AppLogger {
         lifecycle.notice("Termination requested during \(phase.rawValue, privacy: .public)")
     }
 
-    static func audioCaptureFailed(source: String, message: String) {
-        audio.error("Audio capture failure [\(source, privacy: .public)]: \(message, privacy: .private(mask: .hash))")
+    static func permissionOperationFailed(operation: String) {
+        lifecycle.error("Permission operation [\(operation, privacy: .public)] failed")
     }
 
-    static func recordingOperationFailed(operation: String, error: Error) {
+    static func audioCaptureFailed(source: String, error: Error) {
+        let diagnostic = PrivacySafeDiagnostic(error: error)
         audio.error(
-            "Recording operation [\(operation, privacy: .public)] failed with \(String(describing: type(of: error)), privacy: .public): \(error.localizedDescription, privacy: .private(mask: .hash))"
+            "Audio capture failure [\(source, privacy: .public)] type=\(diagnostic.errorType, privacy: .public)"
         )
     }
 
-    static func persistenceFailed(operation: String, message: String) {
-        persistence.error("Persistence failure [\(operation, privacy: .public)]: \(message, privacy: .private(mask: .hash))")
+    static func recordingOperationFailed(operation: String, error: Error) {
+        let diagnostic = PrivacySafeDiagnostic(error: error)
+        audio.error(
+            "Recording operation [\(operation, privacy: .public)] failed type=\(diagnostic.errorType, privacy: .public)"
+        )
+    }
+
+    static func persistenceFailed(operation: String, error: Error) {
+        let diagnostic = PrivacySafeDiagnostic(error: error)
+        persistence.error(
+            "Persistence failure [\(operation, privacy: .public)] type=\(diagnostic.errorType, privacy: .public)"
+        )
+    }
+
+    static func persistenceFailed(operation: String, failureCount: Int) {
+        persistence.error(
+            "Persistence failure [\(operation, privacy: .public)] count=\(failureCount, privacy: .public)"
+        )
     }
 }

@@ -38,7 +38,8 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
             ),
             meetingRetentionPolicy: try XCTUnwrap(
                 MeetingRetentionPolicy(deletingAfterDays: 30)
-            )
+            ),
+            hasCompletedOnboarding: true
         )
 
         try await repository.save(preferences)
@@ -140,7 +141,18 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
         let loaded = try await repository.load()
 
         XCTAssertEqual(loaded.meetingRetentionPolicy, .keepForever)
+        XCTAssertFalse(loaded.hasCompletedOnboarding)
         XCTAssertEqual(defaults.data(forKey: storageKey), data)
+    }
+
+    func testOnboardingCompletionPersistsAcrossRepositoryRestart() async throws {
+        var preferences = AppPreferences.default
+        preferences.hasCompletedOnboarding = true
+
+        try await repository.save(preferences)
+
+        let loaded = try await makeRepository().load()
+        XCTAssertTrue(loaded.hasCompletedOnboarding)
     }
 
     private func makeRepository() -> UserDefaultsAppSettingsRepository {

@@ -143,4 +143,49 @@ final class FileTaskRepositoryTests: XCTestCase {
 
         XCTAssertEqual(try Data(contentsOf: storeURL), data)
     }
+
+    func testSameTitleTasksKeepDistinctStableIdentifiers() async throws {
+        let first = TaskItem(title: "Aynı görev")
+        let second = TaskItem(title: "Aynı görev")
+
+        try await repository.save(first)
+        try await repository.save(second)
+
+        let loaded = try await repository.loadAll()
+        XCTAssertEqual(loaded.map(\.title), ["Aynı görev", "Aynı görev"])
+        XCTAssertEqual(Set(loaded.map(\.id)).count, 2)
+    }
+
+    func testTaskTitleNormalizationPreservesEmojiAndBoundsLongInput() {
+        XCTAssertNil(TaskItem.normalizedTitle("  \n\t  "))
+        XCTAssertEqual(TaskItem.normalizedTitle("  🚀 Özel & görev  "), "🚀 Özel & görev")
+
+        let longTitle = String(repeating: "ğ", count: TaskItem.maximumTitleLength + 100)
+        XCTAssertEqual(
+            TaskItem.normalizedTitle(longTitle)?.count,
+            TaskItem.maximumTitleLength
+        )
+    }
+
+    func testRapidCompletionUpdatesPersistWithoutLosingTasks() async throws {
+        let tasks = (0..<20).map { TaskItem(title: "Hızlı \($0)") }
+        for task in tasks {
+            try await repository.save(task)
+        }
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for (index, task) in tasks.enumerated() {
+                group.addTask {
+                    var completed = task
+                    completed.completedAt = Date(timeIntervalSince1970: TimeInterval(index + 1))
+                    try await self.repository.save(completed)
+                }
+            }
+            try await group.waitForAll()
+        }
+
+        let loaded = try await repository.loadAll()
+        XCTAssertEqual(loaded.count, tasks.count)
+        XCTAssertTrue(loaded.allSatisfy(\.isArchived))
+    }
 }

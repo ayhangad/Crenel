@@ -8,7 +8,7 @@ protocol AudioTrackMixing: Sendable {
 enum AudioMixError: LocalizedError, Equatable {
     case missingSource(AudioSourceKind)
     case unreadableSource(AudioSourceKind)
-    case renderFailed(String)
+    case renderFailed
     case invalidOutput
 
     var errorDescription: String? {
@@ -17,8 +17,8 @@ enum AudioMixError: LocalizedError, Equatable {
             "\(source.displayName) kaydı bulunamadı."
         case .unreadableSource(let source):
             "\(source.displayName) kaydı okunamadı."
-        case .renderFailed(let message):
-            "Ses kaynakları birleştirilemedi: \(message)"
+        case .renderFailed:
+            "Ses kaynakları birleştirilemedi."
         case .invalidOutput:
             "Oluşturulan M4A dosyası geçerli ses içermiyor."
         }
@@ -135,12 +135,12 @@ actor AudioTrackMixer: AudioTrackMixing {
                 case .cannotDoInCurrentContext, .insufficientDataFromInputNode:
                     stalledRenderCount += 1
                     if stalledRenderCount > 100 {
-                        throw AudioMixError.renderFailed("Audio engine veri üretmedi.")
+                        throw AudioMixError.renderFailed
                     }
                 case .error:
-                    throw AudioMixError.renderFailed("Audio engine render hatası verdi.")
+                    throw AudioMixError.renderFailed
                 @unknown default:
-                    throw AudioMixError.renderFailed("Bilinmeyen render durumu.")
+                    throw AudioMixError.renderFailed
                 }
             }
 
@@ -150,7 +150,7 @@ actor AudioTrackMixer: AudioTrackMixing {
         } catch let error as AudioMixError {
             throw error
         } catch {
-            throw AudioMixError.renderFailed(error.localizedDescription)
+            throw AudioMixError.renderFailed
         }
     }
 

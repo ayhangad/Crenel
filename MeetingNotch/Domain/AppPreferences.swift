@@ -5,6 +5,36 @@ enum TranscriptionProviderID: String, CaseIterable, Codable, Sendable {
     case openAI
 }
 
+struct TranscriptionSettingsSnapshot: Equatable, Sendable {
+    var provider: TranscriptionProviderID
+    var languageCode: String?
+    var hasStoredAPIKey: Bool
+}
+
+struct GeneralSettingsSnapshot: Equatable, Sendable {
+    var reminderLeadTime: TimeInterval
+    var isCalendarEnabled: Bool
+    var launchAtLogin: Bool
+    var meetingRetentionPolicy: MeetingRetentionPolicy
+
+    static let `default` = GeneralSettingsSnapshot(
+        reminderLeadTime: 10 * 60,
+        isCalendarEnabled: true,
+        launchAtLogin: false,
+        meetingRetentionPolicy: .keepForever
+    )
+}
+
+enum SettingsActionResult: Equatable, Sendable {
+    case succeeded(message: String? = nil)
+    case failed(message: String)
+}
+
+enum TranscriptionSettingsSaveResult: Equatable, Sendable {
+    case saved
+    case failed(AppFailure)
+}
+
 struct ProviderSettings: Codable, Equatable, Sendable {
     var selectedProvider: TranscriptionProviderID
     var languageCode: String?
@@ -68,19 +98,22 @@ struct AppPreferences: Codable, Equatable, Sendable {
     var launchAtLogin: Bool
     var provider: ProviderSettings
     var meetingRetentionPolicy: MeetingRetentionPolicy
+    var hasCompletedOnboarding: Bool
 
     init(
         reminderLeadTime: TimeInterval,
         isCalendarEnabled: Bool,
         launchAtLogin: Bool,
         provider: ProviderSettings,
-        meetingRetentionPolicy: MeetingRetentionPolicy = .keepForever
+        meetingRetentionPolicy: MeetingRetentionPolicy = .keepForever,
+        hasCompletedOnboarding: Bool = false
     ) {
         self.reminderLeadTime = reminderLeadTime
         self.isCalendarEnabled = isCalendarEnabled
         self.launchAtLogin = launchAtLogin
         self.provider = provider
         self.meetingRetentionPolicy = meetingRetentionPolicy
+        self.hasCompletedOnboarding = hasCompletedOnboarding
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -89,6 +122,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
         case launchAtLogin
         case provider
         case meetingRetentionPolicy
+        case hasCompletedOnboarding
     }
 
     init(from decoder: Decoder) throws {
@@ -101,13 +135,18 @@ struct AppPreferences: Codable, Equatable, Sendable {
             MeetingRetentionPolicy.self,
             forKey: .meetingRetentionPolicy
         ) ?? .keepForever
+        hasCompletedOnboarding = try container.decodeIfPresent(
+            Bool.self,
+            forKey: .hasCompletedOnboarding
+        ) ?? false
     }
 
     static let `default` = AppPreferences(
-        reminderLeadTime: 5 * 60,
+        reminderLeadTime: 10 * 60,
         isCalendarEnabled: true,
         launchAtLogin: false,
         provider: .default,
-        meetingRetentionPolicy: .keepForever
+        meetingRetentionPolicy: .keepForever,
+        hasCompletedOnboarding: false
     )
 }

@@ -9,6 +9,8 @@ final class MeetingMonitor {
     private let provider: any CalendarMeetingProviding
     private let refreshInterval: TimeInterval
     private let now: () -> Date
+    private var isEnabled = true
+    private var reminderLeadTime: TimeInterval
     private var pollingTask: Task<Void, Never>?
     private var calendarChangeTask: Task<Void, Never>?
     private var timeZoneChangeTask: Task<Void, Never>?
@@ -17,15 +19,30 @@ final class MeetingMonitor {
     init(
         provider: any CalendarMeetingProviding,
         refreshInterval: TimeInterval = 30,
+        reminderLeadTime: TimeInterval = 10 * 60,
         now: @escaping () -> Date = Date.init
     ) {
         self.provider = provider
         self.refreshInterval = refreshInterval
+        self.reminderLeadTime = reminderLeadTime
         self.now = now
     }
 
+    func configure(isEnabled: Bool, reminderLeadTime: TimeInterval) {
+        self.isEnabled = isEnabled
+        self.reminderLeadTime = max(60, reminderLeadTime)
+        if isEnabled {
+            start()
+            Task { await refresh() }
+        } else {
+            stop()
+            onAccessStateChange?(.notDetermined)
+            publish(MeetingReminderSnapshot(nextMeeting: nil, level: .none, secondsUntilStart: nil))
+        }
+    }
+
     func start() {
-        guard pollingTask == nil else { return }
+        guard isEnabled, pollingTask == nil else { return }
 
         calendarChangeTask = Task { [weak self] in
             let notifications = NotificationCenter.default.notifications(
@@ -66,6 +83,7 @@ final class MeetingMonitor {
     }
 
     func requestAccess() async {
+        guard isEnabled else { return }
         onAccessStateChange?(.requesting)
 
         do {
@@ -80,6 +98,7 @@ final class MeetingMonitor {
     }
 
     func refresh() async {
+        guard isEnabled else { return }
         let accessState = await provider.authorizationState()
         onAccessStateChange?(accessState)
 
@@ -94,7 +113,11 @@ final class MeetingMonitor {
                 from: currentDate.addingTimeInterval(-60 * 60),
                 to: currentDate.addingTimeInterval(24 * 60 * 60)
             )
-            publish(.evaluate(meetings: meetings, now: currentDate))
+            publish(.evaluate(
+                meetings: meetings,
+                now: currentDate,
+                reminderLeadTime: reminderLeadTime
+            ))
         } catch {
             onAccessStateChange?(.failed("Yaklaşan toplantılar okunamadı."))
         }

@@ -109,4 +109,52 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(state.meetingFlow, .completed(meetingID: session.id))
         XCTAssertEqual(state.lastRecordingResult, result)
     }
+
+    func testTaskCollectionsAndCompactCountStayInSync() {
+        let state = AppState()
+        let first = TaskItem(title: "İlk", createdAt: Date(timeIntervalSince1970: 1))
+        let second = TaskItem(title: "İkinci", createdAt: Date(timeIntervalSince1970: 2))
+
+        state.replaceTasks([second, first])
+
+        XCTAssertEqual(state.activeTasks.map(\.id), [first.id, second.id])
+        XCTAssertEqual(state.activeTaskCount, 2)
+
+        var completed = first
+        completed.completedAt = Date(timeIntervalSince1970: 3)
+        state.upsertTask(completed)
+
+        XCTAssertEqual(state.activeTasks.map(\.id), [second.id])
+        XCTAssertEqual(state.archivedTasks.map(\.id), [first.id])
+        XCTAssertEqual(state.activeTaskCount, 1)
+
+        state.removeTask(id: second.id)
+        XCTAssertEqual(state.activeTaskCount, 0)
+    }
+
+    func testResetPersistedContentClearsMeetingTaskAndQueueState() {
+        let state = AppState()
+        let meetingID = UUID()
+        state.replaceStoredMeetings([
+            StoredMeeting(
+                id: meetingID,
+                title: "Silinecek",
+                startedAt: Date(timeIntervalSince1970: 1),
+                endedAt: Date(timeIntervalSince1970: 2),
+                sourceMeeting: nil,
+                audioFileName: "audio.m4a"
+            )
+        ])
+        state.replaceProcessingJobs([
+            ProcessingJob(meetingID: meetingID, providerID: .elevenLabs)
+        ])
+        state.replaceTasks([TaskItem(title: "Silinecek görev")])
+
+        state.resetPersistedContent()
+
+        XCTAssertTrue(state.storedMeetings.isEmpty)
+        XCTAssertTrue(state.processingJobs.isEmpty)
+        XCTAssertTrue(state.tasks.isEmpty)
+        XCTAssertEqual(state.activeTaskCount, 0)
+    }
 }

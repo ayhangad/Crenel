@@ -65,6 +65,7 @@ enum MeetingFlowEvent: Equatable {
     case recordingStarted(at: Date)
     case requestedStop
     case localRecordingSaved(sessionID: UUID)
+    case processingStarted
     case audioFinalized
     case uploadProgress(Double)
     case uploadCompleted
@@ -83,6 +84,7 @@ enum MeetingFlowEvent: Equatable {
         case .recordingStarted: "recordingStarted"
         case .requestedStop: "requestedStop"
         case .localRecordingSaved: "localRecordingSaved"
+        case .processingStarted: "processingStarted"
         case .audioFinalized: "audioFinalized"
         case .uploadProgress: "uploadProgress"
         case .uploadCompleted: "uploadCompleted"
@@ -132,6 +134,11 @@ struct MeetingFlowMachine {
 
         case (.finalizingAudio, .localRecordingSaved(let sessionID)):
             state = .completed(meetingID: sessionID)
+
+        case (.idle, .processingStarted),
+             (.completed, .processingStarted),
+             (.cancelled, .processingStarted):
+            state = .uploading(progress: 0)
 
         case (.finalizingAudio, .audioFinalized):
             state = .uploading(progress: 0)

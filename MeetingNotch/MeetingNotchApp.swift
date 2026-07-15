@@ -47,7 +47,15 @@ struct MeetingNotchApp: App {
                 onRequestMicrophoneAccess: appDelegate.requestMicrophoneAccess,
                 onRequestSystemAudioAccess: appDelegate.requestSystemAudioAccess,
                 onOpenSystemSettings: appDelegate.openSystemSettings,
-                onRefreshPermissions: appDelegate.refreshAudioPermissions
+                onRelaunchApplication: appDelegate.relaunchApplication,
+                onRefreshPermissions: appDelegate.refreshAudioPermissions,
+                onLoadGeneralSettings: appDelegate.loadGeneralSettings,
+                onSaveGeneralSettings: appDelegate.saveGeneralSettings,
+                onOpenDataDirectory: appDelegate.openDataDirectory,
+                onDeleteAllData: appDelegate.deleteAllData,
+                onResetOnboarding: appDelegate.resetOnboarding,
+                onLoadTranscriptionSettings: appDelegate.loadTranscriptionSettings,
+                onSaveTranscriptionSettings: appDelegate.saveTranscriptionSettings
             )
             .environmentObject(appDelegate.appState)
         }

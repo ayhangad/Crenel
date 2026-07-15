@@ -148,7 +148,7 @@ actor FileTaskRepository: TaskRepository {
         } catch {
             AppLogger.persistenceFailed(
                 operation: "recover-task-store",
-                message: error.localizedDescription
+                error: error
             )
             return nil
         }

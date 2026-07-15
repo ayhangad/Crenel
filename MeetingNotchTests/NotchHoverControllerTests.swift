@@ -78,6 +78,38 @@ final class NotchHoverControllerTests: XCTestCase {
         XCTAssertEqual(controller.presentationState, .compact)
     }
 
+    func testPanelCanCompleteRepeatedOpenCloseCycles() async throws {
+        let probe = NotchTransitionProbe()
+        let controller = makeController(probe: probe)
+
+        for cycle in 1...3 {
+            controller.update(isHovering: true)
+            try await Task.sleep(for: .milliseconds(25))
+            XCTAssertEqual(controller.presentationState, .expanded)
+            XCTAssertEqual(probe.expansionCount, cycle)
+
+            controller.update(isHovering: false)
+            try await Task.sleep(for: .milliseconds(25))
+            XCTAssertEqual(controller.presentationState, .compact)
+            XCTAssertEqual(probe.compactionCount, cycle)
+        }
+    }
+
+    func testCancelPreventsPendingExpansion() async throws {
+        let probe = NotchTransitionProbe()
+        let controller = makeController(
+            probe: probe,
+            expansionDelay: .milliseconds(40)
+        )
+
+        controller.update(isHovering: true)
+        controller.cancel()
+        try await Task.sleep(for: .milliseconds(60))
+
+        XCTAssertEqual(probe.expansionCount, 0)
+        XCTAssertEqual(controller.presentationState, .compact)
+    }
+
     private func makeController(
         probe: NotchTransitionProbe,
         expansionDelay: Duration = .milliseconds(10),

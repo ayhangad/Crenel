@@ -31,10 +31,10 @@ final class SampleBufferAudioWriter {
             }
 
             if !input.append(sampleBuffer), let error = writer.error {
-                AppLogger.audioCaptureFailed(source: "writer", message: error.localizedDescription)
+                AppLogger.audioCaptureFailed(source: "writer", error: error)
             }
         } catch {
-            AppLogger.audioCaptureFailed(source: "writer", message: error.localizedDescription)
+            AppLogger.audioCaptureFailed(source: "writer", error: error)
         }
     }
 

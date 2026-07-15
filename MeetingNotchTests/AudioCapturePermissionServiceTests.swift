@@ -87,6 +87,42 @@ final class AudioCapturePermissionServiceTests: XCTestCase {
         XCTAssertTrue(service.currentSnapshot().systemAudio.requiresSystemSettings)
     }
 
+    func testExplicitSystemAudioRequestCanBeRetriedAfterDenial() {
+        var requestCount = 0
+        let service = makeService(
+            microphoneStatus: { .authorized },
+            hasSystemAudioAccess: { false },
+            requestSystemAudioAccess: {
+                requestCount += 1
+                return false
+            }
+        )
+
+        _ = service.requestSystemAudioAccess()
+        _ = service.requestSystemAudioAccess()
+
+        XCTAssertEqual(requestCount, 2)
+        XCTAssertEqual(service.currentSnapshot().systemAudio, .denied)
+    }
+
+    func testPermissionChangesAreReflectedWithoutRecreatingService() {
+        var microphoneStatus = AVAuthorizationStatus.authorized
+        var hasSystemAudioAccess = true
+        let service = makeService(
+            microphoneStatus: { microphoneStatus },
+            hasSystemAudioAccess: { hasSystemAudioAccess }
+        )
+
+        XCTAssertTrue(service.currentSnapshot().canRecord)
+
+        microphoneStatus = .denied
+        hasSystemAudioAccess = false
+
+        XCTAssertEqual(service.currentSnapshot().microphone, .denied)
+        XCTAssertEqual(service.currentSnapshot().systemAudio, .denied)
+        XCTAssertFalse(service.currentSnapshot().canRecord)
+    }
+
     private func makeService(
         microphoneStatus: @escaping () -> AVAuthorizationStatus = { .notDetermined },
         requestMicrophoneAccess: @escaping () async -> Bool = { false },

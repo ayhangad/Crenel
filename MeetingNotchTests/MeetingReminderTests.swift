@@ -57,6 +57,28 @@ final class MeetingReminderTests: XCTestCase {
         XCTAssertNotEqual(tenMinute.presentationKey, oneMinute.presentationKey)
     }
 
+    func testConfiguredLeadTimeChangesEarlyReminderThresholdButKeepsOneMinuteReminder() {
+        let beforeFiveMinutes = MeetingReminderSnapshot.evaluate(
+            meetings: [meeting(startsIn: 301)],
+            now: now,
+            reminderLeadTime: 5 * 60
+        )
+        let atFiveMinutes = MeetingReminderSnapshot.evaluate(
+            meetings: [meeting(startsIn: 300)],
+            now: now,
+            reminderLeadTime: 5 * 60
+        )
+        let atOneMinute = MeetingReminderSnapshot.evaluate(
+            meetings: [meeting(startsIn: 60)],
+            now: now,
+            reminderLeadTime: 5 * 60
+        )
+
+        XCTAssertEqual(beforeFiveMinutes.level, .none)
+        XCTAssertEqual(atFiveMinutes.level, .tenMinutes)
+        XCTAssertEqual(atOneMinute.level, .oneMinute)
+    }
+
     private func snapshot(startsIn interval: TimeInterval) -> MeetingReminderSnapshot {
         .evaluate(meetings: [meeting(startsIn: interval)], now: now)
     }

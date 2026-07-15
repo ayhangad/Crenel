@@ -11,14 +11,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var recordingTask: Task<Void, Never>?
     private var terminationCleanupTask: Task<Void, Never>?
     private var retentionCleanupTask: Task<Void, Never>?
+    private var processingTask: Task<Void, Never>?
+    private var permissionRefreshTask: Task<Void, Never>?
+    private var processingRestartRequested = false
     private var notchHoverObservation: AnyCancellable?
     private var screenParametersObservation: AnyCancellable?
     private var activeNotchScreen: NSScreen?
+    private var meetingDetailWindows: [UUID: NSWindowController] = [:]
+    private var onboardingWindowController: NSWindowController?
     private let notchScreenResolver = NotchScreenResolver()
     private let audioPermissionService = AudioCapturePermissionService()
+    private let launchAtLoginService: any LaunchAtLoginServicing = LaunchAtLoginService()
     private lazy var meetingMonitor = MeetingMonitor(provider: EventKitMeetingProvider())
     private lazy var meetingRepository: any MeetingRepository = FileMeetingRepository()
+    private let taskRepository: any TaskRepository = FileTaskRepository()
     private let appSettingsRepository: any AppSettingsRepository = UserDefaultsAppSettingsRepository()
+    private let apiKeyRepository: any APIKeyRepository = KeychainAPIKeyRepository()
+    private let processingQueue = ProcessingQueue()
+    private lazy var transcriptionWorker = TranscriptionProcessingWorker(
+        queue: processingQueue,
+        meetingRepository: meetingRepository,
+        settingsRepository: appSettingsRepository,
+        providers: DefaultTranscriptionProviderResolver(
+            elevenLabs: ElevenLabsTranscriptionProvider(apiKeyRepository: apiKeyRepository)
+        ),
+        onEvent: { [weak self] event in
+            await self?.handleTranscriptionProcessingEvent(event)
+        }
+    )
     private lazy var recordingRecoveryService = RecordingRecoveryService(repository: meetingRepository)
     private lazy var retentionCleanupService = MeetingRetentionCleanupService(
         repository: meetingRepository
@@ -60,8 +80,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 },
                 onOpenStoredMeeting: { [weak self] meeting in self?.openStoredMeeting(meeting) },
                 onDeleteStoredMeeting: { [weak self] meeting in self?.deleteStoredMeeting(meeting) },
+                onRetryStoredMeeting: { [weak self] meeting in self?.retryProcessing(meeting) },
                 onOpenRecovery: { [weak self] in self?.openRecoveryDirectory() },
-                onTogglePin: { [weak self] in self?.toggleNotchPin() }
+                onTogglePin: { [weak self] in self?.toggleNotchPin() },
+                onAddTask: { [weak self] title in self?.addTask(title: title) },
+                onUpdateTask: { [weak self] task, title in self?.updateTask(task, title: title) },
+                onCompleteTask: { [weak self] task in self?.setTask(task, completed: true) },
+                onRestoreTask: { [weak self] task in self?.setTask(task, completed: false) },
+                onDeleteTask: { [weak self] task in self?.deleteTask(task) },
+                onDeleteArchive: { [weak self] in self?.deleteTaskArchive() },
+                onRelaunchApplication: { [weak self] in self?.relaunchApplication() }
             )
                 .environmentObject(self.appState)
         )
@@ -78,12 +106,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        MultipartFormFileBuilder.removeStaleUploadBodies()
         configureMeetingMonitor()
         configureNotchInteraction()
         refreshAudioPermissions()
-        meetingMonitor.start()
         loadStoredMeetings()
+        loadTasks()
         startPeriodicRetentionCleanup()
+        loadInitialPreferences()
 
         Task {
             let screen = resolvedActiveNotchScreen(preferPhysicalNotch: true)
@@ -96,6 +126,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         recordingTask?.cancel()
         terminationCleanupTask?.cancel()
         retentionCleanupTask?.cancel()
+        processingTask?.cancel()
+        permissionRefreshTask?.cancel()
         notchHoverController.cancel()
         notchHoverObservation = nil
         screenParametersObservation = nil
@@ -107,7 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidBecomeActive(_ notification: Notification) {
-        refreshAudioPermissions()
+        refreshAudioPermissions(recheckingFor: .seconds(3))
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -173,6 +205,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func requestSystemAudioAccess() {
         let snapshot = audioPermissionService.requestSystemAudioAccess()
         appState.updateAudioCapturePermissions(snapshot)
+        refreshAudioPermissions(recheckingFor: .seconds(3))
+    }
+
+    func relaunchApplication() {
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.createsNewApplicationInstance = true
+        NSWorkspace.shared.openApplication(
+            at: Bundle.main.bundleURL,
+            configuration: configuration
+        ) { _, error in
+            guard error == nil else {
+                AppLogger.permissionOperationFailed(operation: "relaunch")
+                return
+            }
+            NSApp.terminate(nil)
+        }
     }
 
     func openSystemSettings(for source: AudioSourceKind) {
@@ -188,6 +236,169 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(url)
     }
 
+    func loadTranscriptionSettings() async -> TranscriptionSettingsSnapshot {
+        let preferences = (try? await appSettingsRepository.load()) ?? .default
+        let hasKey = ((try? await apiKeyRepository.apiKey(
+            for: preferences.provider.selectedProvider
+        )) ?? nil) != nil
+        return TranscriptionSettingsSnapshot(
+            provider: preferences.provider.selectedProvider,
+            languageCode: preferences.provider.languageCode,
+            hasStoredAPIKey: hasKey
+        )
+    }
+
+    func loadGeneralSettings() async -> GeneralSettingsSnapshot {
+        let preferences = (try? await appSettingsRepository.load()) ?? .default
+        return GeneralSettingsSnapshot(
+            reminderLeadTime: preferences.reminderLeadTime,
+            isCalendarEnabled: preferences.isCalendarEnabled,
+            launchAtLogin: launchAtLoginService.isConfigured,
+            meetingRetentionPolicy: preferences.meetingRetentionPolicy
+        )
+    }
+
+    func saveGeneralSettings(
+        _ snapshot: GeneralSettingsSnapshot
+    ) async -> SettingsActionResult {
+        guard (60...(60 * 60)).contains(snapshot.reminderLeadTime) else {
+            return .failed(message: "Hatırlatma süresi 1–60 dakika arasında olmalıdır.")
+        }
+
+        do {
+            try launchAtLoginService.setEnabled(snapshot.launchAtLogin)
+            var preferences = (try? await appSettingsRepository.load()) ?? .default
+            preferences.reminderLeadTime = snapshot.reminderLeadTime
+            preferences.isCalendarEnabled = snapshot.isCalendarEnabled
+            preferences.launchAtLogin = snapshot.launchAtLogin
+            preferences.meetingRetentionPolicy = snapshot.meetingRetentionPolicy
+            try await appSettingsRepository.save(preferences)
+            applyRuntimePreferences(preferences)
+            await runRetentionCleanup()
+
+            return .succeeded(
+                message: launchAtLoginService.requiresApproval
+                    ? "Login’de açma için Sistem Ayarları’nda onay gerekiyor."
+                    : nil
+            )
+        } catch {
+            AppLogger.persistenceFailed(operation: "save-general-settings", error: error)
+            return .failed(message: "Genel ayarlar kaydedilemedi. Tekrar deneyin.")
+        }
+    }
+
+    func openDataDirectory() {
+        do {
+            let layout = try AppStorageLayout.applicationSupport()
+            try layout.createDirectories()
+            NSWorkspace.shared.open(layout.root)
+        } catch {
+            AppLogger.persistenceFailed(operation: "open-data-directory", error: error)
+        }
+    }
+
+    func resetOnboarding() async -> SettingsActionResult {
+        do {
+            var preferences = (try? await appSettingsRepository.load()) ?? .default
+            preferences.hasCompletedOnboarding = false
+            try await appSettingsRepository.save(preferences)
+            presentOnboarding()
+            return .succeeded()
+        } catch {
+            AppLogger.persistenceFailed(operation: "reset-onboarding", error: error)
+            return .failed(message: "Onboarding yeniden başlatılamadı.")
+        }
+    }
+
+    func deleteAllData() async -> SettingsActionResult {
+        guard !appState.requiresTerminationConfirmation else {
+            return .failed(message: "Kayıt veya işleme sürerken tüm veriler silinemez.")
+        }
+
+        processingTask?.cancel()
+        if let processingTask {
+            await processingTask.value
+        }
+        self.processingTask = nil
+        processingRestartRequested = false
+        meetingMonitor.stop()
+        meetingDetailWindows.values.forEach { $0.close() }
+        meetingDetailWindows.removeAll()
+
+        var keychainDeletionFailed = false
+        for provider in TranscriptionProviderID.allCases {
+            do {
+                try await apiKeyRepository.deleteAPIKey(for: provider)
+            } catch {
+                keychainDeletionFailed = true
+                AppLogger.persistenceFailed(operation: "delete-provider-key", error: error)
+            }
+        }
+
+        do {
+            try launchAtLoginService.setEnabled(false)
+            if let identifier = Bundle.main.bundleIdentifier {
+                UserDefaults.standard.removePersistentDomain(forName: identifier)
+            }
+            await appSettingsRepository.reset()
+
+            let layout = try AppStorageLayout.applicationSupport()
+            if FileManager.default.fileExists(atPath: layout.root.path) {
+                try FileManager.default.removeItem(at: layout.root)
+            }
+            try layout.createDirectories()
+            try await processingQueue.removeAll()
+            appState.resetPersistedContent()
+            applyRuntimePreferences(.default)
+            presentOnboarding()
+
+            if keychainDeletionFailed {
+                return .failed(
+                    message: "Yerel veriler silindi ancak en az bir Keychain anahtarı kaldı. Tekrar deneyin."
+                )
+            }
+            return .succeeded(message: "Tüm toplantı, görev, ayar ve API anahtarı verileri silindi.")
+        } catch {
+            AppLogger.persistenceFailed(operation: "delete-all-data", error: error)
+            return .failed(message: "Tüm veriler tamamen silinemedi. Tekrar deneyin.")
+        }
+    }
+
+    func saveTranscriptionSettings(
+        provider: TranscriptionProviderID,
+        languageCode: String?,
+        apiKey: String?
+    ) async -> TranscriptionSettingsSaveResult {
+        guard provider == .elevenLabs else {
+            return .failed(.provider(
+                "OpenAI transkripsiyon adaptörü henüz kullanıma açık değil.",
+                credentialsInvalid: false
+            ))
+        }
+
+        do {
+            let normalizedInput = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = if let normalizedInput, !normalizedInput.isEmpty {
+                normalizedInput
+            } else {
+                try await apiKeyRepository.apiKey(for: provider) ?? ""
+            }
+            try await ElevenLabsAPIKeyValidator().validate(key)
+            if let normalizedInput, !normalizedInput.isEmpty {
+                try await apiKeyRepository.saveAPIKey(normalizedInput, for: provider)
+            }
+
+            var preferences = (try? await appSettingsRepository.load()) ?? .default
+            preferences.provider.selectedProvider = provider
+            preferences.provider.languageCode = languageCode
+            try await appSettingsRepository.save(preferences)
+            return .saved
+        } catch {
+            let normalized = TranscriptionErrorNormalizer.normalize(error)
+            return .failed(normalized.appFailure)
+        }
+    }
+
     private func configureMeetingMonitor() {
         meetingMonitor.onAccessStateChange = { [weak self] state in
             self?.appState.updateCalendarAccessState(state)
@@ -201,6 +412,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
             guard willPresent else { return }
             self.presentMeetingReminder()
+        }
+    }
+
+    private func loadInitialPreferences() {
+        Task { [weak self] in
+            guard let self else { return }
+            var preferences = (try? await self.appSettingsRepository.load()) ?? .default
+            let actualLaunchAtLogin = self.launchAtLoginService.isConfigured
+            if preferences.launchAtLogin != actualLaunchAtLogin {
+                preferences.launchAtLogin = actualLaunchAtLogin
+                try? await self.appSettingsRepository.save(preferences)
+            }
+            self.applyRuntimePreferences(preferences)
+            if !preferences.hasCompletedOnboarding {
+                self.presentOnboarding()
+            }
+        }
+    }
+
+    private func applyRuntimePreferences(_ preferences: AppPreferences) {
+        meetingMonitor.configure(
+            isEnabled: preferences.isCalendarEnabled,
+            reminderLeadTime: preferences.reminderLeadTime
+        )
+    }
+
+    private func presentOnboarding() {
+        if let onboardingWindowController {
+            onboardingWindowController.showWindow(nil)
+            onboardingWindowController.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let rootView = OnboardingView(
+            onRequestMicrophoneAccess: { [weak self] in self?.requestMicrophoneAccess() },
+            onRequestSystemAudioAccess: { [weak self] in self?.requestSystemAudioAccess() },
+            onRequestCalendarAccess: { [weak self] in self?.requestCalendarAccess() },
+            onComplete: { [weak self] in self?.completeOnboarding() }
+        )
+        .environmentObject(appState)
+        let hostingController = NSHostingController(rootView: rootView)
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "MeetingNotch’a Hoş Geldiniz"
+        window.styleMask = [.titled, .closable, .fullSizeContentView]
+        window.setContentSize(NSSize(width: 640, height: 500))
+        window.minSize = NSSize(width: 600, height: 460)
+        window.isReleasedWhenClosed = false
+        window.center()
+
+        let controller = NSWindowController(window: window)
+        onboardingWindowController = controller
+        controller.showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func completeOnboarding() {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                var preferences = (try? await self.appSettingsRepository.load()) ?? .default
+                preferences.hasCompletedOnboarding = true
+                try await self.appSettingsRepository.save(preferences)
+                self.applyRuntimePreferences(preferences)
+                self.onboardingWindowController?.close()
+                self.onboardingWindowController = nil
+            } catch {
+                AppLogger.persistenceFailed(operation: "complete-onboarding", error: error)
+            }
         }
     }
 
@@ -323,6 +603,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let result = try await self.recordingCoordinator.stop()
                 let storedMeeting = try await self.meetingRepository.saveCapture(result)
                 self.appState.recordingSaved(result, storedMeeting: storedMeeting)
+                await self.enqueueForProcessing(storedMeeting)
             } catch {
                 AppLogger.recordingOperationFailed(operation: "stop-and-save", error: error)
                 self.appState.recordingFailed(self.recordingFailure(from: error))
@@ -348,11 +629,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let meetings = try await self.meetingRepository.loadAll()
                 self.appState.replaceStoredMeetings(meetings)
                 self.appState.applyRecordingRecoveryReport(recoveryReport)
+                await self.restoreProcessingQueue(for: meetings)
             } catch {
                 AppLogger.persistenceFailed(
                     operation: "load-meetings",
-                    message: error.localizedDescription
+                    error: error
                 )
+            }
+        }
+    }
+
+    private func loadTasks() {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.taskRepository.prepare()
+                self.appState.replaceTasks(try await self.taskRepository.loadAll())
+            } catch {
+                AppLogger.persistenceFailed(operation: "load-tasks", error: error)
+            }
+        }
+    }
+
+    private func addTask(title: String) {
+        guard let title = TaskItem.normalizedTitle(title) else { return }
+        persistTask(TaskItem(title: title), operation: "add-task")
+    }
+
+    private func updateTask(_ task: TaskItem, title: String) {
+        guard let title = TaskItem.normalizedTitle(title) else { return }
+        var updated = task
+        updated.title = title
+        persistTask(updated, operation: "update-task")
+    }
+
+    private func setTask(_ task: TaskItem, completed: Bool) {
+        var updated = task
+        updated.completedAt = completed ? Date() : nil
+        persistTask(updated, operation: completed ? "archive-task" : "restore-task")
+    }
+
+    private func persistTask(_ task: TaskItem, operation: String) {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.taskRepository.save(task)
+                self.appState.upsertTask(task)
+            } catch {
+                AppLogger.persistenceFailed(operation: operation, error: error)
+            }
+        }
+    }
+
+    private func deleteTask(_ task: TaskItem) {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.taskRepository.delete(id: task.id)
+                self.appState.removeTask(id: task.id)
+            } catch {
+                AppLogger.persistenceFailed(operation: "delete-task", error: error)
+            }
+        }
+    }
+
+    private func deleteTaskArchive() {
+        let archived = appState.archivedTasks
+        guard !archived.isEmpty else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            for task in archived {
+                do {
+                    try await self.taskRepository.delete(id: task.id)
+                    self.appState.removeTask(id: task.id)
+                } catch {
+                    AppLogger.persistenceFailed(operation: "delete-task-archive", error: error)
+                }
             }
         }
     }
@@ -379,10 +731,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 policy: preferences.meetingRetentionPolicy
             )
             report.deletedMeetingIDs.forEach { appState.removeStoredMeeting(id: $0) }
+            for meetingID in report.deletedMeetingIDs {
+                try? await processingQueue.remove(meetingID: meetingID)
+            }
             if !report.failedMeetingIDs.isEmpty {
                 AppLogger.persistenceFailed(
                     operation: "retention-cleanup",
-                    message: "\(report.failedMeetingIDs.count) toplantı silinemedi."
+                    failureCount: report.failedMeetingIDs.count
                 )
             }
         } catch is CancellationError {
@@ -390,7 +745,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             AppLogger.persistenceFailed(
                 operation: "retention-cleanup",
-                message: error.localizedDescription
+                error: error
             )
         }
     }
@@ -399,8 +754,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { [weak self] in
             guard let self else { return }
             let audioURL = await self.meetingRepository.audioFileURL(for: meeting)
-            NSWorkspace.shared.activateFileViewerSelecting([audioURL])
+            let transcription: StoredTranscription?
+            do {
+                transcription = try await self.meetingRepository.loadTranscription(for: meeting.id)
+            } catch {
+                AppLogger.persistenceFailed(operation: "load-transcript-detail", error: error)
+                transcription = nil
+            }
+            self.presentMeetingDetail(
+                meeting,
+                transcription: transcription,
+                audioURL: audioURL
+            )
         }
+    }
+
+    private func presentMeetingDetail(
+        _ meeting: StoredMeeting,
+        transcription: StoredTranscription?,
+        audioURL: URL
+    ) {
+        meetingDetailWindows[meeting.id]?.close()
+
+        let rootView = MeetingDetailView(
+            meeting: meeting,
+            storedTranscription: transcription,
+            audioURL: audioURL,
+            onCopyTranscript: { text in
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(text, forType: .string)
+            },
+            onRevealAudio: { url in
+                NSWorkspace.shared.activateFileViewerSelecting([url])
+            },
+            onRetry: { [weak self] meeting in
+                self?.retryProcessing(meeting)
+            },
+            onDelete: { [weak self] meeting in
+                self?.deleteStoredMeetingConfirmed(meeting)
+            }
+        )
+        let hostingController = NSHostingController(rootView: rootView)
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = meeting.title
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.setContentSize(NSSize(width: 820, height: 680))
+        window.minSize = NSSize(width: 680, height: 560)
+        window.center()
+        window.isReleasedWhenClosed = false
+
+        let controller = NSWindowController(window: window)
+        meetingDetailWindows[meeting.id] = controller
+        controller.showWindow(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func openRecoveryDirectory() {
@@ -420,35 +827,128 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: "Vazgeç")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
+        deleteStoredMeetingConfirmed(meeting)
+    }
+
+    private func deleteStoredMeetingConfirmed(_ meeting: StoredMeeting) {
         Task { [weak self] in
             guard let self else { return }
             do {
                 try await self.meetingRepository.delete(id: meeting.id)
+                try? await self.processingQueue.remove(meetingID: meeting.id)
                 self.appState.removeStoredMeeting(id: meeting.id)
+                self.meetingDetailWindows.removeValue(forKey: meeting.id)?.close()
             } catch {
                 AppLogger.persistenceFailed(
                     operation: "delete-meeting",
-                    message: error.localizedDescription
+                    error: error
                 )
             }
         }
     }
 
+    private func restoreProcessingQueue(for meetings: [StoredMeeting]) async {
+        do {
+            var jobs = try await processingQueue.restore()
+            let preferences = (try? await appSettingsRepository.load()) ?? .default
+            let existingMeetingIDs = Set(jobs.map(\.meetingID))
+            for meeting in meetings
+                where meeting.processingStatus == .recorded
+                    && !existingMeetingIDs.contains(meeting.id) {
+                let job = try await processingQueue.enqueue(
+                    meetingID: meeting.id,
+                    providerID: preferences.provider.selectedProvider
+                )
+                jobs.append(job)
+            }
+            appState.replaceProcessingJobs(jobs)
+            startProcessingQueue()
+        } catch {
+            AppLogger.persistenceFailed(operation: "restore-processing-queue", error: error)
+        }
+    }
+
+    private func enqueueForProcessing(_ meeting: StoredMeeting) async {
+        do {
+            let preferences = (try? await appSettingsRepository.load()) ?? .default
+            let job = try await processingQueue.enqueue(
+                meetingID: meeting.id,
+                providerID: preferences.provider.selectedProvider
+            )
+            appState.upsertProcessingJob(job)
+            startProcessingQueue()
+        } catch {
+            AppLogger.persistenceFailed(operation: "enqueue-processing-job", error: error)
+        }
+    }
+
+    private func retryProcessing(_ meeting: StoredMeeting) {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                guard let job = try await self.processingQueue.retry(meetingID: meeting.id) else {
+                    return
+                }
+                self.appState.upsertProcessingJob(job)
+                self.startProcessingQueue()
+            } catch {
+                AppLogger.persistenceFailed(operation: "retry-processing-job", error: error)
+            }
+        }
+    }
+
+    private func startProcessingQueue() {
+        guard processingTask == nil || processingTask?.isCancelled == true else {
+            processingRestartRequested = true
+            return
+        }
+        processingTask = Task { [weak self] in
+            guard let self else { return }
+            await self.transcriptionWorker.drain()
+            self.processingTask = nil
+            if self.processingRestartRequested {
+                self.processingRestartRequested = false
+                self.startProcessingQueue()
+            }
+        }
+    }
+
+    private func handleTranscriptionProcessingEvent(_ event: TranscriptionProcessingEvent) {
+        switch event {
+        case .started(let job):
+            appState.processingStarted(job)
+        case .uploadProgress(_, let progress):
+            appState.updateTranscriptionUploadProgress(progress)
+        case .transcribing:
+            appState.processingBeganTranscribing()
+        case .completed(let meeting):
+            appState.processingCompleted(meeting)
+        case .failed(let job, let error):
+            appState.processingFailed(job, error: error)
+        }
+    }
+
     private func recordingFailure(from error: Error) -> AppFailure {
         if error is MeetingRepositoryError {
-            return .fileSystem(error.localizedDescription)
+            return .fileSystem("Toplantı dosyaları kaydedilemedi. Tekrar deneyin.")
         }
         guard let captureError = error as? RecordingCaptureError else {
-            return .recording(error.localizedDescription)
+            return .recording("Kayıt işlemi tamamlanamadı. Tekrar deneyin.")
         }
 
         switch captureError {
         case .microphonePermissionDenied, .systemAudioPermissionDenied:
-            return .permission(captureError.localizedDescription, settings: true)
+            return .permission("Kayıt için gerekli ses iznini Sistem Ayarları'ndan açın.", settings: true)
         case .insufficientDiskSpace:
-            return .fileSystem(captureError.localizedDescription, diskFull: true)
-        default:
-            return .recording(captureError.localizedDescription)
+            return .fileSystem("Kayıt için yeterli boş disk alanı yok.", diskFull: true)
+        case .alreadyRecording:
+            return .recording("Zaten devam eden bir kayıt var.", retryable: false)
+        case .noMicrophone:
+            return .recording("Kullanılabilir bir mikrofon bulunamadı.", retryable: false)
+        case .noDisplay:
+            return .recording("Sistem sesini yakalamak için kullanılabilir ekran bulunamadı.")
+        case .sourceDidNotProduceAudio(let source), .sourceFailed(let source, _):
+            return .recording("\(source.displayName) kaydı tamamlanamadı. Bağlantıyı kontrol edip tekrar deneyin.")
         }
     }
 
@@ -485,7 +985,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func refreshAudioPermissions() {
+        refreshAudioPermissions(recheckingFor: nil)
+    }
+
+    private func refreshAudioPermissions(recheckingFor duration: Duration?) {
+        permissionRefreshTask?.cancel()
         appState.updateAudioCapturePermissions(audioPermissionService.currentSnapshot())
+        guard let duration else { return }
+
+        permissionRefreshTask = Task { [weak self] in
+            let clock = ContinuousClock()
+            let deadline = clock.now.advanced(by: duration)
+            while !Task.isCancelled, clock.now < deadline {
+                do {
+                    try await Task.sleep(for: .milliseconds(350))
+                } catch {
+                    return
+                }
+                guard let self else { return }
+                let snapshot = self.audioPermissionService.currentSnapshot()
+                self.appState.updateAudioCapturePermissions(snapshot)
+                if snapshot.canRecord { return }
+            }
+        }
     }
 
     private func presentMeetingReminder() {

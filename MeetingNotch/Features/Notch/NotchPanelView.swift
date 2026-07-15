@@ -12,8 +12,16 @@ struct NotchPanelView: View {
     let onRecoverFromFailure: (AppFailure) -> Void
     let onOpenStoredMeeting: (StoredMeeting) -> Void
     let onDeleteStoredMeeting: (StoredMeeting) -> Void
+    let onRetryStoredMeeting: (StoredMeeting) -> Void
     let onOpenRecovery: () -> Void
     let onTogglePin: () -> Void
+    let onAddTask: (String) -> Void
+    let onUpdateTask: (TaskItem, String) -> Void
+    let onCompleteTask: (TaskItem) -> Void
+    let onRestoreTask: (TaskItem) -> Void
+    let onDeleteTask: (TaskItem) -> Void
+    let onDeleteArchive: () -> Void
+    let onRelaunchApplication: () -> Void
 
     init(
         onRequestCalendarAccess: @escaping () -> Void = {},
@@ -24,8 +32,16 @@ struct NotchPanelView: View {
         onRecoverFromFailure: @escaping (AppFailure) -> Void = { _ in },
         onOpenStoredMeeting: @escaping (StoredMeeting) -> Void = { _ in },
         onDeleteStoredMeeting: @escaping (StoredMeeting) -> Void = { _ in },
+        onRetryStoredMeeting: @escaping (StoredMeeting) -> Void = { _ in },
         onOpenRecovery: @escaping () -> Void = {},
-        onTogglePin: @escaping () -> Void = {}
+        onTogglePin: @escaping () -> Void = {},
+        onAddTask: @escaping (String) -> Void = { _ in },
+        onUpdateTask: @escaping (TaskItem, String) -> Void = { _, _ in },
+        onCompleteTask: @escaping (TaskItem) -> Void = { _ in },
+        onRestoreTask: @escaping (TaskItem) -> Void = { _ in },
+        onDeleteTask: @escaping (TaskItem) -> Void = { _ in },
+        onDeleteArchive: @escaping () -> Void = {},
+        onRelaunchApplication: @escaping () -> Void = {}
     ) {
         self.onRequestCalendarAccess = onRequestCalendarAccess
         self.onOpenMeetingURL = onOpenMeetingURL
@@ -35,8 +51,16 @@ struct NotchPanelView: View {
         self.onRecoverFromFailure = onRecoverFromFailure
         self.onOpenStoredMeeting = onOpenStoredMeeting
         self.onDeleteStoredMeeting = onDeleteStoredMeeting
+        self.onRetryStoredMeeting = onRetryStoredMeeting
         self.onOpenRecovery = onOpenRecovery
         self.onTogglePin = onTogglePin
+        self.onAddTask = onAddTask
+        self.onUpdateTask = onUpdateTask
+        self.onCompleteTask = onCompleteTask
+        self.onRestoreTask = onRestoreTask
+        self.onDeleteTask = onDeleteTask
+        self.onDeleteArchive = onDeleteArchive
+        self.onRelaunchApplication = onRelaunchApplication
     }
 
     var body: some View {
@@ -72,11 +96,20 @@ struct NotchPanelView: View {
                         onRecoverFromFailure: onRecoverFromFailure,
                         onOpenStoredMeeting: onOpenStoredMeeting,
                         onDeleteStoredMeeting: onDeleteStoredMeeting,
-                        onOpenRecovery: onOpenRecovery
+                        onRetryStoredMeeting: onRetryStoredMeeting,
+                        onOpenRecovery: onOpenRecovery,
+                        onRelaunchApplication: onRelaunchApplication
                     )
                     .transition(panelContentTransition)
                 case .tasks:
-                    TasksPlaceholderView()
+                    TasksView(
+                        onAdd: onAddTask,
+                        onUpdate: onUpdateTask,
+                        onComplete: onCompleteTask,
+                        onRestore: onRestoreTask,
+                        onDelete: onDeleteTask,
+                        onDeleteArchive: onDeleteArchive
+                    )
                         .transition(panelContentTransition)
                 }
             }
@@ -218,7 +251,9 @@ private struct MeetingStatusView: View {
     let onRecoverFromFailure: (AppFailure) -> Void
     let onOpenStoredMeeting: (StoredMeeting) -> Void
     let onDeleteStoredMeeting: (StoredMeeting) -> Void
+    let onRetryStoredMeeting: (StoredMeeting) -> Void
     let onOpenRecovery: () -> Void
+    let onRelaunchApplication: () -> Void
 
     var body: some View {
         let presentation = MeetingFlowPresentation(
@@ -295,7 +330,8 @@ private struct MeetingStatusView: View {
                 RecentMeetingsView(
                     meetings: Array(appState.storedMeetings.prefix(3)),
                     onOpen: onOpenStoredMeeting,
-                    onDelete: onDeleteStoredMeeting
+                    onDelete: onDeleteStoredMeeting,
+                    onRetry: onRetryStoredMeeting
                 )
             }
         }
@@ -398,12 +434,29 @@ private struct MeetingStatusView: View {
             .buttonStyle(NotchActionButtonStyle(tone: .danger))
 
         case .failed(let failure):
-            Button {
-                onRecoverFromFailure(failure)
-            } label: {
-                Label(failure.recoveryButtonTitle, systemImage: "arrow.clockwise")
+            if failure.category == .permission,
+               failure.recoveryAction == .openSystemSettings {
+                HStack(spacing: 8) {
+                    Button {
+                        onRecoverFromFailure(failure)
+                    } label: {
+                        Label("Sistem Ayarları", systemImage: "gearshape")
+                    }
+                    .buttonStyle(NotchActionButtonStyle(tone: .secondary))
+
+                    Button(action: onRelaunchApplication) {
+                        Label("Yeniden Başlat", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .buttonStyle(NotchActionButtonStyle(tone: .primary))
+                }
+            } else {
+                Button {
+                    onRecoverFromFailure(failure)
+                } label: {
+                    Label(failure.recoveryButtonTitle, systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(NotchActionButtonStyle(tone: .primary))
             }
-            .buttonStyle(NotchActionButtonStyle(tone: .primary))
 
         case .completed:
             HStack(spacing: 8) {
@@ -411,7 +464,7 @@ private struct MeetingStatusView: View {
                     Button {
                         onOpenStoredMeeting(meeting)
                     } label: {
-                        Label("Finder'da Göster", systemImage: "folder")
+                        Label("Detayı Aç", systemImage: "doc.text.magnifyingglass")
                     }
                     .buttonStyle(NotchActionButtonStyle(tone: .secondary))
                 }
@@ -556,6 +609,7 @@ private struct RecentMeetingsView: View {
     let meetings: [StoredMeeting]
     let onOpen: (StoredMeeting) -> Void
     let onDelete: (StoredMeeting) -> Void
+    let onRetry: (StoredMeeting) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -627,6 +681,19 @@ private struct RecentMeetingsView: View {
                         }
                         .buttonStyle(NotchRowButtonStyle())
                         .accessibilityLabel("\(meeting.title), \(statusText(for: meeting.processingStatus)), \(detail(for: meeting))")
+
+                        if meeting.processingStatus == .failed {
+                            Button {
+                                onRetry(meeting)
+                            } label: {
+                                Image(systemName: "arrow.clockwise")
+                                    .frame(width: 40, height: 40)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(NotchIconButtonStyle(tint: .orange))
+                            .help("İşlemeyi tekrar dene")
+                            .accessibilityLabel("\(meeting.title) transkripsiyonunu tekrar dene")
+                        }
 
                         Button(role: .destructive) {
                             onDelete(meeting)
@@ -747,50 +814,6 @@ private struct NotchIconButtonStyle: ButtonStyle {
     }
 }
 
-private struct TasksPlaceholderView: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Image(systemName: "checkmark.circle")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.mint)
-                    .frame(width: 42, height: 42)
-                    .background(.mint.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Görevler")
-                        .font(.system(size: 16, weight: .semibold))
-                    Text("Toplantılardan çıkan küçük işleri burada takip edeceksiniz.")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-
-            HStack(spacing: 10) {
-                Image(systemName: "sparkles")
-                    .foregroundStyle(.mint)
-                Text("Şimdilik yapılacak bir şey yok — güzel.")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-            .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 12))
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.055))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.075), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.16), radius: 14, y: 7)
-    }
-}
-
 struct CompactLeadingView: View {
     @EnvironmentObject private var appState: AppState
 
@@ -857,6 +880,11 @@ struct CompactTrailingView: View {
                 Text(meeting.startDate, format: .dateTime.hour().minute())
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
+            } else if appState.activeTaskCount > 0 {
+                Label("\(appState.activeTaskCount)", systemImage: "checkmark.circle")
+                    .font(.caption2.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(.mint)
+                    .accessibilityLabel("\(appState.activeTaskCount) aktif görev")
             } else {
                 Text("Hazır")
                     .font(.caption2.weight(.semibold))

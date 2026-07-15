@@ -8,6 +8,8 @@ protocol MeetingRetentionRepository: Sendable {
 protocol MeetingRepository: MeetingRetentionRepository {
     func prepare() async throws
     func saveCapture(_ capture: RecordingCaptureResult) async throws -> StoredMeeting
+    func saveTranscription(_ result: TranscriptionResult, for meeting: StoredMeeting) async throws -> StoredMeeting
+    func loadTranscription(for meetingID: UUID) async throws -> StoredTranscription?
     func audioFileURL(for meeting: StoredMeeting) async -> URL
     func recoveryDirectoryURL() async -> URL
 }
@@ -17,6 +19,7 @@ enum MeetingRepositoryError: LocalizedError, Equatable {
     case incompleteSession
     case duplicateMeeting
     case unsupportedSchema(Int)
+    case meetingNotFound
 
     var errorDescription: String? {
         switch self {
@@ -28,6 +31,8 @@ enum MeetingRepositoryError: LocalizedError, Equatable {
             "Bu toplantı daha önce kaydedilmiş."
         case .unsupportedSchema(let version):
             "Toplantı metadata sürümü desteklenmiyor: \(version)."
+        case .meetingNotFound:
+            "Toplantı kaydı bulunamadı."
         }
     }
 }
@@ -174,6 +179,53 @@ actor FileMeetingRepository: MeetingRepository {
         return meetings.sorted { $0.startedAt > $1.startedAt }
     }
 
+    func saveTranscription(
+        _ result: TranscriptionResult,
+        for meeting: StoredMeeting
+    ) throws -> StoredMeeting {
+        try prepare()
+        let directory = layout.meetings.appending(
+            path: meeting.id.uuidString,
+            directoryHint: .isDirectory
+        )
+        guard fileManager.fileExists(atPath: directory.path) else {
+            throw MeetingRepositoryError.meetingNotFound
+        }
+
+        let stored = StoredTranscription(
+            providerID: result.providerID,
+            transcript: result.transcript
+        )
+        try encoder.encode(stored).write(
+            to: directory.appending(path: "transcript.json"),
+            options: .atomic
+        )
+
+        var updated = meeting
+        updated.processingStatus = .completed
+        try encoder.encode(updated).write(
+            to: directory.appending(path: "metadata.json"),
+            options: .atomic
+        )
+
+        removeRawTrack(named: meeting.microphoneFileName, from: directory)
+        removeRawTrack(named: meeting.systemAudioFileName, from: directory)
+        return updated
+    }
+
+    func loadTranscription(for meetingID: UUID) throws -> StoredTranscription? {
+        try prepare()
+        let url = layout.meetings
+            .appending(path: meetingID.uuidString, directoryHint: .isDirectory)
+            .appending(path: "transcript.json")
+        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        let stored = try decoder.decode(StoredTranscription.self, from: Data(contentsOf: url))
+        guard stored.schemaVersion == StoredTranscription.currentSchemaVersion else {
+            throw MeetingRepositoryError.unsupportedSchema(stored.schemaVersion)
+        }
+        return stored
+    }
+
     func delete(id: UUID) throws {
         try prepare()
         let directory = layout.meetings.appending(path: id.uuidString, directoryHint: .isDirectory)
@@ -203,6 +255,11 @@ actor FileMeetingRepository: MeetingRepository {
         let fileName = source == .microphone ? "microphone.m4a" : "system-audio.m4a"
         try fileManager.copyItem(at: track.fileURL, to: directory.appending(path: fileName))
         return fileName
+    }
+
+    private func removeRawTrack(named fileName: String?, from directory: URL) {
+        guard let fileName, isSafeFileName(fileName) else { return }
+        try? fileManager.removeItem(at: directory.appending(path: fileName))
     }
 
     private func removeTemporaryCaptureDirectory(_ capture: RecordingCaptureResult) {
@@ -235,7 +292,7 @@ actor FileMeetingRepository: MeetingRepository {
         do {
             try fileManager.moveItem(at: directory, to: destination)
         } catch {
-            AppLogger.persistenceFailed(operation: "move-to-recovery", message: error.localizedDescription)
+            AppLogger.persistenceFailed(operation: "move-to-recovery", error: error)
         }
     }
 

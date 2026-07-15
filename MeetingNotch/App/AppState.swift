@@ -27,6 +27,8 @@ final class AppState: ObservableObject {
     @Published private(set) var storedMeetings: [StoredMeeting] = []
     @Published private(set) var lastStoredMeeting: StoredMeeting?
     @Published private(set) var recordingRecoverySummary: RecordingRecoverySummary?
+    @Published private(set) var processingJobs: [ProcessingJob] = []
+    @Published private(set) var tasks: [TaskItem] = []
 
     private var flowMachine: MeetingFlowMachine
     private var suppressedReminderKey: String?
@@ -86,12 +88,66 @@ final class AppState: ObservableObject {
 
     func replaceStoredMeetings(_ meetings: [StoredMeeting]) {
         storedMeetings = meetings.sorted { $0.startedAt > $1.startedAt }
+        applyProcessingStatuses()
     }
 
     func removeStoredMeeting(id: UUID) {
         storedMeetings.removeAll { $0.id == id }
+        processingJobs.removeAll { $0.meetingID == id }
         if lastStoredMeeting?.id == id {
             lastStoredMeeting = nil
+        }
+    }
+
+    func replaceProcessingJobs(_ jobs: [ProcessingJob]) {
+        processingJobs = jobs.sorted { $0.createdAt < $1.createdAt }
+        applyProcessingStatuses()
+    }
+
+    func upsertProcessingJob(_ job: ProcessingJob) {
+        processingJobs.removeAll { $0.meetingID == job.meetingID }
+        processingJobs.append(job)
+        processingJobs.sort { $0.createdAt < $1.createdAt }
+        applyProcessingStatuses()
+    }
+
+    func processingStarted(_ job: ProcessingJob) {
+        upsertProcessingJob(job)
+        send(.processingStarted)
+    }
+
+    func processingBeganTranscribing() {
+        guard case .uploading = meetingFlow else { return }
+        send(.uploadCompleted)
+    }
+
+    func processingCompleted(_ meeting: StoredMeeting) {
+        processingJobs.removeAll { $0.meetingID == meeting.id }
+        storedMeetings.removeAll { $0.id == meeting.id }
+        storedMeetings.append(meeting)
+        storedMeetings.sort { $0.startedAt > $1.startedAt }
+        if lastStoredMeeting?.id == meeting.id {
+            lastStoredMeeting = meeting
+        }
+
+        if case .uploading = meetingFlow {
+            send(.uploadCompleted)
+        }
+        if case .transcribing = meetingFlow {
+            send(.transcriptionCompleted)
+        }
+        if case .summarizing = meetingFlow {
+            send(.summaryCompleted(meetingID: meeting.id))
+        }
+    }
+
+    func processingFailed(_ job: ProcessingJob, error: TranscriptionServiceError) {
+        upsertProcessingJob(job)
+        switch meetingFlow {
+        case .uploading, .transcribing, .summarizing:
+            send(.fail(error.appFailure))
+        default:
+            break
         }
     }
 
@@ -118,6 +174,10 @@ final class AppState: ObservableObject {
         recordingCaptureStatus = status
     }
 
+    func updateTranscriptionUploadProgress(_ progress: Double) {
+        send(.uploadProgress(progress))
+    }
+
     func cancelCurrentFlow() {
         recordingCaptureStatus = .idle
         send(.cancel)
@@ -138,6 +198,50 @@ final class AppState: ObservableObject {
 
     func updateAudioCapturePermissions(_ permissions: AudioCapturePermissionSnapshot) {
         audioCapturePermissions = permissions
+    }
+
+    func replaceTasks(_ tasks: [TaskItem]) {
+        self.tasks = tasks
+        refreshTaskCount()
+    }
+
+    func upsertTask(_ task: TaskItem) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            tasks[index] = task
+        } else {
+            tasks.append(task)
+        }
+        refreshTaskCount()
+    }
+
+    func removeTask(id: UUID) {
+        tasks.removeAll { $0.id == id }
+        refreshTaskCount()
+    }
+
+    func resetPersistedContent() {
+        storedMeetings = []
+        lastStoredMeeting = nil
+        lastRecordingResult = nil
+        processingJobs = []
+        tasks = []
+        recordingRecoverySummary = nil
+        refreshTaskCount()
+        if !meetingFlow.requiresTerminationConfirmation {
+            send(.reset)
+        }
+    }
+
+    var activeTasks: [TaskItem] {
+        tasks
+            .filter { !$0.isArchived }
+            .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    var archivedTasks: [TaskItem] {
+        tasks
+            .filter(\.isArchived)
+            .sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
     }
 
     @discardableResult
@@ -190,5 +294,24 @@ final class AppState: ObservableObject {
         } else {
             userFacingFailure = nil
         }
+    }
+
+    private func applyProcessingStatuses() {
+        let jobsByMeetingID = Dictionary(
+            processingJobs.map { ($0.meetingID, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        for index in storedMeetings.indices {
+            guard let job = jobsByMeetingID[storedMeetings[index].id] else { continue }
+            storedMeetings[index].processingStatus = job.state == .failed ? .failed : .processing
+        }
+        if let lastStoredMeeting,
+           let updated = storedMeetings.first(where: { $0.id == lastStoredMeeting.id }) {
+            self.lastStoredMeeting = updated
+        }
+    }
+
+    private func refreshTaskCount() {
+        activeTaskCount = tasks.lazy.filter { !$0.isArchived }.count
     }
 }

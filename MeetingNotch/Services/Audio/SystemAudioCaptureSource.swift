@@ -106,6 +106,6 @@ extension SystemAudioCaptureSource: SCStreamOutput, SCStreamDelegate {
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
-        AppLogger.audioCaptureFailed(source: kind.rawValue, message: error.localizedDescription)
+        AppLogger.audioCaptureFailed(source: kind.rawValue, error: error)
     }
 }
