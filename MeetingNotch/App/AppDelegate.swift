@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import DynamicNotchKit
 import SwiftUI
 
@@ -6,11 +7,22 @@ import SwiftUI
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState = AppState()
 
-    private var statusItem: NSStatusItem?
     private var reminderPresentationTask: Task<Void, Never>?
     private var recordingTask: Task<Void, Never>?
     private var terminationCleanupTask: Task<Void, Never>?
+    private var retentionCleanupTask: Task<Void, Never>?
+    private var notchHoverObservation: AnyCancellable?
+    private var screenParametersObservation: AnyCancellable?
+    private var activeNotchScreen: NSScreen?
+    private let notchScreenResolver = NotchScreenResolver()
+    private let audioPermissionService = AudioCapturePermissionService()
     private lazy var meetingMonitor = MeetingMonitor(provider: EventKitMeetingProvider())
+    private lazy var meetingRepository: any MeetingRepository = FileMeetingRepository()
+    private let appSettingsRepository: any AppSettingsRepository = UserDefaultsAppSettingsRepository()
+    private lazy var recordingRecoveryService = RecordingRecoveryService(repository: meetingRepository)
+    private lazy var retentionCleanupService = MeetingRetentionCleanupService(
+        repository: meetingRepository
+    )
     private lazy var recordingCoordinator: RecordingCoordinator = {
         let coordinator = RecordingCoordinator()
         coordinator.onStatusChange = { [weak self] status in
@@ -18,8 +30,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         return coordinator
     }()
+    private lazy var notchHoverController = NotchHoverController(
+        onExpand: { [weak self] in
+            guard let self else { return }
+            await self.notch.expand(on: self.resolvedActiveNotchScreen())
+        },
+        onCompact: { [weak self] in
+            guard let self else { return }
+            await self.notch.compact(on: self.resolvedActiveNotchScreen())
+        }
+    )
 
-    private lazy var notch: DynamicNotch<AnyView, AnyView, AnyView> = DynamicNotch {
+    private lazy var notch: DynamicNotch<AnyView, AnyView, AnyView> = DynamicNotch(
+        hoverBehavior: [.keepVisible, .increaseShadow]
+    ) {
         AnyView(
             NotchPanelView(
                 onRequestCalendarAccess: { [weak self] in
@@ -30,7 +54,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 },
                 onStartRecording: { [weak self] in self?.beginRecording() },
                 onStopRecording: { [weak self] in self?.stopRecordingFlow() },
-                onCancelFlow: { [weak self] in self?.cancelRecordingFlow() }
+                onCancelFlow: { [weak self] in self?.cancelRecordingFlow() },
+                onRecoverFromFailure: { [weak self] failure in
+                    self?.recover(from: failure)
+                },
+                onOpenStoredMeeting: { [weak self] meeting in self?.openStoredMeeting(meeting) },
+                onDeleteStoredMeeting: { [weak self] meeting in self?.deleteStoredMeeting(meeting) },
+                onOpenRecovery: { [weak self] in self?.openRecoveryDirectory() },
+                onTogglePin: { [weak self] in self?.toggleNotchPin() }
             )
                 .environmentObject(self.appState)
         )
@@ -47,12 +78,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        configureStatusItem()
         configureMeetingMonitor()
+        configureNotchInteraction()
+        refreshAudioPermissions()
         meetingMonitor.start()
+        loadStoredMeetings()
+        startPeriodicRetentionCleanup()
 
         Task {
-            await notch.compact()
+            let screen = resolvedActiveNotchScreen(preferPhysicalNotch: true)
+            await notch.compact(on: screen)
         }
     }
 
@@ -60,11 +95,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reminderPresentationTask?.cancel()
         recordingTask?.cancel()
         terminationCleanupTask?.cancel()
+        retentionCleanupTask?.cancel()
+        notchHoverController.cancel()
+        notchHoverObservation = nil
+        screenParametersObservation = nil
         meetingMonitor.stop()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    func applicationDidBecomeActive(_ notification: Notification) {
+        refreshAudioPermissions()
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -100,56 +143,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
-    @objc private func showMeetingNotch() {
-        Task {
-            await notch.expand()
-        }
+    func showMeetingNotch() {
+        presentNotch(followPointer: true)
     }
 
-    @objc private func startRecording() {
+    func startManualRecording() {
         beginRecording()
-        Task {
-            await notch.expand()
-        }
+        presentNotch(followPointer: true)
     }
 
-    @objc private func showSettings() {
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    @objc private func refreshCalendar() {
+    func refreshCalendar() {
         Task {
             await meetingMonitor.refresh()
         }
     }
 
-    @objc private func quit() {
+    func quit() {
         NSApp.terminate(nil)
     }
 
-    private func configureStatusItem() {
-        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(
-            systemSymbolName: "waveform.badge.mic",
-            accessibilityDescription: "MeetingNotch"
-        )
-
-        let menu = NSMenu()
-        menu.addItem(withTitle: "MeetingNotch'u Aç", action: #selector(showMeetingNotch), keyEquivalent: "")
-        menu.addItem(withTitle: "Kaydı Başlat", action: #selector(startRecording), keyEquivalent: "r")
-        menu.addItem(withTitle: "Takvimi Yenile", action: #selector(refreshCalendar), keyEquivalent: "")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Ayarlar…", action: #selector(showSettings), keyEquivalent: ",")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Çıkış", action: #selector(quit), keyEquivalent: "q")
-
-        for item in menu.items where item.action != nil {
-            item.target = self
+    func requestMicrophoneAccess() {
+        Task { [weak self] in
+            guard let self else { return }
+            let snapshot = await self.audioPermissionService.requestMicrophoneAccess()
+            self.appState.updateAudioCapturePermissions(snapshot)
         }
+    }
 
-        statusItem.menu = menu
-        self.statusItem = statusItem
+    func requestSystemAudioAccess() {
+        let snapshot = audioPermissionService.requestSystemAudioAccess()
+        appState.updateAudioCapturePermissions(snapshot)
+    }
+
+    func openSystemSettings(for source: AudioSourceKind) {
+        let pane = switch source {
+        case .microphone:
+            "Privacy_Microphone"
+        case .systemAudio:
+            "Privacy_ScreenCapture"
+        }
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?\(pane)"
+        ) else { return }
+        NSWorkspace.shared.open(url)
     }
 
     private func configureMeetingMonitor() {
@@ -168,6 +204,81 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func configureNotchInteraction() {
+        notch.transitionConfiguration = DynamicNotchTransitionConfiguration(
+            openingAnimation: .smooth(duration: 0.28),
+            closingAnimation: .smooth(duration: 0.2),
+            conversionAnimation: .smooth(duration: 0.3),
+            skipIntermediateHides: true
+        )
+        notchHoverObservation = notch.$isHovering
+            .dropFirst()
+            .removeDuplicates()
+            .sink { [weak self] isHovering in
+                self?.notchHoverController.update(isHovering: isHovering)
+            }
+
+        screenParametersObservation = NotificationCenter.default.publisher(
+            for: NSApplication.didChangeScreenParametersNotification
+        )
+        .sink { [weak self] _ in
+            self?.screenParametersDidChange()
+        }
+    }
+
+    private func presentNotch(followPointer: Bool) {
+        Task {
+            await expandNotch(followPointer: followPointer)
+        }
+    }
+
+    private func expandNotch(followPointer: Bool) async {
+        let previousScreen = activeNotchScreen
+        let targetScreen = followPointer
+            ? (notchScreenResolver.presentationScreen() ?? resolvedActiveNotchScreen())
+            : resolvedActiveNotchScreen()
+        let needsRelocation = notchHoverController.presentationState == .expanded
+            && !notchScreenResolver.isSameScreen(previousScreen, targetScreen)
+
+        activeNotchScreen = targetScreen
+        notchHoverController.markExpanded()
+        if needsRelocation {
+            await notch.hide()
+        }
+        await notch.expand(on: targetScreen)
+    }
+
+    private func toggleNotchPin() {
+        let isPinned = appState.toggleNotchPin()
+        notchHoverController.setPinned(isPinned, isHovering: notch.isHovering)
+    }
+
+    private func resolvedActiveNotchScreen(preferPhysicalNotch: Bool = false) -> NSScreen {
+        let resolved: NSScreen?
+        if preferPhysicalNotch {
+            resolved = notchScreenResolver.startupScreen()
+        } else {
+            resolved = notchScreenResolver.availableScreen(matching: activeNotchScreen)
+        }
+
+        let screen = resolved ?? NSScreen.main ?? NSScreen.screens[0]
+        activeNotchScreen = screen
+        return screen
+    }
+
+    private func screenParametersDidChange() {
+        let screen = resolvedActiveNotchScreen()
+        Task {
+            await notch.hide()
+            switch notchHoverController.presentationState {
+            case .expanded:
+                await notch.expand(on: screen)
+            case .compact:
+                await notch.compact(on: screen)
+            }
+        }
+    }
+
     private func requestCalendarAccess() {
         Task {
             await meetingMonitor.requestAccess()
@@ -182,6 +293,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         recordingTask = Task { [weak self] in
             guard let self else { return }
             do {
+                let permissions = await self.audioPermissionService.verifyAccessForRecording()
+                self.appState.updateAudioCapturePermissions(permissions)
+                guard permissions.canRecord else {
+                    self.appState.recordingFailed(self.permissionFailure(from: permissions))
+                    return
+                }
                 let session = try await self.recordingCoordinator.start(meeting: sourceMeeting)
                 guard !Task.isCancelled else {
                     await self.recordingCoordinator.cancel()
@@ -191,6 +308,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } catch is CancellationError {
                 await self.recordingCoordinator.cancel()
             } catch {
+                AppLogger.recordingOperationFailed(operation: "start", error: error)
                 self.appState.recordingFailed(self.recordingFailure(from: error))
             }
         }
@@ -203,8 +321,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             do {
                 let result = try await self.recordingCoordinator.stop()
-                self.appState.recordingSaved(result)
+                let storedMeeting = try await self.meetingRepository.saveCapture(result)
+                self.appState.recordingSaved(result, storedMeeting: storedMeeting)
             } catch {
+                AppLogger.recordingOperationFailed(operation: "stop-and-save", error: error)
                 self.appState.recordingFailed(self.recordingFailure(from: error))
             }
         }
@@ -219,7 +339,105 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         appState.cancelCurrentFlow()
     }
 
+    private func loadStoredMeetings() {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.meetingRepository.prepare()
+                let recoveryReport = await self.recordingRecoveryService.recoverInterruptedCaptures()
+                let meetings = try await self.meetingRepository.loadAll()
+                self.appState.replaceStoredMeetings(meetings)
+                self.appState.applyRecordingRecoveryReport(recoveryReport)
+            } catch {
+                AppLogger.persistenceFailed(
+                    operation: "load-meetings",
+                    message: error.localizedDescription
+                )
+            }
+        }
+    }
+
+    private func startPeriodicRetentionCleanup() {
+        retentionCleanupTask?.cancel()
+        retentionCleanupTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                await self.runRetentionCleanup()
+                do {
+                    try await Task.sleep(for: .seconds(24 * 60 * 60))
+                } catch {
+                    return
+                }
+            }
+        }
+    }
+
+    private func runRetentionCleanup() async {
+        do {
+            let preferences = try await appSettingsRepository.load()
+            let report = try await retentionCleanupService.cleanup(
+                policy: preferences.meetingRetentionPolicy
+            )
+            report.deletedMeetingIDs.forEach { appState.removeStoredMeeting(id: $0) }
+            if !report.failedMeetingIDs.isEmpty {
+                AppLogger.persistenceFailed(
+                    operation: "retention-cleanup",
+                    message: "\(report.failedMeetingIDs.count) toplantı silinemedi."
+                )
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            AppLogger.persistenceFailed(
+                operation: "retention-cleanup",
+                message: error.localizedDescription
+            )
+        }
+    }
+
+    private func openStoredMeeting(_ meeting: StoredMeeting) {
+        Task { [weak self] in
+            guard let self else { return }
+            let audioURL = await self.meetingRepository.audioFileURL(for: meeting)
+            NSWorkspace.shared.activateFileViewerSelecting([audioURL])
+        }
+    }
+
+    private func openRecoveryDirectory() {
+        Task { [weak self] in
+            guard let self else { return }
+            let directory = await self.meetingRepository.recoveryDirectoryURL()
+            NSWorkspace.shared.open(directory)
+        }
+    }
+
+    private func deleteStoredMeeting(_ meeting: StoredMeeting) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Toplantı silinsin mi?"
+        alert.informativeText = "“\(meeting.title)” kaydı ve bağlı ses dosyaları kalıcı olarak silinecek."
+        alert.addButton(withTitle: "Sil")
+        alert.addButton(withTitle: "Vazgeç")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.meetingRepository.delete(id: meeting.id)
+                self.appState.removeStoredMeeting(id: meeting.id)
+            } catch {
+                AppLogger.persistenceFailed(
+                    operation: "delete-meeting",
+                    message: error.localizedDescription
+                )
+            }
+        }
+    }
+
     private func recordingFailure(from error: Error) -> AppFailure {
+        if error is MeetingRepositoryError {
+            return .fileSystem(error.localizedDescription)
+        }
         guard let captureError = error as? RecordingCaptureError else {
             return .recording(error.localizedDescription)
         }
@@ -234,16 +452,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func permissionFailure(
+        from permissions: AudioCapturePermissionSnapshot
+    ) -> AppFailure {
+        if permissions.microphone != .authorized {
+            return .permission(
+                "Mikrofon erişimini Sistem Ayarları > Gizlilik ve Güvenlik > Mikrofon bölümünden açın.",
+                settings: permissions.microphone.requiresSystemSettings
+            )
+        }
+        return .permission(
+            "Sistem sesini kaydetmek için Ekran ve Sistem Sesi Kaydı iznini açın.",
+            settings: permissions.systemAudio.requiresSystemSettings
+        )
+    }
+
+    private func recover(from failure: AppFailure) {
+        switch failure.recoveryAction {
+        case .openSystemSettings:
+            let permissions = audioPermissionService.currentSnapshot()
+            let source: AudioSourceKind = permissions.microphone != .authorized
+                ? .microphone
+                : .systemAudio
+            openSystemSettings(for: source)
+            appState.recoverFromFailure()
+        case .requestPermission:
+            appState.recoverFromFailure()
+            beginRecording()
+        default:
+            appState.recoverFromFailure()
+        }
+    }
+
+    func refreshAudioPermissions() {
+        appState.updateAudioCapturePermissions(audioPermissionService.currentSnapshot())
+    }
+
     private func presentMeetingReminder() {
         reminderPresentationTask?.cancel()
         reminderPresentationTask = Task { [weak self] in
             guard let self else { return }
-            await self.notch.expand()
+            await self.expandNotch(followPointer: true)
             try? await Task.sleep(for: .seconds(8))
             guard !Task.isCancelled, case .upcomingMeeting = self.appState.meetingFlow else {
                 return
             }
-            await self.notch.compact()
+            guard !self.notch.isHovering, !self.appState.isNotchPinned else { return }
+            self.notchHoverController.markCompact()
+            await self.notch.compact(on: self.resolvedActiveNotchScreen())
         }
     }
 }

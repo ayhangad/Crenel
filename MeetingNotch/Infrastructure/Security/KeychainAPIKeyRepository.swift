@@ -1,0 +1,176 @@
+import Foundation
+import Security
+
+protocol APIKeyRepository: Sendable {
+    func apiKey(for provider: TranscriptionProviderID) async throws -> String?
+    func saveAPIKey(_ apiKey: String, for provider: TranscriptionProviderID) async throws
+    func deleteAPIKey(for provider: TranscriptionProviderID) async throws
+}
+
+enum APIKeyRepositoryOperation: String, Equatable, Sendable {
+    case read
+    case save
+    case delete
+}
+
+enum APIKeyRepositoryError: LocalizedError, Equatable {
+    case emptyAPIKey
+    case invalidStoredValue
+    case keychainFailure(operation: APIKeyRepositoryOperation, status: OSStatus?)
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyAPIKey:
+            "API anahtarı boş olamaz."
+        case .invalidStoredValue:
+            "Keychain'deki API anahtarı okunabilir metin biçiminde değil."
+        case .keychainFailure(let operation, let status):
+            if let status {
+                "Keychain işlemi başarısız oldu (\(operation.rawValue), durum: \(status))."
+            } else {
+                "Keychain işlemi başarısız oldu (\(operation.rawValue))."
+            }
+        }
+    }
+}
+
+protocol KeychainDataStore: Sendable {
+    func read(service: String, account: String) throws -> Data?
+    func save(_ data: Data, service: String, account: String) throws
+    func delete(service: String, account: String) throws
+}
+
+struct SystemKeychainDataStore: KeychainDataStore, Sendable {
+    func read(service: String, account: String) throws -> Data? {
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(
+            query(service: service, account: account, returningData: true) as CFDictionary,
+            &result
+        )
+
+        switch status {
+        case errSecSuccess:
+            guard let data = result as? Data else {
+                throw KeychainDataStoreError.unexpectedResult
+            }
+            return data
+        case errSecItemNotFound:
+            return nil
+        default:
+            throw KeychainDataStoreError.status(status)
+        }
+    }
+
+    func save(_ data: Data, service: String, account: String) throws {
+        var attributes = query(service: service, account: account)
+        attributes[kSecValueData as String] = data
+        attributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+
+        let addStatus = SecItemAdd(attributes as CFDictionary, nil)
+        switch addStatus {
+        case errSecSuccess:
+            return
+        case errSecDuplicateItem:
+            let updateStatus = SecItemUpdate(
+                query(service: service, account: account) as CFDictionary,
+                [kSecValueData as String: data] as CFDictionary
+            )
+            guard updateStatus == errSecSuccess else {
+                throw KeychainDataStoreError.status(updateStatus)
+            }
+        default:
+            throw KeychainDataStoreError.status(addStatus)
+        }
+    }
+
+    func delete(service: String, account: String) throws {
+        let status = SecItemDelete(query(service: service, account: account) as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw KeychainDataStoreError.status(status)
+        }
+    }
+
+    private func query(
+        service: String,
+        account: String,
+        returningData: Bool = false
+    ) -> [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        if returningData {
+            query[kSecReturnData as String] = true
+            query[kSecMatchLimit as String] = kSecMatchLimitOne
+        }
+        return query
+    }
+}
+
+private enum KeychainDataStoreError: Error {
+    case status(OSStatus)
+    case unexpectedResult
+}
+
+actor KeychainAPIKeyRepository: APIKeyRepository {
+    static let defaultService = "gad.MeetingNotch.transcription-api-keys"
+
+    private let store: any KeychainDataStore
+    private let service: String
+
+    init(
+        store: any KeychainDataStore = SystemKeychainDataStore(),
+        service: String = defaultService
+    ) {
+        self.store = store
+        self.service = service
+    }
+
+    func apiKey(for provider: TranscriptionProviderID) throws -> String? {
+        do {
+            guard let data = try store.read(service: service, account: provider.rawValue) else {
+                return nil
+            }
+            guard let apiKey = String(data: data, encoding: .utf8) else {
+                throw APIKeyRepositoryError.invalidStoredValue
+            }
+            return apiKey
+        } catch let error as APIKeyRepositoryError {
+            throw error
+        } catch {
+            throw sanitizedFailure(error, operation: .read)
+        }
+    }
+
+    func saveAPIKey(_ apiKey: String, for provider: TranscriptionProviderID) throws {
+        let normalizedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedKey.isEmpty else {
+            throw APIKeyRepositoryError.emptyAPIKey
+        }
+
+        do {
+            try store.save(Data(normalizedKey.utf8), service: service, account: provider.rawValue)
+        } catch {
+            throw sanitizedFailure(error, operation: .save)
+        }
+    }
+
+    func deleteAPIKey(for provider: TranscriptionProviderID) throws {
+        do {
+            try store.delete(service: service, account: provider.rawValue)
+        } catch {
+            throw sanitizedFailure(error, operation: .delete)
+        }
+    }
+
+    private func sanitizedFailure(
+        _ error: Error,
+        operation: APIKeyRepositoryOperation
+    ) -> APIKeyRepositoryError {
+        if case KeychainDataStoreError.status(let status) = error {
+            return .keychainFailure(operation: operation, status: status)
+        }
+        return .keychainFailure(operation: operation, status: nil)
+    }
+}

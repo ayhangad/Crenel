@@ -79,6 +79,14 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 - Yazımlar atomik yapılır ve yarım kayıtlar Recovery alanında korunur.
 - Her toplantı kararlı bir UUID ile ses, metadata ve Markdown çıktısını ilişkilendirir.
 - Repository formatları şema sürümü taşır.
+- Provider API anahtarları provider kimliğiyle ayrılmış generic-password öğeleri olarak
+  yalnızca macOS Keychain'de ve `ThisDeviceOnly` erişilebilirlik sınıfında tutulur.
+- API anahtarları tercih modellerine ve hata değerlerine eklenmez; serbest biçimli hata
+  ayrıntıları OSLog'da açık metin yerine özel, hash-maskeli veri olarak işaretlenir.
+- Toplantı saklama politikası ayar belgesinde tutulur ve eksik alan süresiz saklama olarak
+  geriye uyumlu okunur. Süre seçilmişse açılışta ve 24 saatte bir çalışan servis, bitiş
+  zamanı eşik öncesinde kalan toplantı klasörlerini repository üzerinden serialize ederek
+  siler; kısmi silme hataları kalan kayıtların temizliğini durdurmaz.
 
 ## Test sınırları
 

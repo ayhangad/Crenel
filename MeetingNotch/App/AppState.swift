@@ -10,15 +10,23 @@ final class AppState: ObservableObject {
     }
 
     @Published var selectedTab: PanelTab = .meetings
+    @Published private(set) var isNotchPinned = false
     @Published private(set) var meetingFlow: MeetingFlowState
     @Published private(set) var activeTaskCount = 0
     @Published private(set) var userFacingFailure: AppFailure?
     @Published private(set) var calendarAccessState: CalendarAccessState = .notDetermined
+    @Published private(set) var audioCapturePermissions = AudioCapturePermissionSnapshot(
+        microphone: .notDetermined,
+        systemAudio: .notDetermined
+    )
     @Published private(set) var nextMeeting: Meeting?
     @Published private(set) var meetingReminderLevel: MeetingReminderLevel = .none
     @Published private(set) var secondsUntilMeeting: TimeInterval?
     @Published private(set) var recordingCaptureStatus = RecordingCaptureStatus.idle
     @Published private(set) var lastRecordingResult: RecordingCaptureResult?
+    @Published private(set) var storedMeetings: [StoredMeeting] = []
+    @Published private(set) var lastStoredMeeting: StoredMeeting?
+    @Published private(set) var recordingRecoverySummary: RecordingRecoverySummary?
 
     private var flowMachine: MeetingFlowMachine
     private var suppressedReminderKey: String?
@@ -65,10 +73,40 @@ final class AppState: ObservableObject {
         send(.recordingStarted(at: session.startedAt))
     }
 
-    func recordingSaved(_ result: RecordingCaptureResult) {
+    func recordingSaved(_ result: RecordingCaptureResult, storedMeeting: StoredMeeting? = nil) {
         lastRecordingResult = result
+        if let storedMeeting {
+            lastStoredMeeting = storedMeeting
+            storedMeetings.removeAll { $0.id == storedMeeting.id }
+            storedMeetings.insert(storedMeeting, at: 0)
+        }
         recordingCaptureStatus = .idle
         send(.localRecordingSaved(sessionID: result.session.id))
+    }
+
+    func replaceStoredMeetings(_ meetings: [StoredMeeting]) {
+        storedMeetings = meetings.sorted { $0.startedAt > $1.startedAt }
+    }
+
+    func removeStoredMeeting(id: UUID) {
+        storedMeetings.removeAll { $0.id == id }
+        if lastStoredMeeting?.id == id {
+            lastStoredMeeting = nil
+        }
+    }
+
+    func applyRecordingRecoveryReport(_ report: RecordingRecoveryReport) {
+        recordingRecoverySummary = report.hasResults ? RecordingRecoverySummary(report: report) : nil
+    }
+
+    func dismissRecordingRecoverySummary() {
+        recordingRecoverySummary = nil
+    }
+
+    @discardableResult
+    func toggleNotchPin() -> Bool {
+        isNotchPinned.toggle()
+        return isNotchPinned
     }
 
     func recordingFailed(_ failure: AppFailure) {
@@ -96,6 +134,10 @@ final class AppState: ObservableObject {
 
     func updateCalendarAccessState(_ state: CalendarAccessState) {
         calendarAccessState = state
+    }
+
+    func updateAudioCapturePermissions(_ permissions: AudioCapturePermissionSnapshot) {
+        audioCapturePermissions = permissions
     }
 
     @discardableResult

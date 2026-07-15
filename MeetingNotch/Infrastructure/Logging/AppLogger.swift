@@ -5,6 +5,7 @@ enum AppLogger {
     private static let flow = Logger(subsystem: subsystem, category: "meeting-flow")
     private static let lifecycle = Logger(subsystem: subsystem, category: "lifecycle")
     private static let audio = Logger(subsystem: subsystem, category: "audio")
+    private static let persistence = Logger(subsystem: subsystem, category: "persistence")
 
     static func transitioned(from: MeetingFlowState.Phase, to: MeetingFlowState.Phase) {
         flow.debug("Flow transition: \(from.rawValue, privacy: .public) -> \(to.rawValue, privacy: .public)")
@@ -19,6 +20,16 @@ enum AppLogger {
     }
 
     static func audioCaptureFailed(source: String, message: String) {
-        audio.error("Audio capture failure [\(source, privacy: .public)]: \(message, privacy: .public)")
+        audio.error("Audio capture failure [\(source, privacy: .public)]: \(message, privacy: .private(mask: .hash))")
+    }
+
+    static func recordingOperationFailed(operation: String, error: Error) {
+        audio.error(
+            "Recording operation [\(operation, privacy: .public)] failed with \(String(describing: type(of: error)), privacy: .public): \(error.localizedDescription, privacy: .private(mask: .hash))"
+        )
+    }
+
+    static func persistenceFailed(operation: String, message: String) {
+        persistence.error("Persistence failure [\(operation, privacy: .public)]: \(message, privacy: .private(mask: .hash))")
     }
 }

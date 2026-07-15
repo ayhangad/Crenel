@@ -154,12 +154,12 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 ### 2.1 Notch konteyneri
 
 - [x] Seçilen notch UI çözümünü projeye entegre etmek.
-- [ ] Fiziksel notch ölçülerini ve aktif ekranı algılamak.
-- [ ] Notch olmayan Mac'lerde floating panel fallback'i uygulamak.
-- [ ] Çoklu ekran kullanımında panelin hangi ekranda açılacağını belirlemek.
-- [ ] Hover ile açılma ve gecikmeli kapanma davranışını uygulamak.
-- [ ] Panel içindeyken yanlışlıkla kapanmayı engellemek.
-- [ ] Tıklayarak sabitleme veya açık tutma ihtiyacını ürün kararına göre uygulamak.
+- [x] Fiziksel notch ölçülerini ve aktif ekranı algılamak.
+- [x] Notch olmayan Mac'lerde floating panel fallback'i uygulamak.
+- [x] Çoklu ekran kullanımında panelin hangi ekranda açılacağını belirlemek.
+- [x] Hover ile açılma ve gecikmeli kapanma davranışını uygulamak.
+- [x] Panel içindeyken yanlışlıkla kapanmayı engellemek.
+- [x] Tıklayarak sabitleme veya açık tutma ihtiyacını ürün kararına göre uygulamak.
 - [ ] Tam ekran uygulamalar ve farklı Space'lerde pencere davranışını test etmek.
 
 ### 2.2 Kompakt durum görünümü
@@ -175,6 +175,8 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 ### 2.3 Genişletilmiş panel
 
 - [x] Toplantılar ve Görevler sekmeleri arasında geçişi uygulamak.
+- [x] Sekmeleri görünür ve anlaşılır kılan, meeting-first görsel hiyerarşiye sahip panel
+  arayüzünü uygulamak.
 - [ ] Klavye ile sekme geçişini desteklemek.
 - [ ] Panel boyutlarını içerik ve ekran alanına göre sınırlandırmak.
 - [ ] Açılma, kapanma ve durum değişimi animasyonlarını uygulamak.
@@ -203,13 +205,13 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 
 ### 3.2 İzin yönetimi
 
-- [ ] Mikrofon yetki durumunu okumak ve değişiklikleri UI'a yansıtmak.
-- [ ] Sistem sesi yakalama yetki durumunu yönetmek.
+- [x] Mikrofon yetki durumunu okumak ve değişiklikleri UI'a yansıtmak.
+- [x] Sistem sesi yakalama yetki durumunu yönetmek.
 - [x] Takvim full-access yetki durumunu yönetmek.
 - [x] Gerekli Info.plist açıklamalarını eklemek.
 - [ ] Gerekli entitlement'ları dağıtım stratejisine göre eklemek.
-- [ ] Reddedilen veya sonradan kaldırılan izin için Sistem Ayarları bağlantısı sunmak.
-- [ ] Kayıt öncesi gerekli izinleri tekrar doğrulamak.
+- [x] Reddedilen veya sonradan kaldırılan izin için Sistem Ayarları bağlantısı sunmak.
+- [x] Kayıt öncesi gerekli izinleri tekrar doğrulamak.
 
 ### 3.3 Ayarlar ekranı
 
@@ -236,33 +238,33 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 
 ### 4.1 Dosya düzeni
 
-- [ ] Application Support altındaki uygulama klasörünü güvenli şekilde oluşturmak.
-- [ ] Meetings, Tasks, Temporary ve Recovery klasörlerini tanımlamak.
-- [ ] Çakışmayacak ve okunabilir meeting dosya adı standardı belirlemek.
-- [ ] Her toplantı için metadata dosyası formatı belirlemek.
-- [ ] Şema sürümü ekleyerek ileride migration yapılabilmesini sağlamak.
-- [ ] Dosya adlarında geçersiz karakterleri ve çok uzun başlıkları ele almak.
+- [x] Application Support altındaki uygulama klasörünü güvenli şekilde oluşturmak.
+- [x] Meetings, Tasks, Temporary ve Recovery klasörlerini tanımlamak.
+- [x] Çakışmayacak ve okunabilir meeting dosya adı standardı belirlemek.
+- [x] Her toplantı için metadata dosyası formatı belirlemek.
+- [x] Şema sürümü ekleyerek ileride migration yapılabilmesini sağlamak.
+- [x] Dosya adlarında geçersiz karakterleri ve çok uzun başlıkları ele almak.
 
 ### 4.2 Repository katmanı
 
-- [ ] Meeting repository oluşturmak.
-- [ ] Task repository oluşturmak.
-- [ ] App settings repository oluşturmak.
-- [ ] Tüm dosya yazımlarını atomik yapmak.
-- [ ] Bozuk veya yarım dosyaları güvenli şekilde ele almak.
-- [ ] Harici dosya değişikliği desteklenmeyecekse bunu belgelemek; desteklenecekse reload
+- [x] Meeting repository oluşturmak.
+- [x] Task repository oluşturmak.
+- [x] App settings repository oluşturmak.
+- [x] Tüm dosya yazımlarını atomik yapmak.
+- [x] Bozuk veya yarım dosyaları güvenli şekilde ele almak.
+- [x] Harici dosya değişikliği desteklenmeyecekse bunu belgelemek; desteklenecekse reload
   davranışını uygulamak.
-- [ ] Aynı anda gelen yazma işlemlerini serialize etmek.
-- [ ] Repository birim testleri yazmak.
+- [x] Aynı anda gelen yazma işlemlerini serialize etmek.
+- [x] Repository birim testleri yazmak.
 
 ### 4.3 Güvenlik ve yaşam döngüsü
 
-- [ ] API anahtarlarını macOS Keychain'de saklamak.
-- [ ] API anahtarlarının log veya ayar dosyasına yazılmadığını doğrulamak.
-- [ ] Geçici ham ses dosyalarını başarılı işlem sonrasında temizlemek.
-- [ ] Kullanıcının tek bir toplantıyı tüm bağlı dosyalarıyla silebilmesini sağlamak.
-- [ ] Otomatik saklama süresi seçilmişse periyodik temizleme uygulamak.
-- [ ] Uygulama çökmesi sonrası kurtarılabilir dosyaları tespit etmek.
+- [x] API anahtarlarını macOS Keychain'de saklamak.
+- [x] API anahtarlarının log veya ayar dosyasına yazılmadığını doğrulamak.
+- [x] Geçici ham ses dosyalarını başarılı işlem sonrasında temizlemek.
+- [x] Kullanıcının tek bir toplantıyı tüm bağlı dosyalarıyla silebilmesini sağlamak.
+- [x] Otomatik saklama süresi seçilmişse periyodik temizleme uygulamak.
+- [x] Uygulama çökmesi sonrası kurtarılabilir dosyaları tespit etmek.
 - [ ] Hassas içeriklerin hata ve analytics kayıtlarına girmediğini doğrulamak.
 
 ### Faz 4 çıkış kriterleri
@@ -388,7 +390,7 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 - [x] Provider için tek ve geçerli M4A/AAC dosyası üretmek.
 - [x] Nihai dosyanın süresini ve okunabilirliğini doğrulamak.
 - [x] Finalize işlemi başarısız olursa kaynak geçici dosyaları korumak.
-- [ ] Çökme sonrası yarım kaydı finalize etme kurtarma akışı oluşturmak.
+- [x] Çökme sonrası yarım kaydı finalize etme kurtarma akışı oluşturmak.
 
 ### 7.5 Kayıt kontrolleri
 
@@ -470,11 +472,11 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 
 ### 9.1 Toplantı listesi
 
-- [ ] Toplantılar sekmesinde son toplantıları listelemek.
-- [ ] Tarih, başlık, süre ve işlem durumunu göstermek.
-- [ ] İşlenmekte veya hata vermiş toplantıları listede ayırt etmek.
-- [ ] Listeyi tarih sırasına göre düzenlemek.
-- [ ] Boş durum görünümü hazırlamak.
+- [x] Toplantılar sekmesinde son toplantıları listelemek.
+- [x] Tarih, başlık, süre ve işlem durumunu göstermek.
+- [x] İşlenmekte veya hata vermiş toplantıları listede ayırt etmek.
+- [x] Listeyi tarih sırasına göre düzenlemek.
+- [x] Boş durum görünümü hazırlamak.
 - [ ] Gerekirse basit arama eklemek.
 
 ### 9.2 Toplantı detay ekranı
@@ -636,6 +638,36 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
 
+- 2026-07-15 — Geriye uyumlu toplantı saklama politikası ve açılışta/günlük çalışan
+  otomatik temizleme eklendi; varsayılan süresiz bırakıldı, kısmi silme hataları izole
+  edildi. Toplam 90 test ve Debug build geçti.
+- 2026-07-15 — Provider bazında ayrıştırılmış, `ThisDeviceOnly` macOS Keychain API anahtarı
+  repository'si eklendi; anahtarların ayar belgesine ve açık metin loglara girmediği hata
+  sınırı ve testlerle doğrulandı. Toplam 84 test ve Debug build geçti.
+- 2026-07-15 — API anahtarlarını kapsam dışında tutan sürümlü UserDefaults ayar
+  repository'si, bozuk veriyi kurtarma anahtarında koruma ve reset davranışıyla eklendi;
+  toplam 76 test ve Debug build ile doğrulandı.
+- 2026-07-15 — Aktif ve arşivlenmiş görevleri tek sürümlü belgede atomik saklayan,
+  eşzamanlı yazmaları serialize eden ve bozuk dosyayı silmeden Recovery alanına taşıyan
+  task repository 70 test ve Debug build ile tamamlandı.
+- 2026-07-14 — Genişletilmiş notch paneli; belirgin Toplantılar/Görevler sekmeleri,
+  meeting-first durum kartı, hiyerarşik aksiyonlar, erişilebilir hedef alanları ve azaltılmış
+  hareket desteğiyle yenilendi; koyu görünüm render QA'sı ve 63 testle doğrulandı.
+- 2026-07-14 — Mikrofon ve sistem sesi izinlerinin canlı durum yönetimi, modern Ayarlar
+  menüsü, doğru Sistem Ayarları yönlendirmesi, kayıt öncesi doğrulama ve ayrıntılı kayıt
+  hata logları 63 testle tamamlandı.
+- 2026-07-14 — Fiziksel notch/floating stil seçimi, imleç odaklı çoklu ekran yönlendirmesi,
+  ekran değişiminde güvenli yeniden konumlandırma ve paneli açık tutan pin kontrolü 58 testle
+  tamamlandı.
+- 2026-07-14 — Notch için niyet gecikmeli hover açılması, panelden çıkışta toleranslı
+  kapanma, kesintisiz kompakt/geniş geçiş ve daha anlamlı kompakt durum 50 testle
+  tamamlandı.
+- 2026-07-14 — Çökme sonrası kayıt taraması, ham kaynaklardan otomatik yeniden finalize,
+  arşive geri alma ve kurtarılamayan dosyaları kullanıcıya gösterme akışı 46 testle
+  tamamlandı.
+- 2026-07-14 — Kalıcı toplantı arşivi, atomik ve sürümlü metadata repository'si,
+  bozuk/yarım kayıt kurtarma, güvenli silme ve notch içindeki Son Kayıtlar listesi 43
+  testle tamamlandı.
 - 2026-07-14 — ScreenCaptureKit sistem sesi ve AVCaptureSession mikrofon kaydı gerçek
   başlat/durdur akışına bağlandı; timestamp offset'li tek M4A üretimi, kaynak göstergeleri,
   atomik metadata ve hata kurtarma davranışı 36 testle doğrulandı.

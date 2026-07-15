@@ -3,6 +3,27 @@ import XCTest
 
 @MainActor
 final class AppStateTests: XCTestCase {
+    func testAudioCapturePermissionsAreUpdatedForTheUI() {
+        let state = AppState()
+        let permissions = AudioCapturePermissionSnapshot(
+            microphone: .authorized,
+            systemAudio: .denied
+        )
+
+        state.updateAudioCapturePermissions(permissions)
+
+        XCTAssertEqual(state.audioCapturePermissions, permissions)
+    }
+
+    func testNotchPinCanBeToggled() {
+        let state = AppState()
+
+        XCTAssertTrue(state.toggleNotchPin())
+        XCTAssertTrue(state.isNotchPinned)
+        XCTAssertFalse(state.toggleNotchPin())
+        XCTAssertFalse(state.isNotchPinned)
+    }
+
     func testRecordingPreparationStartsOnlyFromIdle() {
         let state = AppState()
 
