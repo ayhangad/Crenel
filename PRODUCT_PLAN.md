@@ -107,9 +107,9 @@ kanalı değildir.
 ### 0.3 Teknik risk prototipleri
 
 - [x] Notch penceresinin farklı Mac modellerinde açılma/kapanma prototipini yapmak.
-- [ ] Notch bulunmayan cihaz için floating panel davranışını doğrulamak.
-- [ ] Mikrofon kaydını bağımsız bir teknik prototiple doğrulamak.
-- [ ] Sistem sesi kaydını bağımsız bir teknik prototiple doğrulamak.
+- [x] Notch bulunmayan cihaz için floating panel davranışını doğrulamak.
+- [x] Mikrofon kaydını bağımsız bir teknik prototiple doğrulamak.
+- [x] Sistem sesi kaydını bağımsız bir teknik prototiple doğrulamak.
 - [ ] Mikrofon ve sistem sesinin 30–60 dakikalık eş zamanlı kaydını test etmek.
 - [ ] Hoparlör, kablolu kulaklık ve Bluetooth kulaklık senaryolarını karşılaştırmak.
 - [ ] Ses cihazı toplantı sırasında değiştiğinde uygulanacak davranışı belirlemek.
@@ -238,6 +238,10 @@ kanalı değildir.
 - [x] Gerekli entitlement'ları dağıtım stratejisine göre eklemek.
 - [x] Reddedilen veya sonradan kaldırılan izin için Sistem Ayarları bağlantısı sunmak.
 - [x] Kayıt öncesi gerekli izinleri tekrar doğrulamak.
+- [x] Sistem sesi izni sonrası yeniden başlatmanın çalışan güncel build'i açmasını ve
+  audio-only capture akışını screen-capture preflight bağımlılığından çıkarmak.
+- [x] Sistem sesi `İzin Ver` aksiyonunun gerçek Process Tap TCC isteğini tetiklemesini ve
+  development build'inin Sistem Sesini Kaydetme listesine otomatik eklenmesini sağlamak.
 
 ### 3.3 Ayarlar ekranı
 
@@ -403,7 +407,8 @@ kanalı değildir.
 - [x] Sistem sesi buffer'larını timestamp bilgisiyle kaydetmek.
 - [ ] Sessizlik ile kopmuş audio pipeline durumunu mümkün olduğunca ayırt etmek.
 - [ ] Çıkış cihazı veya sample rate değişimini ele almak.
-- [x] Seçilen ScreenCaptureKit akışını her bitiş/hata yolunda temizlemek.
+- [x] Core Audio Process Tap, aggregate device ve dosya kaynaklarını her bitiş/hata yolunda
+  temizlemek.
 
 ### 7.4 Senkronizasyon ve dosya üretimi
 
@@ -665,6 +670,35 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 ## İlerleme günlüğü
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
+
+- 2026-07-15 — Sistem sesi `İzin Ver` ve izin hatası kurtarma aksiyonları, tap içeren geçici
+  aggregate device'ı gerçekten başlatan TCC probuna bağlandı. Böylece DerivedData'dan çalışan
+  development build'i elle `+` ile seçilmeden Sistem Sesini Kaydetme listesine kaydoluyor;
+  ret durumunda doğru ayar paneli otomatik açılıyor. Uygulamaya özel `AudioCapture` kaydı
+  sıfırlandıktan sonra gerçek izin entegrasyonu yeniden geçti; toplam 144 test ve imzalı
+  Debug build doğrulandı.
+
+- 2026-07-15 — Sistem sesi yakalama, ekran kaydı iznine bağlı ScreenCaptureKit yolundan
+  `NSAudioCaptureUsageDescription` kullanan Core Audio Process Tap altyapısına taşındı.
+  Audio-only izin durumu kayıt başlangıcında doğrulanıyor ve Sistem Ayarları doğru Sistem
+  Sesini Kaydetme panelini açıyor. Gerçek cihazda harici sistem sesi üretilerek seviye,
+  timestamp, süre, audio track ve dosya boyutu kontrollerinden geçen M4A doğrulandı; toplam
+  143 test ve imzalı Debug build geçti.
+
+- 2026-07-15 — Sistem sesi izni sonrası relaunch, eski proses kapanmadan LaunchServices'a
+  yeni instance açtırmak yerine proses çıkışını bekleyen yardımcı üzerinden çalışan kesin
+  bundle yolunu açacak şekilde düzeltildi. Eski çalışan proses güncel imzalı Debug build ile
+  değiştirildi; relaunch/izin testleri dahil 142 test geçti.
+
+- 2026-07-15 — Mikrofon kaynağı recording coordinator'dan bağımsız, opt-in donanım
+  entegrasyon testiyle gerçek cihazda doğrulandı. Fiziksel mikrofondan üç saniyelik buffer
+  akışı, normalize seviye callback'leri ve süre/track/timestamp/boyut kontrollerinden geçen
+  okunabilir M4A üretildi; 140 regresyon testi ve imzalı Debug build geçti.
+
+- 2026-07-15 — Notch olmayan ekran fallback seçimi ile DynamicNotchKit floating panelinin
+  gerçek AppKit penceresinde açılma, kompakt isteğinde gizlenme ve yeniden açılma davranışı
+  doğrulandı. Floating modun menü/hover ile genişleyip kapanışta gizlendiği mimariye
+  kaydedildi; toplam 139 test geçti.
 
 - 2026-07-15 — Notch açılma/kapanma prototipi yaygın 13/14/15/16 inç MacBook ekran
   geometrileri, negatif koordinatlı harici ekranlar, tekrarlı hover döngüleri ve iptal

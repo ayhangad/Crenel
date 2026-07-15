@@ -45,7 +45,7 @@ enum RecordingCaptureError: LocalizedError, Equatable {
         case .microphonePermissionDenied:
             "Mikrofon izni verilmedi. Sistem Ayarları'ndan erişimi açın."
         case .systemAudioPermissionDenied:
-            "Sistem sesi izni verilmedi. Sistem Ayarları'nda Ekran ve Sistem Sesi Kaydı erişimini açın."
+            "Sistem sesi izni verilmedi. Sistem Ayarları'nda Sistem Sesini Kaydetme erişimini açın."
         case .noMicrophone:
             "Kullanılabilir bir mikrofon bulunamadı."
         case .noDisplay:

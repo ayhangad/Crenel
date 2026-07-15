@@ -54,7 +54,7 @@ struct OnboardingView: View {
                     onboardingContent(
                         icon: "speaker.wave.2.fill",
                         title: "Diğer katılımcılar için sistem sesi",
-                        detail: "Sistem sesi izni, görüşmedeki diğer kişilerin sesini yakalar. macOS bu izni Ekran ve Sistem Sesi Kaydı bölümünde yönetir.",
+                        detail: "Sistem sesi izni, görüşmedeki diğer kişilerin sesini yakalar. macOS bu izni Gizlilik ve Güvenlik > Sistem Sesini Kaydetme bölümünde yönetir.",
                         status: appState.audioCapturePermissions.systemAudio
                     )
                 case .calendar:
@@ -217,6 +217,7 @@ struct OnboardingView: View {
     private func permissionTitle(_ status: AudioCapturePermissionStatus) -> String {
         switch status {
         case .authorized: "İzin hazır"
+        case .verificationRequired: "İzin kayıt başlarken doğrulanacak"
         case .notDetermined: "Henüz izin istenmedi"
         case .denied: "İzin verilmedi"
         case .restricted: "Sistem tarafından kısıtlandı"
@@ -224,7 +225,11 @@ struct OnboardingView: View {
     }
 
     private func permissionIcon(_ status: AudioCapturePermissionStatus) -> String {
-        status == .authorized ? "checkmark.circle.fill" : "exclamationmark.circle.fill"
+        switch status {
+        case .authorized: "checkmark.circle.fill"
+        case .verificationRequired: "waveform.badge.magnifyingglass"
+        case .notDetermined, .denied, .restricted: "exclamationmark.circle.fill"
+        }
     }
 
     private func permissionColor(_ status: AudioCapturePermissionStatus) -> Color {

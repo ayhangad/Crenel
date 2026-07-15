@@ -1,5 +1,4 @@
 @preconcurrency import AVFoundation
-import CoreGraphics
 import Foundation
 
 @MainActor
@@ -8,13 +7,13 @@ final class AudioCapturePermissionService {
         var microphoneStatus: () -> AVAuthorizationStatus
         var requestMicrophoneAccess: () async -> Bool
         var hasSystemAudioAccess: () -> Bool
-        var requestSystemAudioAccess: () -> Bool
+        var requestSystemAudioAccess: () async -> Bool
 
         static let live = Dependencies(
             microphoneStatus: { AVCaptureDevice.authorizationStatus(for: .audio) },
             requestMicrophoneAccess: { await AVCaptureDevice.requestAccess(for: .audio) },
-            hasSystemAudioAccess: { CGPreflightScreenCaptureAccess() },
-            requestSystemAudioAccess: { CGRequestScreenCaptureAccess() }
+            hasSystemAudioAccess: { false },
+            requestSystemAudioAccess: { await SystemAudioPermissionProbe.requestAccess() }
         )
     }
 
@@ -24,6 +23,9 @@ final class AudioCapturePermissionService {
 
     private let dependencies: Dependencies
     private let defaults: UserDefaults
+    private var verifiedSystemAudioAccess = false
+    private var rejectedSystemAudioAccess = false
+    private var isRequestingSystemAudioAccess = false
 
     init(dependencies: Dependencies = .live, defaults: UserDefaults = .standard) {
         self.dependencies = dependencies
@@ -44,10 +46,15 @@ final class AudioCapturePermissionService {
         return currentSnapshot()
     }
 
-    func requestSystemAudioAccess() -> AudioCapturePermissionSnapshot {
+    func requestSystemAudioAccess() async -> AudioCapturePermissionSnapshot {
+        guard !isRequestingSystemAudioAccess else { return currentSnapshot() }
         if !dependencies.hasSystemAudioAccess() {
+            isRequestingSystemAudioAccess = true
+            defer { isRequestingSystemAudioAccess = false }
             defaults.set(true, forKey: Key.requestedSystemAudioAccess)
-            _ = dependencies.requestSystemAudioAccess()
+            let granted = await dependencies.requestSystemAudioAccess()
+            verifiedSystemAudioAccess = granted
+            rejectedSystemAudioAccess = !granted
         }
         return currentSnapshot()
     }
@@ -57,8 +64,8 @@ final class AudioCapturePermissionService {
         if snapshot.microphone == .notDetermined {
             snapshot = await requestMicrophoneAccess()
         }
-        if snapshot.systemAudio == .notDetermined {
-            snapshot = requestSystemAudioAccess()
+        if snapshot.systemAudio != .authorized {
+            snapshot = await requestSystemAudioAccess()
         }
         return snapshot
     }
@@ -79,10 +86,37 @@ final class AudioCapturePermissionService {
     }
 
     private func systemAudioPermissionStatus() -> AudioCapturePermissionStatus {
-        if dependencies.hasSystemAudioAccess() {
+        if dependencies.hasSystemAudioAccess() || verifiedSystemAudioAccess {
             defaults.set(true, forKey: Key.requestedSystemAudioAccess)
             return .authorized
         }
-        return defaults.bool(forKey: Key.requestedSystemAudioAccess) ? .denied : .notDetermined
+        if rejectedSystemAudioAccess {
+            return .denied
+        }
+        return defaults.bool(forKey: Key.requestedSystemAudioAccess)
+            ? .verificationRequired
+            : .notDetermined
+    }
+}
+
+@MainActor
+private enum SystemAudioPermissionProbe {
+    static func requestAccess() async -> Bool {
+        let outputURL = FileManager.default.temporaryDirectory
+            .appending(path: "MeetingNotch-PermissionProbe-\(UUID().uuidString).m4a")
+        let recorder = CoreAudioTapRecorder()
+        defer {
+            recorder.cancel()
+            try? FileManager.default.removeItem(at: outputURL)
+        }
+
+        do {
+            try recorder.prepare(outputURL: outputURL)
+            try recorder.start()
+            try await Task.sleep(for: .milliseconds(150))
+            return true
+        } catch {
+            return false
+        }
     }
 }

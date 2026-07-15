@@ -1,111 +1,90 @@
-import CoreGraphics
-import CoreMedia
 import Foundation
-import ScreenCaptureKit
 
-final class SystemAudioCaptureSource: NSObject, AudioCaptureSource {
+final class SystemAudioCaptureSource: AudioCaptureSource {
     let kind = AudioSourceKind.systemAudio
     var onLevelChange: (@Sendable (Float) -> Void)?
 
-    private let sampleQueue = DispatchQueue(label: "gad.MeetingNotch.audio.system")
-    private var stream: SCStream?
-    private var writer: SampleBufferAudioWriter?
+    private let levelQueue = DispatchQueue(label: "gad.MeetingNotch.audio.system.level")
+    private var levelTimer: DispatchSourceTimer?
+    private var recorder: CoreAudioTapRecorder?
     private var outputURL: URL?
 
     func prepare(outputURL: URL) async throws {
-        guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
+        let recorder = CoreAudioTapRecorder()
+        do {
+            try recorder.prepare(outputURL: outputURL)
+        } catch {
             throw RecordingCaptureError.systemAudioPermissionDenied
         }
-
-        let content = try await SCShareableContent.excludingDesktopWindows(
-            false,
-            onScreenWindowsOnly: true
-        )
-        let mainDisplayID = CGMainDisplayID()
-        guard let display = content.displays.first(where: { $0.displayID == mainDisplayID })
-            ?? content.displays.first
-        else {
-            throw RecordingCaptureError.noDisplay
-        }
-
-        let ownApplications = content.applications.filter {
-            $0.bundleIdentifier == Bundle.main.bundleIdentifier
-        }
-        let filter = SCContentFilter(
-            display: display,
-            excludingApplications: ownApplications,
-            exceptingWindows: []
-        )
-        let configuration = SCStreamConfiguration()
-        configuration.capturesAudio = true
-        configuration.excludesCurrentProcessAudio = true
-        configuration.sampleRate = 48_000
-        configuration.channelCount = 2
-        configuration.width = 2
-        configuration.height = 2
-        configuration.minimumFrameInterval = CMTime(seconds: 1, preferredTimescale: 600)
-        configuration.showsCursor = false
-
-        let stream = SCStream(filter: filter, configuration: configuration, delegate: self)
-        try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: sampleQueue)
-
         self.outputURL = outputURL
-        writer = SampleBufferAudioWriter(outputURL: outputURL, source: kind)
-        self.stream = stream
+        self.recorder = recorder
     }
 
     func start() async throws {
-        guard let stream else {
+        guard let recorder else {
             throw RecordingCaptureError.sourceFailed(.systemAudio, "Sistem sesi hazırlanmamış.")
         }
-        try await stream.startCapture()
+        do {
+            try recorder.start()
+            startLevelUpdates(recorder: recorder)
+        } catch {
+            throw RecordingCaptureError.systemAudioPermissionDenied
+        }
     }
 
     func stop() async throws -> CapturedAudioTrack {
-        guard let stream, let writer, let outputURL else {
+        stopLevelUpdates()
+        guard let recorder, let outputURL else {
             throw RecordingCaptureError.sourceFailed(.systemAudio, "Sistem sesi hazırlanmamış.")
         }
-
-        try await stream.stopCapture()
-        sampleQueue.sync {}
-
-        guard let firstSampleTime = try await writer.finish() else {
+        do {
+            try recorder.stop()
+        } catch {
+            reset()
+            throw RecordingCaptureError.sourceFailed(
+                .systemAudio,
+                "Sistem sesi dosyası sonlandırılamadı."
+            )
+        }
+        guard recorder.hasCapturedAudio, recorder.firstSampleTime >= 0 else {
+            reset()
             throw RecordingCaptureError.sourceDidNotProduceAudio(.systemAudio)
         }
-        reset()
-        return CapturedAudioTrack(
+        let track = CapturedAudioTrack(
             source: .systemAudio,
             fileURL: outputURL,
-            firstSampleTime: firstSampleTime
+            firstSampleTime: recorder.firstSampleTime
         )
+        reset()
+        return track
     }
 
     func cancel() async {
-        try? await stream?.stopCapture()
-        sampleQueue.sync {}
-        writer?.cancel()
+        stopLevelUpdates()
+        recorder?.cancel()
         reset()
     }
 
+    private func startLevelUpdates(recorder: CoreAudioTapRecorder) {
+        stopLevelUpdates()
+        let timer = DispatchSource.makeTimerSource(queue: levelQueue)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(100))
+        timer.setEventHandler { [weak self, weak recorder] in
+            guard let recorder else { return }
+            self?.onLevelChange?(recorder.currentLevel)
+        }
+        levelTimer = timer
+        timer.resume()
+    }
+
+    private func stopLevelUpdates() {
+        levelTimer?.setEventHandler {}
+        levelTimer?.cancel()
+        levelTimer = nil
+    }
+
     private func reset() {
-        stream = nil
-        writer = nil
+        recorder = nil
         outputURL = nil
-    }
-}
-
-extension SystemAudioCaptureSource: SCStreamOutput, SCStreamDelegate {
-    func stream(
-        _ stream: SCStream,
-        didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
-        of outputType: SCStreamOutputType
-    ) {
-        guard outputType == .audio else { return }
-        writer?.append(sampleBuffer)
-        onLevelChange?(AudioLevelMeter.normalizedLevel(from: sampleBuffer))
-    }
-
-    func stream(_ stream: SCStream, didStopWithError error: Error) {
-        AppLogger.audioCaptureFailed(source: kind.rawValue, error: error)
     }
 }

@@ -2,6 +2,7 @@ import Foundation
 
 enum AudioCapturePermissionStatus: String, Equatable, Sendable {
     case notDetermined
+    case verificationRequired
     case authorized
     case denied
     case restricted
@@ -16,6 +17,7 @@ struct AudioCapturePermissionSnapshot: Equatable, Sendable {
     var systemAudio: AudioCapturePermissionStatus
 
     var canRecord: Bool {
-        microphone == .authorized && systemAudio == .authorized
+        microphone == .authorized
+            && (systemAudio == .authorized || systemAudio == .verificationRequired)
     }
 }

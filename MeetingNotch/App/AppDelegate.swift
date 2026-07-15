@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var retentionCleanupTask: Task<Void, Never>?
     private var processingTask: Task<Void, Never>?
     private var permissionRefreshTask: Task<Void, Never>?
+    private var pendingRelaunchURL: URL?
     private var processingRestartRequested = false
     private var notchHoverObservation: AnyCancellable?
     private var screenParametersObservation: AnyCancellable?
@@ -21,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var onboardingWindowController: NSWindowController?
     private let notchScreenResolver = NotchScreenResolver()
     private let audioPermissionService = AudioCapturePermissionService()
+    private let applicationRelauncher = ApplicationRelauncher()
     private let launchAtLoginService: any LaunchAtLoginServicing = LaunchAtLoginService()
     private lazy var meetingMonitor = MeetingMonitor(provider: EventKitMeetingProvider())
     private lazy var meetingRepository: any MeetingRepository = FileMeetingRepository()
@@ -122,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        launchPendingRelaunchIfNeeded()
         reminderPresentationTask?.cancel()
         recordingTask?.cancel()
         terminationCleanupTask?.cancel()
@@ -203,23 +206,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func requestSystemAudioAccess() {
-        let snapshot = audioPermissionService.requestSystemAudioAccess()
-        appState.updateAudioCapturePermissions(snapshot)
-        refreshAudioPermissions(recheckingFor: .seconds(3))
+        Task { [weak self] in
+            guard let self else { return }
+            let snapshot = await self.audioPermissionService.requestSystemAudioAccess()
+            self.appState.updateAudioCapturePermissions(snapshot)
+            if snapshot.systemAudio.requiresSystemSettings {
+                self.openSystemSettings(for: .systemAudio)
+            } else {
+                self.refreshAudioPermissions(recheckingFor: .seconds(3))
+            }
+        }
     }
 
     func relaunchApplication() {
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(
-            at: Bundle.main.bundleURL,
-            configuration: configuration
-        ) { _, error in
-            guard error == nil else {
-                AppLogger.permissionOperationFailed(operation: "relaunch")
-                return
-            }
-            NSApp.terminate(nil)
+        pendingRelaunchURL = Bundle.main.bundleURL
+        NSApp.terminate(nil)
+    }
+
+    private func launchPendingRelaunchIfNeeded() {
+        guard let applicationURL = pendingRelaunchURL else { return }
+        pendingRelaunchURL = nil
+
+        do {
+            try applicationRelauncher.prepareRelaunch(applicationURL: applicationURL)
+        } catch {
+            AppLogger.permissionOperationFailed(operation: "relaunch")
         }
     }
 
@@ -228,7 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .microphone:
             "Privacy_Microphone"
         case .systemAudio:
-            "Privacy_ScreenCapture"
+            "Privacy_AudioCapture"
         }
         guard let url = URL(
             string: "x-apple.systempreferences:com.apple.preference.security?\(pane)"
@@ -962,7 +973,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
         return .permission(
-            "Sistem sesini kaydetmek için Ekran ve Sistem Sesi Kaydı iznini açın.",
+            "Sistem sesini kaydetmek için Sistem Sesini Kaydetme iznini açın.",
             settings: permissions.systemAudio.requiresSystemSettings
         )
     }
@@ -974,8 +985,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let source: AudioSourceKind = permissions.microphone != .authorized
                 ? .microphone
                 : .systemAudio
-            openSystemSettings(for: source)
             appState.recoverFromFailure()
+            if source == .systemAudio {
+                requestSystemAudioAccess()
+            } else {
+                openSystemSettings(for: source)
+            }
         case .requestPermission:
             appState.recoverFromFailure()
             beginRecording()

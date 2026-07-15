@@ -391,6 +391,14 @@ private struct PermissionRow: View {
                 Label("Hazır", systemImage: "checkmark")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.green)
+            } else if status == .verificationRequired {
+                HStack(spacing: 8) {
+                    Label("Doğrulama gerekli", systemImage: "waveform.badge.magnifyingglass")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.orange)
+                    Button("İzin Ver", action: onRequestAccess)
+                        .controlSize(.large)
+                }
             } else if source == .systemAudio, status.requiresSystemSettings {
                 HStack(spacing: 6) {
                     Button("Tekrar İste", action: onRequestAccess)
@@ -424,6 +432,7 @@ private struct PermissionRow: View {
     private var statusTitle: String {
         switch status {
         case .authorized: "İzin verildi"
+        case .verificationRequired: "Sistem sesi izni doğrulanmalı"
         case .notDetermined: "İzin bekleniyor"
         case .denied: "İzin verilmedi"
         case .restricted: "Sistem tarafından kısıtlandı"
@@ -433,6 +442,7 @@ private struct PermissionRow: View {
     private var statusIcon: String {
         switch status {
         case .authorized: "checkmark"
+        case .verificationRequired: "waveform"
         case .notDetermined: "questionmark"
         case .denied, .restricted: "exclamationmark"
         }
@@ -441,7 +451,7 @@ private struct PermissionRow: View {
     private var statusColor: Color {
         switch status {
         case .authorized: .green
-        case .notDetermined: .orange
+        case .verificationRequired, .notDetermined: .orange
         case .denied, .restricted: .red
         }
     }

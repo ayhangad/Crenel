@@ -80,6 +80,8 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 - Uygulama açıldığında desteklenen cihazda kompakt notch görünümü hazırlanır.
 - Menü çubuğu ikonu notch görünür olmadığında da ürüne erişim sağlar.
 - Fiziksel notch bulunmayan ekranda DynamicNotchKit floating görünümü kullanılır.
+- Floating görünüm kompakt modu desteklemez; menü veya hover aksiyonu paneli genişletir,
+  kompakt duruma dönüş paneli gizler ve menü çubuğu erişimi kalıcı olarak korur.
 - Öncelik sırası: kayıt > işleme/hata > yaklaşan toplantı > görev rozeti > boşta.
 
 ## Veri yaklaşımı
@@ -122,14 +124,27 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 
 ## İzin yaşam döngüsü
 
-- Mikrofon durumu AVFoundation, sistem sesi durumu CoreGraphics screen-capture preflight
-  sınırından okunur; kayıt başlamadan ikisi de yeniden doğrulanır.
+- Mikrofon durumu AVFoundation sınırından okunur ve kayıt başlamadan doğrulanır. Sistem
+  sesinin audio-only TCC izni için güvenilir bir preflight API bulunmadığından UI bu durumu
+  `verificationRequired` olarak taşır; kesin karar Core Audio Process Tap hazırlanırken
+  sistem tarafından verilir.
+- Sistem sesi yakalama `NSAudioCaptureUsageDescription` ile global, private ve unmuted bir
+  Core Audio Process Tap oluşturur. Uygulamanın kendi audio process'i tap dışında bırakılır;
+  tap özel aggregate device üzerinden Objective-C++ realtime callback'ine bağlanır ve M4A/AAC
+  dosyasına yazılır. Akış ekran görüntüsü veya ekran kaydı iznine bağlı değildir.
+- Kullanıcının açık `İzin Ver` aksiyonu, tap içeren geçici aggregate device'ın IO akışını kısa
+  süre gerçekten başlatır; macOS TCC kaydı ve yerel sistem istemi bu noktada oluşur. Probe
+  dosyası hemen silinir ve eşzamanlı yinelenen istekler tek çağrıyla sınırlandırılır. Ret
+  sonucunda uygulama doğru Sistem Sesini Kaydetme panelini açar.
+- Sistem sesi ayar bağlantısı Gizlilik ve Güvenlik altındaki Sistem Sesini Kaydetme panelini
+  (`Privacy_AudioCapture`) açar. İzin reddedilirse gerçek kayıt başlangıcı normalize edilmiş
+  izin hatası üretir ve kullanıcı bu panele yönlendirilir.
 - Açık Sistem Ayarları'ndan dönüşte TCC kararının gecikmeli görünmesine karşı kısa süreli
   polling yapılır. macOS çalışan proseste eski kararı tutarsa kullanıcı uygulamayı Ayarlar
   içinden kontrollü biçimde yeniden başlatabilir.
-- Kullanıcı tarafından yapılan `Tekrar İste` aksiyonu önceki UserDefaults talep geçmişine
-  bakmaksızın sistem isteğini yeniden çalıştırır. Otomatik kayıt yolu reddedilen izni tekrar
-  tekrar prompt etmez.
+- İzin değişikliği için kontrollü relaunch istendiğinde çalışan kesin bundle URL'si korunur;
+  ayrı yardımcı mevcut proses tamamen kapandıktan sonra aynı yolu yeni instance olarak açar.
+  Böylece LaunchServices'ın bellekteki eski build'i öne getirmesi engellenir.
 
 ## Sonuç ve görev yüzeyleri
 
@@ -169,3 +184,9 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 - Domain durum geçişleri ve repository'ler birim testleriyle korunur.
 - Calendar matcher ve provider parser gerçek servis olmadan fixture ile test edilir.
 - Ses yakalama ve notch davranışı gerçek macOS donanımında entegrasyon testi gerektirir.
+- Gerçek mikrofon testi `MEETINGNOTCH_RUN_AUDIO_INTEGRATION_TESTS=1` opt-in anahtarıyla
+  `MicrophoneCaptureSource` sınırını coordinator'dan bağımsız çalıştırır; normal regresyon
+  koşularında TCC istemi oluşturmamak için atlanır.
+- Gerçek sistem sesi testi aynı opt-in anahtarıyla harici bir sistem sesi oynatır ve
+  `SystemAudioCaptureSource` çıktısının seviye, timestamp, süre, audio track ve M4A dosya
+  bütünlüğünü doğrular; normal regresyon koşularında TCC istemi oluşturmamak için atlanır.
