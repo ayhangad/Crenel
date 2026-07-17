@@ -180,6 +180,8 @@ kanalı değildir.
 ### 2.1 Notch konteyneri
 
 - [x] Seçilen notch UI çözümünü projeye entegre etmek.
+- [x] DynamicNotchKit paket çözümlemesini temiz checkout, Xcode IDE oturumu, test ve Debug
+  build ile doğrulamak.
 - [x] Fiziksel notch ölçülerini ve aktif ekranı algılamak.
 - [x] Notch olmayan Mac'lerde floating panel fallback'i uygulamak.
 - [x] Çoklu ekran kullanımında panelin hangi ekranda açılacağını belirlemek.
@@ -670,6 +672,11 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 ## İlerleme günlüğü
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
+
+- 2026-07-15 — Xcode'un yarıda kalan Swift Package Manager çalışma kopyası sonrası bellekte
+  tuttuğu DynamicNotchKit çözümleme hatası, proje yeniden üretimi ve temiz IDE oturumuyla
+  giderildi. Uzak `1.1.0` etiketi, Xcode workspace build'i, 144 test ve imzalı Debug build
+  doğrulandı.
 
 - 2026-07-15 — Sistem sesi `İzin Ver` ve izin hatası kurtarma aksiyonları, tap içeren geçici
   aggregate device'ı gerçekten başlatan TCC probuna bağlandı. Böylece DerivedData'dan çalışan
