@@ -101,6 +101,11 @@ süresi dolmuş kayıtların temizlenmesini engellemez. Ayarlar UI'ından politi
 
 ## Transkripsiyon ve işleme kuyruğu
 
+MeetingNotch V1 canlı transkript üretmez. Kayıt durdurulduktan ve birleşik M4A güvenle
+saklandıktan sonra arka plan kuyruğu sesi ElevenLabs bulutundaki `scribe_v2` modeline
+gönderir. Kayıt sırasında ağ gerekmez; upload/transkripsiyon hatasında ses korunur ve
+toplantı tekrar işlenebilir.
+
 Provider adaptörleri için ortak transkripsiyon sözleşmesi; normalize transcript sonucu,
 capability bilgisi, format/boyut doğrulaması, upload progress callback'i, güvenli hata
 normalizasyonu ve geçici hatalar için sınırlı retry politikası sunar. Birincil adaptör,
@@ -120,11 +125,18 @@ dosyasına atomik yazar. Sonuç güvenle yazıldıktan sonra ayrı mikrofon/sist
 silinir; dinleme ve export için birleşik M4A korunur. Multipart upload gövdesi istek sonunda
 silinir, force-quit artıkları sonraki uygulama açılışında temizlenir.
 
+Transkripsiyonun ardından ikinci bir bulut modeli çağrılmaz. Yerel extractive not servisi
+yalnızca transkriptte açıkça bulunan cümlelerden kısa özet, kararlar ve aksiyon maddeleri
+çıkarır; sorumlu veya tarih belirsizse alanı boş bırakır. Bu adım başarısız olsa bile
+transkript tamamlanmış sonuç olarak saklanır.
+
 ## Toplantı sonucu
 
 Notch içindeki bir geçmiş toplantıya tıklamak ayrı detay penceresini açar. Birleşik M4A
 aynı pencerede oynatılabilir; konuşmacı ayrımlı transcript segmentleri `LazyVStack` ile
 gösterilir ve timestamp düğmesi oynatıcıyı ilgili noktaya taşır. Transkript düz metin
 olarak panoya kopyalanabilir, ses Finder'da gösterilebilir, başarısız işlem yeniden
-denenebilir ve toplantı güçlü onay sonrasında bağlı dosyalarıyla silinebilir. Özet,
-kararlar, aksiyon maddeleri ve Markdown export Faz 8.4/9 kapsamındaki açık işlerdir.
+denenebilir ve toplantı güçlü onay sonrasında bağlı dosyalarıyla silinebilir. Aynı ekranda
+kısa özet, kararlar ve aksiyon maddeleri gösterilir. Tam sonuç `meeting.md` olarak toplantı
+klasöründe saklanır; Markdown panoya kopyalanabilir veya kullanıcının seçtiği konuma
+`.md` dosyası olarak kaydedilebilir.

@@ -96,8 +96,10 @@ final class MeetingAudioPlayer: ObservableObject {
 struct MeetingDetailView: View {
     let meeting: StoredMeeting
     let storedTranscription: StoredTranscription?
+    let markdown: String?
     let audioURL: URL
     let onCopyTranscript: (String) -> Void
+    let onExportMarkdown: (String) -> Void
     let onRevealAudio: (URL) -> Void
     let onRetry: (StoredMeeting) -> Void
     let onDelete: (StoredMeeting) -> Void
@@ -108,16 +110,20 @@ struct MeetingDetailView: View {
     init(
         meeting: StoredMeeting,
         storedTranscription: StoredTranscription?,
+        markdown: String? = nil,
         audioURL: URL,
         onCopyTranscript: @escaping (String) -> Void,
+        onExportMarkdown: @escaping (String) -> Void = { _ in },
         onRevealAudio: @escaping (URL) -> Void,
         onRetry: @escaping (StoredMeeting) -> Void,
         onDelete: @escaping (StoredMeeting) -> Void
     ) {
         self.meeting = meeting
         self.storedTranscription = storedTranscription
+        self.markdown = markdown
         self.audioURL = audioURL
         self.onCopyTranscript = onCopyTranscript
+        self.onExportMarkdown = onExportMarkdown
         self.onRevealAudio = onRevealAudio
         self.onRetry = onRetry
         self.onDelete = onDelete
@@ -135,8 +141,11 @@ struct MeetingDetailView: View {
                 LazyVStack(alignment: .leading, spacing: 18) {
                     AudioPlayerCard(player: player)
 
-                    if let transcript = storedTranscription?.transcript {
-                        transcriptSection(transcript)
+                    if let storedTranscription {
+                        if let summary = storedTranscription.summary {
+                            summarySection(summary)
+                        }
+                        transcriptSection(storedTranscription.transcript)
                     } else {
                         processingState
                     }
@@ -167,11 +176,21 @@ struct MeetingDetailView: View {
 
             Spacer()
 
-            if let transcript = storedTranscription?.transcript {
-                Button {
-                    onCopyTranscript(TranscriptTextFormatter.plainText(transcript))
+            if let storedTranscription {
+                Menu {
+                    Button("Düz Metni Kopyala", systemImage: "doc.on.doc") {
+                        onCopyTranscript(TranscriptTextFormatter.plainText(storedTranscription.transcript))
+                    }
+                    if let markdown {
+                        Button("Markdown Kopyala", systemImage: "text.document") {
+                            onCopyTranscript(markdown)
+                        }
+                        Button("Markdown Dosyası Kaydet…", systemImage: "square.and.arrow.down") {
+                            onExportMarkdown(markdown)
+                        }
+                    }
                 } label: {
-                    Label("Transkripti Kopyala", systemImage: "doc.on.doc")
+                    Label("Kopyala / Dışa Aktar", systemImage: "square.and.arrow.up")
                 }
             }
 
@@ -199,6 +218,72 @@ struct MeetingDetailView: View {
         }
         .buttonStyle(.bordered)
         .padding(20)
+    }
+
+    private func summarySection(_ summary: MeetingSummary) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Toplantı Notları", systemImage: "sparkles")
+                    .font(.headline)
+                Spacer()
+                Button("Notları Kopyala", systemImage: "doc.on.doc") {
+                    onCopyTranscript(MeetingMarkdownFormatter.notes(summary))
+                }
+                .buttonStyle(.borderless)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Kısa Özet")
+                    .font(.subheadline.weight(.semibold))
+                Text(summary.overview.isEmpty
+                    ? "Transkript özetlenecek yeterli içerik taşımıyor."
+                    : summary.overview)
+                    .textSelection(.enabled)
+            }
+
+            SummaryList(
+                title: "Kararlar",
+                emptyText: "Açıkça belirtilmiş karar bulunamadı.",
+                values: summary.decisions
+            )
+
+            VStack(alignment: .leading, spacing: 7) {
+                Text("Aksiyon Maddeleri")
+                    .font(.subheadline.weight(.semibold))
+                if summary.actionItems.isEmpty {
+                    Text("Açıkça belirtilmiş aksiyon maddesi bulunamadı.")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(summary.actionItems) { action in
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: "circle")
+                                .font(.system(size: 7))
+                                .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(action.title)
+                                    .textSelection(.enabled)
+                                if let detail = actionDetail(action) {
+                                    Text(detail)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .background(.quaternary.opacity(0.42), in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func actionDetail(_ action: ActionItem) -> String? {
+        var details: [String] = []
+        if let assignee = action.assignee { details.append("Sorumlu: \(assignee)") }
+        if let dueDate = action.dueDate {
+            details.append("Tarih: \(dueDate.formatted(date: .abbreviated, time: .omitted))")
+        }
+        return details.isEmpty ? nil : details.joined(separator: " · ")
     }
 
     @ViewBuilder
@@ -274,6 +359,33 @@ struct MeetingDetailView: View {
         case .failed: "Ses kaydınız korunuyor. Üstteki Tekrar Dene düğmesiyle işlemi yeniden başlatabilirsiniz."
         case .recorded, .processing: "Bu pencereyi kapatabilirsiniz; işleme arka planda devam eder."
         case .completed: "Ses kaydı korunuyor. Transkript dosyası için işlemeyi yeniden deneyebilirsiniz."
+        }
+    }
+}
+
+private struct SummaryList: View {
+    let title: String
+    let emptyText: String
+    let values: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+            if values.isEmpty {
+                Text(emptyText)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(values.enumerated()), id: \.offset) { _, value in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 4))
+                            .foregroundStyle(.secondary)
+                        Text(value)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
         }
     }
 }

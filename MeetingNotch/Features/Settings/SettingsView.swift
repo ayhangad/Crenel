@@ -194,6 +194,21 @@ struct SettingsView: View {
             }
 
             Section {
+                LabeledContent("Model") {
+                    Text("ElevenLabs Scribe v2")
+                        .foregroundStyle(.secondary)
+                }
+
+                LabeledContent("Nerede çalışır?") {
+                    Text("ElevenLabs bulutu")
+                        .foregroundStyle(.secondary)
+                }
+
+                LabeledContent("Ne zaman işlenir?") {
+                    Text("Kayıt durdurulduktan sonra")
+                        .foregroundStyle(.secondary)
+                }
+
                 Picker("Provider", selection: $selectedProvider) {
                     Text("ElevenLabs Scribe v2")
                         .tag(TranscriptionProviderID.elevenLabs)
@@ -214,6 +229,11 @@ struct SettingsView: View {
                 )
                 .textContentType(.password)
 
+                Link(
+                    "ElevenLabs’te API anahtarı oluştur",
+                    destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!
+                )
+
                 settingsActionRow(
                     message: transcriptionSettingsMessage ?? (hasStoredAPIKey ? "API anahtarı Keychain’de kayıtlı" : nil),
                     isFailure: transcriptionSettingsFailed,
@@ -228,7 +248,7 @@ struct SettingsView: View {
             } header: {
                 Text("Transkripsiyon")
             } footer: {
-                Text("Ses dosyası seçili bulut provider’ına yüklenir. API anahtarı yalnızca macOS Keychain’de tutulur.")
+                Text("MeetingNotch canlı transkript üretmez. Kaydı durdurduğunuzda mikrofon ve sistem sesi tek M4A dosyasında güvenceye alınır, ardından konuşmacı ayrımı ve zaman damgaları için ElevenLabs’e yüklenir. Anahtar önce doğrulanır ve yalnızca bu Mac’in Keychain’inde tutulur. Ağ ya da provider hatasında ses kaydı silinmez; tekrar deneyebilirsiniz.")
             }
 
             Section {

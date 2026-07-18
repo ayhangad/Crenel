@@ -25,6 +25,7 @@ enum TranscriptionProcessingEvent: Sendable {
     case started(ProcessingJob)
     case uploadProgress(meetingID: UUID, progress: Double)
     case transcribing(meetingID: UUID)
+    case summarizing(meetingID: UUID)
     case completed(StoredMeeting)
     case failed(ProcessingJob, TranscriptionServiceError)
 }
@@ -36,6 +37,7 @@ actor TranscriptionProcessingWorker {
     private let meetingRepository: any MeetingRepository
     private let settingsRepository: any AppSettingsRepository
     private let providers: any TranscriptionProviderResolving
+    private let summaryService: any MeetingSummaryGenerating
     private let retryPolicy: TranscriptionRetryPolicy
     private let onEvent: EventHandler
     private var isDraining = false
@@ -45,6 +47,7 @@ actor TranscriptionProcessingWorker {
         meetingRepository: any MeetingRepository,
         settingsRepository: any AppSettingsRepository,
         providers: any TranscriptionProviderResolving = DefaultTranscriptionProviderResolver(),
+        summaryService: any MeetingSummaryGenerating = ExtractiveMeetingSummaryService(),
         retryPolicy: TranscriptionRetryPolicy = TranscriptionRetryPolicy(),
         onEvent: @escaping EventHandler = { _ in }
     ) {
@@ -52,6 +55,7 @@ actor TranscriptionProcessingWorker {
         self.meetingRepository = meetingRepository
         self.settingsRepository = settingsRepository
         self.providers = providers
+        self.summaryService = summaryService
         self.retryPolicy = retryPolicy
         self.onEvent = onEvent
     }
@@ -100,7 +104,22 @@ actor TranscriptionProcessingWorker {
                 }
                 try Task.checkCancellation()
                 await onEvent(.transcribing(meetingID: job.meetingID))
-                let updatedMeeting = try await meetingRepository.saveTranscription(result, for: meeting)
+                await onEvent(.summarizing(meetingID: job.meetingID))
+                let summary: MeetingSummary?
+                do {
+                    summary = try await summaryService.generate(from: result.transcript)
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    // Transcription is the durable primary result. Notes are optional and must
+                    // never turn a successful speech-to-text operation into a failed meeting.
+                    summary = nil
+                }
+                let updatedMeeting = try await meetingRepository.saveTranscription(
+                    result,
+                    summary: summary,
+                    for: meeting
+                )
                 try await queue.complete(meetingID: job.meetingID)
                 await onEvent(.completed(updatedMeeting))
             } catch is CancellationError {

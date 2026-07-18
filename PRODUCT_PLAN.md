@@ -465,6 +465,9 @@ kanalı değildir.
 
 ### 8.3 Alternatif provider
 
+V1 kararı: ElevenLabs Scribe v2 tek production transkripsiyon provider'ıdır. OpenAI
+adaptörü UI'da devre dışı gösterilir ve aşağıdaki maddeler V1 sonrasına bırakılmıştır.
+
 - [ ] Alternatif provider client'ını uygulamak.
 - [ ] Dosya boyutu limitine göre sıkıştırma veya client-side chunking yapmak.
 - [ ] Chunk sınırlarında zaman offset'lerini birleştirmek.
@@ -475,14 +478,14 @@ kanalı değildir.
 
 ### 8.4 Özet ve aksiyon maddeleri
 
-- [ ] Özet üretim servisinin provider'dan ayrı mı ortak mı olacağını kesinleştirmek.
-- [ ] Kısa genel özet üretmek.
-- [ ] Alınan kararları çıkarmak.
-- [ ] Aksiyon maddelerini çıkarmak.
-- [ ] Varsa sorumlu kişi ve tarih bilgisini güvenli biçimde ayrıştırmak.
-- [ ] Model yapılandırması veya yanıt sorunu olduğunda transkripti yine de kaydetmek.
-- [ ] Özet sonucunu yapılandırılmış modele dönüştürmek.
-- [ ] Özet/aksiyon maddelerini toplantı Markdown dosyasına yazmak.
+- [x] Özet üretim servisinin provider'dan ayrı mı ortak mı olacağını kesinleştirmek.
+- [x] Kısa genel özet üretmek.
+- [x] Alınan kararları çıkarmak.
+- [x] Aksiyon maddelerini çıkarmak.
+- [x] Varsa sorumlu kişi ve tarih bilgisini güvenli biçimde ayrıştırmak.
+- [x] Model yapılandırması veya yanıt sorunu olduğunda transkripti yine de kaydetmek.
+- [x] Özet sonucunu yapılandırılmış modele dönüştürmek.
+- [x] Özet/aksiyon maddelerini toplantı Markdown dosyasına yazmak.
 
 ### 8.5 İşleme kuyruğu ve kurtarma
 
@@ -498,9 +501,9 @@ kanalı değildir.
 ### Faz 8 çıkış kriterleri
 
 - [ ] Gerçek toplantı kaydı konuşmacı ayrımlı transkripte dönüşüyor.
-- [ ] Özet, kararlar ve aksiyon maddeleri kullanıcıya gösterilebiliyor.
-- [ ] Ağ veya provider hatası kaydı kaybettirmiyor ve tekrar denenebiliyor.
-- [ ] En az iki provider ayarlardan seçilebilir veya ikinci provider açıkça sonraki sürüme
+- [x] Özet, kararlar ve aksiyon maddeleri kullanıcıya gösterilebiliyor.
+- [x] Ağ veya provider hatası kaydı kaybettirmiyor ve tekrar denenebiliyor.
+- [x] En az iki provider ayarlardan seçilebilir veya ikinci provider açıkça sonraki sürüme
   taşınmışsa plan buna göre güncellenmiş.
 
 ## Faz 9 — Toplantı geçmişi ve sonuç deneyimi
@@ -516,9 +519,9 @@ kanalı değildir.
 
 ### 9.2 Toplantı detay ekranı
 
-- [ ] Özet bölümünü göstermek.
-- [ ] Kararlar bölümünü göstermek.
-- [ ] Aksiyon maddeleri bölümünü göstermek.
+- [x] Özet bölümünü göstermek.
+- [x] Kararlar bölümünü göstermek.
+- [x] Aksiyon maddeleri bölümünü göstermek.
 - [x] Konuşmacı ayrımlı transkripti göstermek.
 - [ ] Konuşmacı adlarını kullanıcı tarafından düzenlenebilir yapmak.
 - [x] Segment timestamp'ine tıklayarak kayıtta ilgili noktaya gitmeyi uygulamak.
@@ -527,9 +530,9 @@ kanalı değildir.
 
 ### 9.3 Dışa aktarma ve yönetim
 
-- [ ] Transkripti Markdown olarak dışa aktarmak.
+- [x] Transkripti Markdown olarak dışa aktarmak.
 - [x] Transkripti düz metin olarak kopyalamak.
-- [ ] Özet ve aksiyon maddelerini kopyalamak.
+- [x] Özet ve aksiyon maddelerini kopyalamak.
 - [x] Ses dosyasını Finder'da göstermek.
 - [ ] Toplantı dosyalarını kullanıcı seçtiği konuma export etmek.
 - [x] Toplantıyı ve bağlı verileri silmek.
@@ -538,16 +541,16 @@ kanalı değildir.
 
 ### 9.4 Tamamlandı deneyimi
 
-- [ ] İşlem bitince notch üzerinde kısa başarı durumu göstermek.
-- [ ] Başarı durumundan toplantı detayına geçiş sağlamak.
+- [x] İşlem bitince notch üzerinde kısa başarı durumu göstermek.
+- [x] Başarı durumundan toplantı detayına geçiş sağlamak.
 - [ ] Panel kapalıysa yerel bildirim seçeneğini uygulamak.
 - [ ] Bildirime tıklanınca doğru toplantıyı açmak.
 
 ### Faz 9 çıkış kriterleri
 
-- [ ] Kullanıcı eski toplantıyı bulabiliyor, okuyabiliyor, dinleyebiliyor ve silebiliyor.
-- [ ] Sonuçlar uygulama yeniden başlatıldığında doğru yükleniyor.
-- [ ] Dışa aktarma çıktıları başka uygulamalarda kullanılabilir.
+- [x] Kullanıcı eski toplantıyı bulabiliyor, okuyabiliyor, dinleyebiliyor ve silebiliyor.
+- [x] Sonuçlar uygulama yeniden başlatıldığında doğru yükleniyor.
+- [x] Dışa aktarma çıktıları başka uygulamalarda kullanılabilir.
 
 ## Faz 10 — Dayanıklılık, performans ve erişilebilirlik
 
@@ -672,6 +675,16 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 ## İlerleme günlüğü
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
+
+- 2026-07-18 — Meeting ana sonuç akışı tamamlandı: Ayarlar artık ElevenLabs Scribe v2'nin
+  bulutta ve kayıt durduktan sonra çalıştığını, API anahtarının nasıl oluşturulup doğrulanarak
+  Keychain'e bağlandığını açıklıyor. Transkripsiyon sonrası provider'dan bağımsız yerel
+  extractive not servisi kısa özet, açık karar ve aksiyonları güvenli sorumlu/tarih alanlarıyla
+  üretiyor; hata halinde transkript korunuyor. Sonuç `transcript.json` yanında atomik
+  `meeting.md` olarak saklanıyor; detay ekranında notlar gösteriliyor, tam Markdown veya
+  yalnızca notlar kopyalanabiliyor ve seçilen konuma `.md` export edilebiliyor. Toplam 167
+  test ve Apple Development imzalı Debug build geçti; üç opt-in donanım testi normal
+  regresyonda atlandı.
 
 - 2026-07-18 — Ayarlar'a canlı AVFoundation cihaz listesi, sistem varsayılanı ve kalıcı
   mikrofon seçimi eklendi. Her kayıt seçimi yeniden çözüyor; bağlı olmayan cihaz güvenli

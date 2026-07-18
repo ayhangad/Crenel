@@ -124,6 +124,14 @@ final class AppState: ObservableObject {
         send(.uploadCompleted)
     }
 
+    func processingBeganSummarizing() {
+        if case .uploading = meetingFlow {
+            send(.uploadCompleted)
+        }
+        guard case .transcribing = meetingFlow else { return }
+        send(.transcriptionCompleted)
+    }
+
     func processingCompleted(_ meeting: StoredMeeting) {
         processingJobs.removeAll { $0.meetingID == meeting.id }
         storedMeetings.removeAll { $0.id == meeting.id }

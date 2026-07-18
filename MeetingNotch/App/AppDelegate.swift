@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import DynamicNotchKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -846,9 +847,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.persistenceFailed(operation: "load-transcript-detail", error: error)
                 transcription = nil
             }
+            let markdown: String?
+            if let stored = try? await self.meetingRepository.loadMarkdown(for: meeting.id) {
+                markdown = stored
+            } else if let transcription {
+                markdown = MeetingMarkdownFormatter.markdown(
+                    meeting: meeting,
+                    transcription: transcription
+                )
+            } else {
+                markdown = nil
+            }
             self.presentMeetingDetail(
                 meeting,
                 transcription: transcription,
+                markdown: markdown,
                 audioURL: audioURL
             )
         }
@@ -857,6 +870,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func presentMeetingDetail(
         _ meeting: StoredMeeting,
         transcription: StoredTranscription?,
+        markdown: String?,
         audioURL: URL
     ) {
         meetingDetailWindows[meeting.id]?.close()
@@ -864,11 +878,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let rootView = MeetingDetailView(
             meeting: meeting,
             storedTranscription: transcription,
+            markdown: markdown,
             audioURL: audioURL,
             onCopyTranscript: { text in
                 let pasteboard = NSPasteboard.general
                 pasteboard.clearContents()
                 pasteboard.setString(text, forType: .string)
+            },
+            onExportMarkdown: { [weak self] markdown in
+                self?.exportMarkdown(markdown, for: meeting)
             },
             onRevealAudio: { url in
                 NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -893,6 +911,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         meetingDetailWindows[meeting.id] = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    private func exportMarkdown(_ markdown: String, for meeting: StoredMeeting) {
+        let panel = NSSavePanel()
+        panel.title = "Toplantıyı Markdown Olarak Kaydet"
+        panel.nameFieldStringValue = URL(fileURLWithPath: meeting.audioFileName)
+            .deletingPathExtension()
+            .lastPathComponent + ".md"
+        panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+
+        do {
+            try Data(markdown.utf8).write(to: destination, options: .atomic)
+        } catch {
+            AppLogger.persistenceFailed(operation: "export-meeting-markdown", error: error)
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Markdown kaydedilemedi"
+            alert.informativeText = "Seçtiğiniz klasöre yazma iznini kontrol edip tekrar deneyin."
+            alert.runModal()
+        }
     }
 
     private func openRecoveryDirectory() {
@@ -1006,6 +1046,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             appState.updateTranscriptionUploadProgress(progress)
         case .transcribing:
             appState.processingBeganTranscribing()
+        case .summarizing:
+            appState.processingBeganSummarizing()
         case .completed(let meeting):
             appState.processingCompleted(meeting)
             if appState.processingJobs.isEmpty {

@@ -139,6 +139,45 @@ final class FileMeetingRepositoryTests: XCTestCase {
         ))
     }
 
+    func testSaveTranscriptionPersistsSummaryAndMarkdownAtomically() async throws {
+        let meeting = try await repository.saveCapture(
+            try makeCapture(title: "Markdown Meeting", startedAt: .now)
+        )
+        let transcript = Transcript(
+            text: "Karar verdik: V1 devam edecek.",
+            languageCode: "tr",
+            segments: [TranscriptSegment(
+                speakerID: "speaker_0",
+                startTime: 3,
+                endTime: 6,
+                text: "Karar verdik: V1 devam edecek."
+            )]
+        )
+        let summary = MeetingSummary(
+            overview: "V1 kapsamı konuşuldu.",
+            decisions: ["V1 devam edecek."],
+            actionItems: []
+        )
+
+        let updated = try await repository.saveTranscription(
+            TranscriptionResult(providerID: .elevenLabs, transcript: transcript),
+            summary: summary,
+            for: meeting
+        )
+
+        XCTAssertEqual(updated.processingStatus, .completed)
+        let loadedTranscription = try await repository.loadTranscription(for: meeting.id)
+        let stored = try XCTUnwrap(loadedTranscription)
+        XCTAssertEqual(stored.summary, summary)
+        let loadedMarkdown = try await repository.loadMarkdown(for: meeting.id)
+        let markdown = try XCTUnwrap(loadedMarkdown)
+        XCTAssertTrue(markdown.contains("# Markdown Meeting"))
+        XCTAssertTrue(markdown.contains("## Kararlar"))
+        XCTAssertTrue(markdown.contains("V1 devam edecek."))
+        let directory = root.appending(path: "Meetings/\(meeting.id.uuidString)")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appending(path: "meeting.md").path))
+    }
+
     func testFileNameSanitizesAndLimitsLongTitles() {
         let title = String(repeating: "Çok/Uzun:*? Başlık ", count: 20)
         let fileName = MeetingFileName.audioFileName(

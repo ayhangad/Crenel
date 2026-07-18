@@ -103,6 +103,9 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   sorumlu/tarih bilgisi uydurulmadan çıkarılan aksiyon maddelerini taşır.
 - Yazımlar atomik yapılır ve yarım kayıtlar Recovery alanında korunur.
 - Her toplantı kararlı bir UUID ile ses, metadata ve Markdown çıktısını ilişkilendirir.
+- Başarılı işleme, normalize `transcript.json` yanında kullanıcı tarafından doğrudan
+  açılabilen `meeting.md` üretir. Markdown toplantı metadata'sı, kısa notlar, kararlar,
+  aksiyonlar ve konuşmacı-zaman damgalı tam transkripti aynı UUID altında taşır.
 - Repository formatları şema sürümü taşır.
 - Provider API anahtarları provider kimliğiyle ayrılmış generic-password öğeleri olarak
   yalnızca macOS Keychain'de ve `ThisDeviceOnly` erişilebilirlik sınıfında tutulur.
@@ -128,6 +131,9 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   `transcript.json`, sonra tamamlandı durumu olarak atomik yazılır; bu sıra force-quit
   sonrasında aynı idempotency anahtarıyla güvenli yeniden işlemeye izin verir. Başarıdan
   sonra provider'a gerekmeyen ayrı ham kaynak parçaları silinir, birleşik kayıt korunur.
+- Transkripsiyon tamamlandığında yerel extractive özet servisi yalnızca transkriptte açıkça
+  bulunan cümlelerden kısa özet, karar ve aksiyon adayları çıkarır. Ayrı bir uzak model veya
+  ikinci API anahtarı kullanmaz; özetleme hatası transkriptin kaydedilmesini engellemez.
 - Görevler aktif ve arşiv durumlarını ayrı dosyalar arasında taşımak yerine tek sürümlü
   `Tasks/tasks.json` belgesinde tutar. Completion timestamp ekleme/kaldırma tek actor içinde
   tek atomik yazımdır. V1 görünüm sırası oluşturulma zamanıdır; manuel reordering yoktur.
@@ -185,6 +191,10 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 
 ## Transkripsiyon sınırı
 
+- V1 batch çalışır: kayıt sırasında canlı transkript üretilmez. Mikrofon ve sistem sesi
+  durdurma/finalize sonrasında tek M4A olarak kalıcı kuyruğa girer. ElevenLabs'in ayrı
+  `scribe_v2_realtime` WebSocket modeli V1 sonrası kapsamındadır.
+
 - Provider adaptörleri ortak `TranscriptionProvider` sözleşmesini uygular ve sonucu domain
   `Transcript`/`TranscriptSegment` modellerine normalize eder.
 - Capability modeli desteklenen formatı, dosya boyutu sınırını, diarization ve otomatik dil
@@ -205,6 +215,18 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   silinir, force-quit artıkları uygulama açılışında sabit güvenli prefix ile temizlenir.
 - API anahtarı Ayarlar'da resmi `/v1/models` isteğiyle doğrulanır ve ancak başarıdan sonra
   Keychain'e kaydedilir. Alternatif OpenAI adaptörü tamamlanana kadar UI'da açıkça devre dışıdır.
+
+## Özet ve Markdown sınırı
+
+- `MeetingSummaryGenerating` transkripsiyon provider'ından bağımsızdır. V1 uygulaması
+  `ExtractiveMeetingSummaryService` ile çalışır; uzak servise ikinci kez içerik göndermez.
+- Overview en fazla ilk üç anlamlı transkript cümlesinden oluşur. Karar ve aksiyonlar yalnızca
+  Türkçe/İngilizce açık ifadeler eşleştiğinde eklenir. Sorumlu sadece birinci tekil şahıs
+  ifadesiyle birlikte segmentte konuşmacı adı varsa, tarih yalnızca Foundation açık bir tarih
+  algıladığında yazılır; eksik bilgi `nil` kalır.
+- Repository önce sürümlü `transcript.json`, sonra `meeting.md`, en son tamamlanmış metadata
+  durumunu atomik yazar. UI kalıcı Markdown'ı panoya kopyalayabilir veya `NSSavePanel` ile
+  kullanıcının seçtiği konuma `.md` olarak yazabilir.
 
 ## Test sınırları
 

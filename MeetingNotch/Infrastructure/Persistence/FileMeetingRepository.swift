@@ -8,8 +8,13 @@ protocol MeetingRetentionRepository: Sendable {
 protocol MeetingRepository: MeetingRetentionRepository {
     func prepare() async throws
     func saveCapture(_ capture: RecordingCaptureResult) async throws -> StoredMeeting
-    func saveTranscription(_ result: TranscriptionResult, for meeting: StoredMeeting) async throws -> StoredMeeting
+    func saveTranscription(
+        _ result: TranscriptionResult,
+        summary: MeetingSummary?,
+        for meeting: StoredMeeting
+    ) async throws -> StoredMeeting
     func loadTranscription(for meetingID: UUID) async throws -> StoredTranscription?
+    func loadMarkdown(for meetingID: UUID) async throws -> String?
     func audioFileURL(for meeting: StoredMeeting) async -> URL
     func recoveryDirectoryURL() async -> URL
 }
@@ -181,6 +186,7 @@ actor FileMeetingRepository: MeetingRepository {
 
     func saveTranscription(
         _ result: TranscriptionResult,
+        summary: MeetingSummary?,
         for meeting: StoredMeeting
     ) throws -> StoredMeeting {
         try prepare()
@@ -194,10 +200,19 @@ actor FileMeetingRepository: MeetingRepository {
 
         let stored = StoredTranscription(
             providerID: result.providerID,
-            transcript: result.transcript
+            transcript: result.transcript,
+            summary: summary
         )
         try encoder.encode(stored).write(
             to: directory.appending(path: "transcript.json"),
+            options: .atomic
+        )
+        let markdown = MeetingMarkdownFormatter.markdown(
+            meeting: meeting,
+            transcription: stored
+        )
+        try Data(markdown.utf8).write(
+            to: directory.appending(path: "meeting.md"),
             options: .atomic
         )
 
@@ -224,6 +239,15 @@ actor FileMeetingRepository: MeetingRepository {
             throw MeetingRepositoryError.unsupportedSchema(stored.schemaVersion)
         }
         return stored
+    }
+
+    func loadMarkdown(for meetingID: UUID) throws -> String? {
+        try prepare()
+        let url = layout.meetings
+            .appending(path: meetingID.uuidString, directoryHint: .isDirectory)
+            .appending(path: "meeting.md")
+        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        return try String(contentsOf: url, encoding: .utf8)
     }
 
     func delete(id: UUID) throws {

@@ -6,7 +6,7 @@ struct ElevenLabsTranscriptionProvider: TranscriptionProvider, Sendable {
     let id: TranscriptionProviderID = .elevenLabs
     let capabilities = TranscriptionProviderCapabilities(
         supportedFileExtensions: ["aac", "aiff", "flac", "m4a", "mp3", "ogg", "opus", "wav", "webm"],
-        maximumFileSizeBytes: 3_000_000_000,
+        maximumFileSizeBytes: 5_000_000_000,
         supportsDiarization: true,
         supportsAutomaticLanguageDetection: true
     )

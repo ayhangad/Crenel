@@ -54,6 +54,7 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         let stored = try XCTUnwrap(loadedTranscription)
         XCTAssertEqual(stored.providerID, .elevenLabs)
         XCTAssertEqual(stored.transcript.text, "Merhaba")
+        XCTAssertEqual(stored.summary?.overview, "")
         let capturedRequest = await provider.lastRequest()
         XCTAssertEqual(capturedRequest?.languageCode, "tr")
         XCTAssertEqual(capturedRequest?.idempotencyKey, job.idempotencyKey)
@@ -68,10 +69,13 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(
             atPath: meetingDirectory.appending(path: "system-audio.m4a").path
         ))
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: meetingDirectory.appending(path: "meeting.md").path
+        ))
         let recordedEvents = await events.kinds()
         XCTAssertEqual(
             Set(recordedEvents),
-            Set(["started", "progress", "transcribing", "completed"])
+            Set(["started", "progress", "transcribing", "summarizing", "completed"])
         )
     }
 
@@ -101,6 +105,31 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         XCTAssertNil(transcription)
         let audioURL = await meetingRepository.audioFileURL(for: meeting)
         XCTAssertTrue(FileManager.default.fileExists(atPath: audioURL.path))
+    }
+
+    func testSummaryFailureStillPersistsSuccessfulTranscript() async throws {
+        let meetingRepository = FileMeetingRepository(rootURL: root)
+        let meeting = try await meetingRepository.saveCapture(try makeCapture())
+        let queue = ProcessingQueue(repository: FileProcessingJobRepository(rootURL: root))
+        _ = try await queue.enqueue(meetingID: meeting.id, providerID: .elevenLabs)
+        let settings = UserDefaultsAppSettingsRepository(defaults: defaults, storageKey: "preferences")
+        let worker = TranscriptionProcessingWorker(
+            queue: queue,
+            meetingRepository: meetingRepository,
+            settingsRepository: settings,
+            providers: WorkerProviderResolver(provider: WorkerStubProvider(mode: .success)),
+            summaryService: FailingSummaryService(),
+            retryPolicy: TranscriptionRetryPolicy(maximumAttempts: 1, baseDelay: 0)
+        )
+
+        await worker.drain()
+
+        let loadedTranscription = try await meetingRepository.loadTranscription(for: meeting.id)
+        let stored = try XCTUnwrap(loadedTranscription)
+        XCTAssertEqual(stored.transcript.text, "Merhaba")
+        XCTAssertNil(stored.summary)
+        let jobs = try await queue.allJobs()
+        XCTAssertTrue(jobs.isEmpty)
     }
 
     @MainActor
@@ -229,6 +258,8 @@ private actor WorkerEventRecorder {
             recorded.append("progress")
         case .transcribing:
             recorded.append("transcribing")
+        case .summarizing:
+            recorded.append("summarizing")
         case .completed:
             recorded.append("completed")
         case .failed:
@@ -237,4 +268,11 @@ private actor WorkerEventRecorder {
     }
 
     func kinds() -> [String] { recorded }
+}
+
+private struct FailingSummaryService: MeetingSummaryGenerating {
+    struct Failure: Error {}
+    func generate(from transcript: Transcript) async throws -> MeetingSummary {
+        throw Failure()
+    }
 }
