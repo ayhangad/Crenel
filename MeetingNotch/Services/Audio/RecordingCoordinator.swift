@@ -3,10 +3,12 @@ import Foundation
 @MainActor
 final class RecordingCoordinator {
     typealias SourceFactory = () -> any AudioCaptureSource
+    typealias MicrophoneFactory = (String?) -> any AudioCaptureSource
 
     var onStatusChange: ((RecordingCaptureStatus) -> Void)?
+    var onSourceConnectionChange: ((AudioSourceKind, AudioSourceConnectionState) -> Void)?
 
-    private let microphoneFactory: SourceFactory
+    private let microphoneFactory: MicrophoneFactory
     private let systemAudioFactory: SourceFactory
     private let fileManager: FileManager
     private let minimumFreeDiskSpace: Int64
@@ -20,7 +22,7 @@ final class RecordingCoordinator {
     private var status = RecordingCaptureStatus.idle
 
     init(
-        microphoneFactory: @escaping SourceFactory = { MicrophoneCaptureSource() },
+        microphoneFactory: @escaping MicrophoneFactory = { MicrophoneCaptureSource(selectedDeviceID: $0) },
         systemAudioFactory: @escaping SourceFactory = { SystemAudioCaptureSource() },
         fileManager: FileManager = .default,
         minimumFreeDiskSpace: Int64 = 500 * 1_024 * 1_024,
@@ -35,7 +37,7 @@ final class RecordingCoordinator {
         self.mixer = mixer ?? AudioTrackMixer()
     }
 
-    func start(meeting: Meeting?) async throws -> RecordingSession {
+    func start(meeting: Meeting?, microphoneDeviceID: String? = nil) async throws -> RecordingSession {
         guard session == nil else { throw RecordingCaptureError.alreadyRecording }
 
         let session = RecordingSession(
@@ -46,7 +48,7 @@ final class RecordingCoordinator {
         let directory = try makeSessionDirectory(sessionID: session.id)
         try verifyDiskSpace(at: directory)
 
-        let microphone = microphoneFactory()
+        let microphone = microphoneFactory(microphoneDeviceID)
         let systemAudio = systemAudioFactory()
         bindLevelUpdates(microphone: microphone, systemAudio: systemAudio)
 
@@ -150,14 +152,42 @@ final class RecordingCoordinator {
         systemAudio.onLevelChange = { [weak self] level in
             Task { @MainActor in self?.updateLevel(.systemAudio, level: level) }
         }
+        microphone.onConnectionStateChange = { [weak self] connectionState in
+            Task { @MainActor in
+                self?.updateConnectionState(.microphone, connectionState: connectionState)
+            }
+        }
+        systemAudio.onConnectionStateChange = { [weak self] connectionState in
+            Task { @MainActor in
+                self?.updateConnectionState(.systemAudio, connectionState: connectionState)
+            }
+        }
     }
 
     private func updateReady(_ source: AudioSourceKind, isReady: Bool) {
         switch source {
-        case .microphone: status.microphone.isReady = isReady
-        case .systemAudio: status.systemAudio.isReady = isReady
+        case .microphone:
+            if !status.microphone.connectionState.needsAttention {
+                status.microphone.connectionState = isReady ? .ready : .preparing
+            }
+        case .systemAudio:
+            if !status.systemAudio.connectionState.needsAttention {
+                status.systemAudio.connectionState = isReady ? .ready : .preparing
+            }
         }
         onStatusChange?(status)
+    }
+
+    private func updateConnectionState(
+        _ source: AudioSourceKind,
+        connectionState: AudioSourceConnectionState
+    ) {
+        switch source {
+        case .microphone: status.microphone.connectionState = connectionState
+        case .systemAudio: status.systemAudio.connectionState = connectionState
+        }
+        onStatusChange?(status)
+        onSourceConnectionChange?(source, connectionState)
     }
 
     private func updateLevel(_ source: AudioSourceKind, level: Float) {

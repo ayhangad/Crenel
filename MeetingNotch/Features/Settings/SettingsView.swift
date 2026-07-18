@@ -10,6 +10,8 @@ struct SettingsView: View {
     let onRefreshPermissions: () -> Void
     let onLoadGeneralSettings: () async -> GeneralSettingsSnapshot
     let onSaveGeneralSettings: (GeneralSettingsSnapshot) async -> SettingsActionResult
+    let onLoadMicrophoneSettings: () async -> MicrophoneSettingsSnapshot
+    let onSaveMicrophoneSelection: (String?) async -> SettingsActionResult
     let onOpenDataDirectory: () -> Void
     let onDeleteAllData: () async -> SettingsActionResult
     let onResetOnboarding: () async -> SettingsActionResult
@@ -31,6 +33,13 @@ struct SettingsView: View {
     @State private var isDeletingAllData = false
     @State private var showsDeleteAllDataConfirmation = false
 
+    @State private var availableMicrophones: [MicrophoneDevice] = []
+    @State private var selectedMicrophoneID: String?
+    @State private var isLoadingMicrophones = true
+    @State private var isSavingMicrophone = false
+    @State private var microphoneSettingsMessage: String?
+    @State private var microphoneSettingsFailed = false
+
     @State private var selectedProvider = TranscriptionProviderID.elevenLabs
     @State private var languageCode: String?
     @State private var apiKey = ""
@@ -50,6 +59,12 @@ struct SettingsView: View {
         onSaveGeneralSettings: @escaping (
             GeneralSettingsSnapshot
         ) async -> SettingsActionResult = { _ in .succeeded() },
+        onLoadMicrophoneSettings: @escaping () async -> MicrophoneSettingsSnapshot = {
+            MicrophoneSettingsSnapshot(devices: [], selectedDeviceID: nil)
+        },
+        onSaveMicrophoneSelection: @escaping (String?) async -> SettingsActionResult = {
+            _ in .succeeded()
+        },
         onOpenDataDirectory: @escaping () -> Void = {},
         onDeleteAllData: @escaping () async -> SettingsActionResult = { .succeeded() },
         onResetOnboarding: @escaping () async -> SettingsActionResult = { .succeeded() },
@@ -73,6 +88,8 @@ struct SettingsView: View {
         self.onRefreshPermissions = onRefreshPermissions
         self.onLoadGeneralSettings = onLoadGeneralSettings
         self.onSaveGeneralSettings = onSaveGeneralSettings
+        self.onLoadMicrophoneSettings = onLoadMicrophoneSettings
+        self.onSaveMicrophoneSelection = onSaveMicrophoneSelection
         self.onOpenDataDirectory = onOpenDataDirectory
         self.onDeleteAllData = onDeleteAllData
         self.onResetOnboarding = onResetOnboarding
@@ -109,6 +126,46 @@ struct SettingsView: View {
                     isDisabled: isLoadingGeneralSettings,
                     action: saveGeneralSettings
                 )
+            }
+
+            Section {
+                Picker("Kayıt mikrofonu", selection: $selectedMicrophoneID) {
+                    Text("Sistem varsayılanı")
+                        .tag(nil as String?)
+                    ForEach(availableMicrophones) { microphone in
+                        Text(microphone.isSystemDefault ? "\(microphone.name) — varsayılan" : microphone.name)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .help(microphone.name)
+                            .tag(microphone.id as String?)
+                    }
+                    if let selectedMicrophoneID,
+                       !availableMicrophones.contains(where: { $0.id == selectedMicrophoneID }) {
+                        Text("Seçili mikrofon bağlı değil")
+                            .tag(selectedMicrophoneID as String?)
+                    }
+                }
+                .controlSize(.large)
+                .disabled(isLoadingMicrophones || availableMicrophones.isEmpty)
+
+                LabeledContent("Bağlı mikrofonlar") {
+                    Text(availableMicrophones.isEmpty ? "Bulunamadı" : "\(availableMicrophones.count)")
+                        .monospacedDigit()
+                        .foregroundStyle(availableMicrophones.isEmpty ? .red : .secondary)
+                }
+
+                settingsActionRow(
+                    message: microphoneSettingsMessage,
+                    isFailure: microphoneSettingsFailed,
+                    buttonTitle: "Mikrofonu Kaydet",
+                    isBusy: isSavingMicrophone,
+                    isDisabled: isLoadingMicrophones,
+                    action: saveMicrophoneSelection
+                )
+            } header: {
+                Text("Kayıt Kaynağı")
+            } footer: {
+                Text(microphoneFooterText)
             }
 
             Section {
@@ -213,14 +270,24 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 600, height: 720)
+        .frame(width: 600, height: 760)
         .onAppear {
             onRefreshPermissions()
             Task {
                 async let general = onLoadGeneralSettings()
+                async let microphone = onLoadMicrophoneSettings()
                 async let transcription = onLoadTranscriptionSettings()
                 apply(await general)
+                apply(await microphone)
                 apply(await transcription)
+            }
+        }
+        .onChange(of: appState.availableMicrophones) { _, devices in
+            availableMicrophones = devices
+            if let selectedMicrophoneID,
+               !devices.contains(where: { $0.id == selectedMicrophoneID }) {
+                microphoneSettingsMessage = "Seçili mikrofon bağlı değil; kayıtta sistem varsayılanı kullanılacak."
+                microphoneSettingsFailed = true
             }
         }
         .alert("Tüm veriler silinsin mi?", isPresented: $showsDeleteAllDataConfirmation) {
@@ -280,6 +347,16 @@ struct SettingsView: View {
         isLoadingTranscriptionSettings = false
     }
 
+    private func apply(_ snapshot: MicrophoneSettingsSnapshot) {
+        availableMicrophones = snapshot.devices
+        selectedMicrophoneID = snapshot.selectedDeviceID
+        isLoadingMicrophones = false
+        if !snapshot.selectedDeviceIsAvailable {
+            microphoneSettingsMessage = "Seçili mikrofon bağlı değil; kayıtta sistem varsayılanı kullanılacak."
+            microphoneSettingsFailed = true
+        }
+    }
+
     private func saveGeneralSettings() {
         isSavingGeneralSettings = true
         generalSettingsMessage = nil
@@ -295,6 +372,23 @@ struct SettingsView: View {
         Task {
             handleGeneralResult(await onSaveGeneralSettings(snapshot))
             isSavingGeneralSettings = false
+        }
+    }
+
+    private func saveMicrophoneSelection() {
+        isSavingMicrophone = true
+        microphoneSettingsMessage = nil
+        Task {
+            let result = await onSaveMicrophoneSelection(selectedMicrophoneID)
+            switch result {
+            case .succeeded(let message):
+                microphoneSettingsMessage = message ?? "Mikrofon seçimi kaydedildi."
+                microphoneSettingsFailed = false
+            case .failed(let message):
+                microphoneSettingsMessage = message
+                microphoneSettingsFailed = true
+            }
+            isSavingMicrophone = false
         }
     }
 
@@ -333,6 +427,7 @@ struct SettingsView: View {
             handleGeneralResult(await onDeleteAllData())
             isDeletingAllData = false
             apply(await onLoadGeneralSettings())
+            apply(await onLoadMicrophoneSettings())
             apply(await onLoadTranscriptionSettings())
         }
     }
@@ -357,6 +452,13 @@ struct SettingsView: View {
         case .failed: "Bağlantı hatası"
         case .notDetermined: "Henüz bağlanmadı"
         }
+    }
+
+    private var microphoneFooterText: String {
+        if availableMicrophones.isEmpty {
+            return "Bağlı mikrofon bulunamadı. Bir mikrofon bağladıktan sonra liste otomatik yenilenir."
+        }
+        return "Seçili cihaz kayıt başlarken yeniden doğrulanır. Bağlı değilse sistem varsayılanına geçilir; kayıt sırasında bağlantı değişirse notch üzerinde uyarı gösterilir."
     }
 }
 

@@ -51,6 +51,8 @@ struct MeetingNotchApp: App {
                 onRefreshPermissions: appDelegate.refreshAudioPermissions,
                 onLoadGeneralSettings: appDelegate.loadGeneralSettings,
                 onSaveGeneralSettings: appDelegate.saveGeneralSettings,
+                onLoadMicrophoneSettings: appDelegate.loadMicrophoneSettings,
+                onSaveMicrophoneSelection: appDelegate.saveMicrophoneSelection,
                 onOpenDataDirectory: appDelegate.openDataDirectory,
                 onDeleteAllData: appDelegate.deleteAllData,
                 onResetOnboarding: appDelegate.resetOnboarding,

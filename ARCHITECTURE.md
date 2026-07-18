@@ -83,6 +83,16 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 - Floating görünüm kompakt modu desteklemez; menü veya hover aksiyonu paneli genişletir,
   kompakt duruma dönüş paneli gizler ve menü çubuğu erişimi kalıcı olarak korur.
 - Öncelik sırası: kayıt > işleme/hata > yaklaşan toplantı > görev rozeti > boşta.
+- Kompakt görünüm hazırlama, finalize, upload, transkripsiyon ve özet aşamalarını kendi
+  ilerleme göstergesiyle taşır; daha düşük öncelikli toplantı veya görev bilgisi işleme
+  durumunu örtemez. Başarı ve hata paneli otomatik açılır; etkileşim yoksa 8 saniye sonra
+  kompakt duruma döner, başarı akışı boşta durumuna sıfırlanırken hata kurtarma için korunur.
+- Geniş panel aktif ekranın görünür alanına göre en fazla 420 piksel genişlik ve 500 piksel
+  içerik yüksekliği kullanır; daha küçük alanlarda içerik kaydırılır. Sekmeler ok tuşları
+  ve Komut-1/Komut-2 ile değiştirilebilir.
+- DynamicNotchKit açılma, kapanma ve kompakt/geniş dönüşümleri uygulamanın hareket profiliyle
+  yapılandırılır. macOS Reduce Motion değişikliği canlı izlenir ve etkin olduğunda hem panel
+  içi hem pencere geçişleri algılanabilir hareket üretmeyecek kadar kısaltılır.
 
 ## Veri yaklaşımı
 
@@ -145,6 +155,23 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 - İzin değişikliği için kontrollü relaunch istendiğinde çalışan kesin bundle URL'si korunur;
   ayrı yardımcı mevcut proses tamamen kapandıktan sonra aynı yolu yeni instance olarak açar.
   Böylece LaunchServices'ın bellekteki eski build'i öne getirmesi engellenir.
+
+## Mikrofon cihaz yaşam döngüsü
+
+- Kullanılabilir ses girişleri AVFoundation discovery session ile listelenir; sistem
+  varsayılanı ayrıca işaretlenir. Bağlanma ve ayrılma bildirimleri uygulama yaşamı boyunca
+  izlenir ve Ayarlar listesi açıkken de canlı güncellenir.
+- Kullanıcı tercihi cihazın kararlı AVFoundation `uniqueID` değeri olarak yerel ayar
+  belgesinde saklanır; `nil` sistem varsayılanını ifade eder. Eski ayar belgelerinde alanın
+  bulunmaması geriye uyumlu biçimde sistem varsayılanına karşılık gelir.
+- Her kayıt başlangıcında tercih yeniden çözülür. Seçili cihaz bağlı değilse kayıt
+  engellenmez; mevcut sistem varsayılanına, o da yoksa ilk kullanılabilir girişe düşülür ve
+  notch üzerinde hangi mikrofonla devam edildiği gösterilir.
+- Aktif mikrofon bağlantısı kayıt sırasında kesilirse capture session aynı timeline içinde
+  seçili cihazı veya güvenli fallback'i yeniden bağlamayı dener. Fallback bulunamazsa sistem
+  sesi kaydı korunurken mikrofon kaynağı `bağlı değil` durumuna geçer; notch otomatik açılır
+  ve kullanıcı yeniden bağlama ya da kaydı durdurma aksiyonuna yönlendirilir. Seçili cihaz
+  yeniden gelirse aktif input tekrar yapılandırılır.
 
 ## Sonuç ve görev yüzeyleri
 

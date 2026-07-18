@@ -96,6 +96,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
     var reminderLeadTime: TimeInterval
     var isCalendarEnabled: Bool
     var launchAtLogin: Bool
+    var selectedMicrophoneID: String?
     var provider: ProviderSettings
     var meetingRetentionPolicy: MeetingRetentionPolicy
     var hasCompletedOnboarding: Bool
@@ -104,6 +105,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
         reminderLeadTime: TimeInterval,
         isCalendarEnabled: Bool,
         launchAtLogin: Bool,
+        selectedMicrophoneID: String? = nil,
         provider: ProviderSettings,
         meetingRetentionPolicy: MeetingRetentionPolicy = .keepForever,
         hasCompletedOnboarding: Bool = false
@@ -111,6 +113,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
         self.reminderLeadTime = reminderLeadTime
         self.isCalendarEnabled = isCalendarEnabled
         self.launchAtLogin = launchAtLogin
+        self.selectedMicrophoneID = selectedMicrophoneID
         self.provider = provider
         self.meetingRetentionPolicy = meetingRetentionPolicy
         self.hasCompletedOnboarding = hasCompletedOnboarding
@@ -120,6 +123,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
         case reminderLeadTime
         case isCalendarEnabled
         case launchAtLogin
+        case selectedMicrophoneID
         case provider
         case meetingRetentionPolicy
         case hasCompletedOnboarding
@@ -130,6 +134,10 @@ struct AppPreferences: Codable, Equatable, Sendable {
         reminderLeadTime = try container.decode(TimeInterval.self, forKey: .reminderLeadTime)
         isCalendarEnabled = try container.decode(Bool.self, forKey: .isCalendarEnabled)
         launchAtLogin = try container.decode(Bool.self, forKey: .launchAtLogin)
+        selectedMicrophoneID = try container.decodeIfPresent(
+            String.self,
+            forKey: .selectedMicrophoneID
+        )
         provider = try container.decode(ProviderSettings.self, forKey: .provider)
         meetingRetentionPolicy = try container.decodeIfPresent(
             MeetingRetentionPolicy.self,
@@ -145,6 +153,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
         reminderLeadTime: 10 * 60,
         isCalendarEnabled: true,
         launchAtLogin: false,
+        selectedMicrophoneID: nil,
         provider: .default,
         meetingRetentionPolicy: .keepForever,
         hasCompletedOnboarding: false

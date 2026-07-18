@@ -15,6 +15,17 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(state.audioCapturePermissions, permissions)
     }
 
+    func testMicrophoneDevicesAndSelectionArePublishedForSettings() {
+        let state = AppState()
+        let device = MicrophoneDevice(id: "usb", name: "USB Mikrofon", isSystemDefault: false)
+
+        state.updateAvailableMicrophones([device])
+        state.updateSelectedMicrophoneID(device.id)
+
+        XCTAssertEqual(state.availableMicrophones, [device])
+        XCTAssertEqual(state.selectedMicrophoneID, device.id)
+    }
+
     func testNotchPinCanBeToggled() {
         let state = AppState()
 
@@ -22,6 +33,30 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.isNotchPinned)
         XCTAssertFalse(state.toggleNotchPin())
         XCTAssertFalse(state.isNotchPinned)
+    }
+
+    func testPanelTabsCanBeSelectedCyclicallyFromKeyboardCommands() {
+        let state = AppState()
+
+        state.selectPanelTab(offset: 1)
+        XCTAssertEqual(state.selectedTab, .tasks)
+
+        state.selectPanelTab(offset: 1)
+        XCTAssertEqual(state.selectedTab, .meetings)
+
+        state.selectPanelTab(offset: -1)
+        XCTAssertEqual(state.selectedTab, .tasks)
+    }
+
+    func testPanelAvailableSizeRejectsInvalidValues() {
+        let state = AppState()
+        let original = state.notchPanelAvailableSize
+
+        state.updateNotchPanelAvailableSize(CGSize(width: 0, height: 500))
+        XCTAssertEqual(state.notchPanelAvailableSize, original)
+
+        state.updateNotchPanelAvailableSize(CGSize(width: 800, height: 600))
+        XCTAssertEqual(state.notchPanelAvailableSize, CGSize(width: 800, height: 600))
     }
 
     func testRecordingPreparationStartsOnlyFromIdle() {
@@ -108,6 +143,36 @@ final class AppStateTests: XCTestCase {
 
         XCTAssertEqual(state.meetingFlow, .completed(meetingID: session.id))
         XCTAssertEqual(state.lastRecordingResult, result)
+    }
+
+    func testCompletedMeetingResolvesByFlowIdentifier() {
+        let state = AppState()
+        let session = RecordingSession(startedAt: .now)
+        let result = RecordingCaptureResult(session: session, tracks: [])
+        let expected = StoredMeeting(
+            id: session.id,
+            title: "Doğru toplantı",
+            startedAt: session.startedAt,
+            endedAt: session.startedAt.addingTimeInterval(60),
+            sourceMeeting: nil,
+            audioFileName: "audio.m4a"
+        )
+        let other = StoredMeeting(
+            id: UUID(),
+            title: "Başka toplantı",
+            startedAt: session.startedAt.addingTimeInterval(120),
+            endedAt: session.startedAt.addingTimeInterval(180),
+            sourceMeeting: nil,
+            audioFileName: "other.m4a"
+        )
+
+        state.replaceStoredMeetings([other])
+        state.prepareForRecording()
+        state.recordingStarted(session)
+        state.stopRecording()
+        state.recordingSaved(result, storedMeeting: expected)
+
+        XCTAssertEqual(state.completedMeeting, expected)
     }
 
     func testTaskCollectionsAndCompactCountStayInSync() {

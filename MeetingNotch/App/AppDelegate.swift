@@ -13,15 +13,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var retentionCleanupTask: Task<Void, Never>?
     private var processingTask: Task<Void, Never>?
     private var permissionRefreshTask: Task<Void, Never>?
+    private var transientStatusTask: Task<Void, Never>?
     private var pendingRelaunchURL: URL?
     private var processingRestartRequested = false
     private var notchHoverObservation: AnyCancellable?
     private var screenParametersObservation: AnyCancellable?
+    private var accessibilityDisplayObservation: AnyCancellable?
     private var activeNotchScreen: NSScreen?
     private var meetingDetailWindows: [UUID: NSWindowController] = [:]
     private var onboardingWindowController: NSWindowController?
     private let notchScreenResolver = NotchScreenResolver()
     private let audioPermissionService = AudioCapturePermissionService()
+    private let microphoneDeviceService = MicrophoneDeviceService()
     private let applicationRelauncher = ApplicationRelauncher()
     private let launchAtLoginService: any LaunchAtLoginServicing = LaunchAtLoginService()
     private lazy var meetingMonitor = MeetingMonitor(provider: EventKitMeetingProvider())
@@ -49,6 +52,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let coordinator = RecordingCoordinator()
         coordinator.onStatusChange = { [weak self] status in
             self?.appState.updateRecordingCaptureStatus(status)
+        }
+        coordinator.onSourceConnectionChange = { [weak self] _, connectionState in
+            guard connectionState.needsAttention else { return }
+            self?.presentNotch(followPointer: false)
         }
         return coordinator
     }()
@@ -111,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MultipartFormFileBuilder.removeStaleUploadBodies()
         configureMeetingMonitor()
         configureNotchInteraction()
+        configureMicrophoneDevices()
         refreshAudioPermissions()
         loadStoredMeetings()
         loadTasks()
@@ -131,10 +139,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         retentionCleanupTask?.cancel()
         processingTask?.cancel()
         permissionRefreshTask?.cancel()
+        transientStatusTask?.cancel()
         notchHoverController.cancel()
         notchHoverObservation = nil
         screenParametersObservation = nil
+        accessibilityDisplayObservation = nil
         meetingMonitor.stop()
+        microphoneDeviceService.stopMonitoring()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -267,6 +278,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             launchAtLogin: launchAtLoginService.isConfigured,
             meetingRetentionPolicy: preferences.meetingRetentionPolicy
         )
+    }
+
+    func loadMicrophoneSettings() async -> MicrophoneSettingsSnapshot {
+        let preferences = (try? await appSettingsRepository.load()) ?? .default
+        return MicrophoneSettingsSnapshot(
+            devices: microphoneDeviceService.currentDevices(),
+            selectedDeviceID: preferences.selectedMicrophoneID
+        )
+    }
+
+    func saveMicrophoneSelection(_ deviceID: String?) async -> SettingsActionResult {
+        let devices = microphoneDeviceService.currentDevices()
+        if let deviceID, !devices.contains(where: { $0.id == deviceID }) {
+            return .failed(message: "Seçilen mikrofon artık bağlı değil. Listeyi yenileyin.")
+        }
+
+        do {
+            var preferences = (try? await appSettingsRepository.load()) ?? .default
+            preferences.selectedMicrophoneID = deviceID
+            try await appSettingsRepository.save(preferences)
+            appState.updateSelectedMicrophoneID(deviceID)
+            return .succeeded(message: deviceID == nil ? "Sistem varsayılanı kullanılacak." : "Mikrofon seçimi kaydedildi.")
+        } catch {
+            AppLogger.persistenceFailed(operation: "save-microphone-settings", error: error)
+            return .failed(message: "Mikrofon seçimi kaydedilemedi. Tekrar deneyin.")
+        }
     }
 
     func saveGeneralSettings(
@@ -426,6 +463,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func configureMicrophoneDevices() {
+        microphoneDeviceService.onDevicesChange = { [weak self] devices in
+            self?.appState.updateAvailableMicrophones(devices)
+        }
+        microphoneDeviceService.startMonitoring()
+    }
+
     private func loadInitialPreferences() {
         Task { [weak self] in
             guard let self else { return }
@@ -443,6 +487,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func applyRuntimePreferences(_ preferences: AppPreferences) {
+        appState.updateSelectedMicrophoneID(preferences.selectedMicrophoneID)
         meetingMonitor.configure(
             isEnabled: preferences.isCalendarEnabled,
             reminderLeadTime: preferences.reminderLeadTime
@@ -496,12 +541,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func configureNotchInteraction() {
-        notch.transitionConfiguration = DynamicNotchTransitionConfiguration(
-            openingAnimation: .smooth(duration: 0.28),
-            closingAnimation: .smooth(duration: 0.2),
-            conversionAnimation: .smooth(duration: 0.3),
-            skipIntermediateHides: true
-        )
+        updateNotchTransitionConfiguration()
         notchHoverObservation = notch.$isHovering
             .dropFirst()
             .removeDuplicates()
@@ -514,6 +554,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         .sink { [weak self] _ in
             self?.screenParametersDidChange()
+        }
+
+        accessibilityDisplayObservation = NotificationCenter.default.publisher(
+            for: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification
+        )
+        .sink { [weak self] _ in
+            self?.updateNotchTransitionConfiguration()
+        }
+    }
+
+    private func updateNotchTransitionConfiguration() {
+        let profile = NotchMotionProfile.resolved(
+            reducesMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        )
+        if profile.reducesMotion {
+            notch.transitionConfiguration = DynamicNotchTransitionConfiguration(
+                openingAnimation: .linear(duration: profile.openingDuration),
+                closingAnimation: .linear(duration: profile.closingDuration),
+                conversionAnimation: .linear(duration: profile.conversionDuration),
+                skipIntermediateHides: true
+            )
+        } else {
+            notch.transitionConfiguration = DynamicNotchTransitionConfiguration(
+                openingAnimation: .smooth(duration: profile.openingDuration),
+                closingAnimation: .smooth(duration: profile.closingDuration),
+                conversionAnimation: .smooth(duration: profile.conversionDuration),
+                skipIntermediateHides: true
+            )
         }
     }
 
@@ -532,6 +600,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             && !notchScreenResolver.isSameScreen(previousScreen, targetScreen)
 
         activeNotchScreen = targetScreen
+        appState.updateNotchPanelAvailableSize(targetScreen.visibleFrame.size)
         notchHoverController.markExpanded()
         if needsRelocation {
             await notch.hide()
@@ -554,6 +623,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let screen = resolved ?? NSScreen.main ?? NSScreen.screens[0]
         activeNotchScreen = screen
+        appState.updateNotchPanelAvailableSize(screen.visibleFrame.size)
         return screen
     }
 
@@ -587,10 +657,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let permissions = await self.audioPermissionService.verifyAccessForRecording()
                 self.appState.updateAudioCapturePermissions(permissions)
                 guard permissions.canRecord else {
-                    self.appState.recordingFailed(self.permissionFailure(from: permissions))
+                    self.presentRecordingFailure(self.permissionFailure(from: permissions))
                     return
                 }
-                let session = try await self.recordingCoordinator.start(meeting: sourceMeeting)
+                let preferences = (try? await self.appSettingsRepository.load()) ?? .default
+                let session = try await self.recordingCoordinator.start(
+                    meeting: sourceMeeting,
+                    microphoneDeviceID: preferences.selectedMicrophoneID
+                )
                 guard !Task.isCancelled else {
                     await self.recordingCoordinator.cancel()
                     return
@@ -600,7 +674,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 await self.recordingCoordinator.cancel()
             } catch {
                 AppLogger.recordingOperationFailed(operation: "start", error: error)
-                self.appState.recordingFailed(self.recordingFailure(from: error))
+                self.presentRecordingFailure(self.recordingFailure(from: error))
             }
         }
     }
@@ -617,7 +691,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 await self.enqueueForProcessing(storedMeeting)
             } catch {
                 AppLogger.recordingOperationFailed(operation: "stop-and-save", error: error)
-                self.appState.recordingFailed(self.recordingFailure(from: error))
+                self.presentRecordingFailure(self.recordingFailure(from: error))
             }
         }
     }
@@ -934,8 +1008,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             appState.processingBeganTranscribing()
         case .completed(let meeting):
             appState.processingCompleted(meeting)
+            if appState.processingJobs.isEmpty {
+                presentTransientStatus(appState.meetingFlow)
+            }
         case .failed(let job, let error):
             appState.processingFailed(job, error: error)
+            presentTransientStatus(appState.meetingFlow)
+        }
+    }
+
+    private func presentRecordingFailure(_ failure: AppFailure) {
+        appState.recordingFailed(failure)
+        presentTransientStatus(appState.meetingFlow)
+    }
+
+    private func presentTransientStatus(_ state: MeetingFlowState) {
+        guard NotchTransientStatusPolicy.shouldPresent(state) else { return }
+        transientStatusTask?.cancel()
+        transientStatusTask = Task { [weak self] in
+            guard let self else { return }
+            await self.expandNotch(followPointer: false)
+            do {
+                try await Task.sleep(for: NotchTransientStatusPolicy.displayDuration)
+            } catch {
+                return
+            }
+
+            guard self.appState.meetingFlow == state else { return }
+            guard !self.notch.isHovering, !self.appState.isNotchPinned else { return }
+            if NotchTransientStatusPolicy.shouldResetAfterTimeout(state) {
+                self.appState.resetFlow()
+            }
+            self.notchHoverController.markCompact()
+            await self.notch.compact(on: self.resolvedActiveNotchScreen())
         }
     }
 

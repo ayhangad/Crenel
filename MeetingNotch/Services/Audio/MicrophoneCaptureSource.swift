@@ -5,12 +5,27 @@ import Foundation
 final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
     let kind = AudioSourceKind.microphone
     var onLevelChange: (@Sendable (Float) -> Void)?
+    var onConnectionStateChange: (@Sendable (AudioSourceConnectionState) -> Void)?
 
     private let captureQueue = DispatchQueue(label: "gad.MeetingNotch.audio.microphone")
     private let session = AVCaptureSession()
     private let output = AVCaptureAudioDataOutput()
+    private let selectedDeviceID: String?
+    private let notificationCenter: NotificationCenter
     private var writer: SampleBufferAudioWriter?
     private var outputURL: URL?
+    private var currentInput: AVCaptureDeviceInput?
+    private var activeDeviceID: String?
+    private var observationTokens: [NSObjectProtocol] = []
+
+    init(
+        selectedDeviceID: String? = nil,
+        notificationCenter: NotificationCenter = .default
+    ) {
+        self.selectedDeviceID = selectedDeviceID
+        self.notificationCenter = notificationCenter
+        super.init()
+    }
 
     func prepare(outputURL: URL) async throws {
         let authorizationStatus = AVCaptureDevice.authorizationStatus(for: .audio)
@@ -29,7 +44,7 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
         guard isAuthorized else {
             throw RecordingCaptureError.microphonePermissionDenied
         }
-        guard let device = AVCaptureDevice.default(for: .audio) else {
+        guard let device = resolvedDevice() else {
             throw RecordingCaptureError.noMicrophone
         }
 
@@ -44,8 +59,15 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
         session.addInput(input)
         session.addOutput(output)
         output.setSampleBufferDelegate(self, queue: captureQueue)
+        currentInput = input
+        activeDeviceID = device.uniqueID
         self.outputURL = outputURL
         writer = SampleBufferAudioWriter(outputURL: outputURL, source: kind)
+        startObservingDeviceChanges()
+
+        if let selectedDeviceID, selectedDeviceID != device.uniqueID {
+            onConnectionStateChange?(.recovered(deviceName: device.localizedName))
+        }
     }
 
     func start() async throws {
@@ -62,10 +84,12 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
     }
 
     func stop() async throws -> CapturedAudioTrack {
+        stopObservingDeviceChanges()
         await stopSession()
         guard let writer, let outputURL else {
             throw RecordingCaptureError.sourceFailed(.microphone, "Kayıt hazırlanmamış.")
         }
+        defer { reset() }
         guard let firstSampleTime = try await writer.finish() else {
             throw RecordingCaptureError.sourceDidNotProduceAudio(.microphone)
         }
@@ -77,6 +101,7 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
     }
 
     func cancel() async {
+        stopObservingDeviceChanges()
         await stopSession()
         writer?.cancel()
         reset()
@@ -95,8 +120,125 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
 
     private func reset() {
         output.setSampleBufferDelegate(nil, queue: nil)
+        currentInput = nil
+        activeDeviceID = nil
         writer = nil
         outputURL = nil
+    }
+
+    private func resolvedDevice(excluding excludedID: String? = nil) -> AVCaptureDevice? {
+        let devices = availableDevices().filter { $0.uniqueID != excludedID }
+        let descriptors = devices.map { device in
+            MicrophoneDevice(
+                id: device.uniqueID,
+                name: device.localizedName,
+                isSystemDefault: device.uniqueID == AVCaptureDevice.default(for: .audio)?.uniqueID
+            )
+        }
+        guard let resolvedID = MicrophoneSelectionPolicy.resolvedDeviceID(
+            selectedDeviceID: selectedDeviceID,
+            devices: descriptors
+        ) else { return nil }
+        return devices.first { $0.uniqueID == resolvedID }
+    }
+
+    private func availableDevices() -> [AVCaptureDevice] {
+        AVCaptureDevice.DiscoverySession(
+            deviceTypes: [.microphone, .external],
+            mediaType: .audio,
+            position: .unspecified
+        ).devices.filter(\.isConnected)
+    }
+
+    private func startObservingDeviceChanges() {
+        guard observationTokens.isEmpty else { return }
+        observationTokens = [
+            notificationCenter.addObserver(
+                forName: AVCaptureDevice.wasDisconnectedNotification,
+                object: nil,
+                queue: nil
+            ) { [weak self] notification in
+                guard let device = notification.object as? AVCaptureDevice,
+                      device.hasMediaType(.audio) else { return }
+                self?.handleDisconnectedDevice(id: device.uniqueID, name: device.localizedName)
+            },
+            notificationCenter.addObserver(
+                forName: AVCaptureDevice.wasConnectedNotification,
+                object: nil,
+                queue: nil
+            ) { [weak self] notification in
+                guard let device = notification.object as? AVCaptureDevice,
+                      device.hasMediaType(.audio) else { return }
+                self?.handleConnectedDevice(id: device.uniqueID)
+            }
+        ]
+    }
+
+    private func stopObservingDeviceChanges() {
+        observationTokens.forEach(notificationCenter.removeObserver)
+        observationTokens.removeAll()
+    }
+
+    private func handleDisconnectedDevice(id: String, name: String) {
+        captureQueue.async { [weak self] in
+            guard let self, self.activeDeviceID == id else { return }
+            if let replacement = self.resolvedDevice(excluding: id),
+               self.replaceInput(with: replacement) {
+                self.onConnectionStateChange?(.recovered(deviceName: replacement.localizedName))
+            } else {
+                self.removeCurrentInput()
+                self.onConnectionStateChange?(.disconnected(deviceName: name))
+            }
+        }
+    }
+
+    private func handleConnectedDevice(id: String) {
+        captureQueue.async { [weak self] in
+            guard let self else { return }
+            let shouldReconnect = self.activeDeviceID == nil
+                || (self.selectedDeviceID == id && self.activeDeviceID != id)
+            guard shouldReconnect,
+                  let replacement = self.resolvedDevice(),
+                  self.replaceInput(with: replacement) else { return }
+            self.onConnectionStateChange?(.recovered(deviceName: replacement.localizedName))
+        }
+    }
+
+    private func replaceInput(with device: AVCaptureDevice) -> Bool {
+        let previousInput = currentInput
+        let replacement: AVCaptureDeviceInput
+        do {
+            replacement = try AVCaptureDeviceInput(device: device)
+        } catch {
+            return false
+        }
+
+        session.beginConfiguration()
+        if let previousInput {
+            session.removeInput(previousInput)
+        }
+        guard session.canAddInput(replacement) else {
+            if let previousInput, session.canAddInput(previousInput) {
+                session.addInput(previousInput)
+            }
+            session.commitConfiguration()
+            return false
+        }
+        session.addInput(replacement)
+        session.commitConfiguration()
+        currentInput = replacement
+        activeDeviceID = device.uniqueID
+        return true
+    }
+
+    private func removeCurrentInput() {
+        session.beginConfiguration()
+        if let currentInput {
+            session.removeInput(currentInput)
+        }
+        session.commitConfiguration()
+        currentInput = nil
+        activeDeviceID = nil
     }
 }
 

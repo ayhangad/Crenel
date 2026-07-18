@@ -11,6 +11,7 @@ final class AppState: ObservableObject {
 
     @Published var selectedTab: PanelTab = .meetings
     @Published private(set) var isNotchPinned = false
+    @Published private(set) var notchPanelAvailableSize = CGSize(width: 1_024, height: 768)
     @Published private(set) var meetingFlow: MeetingFlowState
     @Published private(set) var activeTaskCount = 0
     @Published private(set) var userFacingFailure: AppFailure?
@@ -23,6 +24,8 @@ final class AppState: ObservableObject {
     @Published private(set) var meetingReminderLevel: MeetingReminderLevel = .none
     @Published private(set) var secondsUntilMeeting: TimeInterval?
     @Published private(set) var recordingCaptureStatus = RecordingCaptureStatus.idle
+    @Published private(set) var availableMicrophones: [MicrophoneDevice] = []
+    @Published private(set) var selectedMicrophoneID: String?
     @Published private(set) var lastRecordingResult: RecordingCaptureResult?
     @Published private(set) var storedMeetings: [StoredMeeting] = []
     @Published private(set) var lastStoredMeeting: StoredMeeting?
@@ -159,6 +162,18 @@ final class AppState: ObservableObject {
         recordingRecoverySummary = nil
     }
 
+    func selectPanelTab(offset: Int) {
+        let tabs = PanelTab.allCases
+        guard let currentIndex = tabs.firstIndex(of: selectedTab), !tabs.isEmpty else { return }
+        let destination = (currentIndex + offset % tabs.count + tabs.count) % tabs.count
+        selectedTab = tabs[destination]
+    }
+
+    func updateNotchPanelAvailableSize(_ size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        notchPanelAvailableSize = size
+    }
+
     @discardableResult
     func toggleNotchPin() -> Bool {
         isNotchPinned.toggle()
@@ -172,6 +187,14 @@ final class AppState: ObservableObject {
 
     func updateRecordingCaptureStatus(_ status: RecordingCaptureStatus) {
         recordingCaptureStatus = status
+    }
+
+    func updateAvailableMicrophones(_ devices: [MicrophoneDevice]) {
+        availableMicrophones = devices
+    }
+
+    func updateSelectedMicrophoneID(_ deviceID: String?) {
+        selectedMicrophoneID = deviceID
     }
 
     func updateTranscriptionUploadProgress(_ progress: Double) {
@@ -242,6 +265,11 @@ final class AppState: ObservableObject {
         tasks
             .filter(\.isArchived)
             .sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
+    }
+
+    var completedMeeting: StoredMeeting? {
+        guard case .completed(let meetingID) = meetingFlow else { return nil }
+        return storedMeetings.first { $0.id == meetingID }
     }
 
     @discardableResult

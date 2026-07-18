@@ -6,8 +6,42 @@ enum AudioSourceKind: String, Codable, CaseIterable, Sendable {
 }
 
 struct AudioSourceStatus: Equatable, Sendable {
-    var isReady = false
+    var connectionState = AudioSourceConnectionState.preparing
     var level: Float = 0
+
+    var isReady: Bool { connectionState.isReady }
+}
+
+enum AudioSourceConnectionState: Equatable, Sendable {
+    case preparing
+    case ready
+    case recovered(deviceName: String)
+    case disconnected(deviceName: String)
+
+    var isReady: Bool {
+        switch self {
+        case .ready, .recovered: true
+        case .preparing, .disconnected: false
+        }
+    }
+
+    var message: String? {
+        switch self {
+        case .preparing, .ready:
+            nil
+        case .recovered(let deviceName):
+            "Mikrofon bağlantısı değişti; \(deviceName) ile kayıt sürüyor."
+        case .disconnected(let deviceName):
+            "\(deviceName) bağlantısı kesildi. Mikrofonu yeniden bağlayın veya kaydı durdurun."
+        }
+    }
+
+    var needsAttention: Bool {
+        switch self {
+        case .recovered, .disconnected: true
+        case .preparing, .ready: false
+        }
+    }
 }
 
 struct RecordingCaptureStatus: Equatable, Sendable {
@@ -28,7 +62,7 @@ struct RecordingCaptureResult: Codable, Equatable, Sendable {
     let tracks: [CapturedAudioTrack]
 }
 
-enum RecordingCaptureError: LocalizedError, Equatable {
+enum RecordingCaptureError: LocalizedError, Equatable, Sendable {
     case alreadyRecording
     case microphonePermissionDenied
     case systemAudioPermissionDenied

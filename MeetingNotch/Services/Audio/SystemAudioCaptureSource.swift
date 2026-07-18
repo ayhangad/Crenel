@@ -3,6 +3,7 @@ import Foundation
 final class SystemAudioCaptureSource: AudioCaptureSource {
     let kind = AudioSourceKind.systemAudio
     var onLevelChange: (@Sendable (Float) -> Void)?
+    var onConnectionStateChange: (@Sendable (AudioSourceConnectionState) -> Void)?
 
     private let levelQueue = DispatchQueue(label: "gad.MeetingNotch.audio.system.level")
     private var levelTimer: DispatchSourceTimer?

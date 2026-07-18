@@ -82,7 +82,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         let microphone = MockAudioCaptureSource(kind: .microphone)
         let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
         let coordinator = RecordingCoordinator(
-            microphoneFactory: { microphone },
+            microphoneFactory: { _ in microphone },
             systemAudioFactory: { systemAudio },
             minimumFreeDiskSpace: .max,
             storageRoot: temporaryRoot
@@ -104,7 +104,7 @@ final class RecordingCoordinatorTests: XCTestCase {
         let microphone = MockAudioCaptureSource(kind: .microphone)
         let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
         let coordinator = RecordingCoordinator(
-            microphoneFactory: { microphone },
+            microphoneFactory: { _ in microphone },
             systemAudioFactory: { systemAudio },
             minimumFreeDiskSpace: 0,
             storageRoot: temporaryRoot,
@@ -130,12 +130,57 @@ final class RecordingCoordinatorTests: XCTestCase {
         }
     }
 
+    func testSelectedMicrophoneIdentifierIsPassedToSourceFactory() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        var requestedDeviceID: String?
+        let coordinator = RecordingCoordinator(
+            microphoneFactory: { deviceID in
+                requestedDeviceID = deviceID
+                return microphone
+            },
+            systemAudioFactory: { systemAudio },
+            minimumFreeDiskSpace: 0,
+            storageRoot: temporaryRoot,
+            mixer: MockAudioTrackMixer()
+        )
+
+        _ = try await coordinator.start(meeting: nil, microphoneDeviceID: "usb-microphone")
+
+        XCTAssertEqual(requestedDeviceID, "usb-microphone")
+        await coordinator.cancel()
+    }
+
+    func testMicrophoneConnectionChangesUpdateStatusAndRequestAttention() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+        var connectionChanges: [AudioSourceConnectionState] = []
+        var latestStatus = RecordingCaptureStatus.idle
+        coordinator.onStatusChange = { latestStatus = $0 }
+        coordinator.onSourceConnectionChange = { source, state in
+            XCTAssertEqual(source, .microphone)
+            connectionChanges.append(state)
+        }
+
+        _ = try await coordinator.start(meeting: nil)
+        microphone.emitConnectionState(.disconnected(deviceName: "USB Mikrofon"))
+        await Task.yield()
+
+        XCTAssertEqual(connectionChanges.last, .disconnected(deviceName: "USB Mikrofon"))
+        XCTAssertEqual(
+            latestStatus.microphone.connectionState,
+            .disconnected(deviceName: "USB Mikrofon")
+        )
+        await coordinator.cancel()
+    }
+
     private func makeCoordinator(
         microphone: MockAudioCaptureSource,
         systemAudio: MockAudioCaptureSource
     ) -> RecordingCoordinator {
         RecordingCoordinator(
-            microphoneFactory: { microphone },
+            microphoneFactory: { _ in microphone },
             systemAudioFactory: { systemAudio },
             minimumFreeDiskSpace: 0,
             storageRoot: temporaryRoot,
@@ -160,6 +205,7 @@ private final class FailingAudioTrackMixer: AudioTrackMixing, @unchecked Sendabl
 private final class MockAudioCaptureSource: AudioCaptureSource {
     let kind: AudioSourceKind
     var onLevelChange: (@Sendable (Float) -> Void)?
+    var onConnectionStateChange: (@Sendable (AudioSourceConnectionState) -> Void)?
     var startError: Error?
     private var outputURL: URL?
 
@@ -192,5 +238,9 @@ private final class MockAudioCaptureSource: AudioCaptureSource {
 
     func cancel() async {
         didCancel = true
+    }
+
+    func emitConnectionState(_ state: AudioSourceConnectionState) {
+        onConnectionStateChange?(state)
     }
 }

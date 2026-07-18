@@ -64,6 +64,8 @@ struct NotchPanelView: View {
     }
 
     var body: some View {
+        let layout = NotchPanelLayout(availableSize: appState.notchPanelAvailableSize)
+
         VStack(spacing: 16) {
             HStack(spacing: 8) {
                 NotchTabBar(
@@ -84,41 +86,58 @@ struct NotchPanelView: View {
                 .accessibilityValue(appState.isNotchPinned ? "Açık tutuluyor" : "Serbest")
             }
 
-            ZStack {
-                switch appState.selectedTab {
-                case .meetings:
-                    MeetingStatusView(
-                        onRequestCalendarAccess: onRequestCalendarAccess,
-                        onOpenMeetingURL: onOpenMeetingURL,
-                        onStartRecording: onStartRecording,
-                        onStopRecording: onStopRecording,
-                        onCancelFlow: onCancelFlow,
-                        onRecoverFromFailure: onRecoverFromFailure,
-                        onOpenStoredMeeting: onOpenStoredMeeting,
-                        onDeleteStoredMeeting: onDeleteStoredMeeting,
-                        onRetryStoredMeeting: onRetryStoredMeeting,
-                        onOpenRecovery: onOpenRecovery,
-                        onRelaunchApplication: onRelaunchApplication
-                    )
-                    .transition(panelContentTransition)
-                case .tasks:
-                    TasksView(
-                        onAdd: onAddTask,
-                        onUpdate: onUpdateTask,
-                        onComplete: onCompleteTask,
-                        onRestore: onRestoreTask,
-                        onDelete: onDeleteTask,
-                        onDeleteArchive: onDeleteArchive
-                    )
+            ScrollView {
+                ZStack {
+                    switch appState.selectedTab {
+                    case .meetings:
+                        MeetingStatusView(
+                            onRequestCalendarAccess: onRequestCalendarAccess,
+                            onOpenMeetingURL: onOpenMeetingURL,
+                            onStartRecording: onStartRecording,
+                            onStopRecording: onStopRecording,
+                            onCancelFlow: onCancelFlow,
+                            onRecoverFromFailure: onRecoverFromFailure,
+                            onOpenStoredMeeting: onOpenStoredMeeting,
+                            onDeleteStoredMeeting: onDeleteStoredMeeting,
+                            onRetryStoredMeeting: onRetryStoredMeeting,
+                            onOpenRecovery: onOpenRecovery,
+                            onRelaunchApplication: onRelaunchApplication
+                        )
                         .transition(panelContentTransition)
+                    case .tasks:
+                        TasksView(
+                            onAdd: onAddTask,
+                            onUpdate: onUpdateTask,
+                            onComplete: onCompleteTask,
+                            onRestore: onRestoreTask,
+                            onDelete: onDeleteTask,
+                            onDeleteArchive: onDeleteArchive
+                        )
+                            .transition(panelContentTransition)
+                    }
                 }
+                .id(appState.selectedTab)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: min(NotchPanelLayout.minimumContentHeight, layout.maximumContentHeight),
+                    alignment: .top
+                )
             }
-            .id(appState.selectedTab)
-            .frame(maxWidth: .infinity, minHeight: 230, alignment: .top)
+            .frame(maxHeight: layout.maximumContentHeight)
         }
         .padding(18)
-        .frame(width: 420)
+        .frame(width: layout.width)
         .environment(\.colorScheme, .dark)
+        .onMoveCommand { direction in
+            switch direction {
+            case .left:
+                appState.selectPanelTab(offset: -1)
+            case .right:
+                appState.selectPanelTab(offset: 1)
+            default:
+                break
+            }
+        }
         .animation(
             reduceMotion ? nil : .smooth(duration: 0.22),
             value: appState.selectedTab
@@ -174,6 +193,9 @@ private struct NotchTabBar: View {
                     }
                 }
                 .buttonStyle(NotchTabButtonStyle())
+                .keyboardShortcut(tab.keyboardShortcut, modifiers: .command)
+                .help("\(tab.rawValue) sekmesi (⌘\(tab.shortcutDescription))")
+                .accessibilityLabel("\(tab.rawValue) sekmesi")
                 .accessibilityAddTraits(selection == tab ? .isSelected : [])
             }
         }
@@ -196,6 +218,20 @@ private extension AppState.PanelTab {
         switch self {
         case .meetings: "calendar.day.timeline.leading"
         case .tasks: "checkmark.circle"
+        }
+    }
+
+    var keyboardShortcut: KeyEquivalent {
+        switch self {
+        case .meetings: "1"
+        case .tasks: "2"
+        }
+    }
+
+    var shortcutDescription: String {
+        switch self {
+        case .meetings: "1"
+        case .tasks: "2"
         }
     }
 }
@@ -236,7 +272,7 @@ private struct NotchPinButtonStyle: ButtonStyle {
                 reduceMotion ? nil : .easeOut(duration: 0.12),
                 value: configuration.isPressed
             )
-            .animation(.smooth(duration: 0.18), value: isPinned)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.18), value: isPinned)
     }
 }
 
@@ -300,6 +336,15 @@ private struct MeetingStatusView: View {
 
                 if appState.meetingFlow.phase == .preparingRecording || appState.meetingFlow.isRecording {
                     CaptureSourcesView(status: appState.recordingCaptureStatus)
+                    if let message = appState.recordingCaptureStatus.microphone.connectionState.message {
+                        Label(message, systemImage: microphoneNoticeSymbol)
+                            .font(.caption)
+                            .foregroundStyle(
+                                appState.recordingCaptureStatus.microphone.isReady ? .orange : .red
+                            )
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityLabel("Mikrofon uyarısı: \(message)")
+                    }
                 }
 
                 actionArea
@@ -337,6 +382,12 @@ private struct MeetingStatusView: View {
         }
     }
 
+    private var microphoneNoticeSymbol: String {
+        appState.recordingCaptureStatus.microphone.isReady
+            ? "arrow.triangle.2.circlepath"
+            : "mic.slash.fill"
+    }
+
     @ViewBuilder
     private var statusMetric: some View {
         switch appState.meetingFlow {
@@ -356,6 +407,11 @@ private struct MeetingStatusView: View {
                 .padding(.horizontal, 10)
                 .frame(height: 32)
                 .background(.blue.opacity(0.13), in: Capsule())
+        case .preparingRecording, .finalizingAudio, .transcribing, .summarizing:
+            ProgressView()
+                .controlSize(.small)
+                .tint(.blue)
+                .accessibilityLabel("İşleme devam ediyor")
         default:
             EmptyView()
         }
@@ -460,7 +516,7 @@ private struct MeetingStatusView: View {
 
         case .completed:
             HStack(spacing: 8) {
-                if let meeting = appState.lastStoredMeeting {
+                if let meeting = appState.completedMeeting {
                     Button {
                         onOpenStoredMeeting(meeting)
                     } label: {
@@ -767,19 +823,44 @@ private struct CaptureSourcesView: View {
 
     private func source(_ title: String, symbol: String, status: AudioSourceStatus) -> some View {
         HStack(spacing: 5) {
-            Image(systemName: status.isReady ? symbol : "hourglass")
-                .foregroundStyle(status.isReady ? .green : .orange)
+            Image(systemName: sourceSymbol(symbol, state: status.connectionState))
+                .foregroundStyle(sourceColor(status.connectionState))
             Text(title)
                 .foregroundStyle(.secondary)
             ProgressView(value: Double(status.level))
-                .tint(status.isReady ? .green : .orange)
+                .tint(sourceColor(status.connectionState))
                 .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 9)
         .frame(maxWidth: .infinity, minHeight: 34)
         .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 10))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title) \(status.isReady ? "hazır" : "hazırlanıyor")")
+        .help(status.connectionState.message ?? (status.isReady ? "Hazır" : "Hazırlanıyor"))
+        .accessibilityLabel(accessibilityLabel(title: title, status: status))
+    }
+
+    private func sourceSymbol(_ defaultSymbol: String, state: AudioSourceConnectionState) -> String {
+        switch state {
+        case .preparing: "hourglass"
+        case .ready: defaultSymbol
+        case .recovered: "arrow.triangle.2.circlepath"
+        case .disconnected: "mic.slash.fill"
+        }
+    }
+
+    private func sourceColor(_ state: AudioSourceConnectionState) -> Color {
+        switch state {
+        case .preparing, .recovered: .orange
+        case .ready: .green
+        case .disconnected: .red
+        }
+    }
+
+    private func accessibilityLabel(title: String, status: AudioSourceStatus) -> String {
+        if let message = status.connectionState.message {
+            return "\(title): \(message)"
+        }
+        return "\(title) \(status.isReady ? "hazır" : "hazırlanıyor")"
     }
 }
 
@@ -861,35 +942,58 @@ struct CompactTrailingView: View {
     @EnvironmentObject private var appState: AppState
 
     var body: some View {
-        switch appState.meetingFlow {
+        let status = NotchStatusResolver.compactStatus(
+            flow: appState.meetingFlow,
+            nextMeeting: appState.nextMeeting,
+            activeTaskCount: appState.activeTaskCount
+        )
+
+        switch status {
         case .recording(let startedAt):
             RecordingElapsedTimeView(startedAt: startedAt, compact: true)
                 .foregroundStyle(.red)
-        case .uploading(let progress):
-            Text(progress, format: .percent.precision(.fractionLength(0)))
-                .font(.caption2.monospacedDigit())
-        case .upcomingMeeting:
-            if let meeting = appState.nextMeeting {
-                CompactMeetingCountdownView(startDate: meeting.startDate)
+        case .processing(let stage):
+            switch stage {
+            case .uploading(let progress):
+                Text(progress, format: .percent.precision(.fractionLength(0)))
+                    .font(.caption2.monospacedDigit())
+                    .accessibilityLabel("Yükleme ilerlemesi")
+            default:
+                Label(stage.shortTitle, systemImage: "ellipsis")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.blue)
             }
+        case .completed:
+            Image(systemName: "checkmark")
+                .foregroundStyle(.green)
+                .accessibilityLabel("İşlem tamamlandı")
         case .failed:
             Image(systemName: "exclamationmark")
                 .foregroundStyle(.red)
-        default:
-            if let meeting = appState.nextMeeting {
-                Text(meeting.startDate, format: .dateTime.hour().minute())
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            } else if appState.activeTaskCount > 0 {
-                Label("\(appState.activeTaskCount)", systemImage: "checkmark.circle")
-                    .font(.caption2.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.mint)
-                    .accessibilityLabel("\(appState.activeTaskCount) aktif görev")
-            } else {
-                Text("Hazır")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
+                .accessibilityLabel("İşlem hatası")
+        case .upcoming(let startDate):
+            CompactMeetingCountdownView(startDate: startDate)
+        case .tasks(let count):
+            Label("\(count)", systemImage: "checkmark.circle")
+                .font(.caption2.monospacedDigit().weight(.semibold))
+                .foregroundStyle(.mint)
+                .accessibilityLabel("\(count) aktif görev")
+        case .idle:
+            Text("Hazır")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private extension NotchCompactStatus.ProcessingStage {
+    var shortTitle: String {
+        switch self {
+        case .preparing: "Hazırlanıyor"
+        case .finalizing: "Kaydediliyor"
+        case .uploading: "Yükleniyor"
+        case .transcribing: "Yazıya çevriliyor"
+        case .summarizing: "Özetleniyor"
         }
     }
 }

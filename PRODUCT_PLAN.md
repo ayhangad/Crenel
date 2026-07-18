@@ -196,19 +196,19 @@ kanalı değildir.
 - [x] Görev bilgisini yalnızca ikincil Görevler sekmesinde göstermek.
 - [x] Yaklaşan toplantı göstergesini kompakt notch üzerinde göstermek.
 - [x] Kayıt durumunda canlı süre ve kırmızı kayıt göstergesi sunmak.
-- [ ] İşleme/yükleme durumunda ilerleme göstermek.
-- [ ] Tamamlandı veya hata durumunu kısa süreli göstermek.
-- [ ] Durum önceliklendirme kurallarını test etmek.
+- [x] İşleme/yükleme durumunda ilerleme göstermek.
+- [x] Tamamlandı veya hata durumunu kısa süreli göstermek.
+- [x] Durum önceliklendirme kurallarını test etmek.
 
 ### 2.3 Genişletilmiş panel
 
 - [x] Toplantılar ve Görevler sekmeleri arasında geçişi uygulamak.
 - [x] Sekmeleri görünür ve anlaşılır kılan, meeting-first görsel hiyerarşiye sahip panel
   arayüzünü uygulamak.
-- [ ] Klavye ile sekme geçişini desteklemek.
-- [ ] Panel boyutlarını içerik ve ekran alanına göre sınırlandırmak.
-- [ ] Açılma, kapanma ve durum değişimi animasyonlarını uygulamak.
-- [ ] Animasyon azaltma erişilebilirlik ayarına uymak.
+- [x] Klavye ile sekme geçişini desteklemek.
+- [x] Panel boyutlarını içerik ve ekran alanına göre sınırlandırmak.
+- [x] Açılma, kapanma ve durum değişimi animasyonlarını uygulamak.
+- [x] Animasyon azaltma erişilebilirlik ayarına uymak.
 - [ ] Açık/koyu tema ve yüksek kontrast görünümünü doğrulamak.
 - [ ] Mock verilerle tüm notch durumlarının preview'larını hazırlamak.
 
@@ -248,7 +248,7 @@ kanalı değildir.
 ### 3.3 Ayarlar ekranı
 
 - [x] Genel ayarlar bölümünü oluşturmak.
-- [ ] Seçili mikrofon ayarını eklemek.
+- [x] Seçili mikrofon ayarını eklemek.
 - [x] Transkripsiyon provider seçimini eklemek.
 - [x] Provider API anahtarı girişini ve doğrulamasını eklemek.
 - [x] Transkript dili otomatik algılama/sabit dil seçimini eklemek.
@@ -394,12 +394,12 @@ kanalı değildir.
 
 ### 7.2 Mikrofon yakalama
 
-- [ ] Kullanılabilir mikrofonları listelemek.
+- [x] Kullanılabilir mikrofonları listelemek.
 - [x] Varsayılan veya kullanıcı seçili mikrofonu kullanmak.
 - [x] Mikrofon buffer'larını timestamp bilgisiyle kaydetmek.
 - [x] Mikrofon seviye ölçümünü UI için üretmek.
-- [ ] Mikrofon bağlantısı kesildiğinde kullanıcıyı uyarmak.
-- [ ] Mikrofon değişikliği sonrası yeniden bağlanma davranışını uygulamak.
+- [x] Mikrofon bağlantısı kesildiğinde kullanıcıyı uyarmak.
+- [x] Mikrofon değişikliği sonrası yeniden bağlanma davranışını uygulamak.
 
 ### 7.3 Sistem sesi yakalama
 
@@ -672,6 +672,21 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 ## İlerleme günlüğü
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
+
+- 2026-07-18 — Ayarlar'a canlı AVFoundation cihaz listesi, sistem varsayılanı ve kalıcı
+  mikrofon seçimi eklendi. Her kayıt seçimi yeniden çözüyor; bağlı olmayan cihaz güvenli
+  fallback'e düşüyor. Kayıt sırasında mikrofon ayrılırsa aktif input fallback veya yeniden
+  bağlanan seçili cihazla yapılandırılıyor; sonuç notch üzerinde erişilebilir uyarı ve
+  kaynak durumu olarak gösteriliyor. Geriye uyumlu ayar saklama, seçim/fallback politikası
+  ve coordinator olayları test edildi; toplam 162 test ve imzalı Debug build geçti.
+
+- 2026-07-18 — Kompakt notch durumları kayıt > işleme/hata > toplantı > görev > boşta
+  önceliğiyle test edilebilir hale getirildi; hazırlama, finalize, upload, transkripsiyon ve
+  özet aşamaları görünür ilerleme taşıyor. Başarı/hata sonucu 8 saniyelik etkileşim duyarlı
+  sunuma, doğru toplantı detay aksiyonuna ve güvenli kompakt dönüşe bağlandı. Panel aktif
+  ekran alanına göre sınırlandı, Komut-1/2 ve ok tuşu sekme geçişleri eklendi; pencere ve
+  içerik animasyonları canlı Reduce Motion ayarına uyarlandı. Toplam 154 test ve imzalı
+  Debug build geçti.
 
 - 2026-07-15 — Xcode'un yarıda kalan Swift Package Manager çalışma kopyası sonrası bellekte
   tuttuğu DynamicNotchKit çözümleme hatası, proje yeniden üretimi ve temiz IDE oturumuyla

@@ -31,6 +31,7 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
             reminderLeadTime: 10 * 60,
             isCalendarEnabled: false,
             launchAtLogin: true,
+            selectedMicrophoneID: "usb-microphone",
             provider: ProviderSettings(
                 selectedProvider: .openAI,
                 languageCode: "tr",
@@ -47,6 +48,7 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
         let restartedRepository = makeRepository()
         let loaded = try await restartedRepository.load()
         XCTAssertEqual(loaded, preferences)
+        XCTAssertEqual(loaded.selectedMicrophoneID, "usb-microphone")
 
         let data = try XCTUnwrap(defaults.data(forKey: storageKey))
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
@@ -141,6 +143,7 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
         let loaded = try await repository.load()
 
         XCTAssertEqual(loaded.meetingRetentionPolicy, .keepForever)
+        XCTAssertNil(loaded.selectedMicrophoneID)
         XCTAssertFalse(loaded.hasCompletedOnboarding)
         XCTAssertEqual(defaults.data(forKey: storageKey), data)
     }
