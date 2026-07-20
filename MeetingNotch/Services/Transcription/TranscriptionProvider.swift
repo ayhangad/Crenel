@@ -94,7 +94,10 @@ enum TranscriptionServiceError: Error, Equatable, Sendable {
     var appFailure: AppFailure {
         switch self {
         case .authentication:
-            .provider("Provider kimlik bilgilerini Ayarlar'dan güncelleyin.", credentialsInvalid: true)
+            .provider(
+                "API anahtarını ve Speech-to-Text yetkisini Ayarlar'dan kontrol edin.",
+                credentialsInvalid: true
+            )
         case .rateLimited:
             .provider("Provider istek sınırına ulaştı. Bir süre sonra tekrar deneyin.")
         case .timeout:

@@ -64,17 +64,47 @@ final class AudioTrackMixerTests: XCTestCase {
         }
     }
 
+    func testMicrophoneWriterNormalizesBluetoothRateAndFormatChanges() async throws {
+        let outputURL = temporaryDirectory.appending(path: "microphone-normalized.m4a")
+        let writer = SampleBufferAudioWriter(outputURL: outputURL, source: .microphone)
+
+        for index in 0..<4 {
+            let sampleRate = index < 2 ? 24_000.0 : 48_000.0
+            let buffer = makeToneBuffer(
+                sampleRate: sampleRate,
+                duration: 0.1,
+                frequency: 440
+            )
+            writer.append(
+                buffer,
+                presentationTime: CMTime(
+                    seconds: 10 + (Double(index) * 0.1),
+                    preferredTimescale: 48_000
+                )
+            )
+        }
+
+        let firstSampleTime = try await writer.finish()
+        let file = try AVAudioFile(forReading: outputURL)
+        let asset = AVURLAsset(url: outputURL)
+        let duration = try await asset.load(.duration).seconds
+
+        XCTAssertEqual(try XCTUnwrap(firstSampleTime), 10, accuracy: 0.001)
+        XCTAssertEqual(file.fileFormat.sampleRate, 48_000, accuracy: 0.1)
+        XCTAssertEqual(file.fileFormat.channelCount, 1)
+        XCTAssertGreaterThan(duration, 0.35)
+        XCTAssertLessThan(duration, 0.50)
+        XCTAssertGreaterThan(file.length, 0)
+    }
+
     private func makeTone(at url: URL, duration: TimeInterval, frequency: Double) throws {
         try autoreleasepool {
             let sampleRate = 48_000.0
-            let frameCount = AVAudioFrameCount(sampleRate * duration)
-            let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
-            let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
-            buffer.frameLength = frameCount
-            let samples = buffer.floatChannelData![0]
-            for frame in 0..<Int(frameCount) {
-                samples[frame] = Float(sin(2 * .pi * frequency * Double(frame) / sampleRate) * 0.2)
-            }
+            let buffer = makeToneBuffer(
+                sampleRate: sampleRate,
+                duration: duration,
+                frequency: frequency
+            )
 
             let file = try AVAudioFile(
                 forWriting: url,
@@ -87,5 +117,21 @@ final class AudioTrackMixerTests: XCTestCase {
             )
             try file.write(from: buffer)
         }
+    }
+
+    private func makeToneBuffer(
+        sampleRate: Double,
+        duration: TimeInterval,
+        frequency: Double
+    ) -> AVAudioPCMBuffer {
+        let frameCount = AVAudioFrameCount(sampleRate * duration)
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
+        buffer.frameLength = frameCount
+        let samples = buffer.floatChannelData![0]
+        for frame in 0..<Int(frameCount) {
+            samples[frame] = Float(sin(2 * .pi * frequency * Double(frame) / sampleRate) * 0.2)
+        }
+        return buffer
     }
 }

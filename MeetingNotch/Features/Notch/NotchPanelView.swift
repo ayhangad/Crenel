@@ -279,6 +279,7 @@ private struct NotchPinButtonStyle: ButtonStyle {
 private struct MeetingStatusView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var showsCancelConfirmation = false
     let onRequestCalendarAccess: () -> Void
     let onOpenMeetingURL: (URL) -> Void
     let onStartRecording: () -> Void
@@ -380,6 +381,14 @@ private struct MeetingStatusView: View {
                 )
             }
         }
+        .alert(cancelConfirmationTitle, isPresented: $showsCancelConfirmation) {
+            Button("Vazgeç", role: .cancel) {}
+            Button(cancelConfirmationButtonTitle, role: .destructive) {
+                onCancelFlow()
+            }
+        } message: {
+            Text(cancelConfirmationMessage)
+        }
     }
 
     private var microphoneNoticeSymbol: String {
@@ -473,21 +482,33 @@ private struct MeetingStatusView: View {
                 .buttonStyle(NotchActionButtonStyle(tone: .secondary))
             }
 
-        case .preparingRecording, .finalizingAudio, .uploading, .transcribing, .summarizing:
+        case .preparingRecording, .uploading, .transcribing, .summarizing:
             Button(role: .destructive) {
-                onCancelFlow()
+                showsCancelConfirmation = true
             } label: {
                 Label("İptal", systemImage: "xmark")
             }
             .buttonStyle(NotchActionButtonStyle(tone: .danger))
 
+        case .finalizingAudio:
+            EmptyView()
+
         case .recording:
-            Button(role: .destructive) {
-                onStopRecording()
-            } label: {
-                Label("Kaydı Durdur", systemImage: "stop.fill")
+            HStack(spacing: 8) {
+                Button(role: .destructive) {
+                    showsCancelConfirmation = true
+                } label: {
+                    Label("Kaydı Sil", systemImage: "trash")
+                }
+                .buttonStyle(NotchActionButtonStyle(tone: .secondary))
+
+                Button(role: .destructive) {
+                    onStopRecording()
+                } label: {
+                    Label("Kaydı Durdur", systemImage: "stop.fill")
+                }
+                .buttonStyle(NotchActionButtonStyle(tone: .danger))
             }
-            .buttonStyle(NotchActionButtonStyle(tone: .danger))
 
         case .failed(let failure):
             if failure.category == .permission,
@@ -549,6 +570,37 @@ private struct MeetingStatusView: View {
             "Tekrar Bağlan"
         default:
             "Takvimi Bağla"
+        }
+    }
+
+    private var cancelConfirmationTitle: String {
+        switch appState.meetingFlow.phase {
+        case .recording:
+            "Kayıt silinsin mi?"
+        case .uploading, .transcribing, .summarizing:
+            "İşleme durdurulsun mu?"
+        default:
+            "Kayıt hazırlığı iptal edilsin mi?"
+        }
+    }
+
+    private var cancelConfirmationButtonTitle: String {
+        switch appState.meetingFlow.phase {
+        case .uploading, .transcribing, .summarizing:
+            "İşlemeyi Durdur"
+        default:
+            "Kaydı Sil"
+        }
+    }
+
+    private var cancelConfirmationMessage: String {
+        switch appState.meetingFlow.phase {
+        case .uploading, .transcribing, .summarizing:
+            "Yerel ses kaydı korunur. Transkripsiyonu toplantı geçmişinden daha sonra tekrar deneyebilirsiniz."
+        case .recording:
+            "Bu kayıt henüz geçmişe kaydedilmedi. Mikrofon ve sistem sesi parçaları kalıcı olarak silinecek."
+        default:
+            "Hazırlanan geçici kayıt dosyaları silinecek."
         }
     }
 }

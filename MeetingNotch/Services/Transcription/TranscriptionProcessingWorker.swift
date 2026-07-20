@@ -123,6 +123,12 @@ actor TranscriptionProcessingWorker {
                 try await queue.complete(meetingID: job.meetingID)
                 await onEvent(.completed(updatedMeeting))
             } catch is CancellationError {
+                if let failedJob = try? await queue.markFailed(
+                    meetingID: job.meetingID,
+                    error: .cancelled
+                ) {
+                    await onEvent(.failed(failedJob, .cancelled))
+                }
                 return
             } catch {
                 let normalized = TranscriptionErrorNormalizer.normalize(error)

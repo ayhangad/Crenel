@@ -79,7 +79,7 @@ struct SettingsView: View {
             TranscriptionProviderID,
             String?,
             String?
-        ) async -> TranscriptionSettingsSaveResult = { _, _, _ in .saved }
+        ) async -> TranscriptionSettingsSaveResult = { _, _, _ in .saved(retriedJobCount: 0) }
     ) {
         self.onRequestMicrophoneAccess = onRequestMicrophoneAccess
         self.onRequestSystemAudioAccess = onRequestSystemAudioAccess
@@ -423,10 +423,12 @@ struct SettingsView: View {
                 newAPIKey.isEmpty ? nil : newAPIKey
             )
             switch result {
-            case .saved:
+            case .saved(let retriedJobCount):
                 hasStoredAPIKey = true
                 apiKey = ""
-                transcriptionSettingsMessage = "Doğrulandı ve kaydedildi"
+                transcriptionSettingsMessage = retriedJobCount > 0
+                    ? "Doğrulandı; bekleyen \(retriedJobCount) kayıt yeniden işleniyor"
+                    : "Speech-to-Text yetkisi doğrulandı ve kaydedildi"
                 transcriptionSettingsFailed = false
             case .failed(let failure):
                 transcriptionSettingsMessage = failure.message

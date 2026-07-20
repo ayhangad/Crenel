@@ -107,6 +107,39 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: audioURL.path))
     }
 
+    func testCancellingWorkerMarksRunningJobFailedAndPreservesItForRetry() async throws {
+        let meetingRepository = FileMeetingRepository(rootURL: root)
+        let meeting = try await meetingRepository.saveCapture(try makeCapture())
+        let queue = ProcessingQueue(repository: FileProcessingJobRepository(rootURL: root))
+        _ = try await queue.enqueue(meetingID: meeting.id, providerID: .elevenLabs)
+        let settings = UserDefaultsAppSettingsRepository(defaults: defaults, storageKey: "preferences")
+        let worker = TranscriptionProcessingWorker(
+            queue: queue,
+            meetingRepository: meetingRepository,
+            settingsRepository: settings,
+            providers: BlockingWorkerProviderResolver(),
+            retryPolicy: TranscriptionRetryPolicy(maximumAttempts: 1, baseDelay: 0)
+        )
+
+        let drainTask = Task { await worker.drain() }
+        for _ in 0..<100 {
+            if try await queue.allJobs().first?.state == .running { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        let runningJobs = try await queue.allJobs()
+        XCTAssertEqual(runningJobs.first?.state, .running)
+
+        drainTask.cancel()
+        await drainTask.value
+
+        let cancelledJobs = try await queue.allJobs()
+        let cancelled = try XCTUnwrap(cancelledJobs.first)
+        XCTAssertEqual(cancelled.state, .failed)
+        XCTAssertEqual(cancelled.lastFailure, .cancelled)
+        let audioURL = await meetingRepository.audioFileURL(for: meeting)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: audioURL.path))
+    }
+
     func testSummaryFailureStillPersistsSuccessfulTranscript() async throws {
         let meetingRepository = FileMeetingRepository(rootURL: root)
         let meeting = try await meetingRepository.saveCapture(try makeCapture())
@@ -197,6 +230,30 @@ private struct WorkerProviderResolver: TranscriptionProviderResolving {
     let provider: WorkerStubProvider
     func provider(for id: TranscriptionProviderID) -> (any TranscriptionProvider)? {
         id == .elevenLabs ? provider : nil
+    }
+}
+
+private struct BlockingWorkerProviderResolver: TranscriptionProviderResolving {
+    func provider(for id: TranscriptionProviderID) -> (any TranscriptionProvider)? {
+        id == .elevenLabs ? BlockingWorkerProvider() : nil
+    }
+}
+
+private struct BlockingWorkerProvider: TranscriptionProvider {
+    let id = TranscriptionProviderID.elevenLabs
+    let capabilities = TranscriptionProviderCapabilities(
+        supportedFileExtensions: ["m4a"],
+        maximumFileSizeBytes: 1_000_000,
+        supportsDiarization: true,
+        supportsAutomaticLanguageDetection: true
+    )
+
+    func transcribe(
+        _ request: TranscriptionRequest,
+        uploadProgress: @escaping TranscriptionUploadProgress
+    ) async throws -> TranscriptionResult {
+        try await Task.sleep(for: .seconds(30))
+        throw TranscriptionServiceError.providerUnavailable
     }
 }
 

@@ -99,6 +99,30 @@ actor ProcessingQueue {
         return current[index]
     }
 
+    @discardableResult
+    func retryFailed(
+        providerID: TranscriptionProviderID,
+        failure: ProcessingJob.FailureKind,
+        now: Date = Date()
+    ) async throws -> [ProcessingJob] {
+        var current = try await loadedJobs()
+        let indices = current.indices.filter {
+            current[$0].providerID == providerID
+                && current[$0].state == .failed
+                && current[$0].lastFailure == failure
+        }
+        guard !indices.isEmpty else { return [] }
+
+        for index in indices {
+            current[index].state = .queued
+            current[index].lastFailure = nil
+            current[index].nextAttemptAt = nil
+            current[index].updatedAt = now
+        }
+        try await persist(current)
+        return sorted(indices.map { current[$0] })
+    }
+
     func complete(meetingID: UUID) async throws {
         try await remove(meetingID: meetingID)
     }

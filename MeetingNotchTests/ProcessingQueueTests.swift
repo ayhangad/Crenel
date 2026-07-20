@@ -69,6 +69,53 @@ final class ProcessingQueueTests: XCTestCase {
         XCTAssertEqual(retried?.idempotencyKey, original.idempotencyKey)
     }
 
+    func testRetryFailedOnlyRequeuesMatchingProviderAndFailureInOneWrite() async throws {
+        let matchingFirst = ProcessingJob(
+            meetingID: UUID(),
+            providerID: .elevenLabs,
+            state: .failed,
+            attemptCount: 1,
+            lastFailure: .authentication
+        )
+        let matchingSecond = ProcessingJob(
+            meetingID: UUID(),
+            providerID: .elevenLabs,
+            state: .failed,
+            attemptCount: 2,
+            lastFailure: .authentication
+        )
+        let otherFailure = ProcessingJob(
+            meetingID: UUID(),
+            providerID: .elevenLabs,
+            state: .failed,
+            lastFailure: .timeout
+        )
+        let otherProvider = ProcessingJob(
+            meetingID: UUID(),
+            providerID: .openAI,
+            state: .failed,
+            lastFailure: .authentication
+        )
+        let repository = InMemoryProcessingJobRepository(jobs: [
+            matchingFirst, matchingSecond, otherFailure, otherProvider
+        ])
+        let queue = ProcessingQueue(repository: repository)
+        let retriedAt = Date(timeIntervalSince1970: 3_000)
+
+        let retried = try await queue.retryFailed(
+            providerID: .elevenLabs,
+            failure: .authentication,
+            now: retriedAt
+        )
+
+        XCTAssertEqual(Set(retried.map(\.id)), Set([matchingFirst.id, matchingSecond.id]))
+        XCTAssertTrue(retried.allSatisfy { $0.state == .queued })
+        XCTAssertTrue(retried.allSatisfy { $0.lastFailure == nil })
+        XCTAssertTrue(retried.allSatisfy { $0.updatedAt == retriedAt })
+        let untouched = try await queue.allJobs().filter { !retried.map(\.id).contains($0.id) }
+        XCTAssertTrue(untouched.allSatisfy { $0.state == .failed })
+    }
+
     func testRemoveAllClearsMemoryAndPersistentRepository() async throws {
         let repository = InMemoryProcessingJobRepository()
         let queue = ProcessingQueue(repository: repository)

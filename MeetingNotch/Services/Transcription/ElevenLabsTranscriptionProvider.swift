@@ -238,12 +238,20 @@ struct ElevenLabsTranscriptParser: Sendable {
 }
 
 struct ElevenLabsAPIKeyValidator: Sendable {
+    static let productionEndpoint = URL(
+        string: "https://api.elevenlabs.io/v1/single-use-token/realtime_scribe"
+    )!
+
+    private struct TokenResponse: Decodable {
+        let token: String
+    }
+
     private let httpClient: any TranscriptionHTTPClient
     private let endpoint: URL
 
     init(
         httpClient: any TranscriptionHTTPClient = URLSessionTranscriptionHTTPClient(),
-        endpoint: URL = URL(string: "https://api.elevenlabs.io/v1/models")!
+        endpoint: URL = Self.productionEndpoint
     ) {
         self.httpClient = httpClient
         self.endpoint = endpoint
@@ -252,13 +260,23 @@ struct ElevenLabsAPIKeyValidator: Sendable {
     func validate(_ apiKey: String) async throws {
         let normalized = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { throw TranscriptionServiceError.authentication }
+
+        // ElevenLabs keys may be deliberately restricted to Speech-to-Text. Requesting an
+        // unused, short-lived Scribe token authenticates that scope without uploading
+        // audio or creating a billable transcription. It also avoids treating the batch
+        // endpoint's evolving missing-file validation response as a credential result.
         var request = URLRequest(url: endpoint, timeoutInterval: 30)
+        request.httpMethod = "POST"
         request.setValue(normalized, forHTTPHeaderField: "xi-api-key")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         do {
             let response = try await httpClient.data(for: request)
             if let error = TranscriptionErrorNormalizer.normalizeHTTPStatus(response.response.statusCode) {
                 throw error
+            }
+            guard let payload = try? JSONDecoder().decode(TokenResponse.self, from: response.data),
+                  !payload.token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw TranscriptionServiceError.invalidResponse
             }
         } catch {
             throw TranscriptionErrorNormalizer.normalize(error)

@@ -441,7 +441,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences.provider.selectedProvider = provider
             preferences.provider.languageCode = languageCode
             try await appSettingsRepository.save(preferences)
-            return .saved
+
+            let retriedJobs = try await processingQueue.retryFailed(
+                providerID: provider,
+                failure: .authentication
+            )
+            retriedJobs.forEach(appState.upsertProcessingJob)
+            if !retriedJobs.isEmpty {
+                startProcessingQueue()
+            }
+            return .saved(retriedJobCount: retriedJobs.count)
         } catch {
             let normalized = TranscriptionErrorNormalizer.normalize(error)
             return .failed(normalized.appFailure)
@@ -698,10 +707,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func cancelRecordingFlow() {
-        recordingTask?.cancel()
-        recordingTask = Task { [weak self] in
-            guard let self else { return }
-            await self.recordingCoordinator.cancel()
+        switch appState.meetingFlow.phase {
+        case .uploading, .transcribing, .summarizing:
+            // Cancelling processing must not delete the durable recording. The worker marks
+            // only its current job as cancelled/failed so it remains available for retry,
+            // then a fresh drain can continue any unrelated queued meetings.
+            processingRestartRequested = true
+            processingTask?.cancel()
+        case .preparingRecording, .recording, .finalizingAudio:
+            recordingTask?.cancel()
+            recordingTask = Task { [weak self] in
+                guard let self else { return }
+                await self.recordingCoordinator.cancel()
+            }
+        default:
+            return
         }
         appState.cancelCurrentFlow()
     }

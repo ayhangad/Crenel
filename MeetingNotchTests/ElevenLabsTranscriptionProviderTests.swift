@@ -159,17 +159,22 @@ final class ElevenLabsTranscriptionProviderTests: XCTestCase {
         }
     }
 
-    func testAPIKeyValidatorUsesOfficialModelsEndpointAndNormalizes401() async throws {
+    func testAPIKeyValidatorRequestsScopedScribeTokenWithoutUploadingAudio() async throws {
         let successClient = MockTranscriptionHTTPClient(dataResponse: try response(
             statusCode: 200,
-            data: Data("[]".utf8)
+            data: Data(#"{"token":"temporary-scribe-token"}"#.utf8)
         ))
         try await ElevenLabsAPIKeyValidator(httpClient: successClient).validate(" key ")
         let capturedRequest = await successClient.lastDataRequest()
         let request = try XCTUnwrap(capturedRequest)
-        XCTAssertEqual(request.url?.path, "/v1/models")
+        XCTAssertEqual(request.url?.path, "/v1/single-use-token/realtime_scribe")
+        XCTAssertEqual(request.httpMethod, "POST")
         XCTAssertEqual(request.value(forHTTPHeaderField: "xi-api-key"), "key")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "application/json")
+        XCTAssertNil(request.httpBody)
+    }
 
+    func testAPIKeyValidatorNormalizesUnauthorizedSpeechToTextProbe() async throws {
         let failureClient = MockTranscriptionHTTPClient(dataResponse: try response(
             statusCode: 401,
             data: Data()
@@ -179,6 +184,20 @@ final class ElevenLabsTranscriptionProviderTests: XCTestCase {
             XCTFail("401 kabul edilmemeliydi.")
         } catch {
             XCTAssertEqual(error as? TranscriptionServiceError, .authentication)
+        }
+    }
+
+    func testAPIKeyValidatorRejectsSuccessWithoutScribeToken() async throws {
+        let malformedClient = MockTranscriptionHTTPClient(dataResponse: try response(
+            statusCode: 200,
+            data: Data(#"{"token":""}"#.utf8)
+        ))
+
+        do {
+            try await ElevenLabsAPIKeyValidator(httpClient: malformedClient).validate("key")
+            XCTFail("Boş token içeren yanıt kabul edilmemeliydi.")
+        } catch {
+            XCTAssertEqual(error as? TranscriptionServiceError, .invalidResponse)
         }
     }
 

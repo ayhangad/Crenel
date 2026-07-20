@@ -31,7 +31,7 @@ enum SettingsActionResult: Equatable, Sendable {
 }
 
 enum TranscriptionSettingsSaveResult: Equatable, Sendable {
-    case saved
+    case saved(retriedJobCount: Int)
     case failed(AppFailure)
 }
 

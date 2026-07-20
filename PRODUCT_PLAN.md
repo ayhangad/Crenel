@@ -394,6 +394,8 @@ kanalı değildir.
 
 ### 7.2 Mikrofon yakalama
 
+- [x] Bluetooth/24 kHz mikrofon buffer'larının M4A writer'da sıfır bayt dosya ve
+  `kCMSampleBufferError_RequiredParameterMissing` üretmesini engellemek.
 - [x] Kullanılabilir mikrofonları listelemek.
 - [x] Varsayılan veya kullanıcı seçili mikrofonu kullanmak.
 - [x] Mikrofon buffer'larını timestamp bilgisiyle kaydetmek.
@@ -430,7 +432,7 @@ kanalı değildir.
 - [x] Notch üzerinde canlı süre göstermek.
 - [x] Mikrofon/system audio durum göstergelerini sunmak.
 - [x] Kaydı durdurma kontrolü eklemek.
-- [ ] İptal kontrolünü yanlış dokunmayı önleyecek şekilde sunmak.
+- [x] İptal kontrolünü yanlış dokunmayı önleyecek şekilde sunmak.
 - [ ] İsteğe bağlı pause/resume özelliğini ürün kararına göre uygulamak.
 - [ ] Kayıt sürerken uykuya geçme ve ekran kilidi davranışını belirlemek.
 
@@ -454,6 +456,10 @@ kanalı değildir.
 
 ### 8.2 Birincil provider
 
+- [x] ElevenLabs anahtar probunun production API'deki eksik dosya yanıt varyantlarına
+  bağlı kalmamasını ve yanıltıcı provider hatası üretmemesini sağlamak.
+- [x] ElevenLabs API anahtarı doğrulama, Keychain saklama ve arka plan worker kullanımını
+  gerçek Scribe API sözleşmesiyle uçtan uca sağlamlaştırmak.
 - [x] Birincil provider client'ını uygulamak.
 - [x] API anahtarını Keychain'den kullanmak.
 - [x] Dosya upload isteğini ve progress takibini uygulamak.
@@ -559,7 +565,7 @@ adaptörü UI'da devre dışı gösterilir ve aşağıdaki maddeler V1 sonrasın
 - [x] Mikrofon izni reddi ve sonradan kaldırılmasını test etmek.
 - [x] Sistem sesi izni reddi ve sonradan kaldırılmasını test etmek.
 - [ ] Takvim izni reddini test etmek.
-- [ ] Geçersiz API anahtarını test etmek.
+- [x] Geçersiz API anahtarını test etmek.
 - [ ] İnternet kesintisi ve bağlantının geri gelmesini test etmek.
 - [x] Provider 401, 429, 5xx ve timeout yanıtlarını test etmek.
 - [ ] Kayıt sırasında ses cihazı değişimini test etmek.
@@ -675,6 +681,38 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 ## İlerleme günlüğü
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
+
+- 2026-07-20 — AirPods gibi 24 kHz Bluetooth mikrofonlarda kaydı sıfır bayt bırakan
+  `kCMSampleBufferError_RequiredParameterMissing` giderildi. Capture sample'ları artık
+  retained `AudioBufferList` üzerinden güvenle sahipli PCM buffer'a kopyalanıyor; hem seviye
+  göstergesi hem writer aynı yolu kullanıyor. Değişen giriş formatları 48 kHz mono PCM'e
+  normalize edilip kararlı AAC/M4A'ya yazılıyor ve terminal hata yalnızca bir kez raporlanıyor.
+  Gerçek AirPods ile opt-in fiziksel mikrofon testi ve toplam 172 test geçti; üç ilgisiz
+  opt-in donanım testi atlandı.
+
+- 2026-07-20 — ElevenLabs ayarlarında görülen “Provider yanıtı beklenen biçimde değildi”
+  regresyonu giderildi. Değişken eksik-dosya yanıtına dayanan batch probu yerine resmi
+  `POST /v1/single-use-token/realtime_scribe` sınırında ses yüklemeyen, ücretli işlem
+  oluşturmayan ve `speech_to_text` kapsamını doğrulayan istek kullanılıyor; kısa ömürlü
+  token saklanmıyor veya loglanmıyor. Geçersiz anahtarın production'da `401` kaldığı,
+  toplam 171 testten 168'inin geçtiği ve üç opt-in donanım testinin atlandığı doğrulandı;
+  Apple Development imzalı Debug build ve imza bütünlüğü de geçti.
+
+- 2026-07-20 — Kayıt ve işleme iptali veri yaşam döngüsüne uygun hale getirildi. Aktif
+  kaydı silme ile hazırlık/finalize iptali artık açık kullanıcı onayı gerektiriyor. Upload,
+  transkripsiyon veya özet iptalinde worker gerçekten duruyor, çalışan kuyruk işi kalıcı
+  `cancelled` koduyla tekrar denenebilir duruma alınıyor, birleşik M4A korunuyor ve ilgisiz
+  kuyruk işleri yeni worker ile devam ediyor. Toplam 170 test geçti, üç opt-in donanım
+  testi atlandı; Apple Development imzalı Debug build ve imza bütünlüğü doğrulandı.
+
+- 2026-07-20 — ElevenLabs anahtar akışı restricted API key desteğiyle düzeltildi. Genel
+  `/v1/models` kontrolü yerine doğrudan `/v1/speech-to-text` üzerinde dosyasız ve ücret
+  üretmeyen Scribe yetki probu kullanılıyor; geçersiz veya Speech-to-Text yetkisi olmayan
+  anahtarlar normalize kimlik hatası veriyor. Başarılı Keychain kaydından sonra daha önce
+  authentication nedeniyle durmuş işler kimlikleri korunarak atomik biçimde yeniden
+  kuyruğa alınıyor ve kullanıcıya yeniden işlenen kayıt sayısı gösteriliyor. Toplam 169
+  test geçti, üç opt-in donanım testi atlandı ve Apple Development imzalı Debug build
+  doğrulandı.
 
 - 2026-07-18 — Meeting ana sonuç akışı tamamlandı: Ayarlar artık ElevenLabs Scribe v2'nin
   bulutta ve kayıt durduktan sonra çalıştığını, API anahtarının nasıl oluşturulup doğrulanarak

@@ -131,6 +131,10 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   `transcript.json`, sonra tamamlandı durumu olarak atomik yazılır; bu sıra force-quit
   sonrasında aynı idempotency anahtarıyla güvenli yeniden işlemeye izin verir. Başarıdan
   sonra provider'a gerekmeyen ayrı ham kaynak parçaları silinir, birleşik kayıt korunur.
+- Kullanıcı kayıt hazırlığını veya henüz kalıcı olmayan aktif kaydı yalnızca açık onaydan
+  sonra iptal edebilir; bu yol geçici parçaları siler. Upload/transkripsiyon/özet iptali ise
+  kalıcı birleşik sesi silmez, çalışan işi `cancelled` hata koduyla tekrar denenebilir halde
+  tutar ve kuyruktaki ilgisiz toplantıların işlenmesine yeni worker göreviyle devam eder.
 - Transkripsiyon tamamlandığında yerel extractive özet servisi yalnızca transkriptte açıkça
   bulunan cümlelerden kısa özet, karar ve aksiyon adayları çıkarır. Ayrı bir uzak model veya
   ikinci API anahtarı kullanmaz; özetleme hatası transkriptin kaydedilmesini engellemez.
@@ -178,6 +182,10 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   sesi kaydı korunurken mikrofon kaynağı `bağlı değil` durumuna geçer; notch otomatik açılır
   ve kullanıcı yeniden bağlama ya da kaydı durdurma aksiyonuna yönlendirilir. Seçili cihaz
   yeniden gelirse aktif input tekrar yapılandırılır.
+- Mikrofon sample buffer'ları, AirPods gibi 24 kHz Bluetooth girişleri ve kayıt ortasındaki
+  format değişimleri doğrudan M4A writer'a verilmeden önce 48 kHz mono float PCM'e normalize
+  edilir. AAC dosyası bu kararlı client formatından üretilir; ilk dönüştürme/yazma hatası
+  kaynağa ait terminal hata olarak tutulur ve sonraki her buffer için yinelenen log üretilmez.
 
 ## Sonuç ve görev yüzeyleri
 
@@ -213,8 +221,14 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 - Multipart gövde büyük sesi belleğe almamak için geçici dosyaya parça parça yazılır;
   URLSession delegate'i gerçek gönderilen byte oranını yayınlar. Dosya başarı/hata/iptalde
   silinir, force-quit artıkları uygulama açılışında sabit güvenli prefix ile temizlenir.
-- API anahtarı Ayarlar'da resmi `/v1/models` isteğiyle doğrulanır ve ancak başarıdan sonra
-  Keychain'e kaydedilir. Alternatif OpenAI adaptörü tamamlanana kadar UI'da açıkça devre dışıdır.
+- API anahtarı Ayarlar'da `POST /v1/single-use-token/realtime_scribe` üzerinden kullanılmadan
+  süresi dolacak geçici bir Scribe token'ı istenerek doğrulanır. Bu istek ses yüklemez ve
+  ücretli transkripsiyon oluşturmaz; batch endpoint'inin eksik dosya için değişebilen hata
+  biçimine bağlı kalmadan `speech_to_text` kapsamı verilmiş kısıtlı anahtarları destekler.
+  Dönen token yalnızca yanıt bütünlüğünü doğrulamak için bellekte görülür, saklanmaz veya
+  loglanmaz. Anahtar ancak başarıdan sonra Keychain'e kaydedilir; kimlik doğrulama nedeniyle
+  bekleyen işler atomik olarak yeniden kuyruğa alınır. Alternatif OpenAI adaptörü tamamlanana
+  kadar UI'da açıkça devre dışıdır.
 
 ## Özet ve Markdown sınırı
 
