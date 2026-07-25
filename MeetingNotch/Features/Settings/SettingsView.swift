@@ -17,10 +17,10 @@ struct SettingsView: View {
     let onResetOnboarding: () async -> SettingsActionResult
     let onLoadTranscriptionSettings: () async -> TranscriptionSettingsSnapshot
     let onSaveTranscriptionSettings: (
-        TranscriptionProviderID,
         String?,
         String?
     ) async -> TranscriptionSettingsSaveResult
+    let onDeleteTranscriptionAPIKey: () async -> SettingsActionResult
 
     @State private var reminderLeadTime: TimeInterval = 10 * 60
     @State private var isCalendarEnabled = true
@@ -40,7 +40,6 @@ struct SettingsView: View {
     @State private var microphoneSettingsMessage: String?
     @State private var microphoneSettingsFailed = false
 
-    @State private var selectedProvider = TranscriptionProviderID.elevenLabs
     @State private var languageCode: String?
     @State private var apiKey = ""
     @State private var hasStoredAPIKey = false
@@ -70,16 +69,17 @@ struct SettingsView: View {
         onResetOnboarding: @escaping () async -> SettingsActionResult = { .succeeded() },
         onLoadTranscriptionSettings: @escaping () async -> TranscriptionSettingsSnapshot = {
             TranscriptionSettingsSnapshot(
-                provider: .elevenLabs,
                 languageCode: nil,
                 hasStoredAPIKey: false
             )
         },
         onSaveTranscriptionSettings: @escaping (
-            TranscriptionProviderID,
             String?,
             String?
-        ) async -> TranscriptionSettingsSaveResult = { _, _, _ in .saved(retriedJobCount: 0) }
+        ) async -> TranscriptionSettingsSaveResult = { _, _ in .saved(retriedJobCount: 0) },
+        onDeleteTranscriptionAPIKey: @escaping () async -> SettingsActionResult = {
+            .succeeded()
+        }
     ) {
         self.onRequestMicrophoneAccess = onRequestMicrophoneAccess
         self.onRequestSystemAudioAccess = onRequestSystemAudioAccess
@@ -95,6 +95,7 @@ struct SettingsView: View {
         self.onResetOnboarding = onResetOnboarding
         self.onLoadTranscriptionSettings = onLoadTranscriptionSettings
         self.onSaveTranscriptionSettings = onSaveTranscriptionSettings
+        self.onDeleteTranscriptionAPIKey = onDeleteTranscriptionAPIKey
     }
 
     var body: some View {
@@ -209,14 +210,6 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Picker("Provider", selection: $selectedProvider) {
-                    Text("ElevenLabs Scribe v2")
-                        .tag(TranscriptionProviderID.elevenLabs)
-                    Text("OpenAI (yakında)")
-                        .tag(TranscriptionProviderID.openAI)
-                        .disabled(true)
-                }
-
                 Picker("Transkript dili", selection: $languageCode) {
                     Text("Otomatik algıla").tag(nil as String?)
                     Text("Türkçe").tag("tr" as String?)
@@ -240,15 +233,21 @@ struct SettingsView: View {
                     buttonTitle: "Doğrula ve Kaydet",
                     isBusy: isSavingTranscriptionSettings,
                     isDisabled: isLoadingTranscriptionSettings
-                        || selectedProvider != .elevenLabs
                         || (apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                             && !hasStoredAPIKey),
                     action: saveTranscriptionSettings
                 )
+
+                if hasStoredAPIKey {
+                    Button("Bağlantıyı Kaldır", role: .destructive) {
+                        deleteTranscriptionAPIKey()
+                    }
+                    .disabled(isSavingTranscriptionSettings)
+                }
             } header: {
                 Text("Transkripsiyon")
             } footer: {
-                Text("MeetingNotch canlı transkript üretmez. Kaydı durdurduğunuzda mikrofon ve sistem sesi tek M4A dosyasında güvenceye alınır, ardından konuşmacı ayrımı ve zaman damgaları için ElevenLabs’e yüklenir. Anahtar önce doğrulanır ve yalnızca bu Mac’in Keychain’inde tutulur. Ağ ya da provider hatasında ses kaydı silinmez; tekrar deneyebilirsiniz.")
+                Text("MeetingNotch canlı transkript üretmez. Kaydı durdurduğunuzda mikrofon ve sistem sesi tek M4A dosyasında güvenceye alınır, ardından konuşmacı ayrımı ve zaman damgaları için ElevenLabs’e yüklenir. Anahtar önce doğrulanır ve yalnızca bu Mac’in Keychain’inde tutulur. Ağ ya da servis hatasında ses kaydı silinmez; tekrar deneyebilirsiniz.")
             }
 
             Section {
@@ -314,7 +313,7 @@ struct SettingsView: View {
             Button("Vazgeç", role: .cancel) {}
             Button("Kalıcı Olarak Sil", role: .destructive) { deleteAllData() }
         } message: {
-            Text("Toplantılar, ses kayıtları, transkriptler, görevler, ayarlar ve Keychain’deki provider anahtarları kalıcı olarak silinecek. Bu işlem geri alınamaz.")
+            Text("Toplantılar, ses kayıtları, transkriptler, görevler, ayarlar ve Keychain’deki ElevenLabs anahtarı kalıcı olarak silinecek. Bu işlem geri alınamaz.")
         }
     }
 
@@ -361,7 +360,6 @@ struct SettingsView: View {
     }
 
     private func apply(_ snapshot: TranscriptionSettingsSnapshot) {
-        selectedProvider = snapshot.provider
         languageCode = snapshot.languageCode
         hasStoredAPIKey = snapshot.hasStoredAPIKey
         isLoadingTranscriptionSettings = false
@@ -418,7 +416,6 @@ struct SettingsView: View {
         let newAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         Task {
             let result = await onSaveTranscriptionSettings(
-                selectedProvider,
                 languageCode,
                 newAPIKey.isEmpty ? nil : newAPIKey
             )
@@ -432,6 +429,24 @@ struct SettingsView: View {
                 transcriptionSettingsFailed = false
             case .failed(let failure):
                 transcriptionSettingsMessage = failure.message
+                transcriptionSettingsFailed = true
+            }
+            isSavingTranscriptionSettings = false
+        }
+    }
+
+    private func deleteTranscriptionAPIKey() {
+        isSavingTranscriptionSettings = true
+        transcriptionSettingsMessage = nil
+        Task {
+            switch await onDeleteTranscriptionAPIKey() {
+            case .succeeded(let message):
+                hasStoredAPIKey = false
+                apiKey = ""
+                transcriptionSettingsMessage = message ?? "ElevenLabs bağlantısı kaldırıldı"
+                transcriptionSettingsFailed = false
+            case .failed(let message):
+                transcriptionSettingsMessage = message
                 transcriptionSettingsFailed = true
             }
             isSavingTranscriptionSettings = false

@@ -1,26 +1,5 @@
 import Foundation
 
-protocol TranscriptionProviderResolving: Sendable {
-    func provider(for id: TranscriptionProviderID) -> (any TranscriptionProvider)?
-}
-
-struct DefaultTranscriptionProviderResolver: TranscriptionProviderResolving, Sendable {
-    private let elevenLabs: any TranscriptionProvider
-
-    init(elevenLabs: any TranscriptionProvider = ElevenLabsTranscriptionProvider()) {
-        self.elevenLabs = elevenLabs
-    }
-
-    func provider(for id: TranscriptionProviderID) -> (any TranscriptionProvider)? {
-        switch id {
-        case .elevenLabs:
-            elevenLabs
-        case .openAI:
-            nil
-        }
-    }
-}
-
 enum TranscriptionProcessingEvent: Sendable {
     case started(ProcessingJob)
     case uploadProgress(meetingID: UUID, progress: Double)
@@ -36,7 +15,7 @@ actor TranscriptionProcessingWorker {
     private let queue: ProcessingQueue
     private let meetingRepository: any MeetingRepository
     private let settingsRepository: any AppSettingsRepository
-    private let providers: any TranscriptionProviderResolving
+    private let transcriptionService: any TranscriptionServicing
     private let summaryService: any MeetingSummaryGenerating
     private let retryPolicy: TranscriptionRetryPolicy
     private let onEvent: EventHandler
@@ -46,7 +25,7 @@ actor TranscriptionProcessingWorker {
         queue: ProcessingQueue,
         meetingRepository: any MeetingRepository,
         settingsRepository: any AppSettingsRepository,
-        providers: any TranscriptionProviderResolving = DefaultTranscriptionProviderResolver(),
+        transcriptionService: any TranscriptionServicing = ElevenLabsTranscriptionService(),
         summaryService: any MeetingSummaryGenerating = ExtractiveMeetingSummaryService(),
         retryPolicy: TranscriptionRetryPolicy = TranscriptionRetryPolicy(),
         onEvent: @escaping EventHandler = { _ in }
@@ -54,7 +33,7 @@ actor TranscriptionProcessingWorker {
         self.queue = queue
         self.meetingRepository = meetingRepository
         self.settingsRepository = settingsRepository
-        self.providers = providers
+        self.transcriptionService = transcriptionService
         self.summaryService = summaryService
         self.retryPolicy = retryPolicy
         self.onEvent = onEvent
@@ -76,9 +55,6 @@ actor TranscriptionProcessingWorker {
 
             await onEvent(.started(job))
             do {
-                guard let provider = providers.provider(for: job.providerID) else {
-                    throw TranscriptionServiceError.providerUnavailable
-                }
                 guard let meeting = try await meetingRepository.loadAll()
                     .first(where: { $0.id == job.meetingID }) else {
                     throw TranscriptionServiceError.invalidFile(.missing)
@@ -87,13 +63,13 @@ actor TranscriptionProcessingWorker {
                 let audioURL = await meetingRepository.audioFileURL(for: meeting)
                 let request = TranscriptionRequest(
                     audioFileURL: audioURL,
-                    languageCode: preferences.provider.languageCode,
+                    languageCode: preferences.transcription.languageCode,
                     requestsDiarization: true,
                     idempotencyKey: job.idempotencyKey
                 )
                 let eventHandler = onEvent
                 let result = try await retryPolicy.execute { _ in
-                    try await provider.transcribe(request) { progress in
+                    try await transcriptionService.transcribe(request) { progress in
                         Task {
                             await eventHandler(.uploadProgress(
                                 meetingID: job.meetingID,

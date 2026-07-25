@@ -21,7 +21,6 @@ struct ProcessingJob: Identifiable, Codable, Equatable, Sendable {
 
     let id: UUID
     let meetingID: UUID
-    let providerID: TranscriptionProviderID
     let idempotencyKey: UUID
     let createdAt: Date
     var updatedAt: Date
@@ -33,7 +32,6 @@ struct ProcessingJob: Identifiable, Codable, Equatable, Sendable {
     init(
         id: UUID = UUID(),
         meetingID: UUID,
-        providerID: TranscriptionProviderID,
         idempotencyKey: UUID = UUID(),
         createdAt: Date = Date(),
         updatedAt: Date? = nil,
@@ -44,7 +42,6 @@ struct ProcessingJob: Identifiable, Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.meetingID = meetingID
-        self.providerID = providerID
         self.idempotencyKey = idempotencyKey
         self.createdAt = createdAt
         self.updatedAt = updatedAt ?? createdAt

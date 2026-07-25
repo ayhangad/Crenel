@@ -199,7 +199,6 @@ actor FileMeetingRepository: MeetingRepository {
         }
 
         let stored = StoredTranscription(
-            providerID: result.providerID,
             transcript: result.transcript,
             summary: summary
         )

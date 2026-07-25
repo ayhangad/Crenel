@@ -30,7 +30,6 @@ actor ProcessingQueue {
     @discardableResult
     func enqueue(
         meetingID: UUID,
-        providerID: TranscriptionProviderID,
         now: Date = Date()
     ) async throws -> ProcessingJob {
         var current = try await loadedJobs()
@@ -38,7 +37,7 @@ actor ProcessingQueue {
             return existing
         }
 
-        let job = ProcessingJob(meetingID: meetingID, providerID: providerID, createdAt: now)
+        let job = ProcessingJob(meetingID: meetingID, createdAt: now)
         current.append(job)
         try await persist(current)
         return job
@@ -101,14 +100,12 @@ actor ProcessingQueue {
 
     @discardableResult
     func retryFailed(
-        providerID: TranscriptionProviderID,
         failure: ProcessingJob.FailureKind,
         now: Date = Date()
     ) async throws -> [ProcessingJob] {
         var current = try await loadedJobs()
         let indices = current.indices.filter {
-            current[$0].providerID == providerID
-                && current[$0].state == .failed
+            current[$0].state == .failed
                 && current[$0].lastFailure == failure
         }
         guard !indices.isEmpty else { return [] }

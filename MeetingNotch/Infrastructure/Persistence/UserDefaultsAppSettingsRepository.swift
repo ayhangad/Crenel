@@ -22,7 +22,8 @@ enum AppSettingsRepositoryError: LocalizedError, Equatable {
 
 actor UserDefaultsAppSettingsRepository: AppSettingsRepository {
     private struct StoreDocument: Codable {
-        static let currentSchemaVersion = 1
+        static let currentSchemaVersion = 2
+        static let supportedSchemaVersions = 1...currentSchemaVersion
 
         let schemaVersion: Int
         let preferences: AppPreferences
@@ -59,8 +60,11 @@ actor UserDefaultsAppSettingsRepository: AppSettingsRepository {
 
         do {
             let document = try decoder.decode(StoreDocument.self, from: data)
-            guard document.schemaVersion == StoreDocument.currentSchemaVersion else {
+            guard StoreDocument.supportedSchemaVersions.contains(document.schemaVersion) else {
                 throw AppSettingsRepositoryError.unsupportedSchema(document.schemaVersion)
+            }
+            if document.schemaVersion < StoreDocument.currentSchemaVersion {
+                try save(document.preferences)
             }
             return document.preferences
         } catch let error as AppSettingsRepositoryError {

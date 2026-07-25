@@ -2,9 +2,9 @@ import Foundation
 import Security
 
 protocol APIKeyRepository: Sendable {
-    func apiKey(for provider: TranscriptionProviderID) async throws -> String?
-    func saveAPIKey(_ apiKey: String, for provider: TranscriptionProviderID) async throws
-    func deleteAPIKey(for provider: TranscriptionProviderID) async throws
+    func apiKey() async throws -> String?
+    func saveAPIKey(_ apiKey: String) async throws
+    func deleteAPIKey() async throws
 }
 
 enum APIKeyRepositoryOperation: String, Equatable, Sendable {
@@ -115,6 +115,8 @@ private enum KeychainDataStoreError: Error {
 
 actor KeychainAPIKeyRepository: APIKeyRepository {
     static let defaultService = "gad.MeetingNotch.transcription-api-keys"
+    static let account = "elevenlabs-api-key"
+    static let legacyElevenLabsAccount = "elevenLabs"
 
     private let store: any KeychainDataStore
     private let service: String
@@ -127,15 +129,28 @@ actor KeychainAPIKeyRepository: APIKeyRepository {
         self.service = service
     }
 
-    func apiKey(for provider: TranscriptionProviderID) throws -> String? {
+    func apiKey() throws -> String? {
         do {
-            guard let data = try store.read(service: service, account: provider.rawValue) else {
+            if let data = try store.read(service: service, account: Self.account) {
+                return try decodedAPIKey(from: data)
+            }
+
+            guard let legacyData = try store.read(
+                service: service,
+                account: Self.legacyElevenLabsAccount
+            ) else {
                 return nil
             }
-            guard let apiKey = String(data: data, encoding: .utf8) else {
-                throw APIKeyRepositoryError.invalidStoredValue
-            }
-            return apiKey
+            let legacyKey = try decodedAPIKey(from: legacyData)
+
+            // Save-first keeps the old credential intact if migration cannot complete.
+            try store.save(
+                Data(legacyKey.utf8),
+                service: service,
+                account: Self.account
+            )
+            try? store.delete(service: service, account: Self.legacyElevenLabsAccount)
+            return legacyKey
         } catch let error as APIKeyRepositoryError {
             throw error
         } catch {
@@ -143,25 +158,39 @@ actor KeychainAPIKeyRepository: APIKeyRepository {
         }
     }
 
-    func saveAPIKey(_ apiKey: String, for provider: TranscriptionProviderID) throws {
+    func saveAPIKey(_ apiKey: String) throws {
         let normalizedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalizedKey.isEmpty else {
             throw APIKeyRepositoryError.emptyAPIKey
         }
 
         do {
-            try store.save(Data(normalizedKey.utf8), service: service, account: provider.rawValue)
+            try store.save(Data(normalizedKey.utf8), service: service, account: Self.account)
+            try? store.delete(service: service, account: Self.legacyElevenLabsAccount)
         } catch {
             throw sanitizedFailure(error, operation: .save)
         }
     }
 
-    func deleteAPIKey(for provider: TranscriptionProviderID) throws {
-        do {
-            try store.delete(service: service, account: provider.rawValue)
-        } catch {
-            throw sanitizedFailure(error, operation: .delete)
+    func deleteAPIKey() throws {
+        var firstError: Error?
+        for account in [Self.account, Self.legacyElevenLabsAccount] {
+            do {
+                try store.delete(service: service, account: account)
+            } catch {
+                firstError = firstError ?? error
+            }
         }
+        if let firstError {
+            throw sanitizedFailure(firstError, operation: .delete)
+        }
+    }
+
+    private func decodedAPIKey(from data: Data) throws -> String {
+        guard let apiKey = String(data: data, encoding: .utf8) else {
+            throw APIKeyRepositoryError.invalidStoredValue
+        }
+        return apiKey
     }
 
     private func sanitizedFailure(

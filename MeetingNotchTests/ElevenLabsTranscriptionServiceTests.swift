@@ -2,7 +2,7 @@ import Foundation
 import XCTest
 @testable import MeetingNotch
 
-final class ElevenLabsTranscriptionProviderTests: XCTestCase {
+final class ElevenLabsTranscriptionServiceTests: XCTestCase {
     private var root: URL!
 
     override func setUpWithError() throws {
@@ -21,7 +21,7 @@ final class ElevenLabsTranscriptionProviderTests: XCTestCase {
             statusCode: 200,
             data: fixtureData()
         ))
-        let provider = ElevenLabsTranscriptionProvider(
+        let provider = ElevenLabsTranscriptionService(
             apiKeyRepository: StubAPIKeyRepository(apiKey: "test-eleven-key"),
             httpClient: client,
             endpoint: URL(string: "https://example.test/v1/speech-to-text")!
@@ -53,7 +53,6 @@ final class ElevenLabsTranscriptionProviderTests: XCTestCase {
         XCTAssertTrue(bodyText.contains("name=\"diarize\"\r\n\r\ntrue"))
         XCTAssertTrue(bodyText.contains("name=\"language_code\"\r\n\r\ntr"))
         XCTAssertTrue(bodyText.contains("name=\"file\"; filename=\"meeting.m4a\""))
-        XCTAssertEqual(result.providerID, .elevenLabs)
         XCTAssertEqual(result.transcript.languageCode, "tr")
         XCTAssertEqual(result.transcript.segments.map(\.speakerID), ["speaker_0", "speaker_1"])
         XCTAssertEqual(result.transcript.segments.map(\.text), ["Merhaba dünya.", "Selam!"])
@@ -70,7 +69,7 @@ final class ElevenLabsTranscriptionProviderTests: XCTestCase {
             statusCode: 200,
             data: fixtureData()
         ))
-        let provider = ElevenLabsTranscriptionProvider(
+        let provider = ElevenLabsTranscriptionService(
             apiKeyRepository: StubAPIKeyRepository(apiKey: "key"),
             httpClient: client
         )
@@ -90,7 +89,7 @@ final class ElevenLabsTranscriptionProviderTests: XCTestCase {
             statusCode: 200,
             data: fixtureData()
         ))
-        let provider = ElevenLabsTranscriptionProvider(
+        let provider = ElevenLabsTranscriptionService(
             apiKeyRepository: StubAPIKeyRepository(apiKey: nil),
             httpClient: client
         )
@@ -122,7 +121,7 @@ final class ElevenLabsTranscriptionProviderTests: XCTestCase {
                 data: Data("provider detail must not escape".utf8),
                 headers: retryAfter.map { ["Retry-After": $0] } ?? [:]
             ))
-            let provider = ElevenLabsTranscriptionProvider(
+            let provider = ElevenLabsTranscriptionService(
                 apiKeyRepository: StubAPIKeyRepository(apiKey: "key"),
                 httpClient: client
             )
@@ -140,7 +139,7 @@ final class ElevenLabsTranscriptionProviderTests: XCTestCase {
 
     func testTransportTimeoutAndInvalidFixtureAreNormalized() async throws {
         let timeoutClient = MockTranscriptionHTTPClient(uploadError: URLError(.timedOut))
-        let timeoutProvider = ElevenLabsTranscriptionProvider(
+        let timeoutProvider = ElevenLabsTranscriptionService(
             apiKeyRepository: StubAPIKeyRepository(apiKey: "key"),
             httpClient: timeoutClient
         )
@@ -262,9 +261,9 @@ private actor ProgressRecorder {
 private actor StubAPIKeyRepository: APIKeyRepository {
     private var key: String?
     init(apiKey: String?) { key = apiKey }
-    func apiKey(for provider: TranscriptionProviderID) -> String? { key }
-    func saveAPIKey(_ apiKey: String, for provider: TranscriptionProviderID) { key = apiKey }
-    func deleteAPIKey(for provider: TranscriptionProviderID) { key = nil }
+    func apiKey() -> String? { key }
+    func saveAPIKey(_ apiKey: String) { key = apiKey }
+    func deleteAPIKey() { key = nil }
 }
 
 private actor MockTranscriptionHTTPClient: TranscriptionHTTPClient {

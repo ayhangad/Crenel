@@ -211,7 +211,7 @@ final class AppStateTests: XCTestCase {
             )
         ])
         state.replaceProcessingJobs([
-            ProcessingJob(meetingID: meetingID, providerID: .elevenLabs)
+            ProcessingJob(meetingID: meetingID)
         ])
         state.replaceTasks([TaskItem(title: "Silinecek görev")])
 

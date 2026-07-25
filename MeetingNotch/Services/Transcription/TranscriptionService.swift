@@ -1,6 +1,6 @@
 import Foundation
 
-struct TranscriptionProviderCapabilities: Equatable, Sendable {
+struct TranscriptionServiceCapabilities: Equatable, Sendable {
     let supportedFileExtensions: Set<String>
     let maximumFileSizeBytes: Int64
     let supportsDiarization: Bool
@@ -41,15 +41,13 @@ struct TranscriptionRequest: Equatable, Sendable {
 }
 
 struct TranscriptionResult: Equatable, Sendable {
-    let providerID: TranscriptionProviderID
     let transcript: Transcript
 }
 
 typealias TranscriptionUploadProgress = @Sendable (Double) -> Void
 
-protocol TranscriptionProvider: Sendable {
-    var id: TranscriptionProviderID { get }
-    var capabilities: TranscriptionProviderCapabilities { get }
+protocol TranscriptionServicing: Sendable {
+    var capabilities: TranscriptionServiceCapabilities { get }
 
     func transcribe(
         _ request: TranscriptionRequest,
@@ -99,7 +97,7 @@ enum TranscriptionServiceError: Error, Equatable, Sendable {
                 credentialsInvalid: true
             )
         case .rateLimited:
-            .provider("Provider istek sınırına ulaştı. Bir süre sonra tekrar deneyin.")
+            .provider("ElevenLabs istek sınırına ulaştı. Bir süre sonra tekrar deneyin.")
         case .timeout:
             .network("Transkripsiyon isteği zaman aşımına uğradı. Tekrar deneyin.")
         case .networkUnavailable:
@@ -107,11 +105,11 @@ enum TranscriptionServiceError: Error, Equatable, Sendable {
         case .providerUnavailable:
             .provider("Transkripsiyon servisine şu anda ulaşılamıyor. Tekrar deneyin.")
         case .invalidResponse:
-            .decoding("Provider yanıtı beklenen biçimde değildi. Tekrar deneyin.")
+            .decoding("ElevenLabs yanıtı beklenen biçimde değildi. Tekrar deneyin.")
         case .invalidFile:
-            .fileSystem("Ses dosyası provider yüklemesine uygun değil.")
+            .fileSystem("Ses dosyası transkripsiyon yüklemesine uygun değil.")
         case .unsupportedFeature:
-            .provider("Seçili provider istenen transkripsiyon özelliğini desteklemiyor.", credentialsInvalid: false)
+            .provider("ElevenLabs istenen transkripsiyon özelliğini desteklemiyor.", credentialsInvalid: false)
         case .cancelled:
             .provider("Transkripsiyon işlemi iptal edildi.", credentialsInvalid: false)
         }

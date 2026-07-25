@@ -32,8 +32,7 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
             isCalendarEnabled: false,
             launchAtLogin: true,
             selectedMicrophoneID: "usb-microphone",
-            provider: ProviderSettings(
-                selectedProvider: .openAI,
+            transcription: TranscriptionSettings(
                 languageCode: "tr",
                 useKnownSpeakers: true
             ),
@@ -52,7 +51,7 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
 
         let data = try XCTUnwrap(defaults.data(forKey: storageKey))
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        XCTAssertEqual(json["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(json["schemaVersion"] as? Int, 2)
         XCTAssertNil(json["apiKey"])
     }
 
@@ -60,7 +59,7 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
         try await repository.save(.default)
         var updated = AppPreferences.default
         updated.reminderLeadTime = 60
-        updated.provider.languageCode = "en"
+        updated.transcription.languageCode = "en"
 
         try await repository.save(updated)
 
@@ -145,7 +144,45 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
         XCTAssertEqual(loaded.meetingRetentionPolicy, .keepForever)
         XCTAssertNil(loaded.selectedMicrophoneID)
         XCTAssertFalse(loaded.hasCompletedOnboarding)
-        XCTAssertEqual(defaults.data(forKey: storageKey), data)
+        XCTAssertEqual(loaded.transcription, .default)
+        let migratedData = try XCTUnwrap(defaults.data(forKey: storageKey))
+        XCTAssertNotEqual(migratedData, data)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: migratedData) as? [String: Any])
+        XCTAssertEqual(json["schemaVersion"] as? Int, 2)
+    }
+
+    func testLegacyProviderSettingsAreRewrittenAsSingleTranscriptionSettings() async throws {
+        let data = try JSONSerialization.data(withJSONObject: [
+            "schemaVersion": 1,
+            "preferences": [
+                "reminderLeadTime": 300,
+                "isCalendarEnabled": true,
+                "launchAtLogin": false,
+                "provider": [
+                    "selectedProvider": "openAI",
+                    "languageCode": "en",
+                    "useKnownSpeakers": true
+                ]
+            ]
+        ])
+        defaults.set(data, forKey: storageKey)
+
+        let loaded = try await repository.load()
+        try await repository.save(loaded)
+
+        XCTAssertEqual(loaded.transcription.languageCode, "en")
+        XCTAssertTrue(loaded.transcription.useKnownSpeakers)
+        let migratedData = try XCTUnwrap(defaults.data(forKey: storageKey))
+        let json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: migratedData) as? [String: Any]
+        )
+        let preferences = try XCTUnwrap(json["preferences"] as? [String: Any])
+        XCTAssertNil(preferences["provider"])
+        let transcription = try XCTUnwrap(
+            preferences["transcription"] as? [String: Any]
+        )
+        XCTAssertEqual(transcription["languageCode"] as? String, "en")
+        XCTAssertNil(transcription["selectedProvider"])
     }
 
     func testOnboardingCompletionPersistsAcrossRepositoryRestart() async throws {

@@ -38,8 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         queue: processingQueue,
         meetingRepository: meetingRepository,
         settingsRepository: appSettingsRepository,
-        providers: DefaultTranscriptionProviderResolver(
-            elevenLabs: ElevenLabsTranscriptionProvider(apiKeyRepository: apiKeyRepository)
+        transcriptionService: ElevenLabsTranscriptionService(
+            apiKeyRepository: apiKeyRepository
         ),
         onEvent: { [weak self] event in
             await self?.handleTranscriptionProcessingEvent(event)
@@ -261,12 +261,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func loadTranscriptionSettings() async -> TranscriptionSettingsSnapshot {
         let preferences = (try? await appSettingsRepository.load()) ?? .default
-        let hasKey = ((try? await apiKeyRepository.apiKey(
-            for: preferences.provider.selectedProvider
-        )) ?? nil) != nil
+        let hasKey = ((try? await apiKeyRepository.apiKey()) ?? nil) != nil
         return TranscriptionSettingsSnapshot(
-            provider: preferences.provider.selectedProvider,
-            languageCode: preferences.provider.languageCode,
+            languageCode: preferences.transcription.languageCode,
             hasStoredAPIKey: hasKey
         )
     }
@@ -375,13 +372,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         meetingDetailWindows.removeAll()
 
         var keychainDeletionFailed = false
-        for provider in TranscriptionProviderID.allCases {
-            do {
-                try await apiKeyRepository.deleteAPIKey(for: provider)
-            } catch {
-                keychainDeletionFailed = true
-                AppLogger.persistenceFailed(operation: "delete-provider-key", error: error)
-            }
+        do {
+            try await apiKeyRepository.deleteAPIKey()
+        } catch {
+            keychainDeletionFailed = true
+            AppLogger.persistenceFailed(operation: "delete-transcription-key", error: error)
         }
 
         do {
@@ -414,36 +409,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func saveTranscriptionSettings(
-        provider: TranscriptionProviderID,
         languageCode: String?,
         apiKey: String?
     ) async -> TranscriptionSettingsSaveResult {
-        guard provider == .elevenLabs else {
-            return .failed(.provider(
-                "OpenAI transkripsiyon adaptörü henüz kullanıma açık değil.",
-                credentialsInvalid: false
-            ))
-        }
-
         do {
             let normalizedInput = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
             let key = if let normalizedInput, !normalizedInput.isEmpty {
                 normalizedInput
             } else {
-                try await apiKeyRepository.apiKey(for: provider) ?? ""
+                try await apiKeyRepository.apiKey() ?? ""
             }
             try await ElevenLabsAPIKeyValidator().validate(key)
             if let normalizedInput, !normalizedInput.isEmpty {
-                try await apiKeyRepository.saveAPIKey(normalizedInput, for: provider)
+                try await apiKeyRepository.saveAPIKey(normalizedInput)
             }
 
             var preferences = (try? await appSettingsRepository.load()) ?? .default
-            preferences.provider.selectedProvider = provider
-            preferences.provider.languageCode = languageCode
+            preferences.transcription.languageCode = languageCode
             try await appSettingsRepository.save(preferences)
 
             let retriedJobs = try await processingQueue.retryFailed(
-                providerID: provider,
                 failure: .authentication
             )
             retriedJobs.forEach(appState.upsertProcessingJob)
@@ -454,6 +439,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             let normalized = TranscriptionErrorNormalizer.normalize(error)
             return .failed(normalized.appFailure)
+        }
+    }
+
+    func deleteTranscriptionAPIKey() async -> SettingsActionResult {
+        do {
+            try await apiKeyRepository.deleteAPIKey()
+            return .succeeded(message: "ElevenLabs bağlantısı kaldırıldı.")
+        } catch {
+            AppLogger.persistenceFailed(operation: "delete-transcription-key", error: error)
+            return .failed(message: "API anahtarı Keychain’den kaldırılamadı.")
         }
     }
 
@@ -995,15 +990,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func restoreProcessingQueue(for meetings: [StoredMeeting]) async {
         do {
             var jobs = try await processingQueue.restore()
-            let preferences = (try? await appSettingsRepository.load()) ?? .default
             let existingMeetingIDs = Set(jobs.map(\.meetingID))
             for meeting in meetings
                 where meeting.processingStatus == .recorded
                     && !existingMeetingIDs.contains(meeting.id) {
-                let job = try await processingQueue.enqueue(
-                    meetingID: meeting.id,
-                    providerID: preferences.provider.selectedProvider
-                )
+                let job = try await processingQueue.enqueue(meetingID: meeting.id)
                 jobs.append(job)
             }
             appState.replaceProcessingJobs(jobs)
@@ -1015,11 +1006,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func enqueueForProcessing(_ meeting: StoredMeeting) async {
         do {
-            let preferences = (try? await appSettingsRepository.load()) ?? .default
-            let job = try await processingQueue.enqueue(
-                meetingID: meeting.id,
-                providerID: preferences.provider.selectedProvider
-            )
+            let job = try await processingQueue.enqueue(meetingID: meeting.id)
             appState.upsertProcessingJob(job)
             startProcessingQueue()
         } catch {

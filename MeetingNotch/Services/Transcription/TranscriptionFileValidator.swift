@@ -9,7 +9,7 @@ struct TranscriptionFileValidator {
 
     func validate(
         request: TranscriptionRequest,
-        capabilities: TranscriptionProviderCapabilities
+        capabilities: TranscriptionServiceCapabilities
     ) throws {
         if request.requestsDiarization, !capabilities.supportsDiarization {
             throw TranscriptionServiceError.unsupportedFeature(.diarization)

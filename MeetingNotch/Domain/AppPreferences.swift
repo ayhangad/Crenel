@@ -1,12 +1,6 @@
 import Foundation
 
-enum TranscriptionProviderID: String, CaseIterable, Codable, Sendable {
-    case elevenLabs
-    case openAI
-}
-
 struct TranscriptionSettingsSnapshot: Equatable, Sendable {
-    var provider: TranscriptionProviderID
     var languageCode: String?
     var hasStoredAPIKey: Bool
 }
@@ -35,13 +29,11 @@ enum TranscriptionSettingsSaveResult: Equatable, Sendable {
     case failed(AppFailure)
 }
 
-struct ProviderSettings: Codable, Equatable, Sendable {
-    var selectedProvider: TranscriptionProviderID
+struct TranscriptionSettings: Codable, Equatable, Sendable {
     var languageCode: String?
     var useKnownSpeakers: Bool
 
-    static let `default` = ProviderSettings(
-        selectedProvider: .elevenLabs,
+    static let `default` = TranscriptionSettings(
         languageCode: nil,
         useKnownSpeakers: false
     )
@@ -97,7 +89,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
     var isCalendarEnabled: Bool
     var launchAtLogin: Bool
     var selectedMicrophoneID: String?
-    var provider: ProviderSettings
+    var transcription: TranscriptionSettings
     var meetingRetentionPolicy: MeetingRetentionPolicy
     var hasCompletedOnboarding: Bool
 
@@ -106,7 +98,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
         isCalendarEnabled: Bool,
         launchAtLogin: Bool,
         selectedMicrophoneID: String? = nil,
-        provider: ProviderSettings,
+        transcription: TranscriptionSettings,
         meetingRetentionPolicy: MeetingRetentionPolicy = .keepForever,
         hasCompletedOnboarding: Bool = false
     ) {
@@ -114,7 +106,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
         self.isCalendarEnabled = isCalendarEnabled
         self.launchAtLogin = launchAtLogin
         self.selectedMicrophoneID = selectedMicrophoneID
-        self.provider = provider
+        self.transcription = transcription
         self.meetingRetentionPolicy = meetingRetentionPolicy
         self.hasCompletedOnboarding = hasCompletedOnboarding
     }
@@ -124,6 +116,8 @@ struct AppPreferences: Codable, Equatable, Sendable {
         case isCalendarEnabled
         case launchAtLogin
         case selectedMicrophoneID
+        case transcription
+        // V1 öncesi belgelerde transkripsiyon ayarları bu anahtar altında tutuluyordu.
         case provider
         case meetingRetentionPolicy
         case hasCompletedOnboarding
@@ -138,7 +132,13 @@ struct AppPreferences: Codable, Equatable, Sendable {
             String.self,
             forKey: .selectedMicrophoneID
         )
-        provider = try container.decode(ProviderSettings.self, forKey: .provider)
+        transcription = try container.decodeIfPresent(
+            TranscriptionSettings.self,
+            forKey: .transcription
+        ) ?? container.decodeIfPresent(
+            TranscriptionSettings.self,
+            forKey: .provider
+        ) ?? .default
         meetingRetentionPolicy = try container.decodeIfPresent(
             MeetingRetentionPolicy.self,
             forKey: .meetingRetentionPolicy
@@ -149,12 +149,23 @@ struct AppPreferences: Codable, Equatable, Sendable {
         ) ?? false
     }
 
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(reminderLeadTime, forKey: .reminderLeadTime)
+        try container.encode(isCalendarEnabled, forKey: .isCalendarEnabled)
+        try container.encode(launchAtLogin, forKey: .launchAtLogin)
+        try container.encodeIfPresent(selectedMicrophoneID, forKey: .selectedMicrophoneID)
+        try container.encode(transcription, forKey: .transcription)
+        try container.encode(meetingRetentionPolicy, forKey: .meetingRetentionPolicy)
+        try container.encode(hasCompletedOnboarding, forKey: .hasCompletedOnboarding)
+    }
+
     static let `default` = AppPreferences(
         reminderLeadTime: 10 * 60,
         isCalendarEnabled: true,
         launchAtLogin: false,
         selectedMicrophoneID: nil,
-        provider: .default,
+        transcription: .default,
         meetingRetentionPolicy: .keepForever,
         hasCompletedOnboarding: false
     )

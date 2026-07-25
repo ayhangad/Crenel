@@ -24,21 +24,21 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         let meetingRepository = FileMeetingRepository(rootURL: root)
         let meeting = try await meetingRepository.saveCapture(try makeCapture())
         let queue = ProcessingQueue(repository: FileProcessingJobRepository(rootURL: root))
-        let job = try await queue.enqueue(meetingID: meeting.id, providerID: .elevenLabs)
+        let job = try await queue.enqueue(meetingID: meeting.id)
         let settings = UserDefaultsAppSettingsRepository(
             defaults: defaults,
             storageKey: "preferences"
         )
         var preferences = AppPreferences.default
-        preferences.provider.languageCode = "tr"
+        preferences.transcription.languageCode = "tr"
         try await settings.save(preferences)
-        let provider = WorkerStubProvider(mode: .success)
+        let service = WorkerStubTranscriptionService(mode: .success)
         let events = WorkerEventRecorder()
         let worker = TranscriptionProcessingWorker(
             queue: queue,
             meetingRepository: meetingRepository,
             settingsRepository: settings,
-            providers: WorkerProviderResolver(provider: provider),
+            transcriptionService: service,
             retryPolicy: TranscriptionRetryPolicy(maximumAttempts: 1, baseDelay: 0),
             onEvent: { event in await events.append(event) }
         )
@@ -52,10 +52,9 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         XCTAssertEqual(updated.processingStatus, .completed)
         let loadedTranscription = try await meetingRepository.loadTranscription(for: meeting.id)
         let stored = try XCTUnwrap(loadedTranscription)
-        XCTAssertEqual(stored.providerID, .elevenLabs)
         XCTAssertEqual(stored.transcript.text, "Merhaba")
         XCTAssertEqual(stored.summary?.overview, "")
-        let capturedRequest = await provider.lastRequest()
+        let capturedRequest = await service.lastRequest()
         XCTAssertEqual(capturedRequest?.languageCode, "tr")
         XCTAssertEqual(capturedRequest?.idempotencyKey, job.idempotencyKey)
 
@@ -83,14 +82,14 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         let meetingRepository = FileMeetingRepository(rootURL: root)
         let meeting = try await meetingRepository.saveCapture(try makeCapture())
         let queue = ProcessingQueue(repository: FileProcessingJobRepository(rootURL: root))
-        _ = try await queue.enqueue(meetingID: meeting.id, providerID: .elevenLabs)
+        _ = try await queue.enqueue(meetingID: meeting.id)
         let settings = UserDefaultsAppSettingsRepository(defaults: defaults, storageKey: "preferences")
-        let provider = WorkerStubProvider(mode: .failure(.authentication))
+        let service = WorkerStubTranscriptionService(mode: .failure(.authentication))
         let worker = TranscriptionProcessingWorker(
             queue: queue,
             meetingRepository: meetingRepository,
             settingsRepository: settings,
-            providers: WorkerProviderResolver(provider: provider),
+            transcriptionService: service,
             retryPolicy: TranscriptionRetryPolicy(maximumAttempts: 1, baseDelay: 0)
         )
 
@@ -111,13 +110,13 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         let meetingRepository = FileMeetingRepository(rootURL: root)
         let meeting = try await meetingRepository.saveCapture(try makeCapture())
         let queue = ProcessingQueue(repository: FileProcessingJobRepository(rootURL: root))
-        _ = try await queue.enqueue(meetingID: meeting.id, providerID: .elevenLabs)
+        _ = try await queue.enqueue(meetingID: meeting.id)
         let settings = UserDefaultsAppSettingsRepository(defaults: defaults, storageKey: "preferences")
         let worker = TranscriptionProcessingWorker(
             queue: queue,
             meetingRepository: meetingRepository,
             settingsRepository: settings,
-            providers: BlockingWorkerProviderResolver(),
+            transcriptionService: BlockingWorkerTranscriptionService(),
             retryPolicy: TranscriptionRetryPolicy(maximumAttempts: 1, baseDelay: 0)
         )
 
@@ -144,13 +143,13 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         let meetingRepository = FileMeetingRepository(rootURL: root)
         let meeting = try await meetingRepository.saveCapture(try makeCapture())
         let queue = ProcessingQueue(repository: FileProcessingJobRepository(rootURL: root))
-        _ = try await queue.enqueue(meetingID: meeting.id, providerID: .elevenLabs)
+        _ = try await queue.enqueue(meetingID: meeting.id)
         let settings = UserDefaultsAppSettingsRepository(defaults: defaults, storageKey: "preferences")
         let worker = TranscriptionProcessingWorker(
             queue: queue,
             meetingRepository: meetingRepository,
             settingsRepository: settings,
-            providers: WorkerProviderResolver(provider: WorkerStubProvider(mode: .success)),
+            transcriptionService: WorkerStubTranscriptionService(mode: .success),
             summaryService: FailingSummaryService(),
             retryPolicy: TranscriptionRetryPolicy(maximumAttempts: 1, baseDelay: 0)
         )
@@ -177,7 +176,7 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
             audioFileName: "recording.m4a"
         )
         state.replaceStoredMeetings([meeting])
-        let job = ProcessingJob(meetingID: meeting.id, providerID: .elevenLabs, state: .running)
+        let job = ProcessingJob(meetingID: meeting.id, state: .running)
 
         state.processingStarted(job)
         XCTAssertEqual(state.meetingFlow.phase, .uploading)
@@ -226,22 +225,8 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
 
 }
 
-private struct WorkerProviderResolver: TranscriptionProviderResolving {
-    let provider: WorkerStubProvider
-    func provider(for id: TranscriptionProviderID) -> (any TranscriptionProvider)? {
-        id == .elevenLabs ? provider : nil
-    }
-}
-
-private struct BlockingWorkerProviderResolver: TranscriptionProviderResolving {
-    func provider(for id: TranscriptionProviderID) -> (any TranscriptionProvider)? {
-        id == .elevenLabs ? BlockingWorkerProvider() : nil
-    }
-}
-
-private struct BlockingWorkerProvider: TranscriptionProvider {
-    let id = TranscriptionProviderID.elevenLabs
-    let capabilities = TranscriptionProviderCapabilities(
+private struct BlockingWorkerTranscriptionService: TranscriptionServicing {
+    let capabilities = TranscriptionServiceCapabilities(
         supportedFileExtensions: ["m4a"],
         maximumFileSizeBytes: 1_000_000,
         supportsDiarization: true,
@@ -257,14 +242,13 @@ private struct BlockingWorkerProvider: TranscriptionProvider {
     }
 }
 
-private actor WorkerStubProvider: TranscriptionProvider {
+private actor WorkerStubTranscriptionService: TranscriptionServicing {
     enum Mode: Sendable {
         case success
         case failure(TranscriptionServiceError)
     }
 
-    nonisolated let id = TranscriptionProviderID.elevenLabs
-    nonisolated let capabilities = TranscriptionProviderCapabilities(
+    nonisolated let capabilities = TranscriptionServiceCapabilities(
         supportedFileExtensions: ["m4a"],
         maximumFileSizeBytes: 1_000_000,
         supportsDiarization: true,
@@ -284,7 +268,6 @@ private actor WorkerStubProvider: TranscriptionProvider {
         switch mode {
         case .success:
             return TranscriptionResult(
-                providerID: .elevenLabs,
                 transcript: Transcript(
                     text: "Merhaba",
                     languageCode: "tr",

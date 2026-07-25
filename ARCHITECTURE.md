@@ -31,8 +31,9 @@ MeetingNotch/
     Settings/       Onboarding, izinler ve tercihler
   Services/
     Audio/          Mikrofon, sistem sesi, senkronizasyon ve encode
-    Calendar/       EventKit sorguları ve meeting URL algılama
-    Transcription/  Provider protokolü ve provider adaptörleri
+    Calendar/       EventKit sorguları ve planlanmış meeting bağlamı
+    Meeting/        İstemci/process sinyalleri, session detector ve mute adapter'ları
+    Transcription/  Tek ElevenLabs servisi ve test edilebilir HTTP sınırı
     Summary/        Özet, karar ve aksiyon maddesi üretimi
   Infrastructure/
     Persistence/    Dosya tabanlı repository'ler ve recovery
@@ -47,11 +48,15 @@ Klasörler ihtiyaç oldukça açılır; boş mimari katman oluşturulmaz.
 
 - View'lar doğrudan dosya sistemi, EventKit, Core Audio veya uzak API çağırmaz.
 - Feature katmanı domain modellerini ve protokolleri kullanır.
-- Provider'a özel response modelleri servis adaptörünün dışına çıkmaz.
+- ElevenLabs response modelleri servis sınırının dışına çıkmaz.
 - Domain katmanı DynamicNotchKit, AppKit ve ağ istemcilerinden bağımsız kalır.
 - Ana UI durumu `AppState` üzerinden gözlemlenir; gerçek iş servisler tarafından yapılır.
 - Uzun işler iptal edilebilir `async` operasyonlar olarak tasarlanır.
-- API anahtarları yalnızca Keychain'de tutulur.
+- Tek ElevenLabs API anahtarı yalnızca Keychain'de tutulur.
+- Meeting client adapter'ları Accessibility UI metinlerini domain'e taşımaz; yalnız
+  normalize kanıt ve `open/closed/unknown` mute durumu üretir.
+- Algılama belirsizliği UI'da kesin duruma yükseltilmez. Mikrofon gate'i belirsizlikte
+  fail-closed davranır.
 
 ## Ana ürün akışı
 
@@ -75,6 +80,38 @@ idle
 Her aşama `cancelled` veya `failed(retryable:)` durumuna geçebilir. UI bu akışın
 görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olmasına bağlı değildir.
 
+## Toplantı session algılama sınırı
+
+Takvim etkinliği yalnız planlanmış bağlamdır; gerçek çağrı yaşam döngüsünün kanıtı değildir.
+Session detector dört yerel kaynaktan normalize kanıt toplar:
+
+- EventKit meeting kimliği, URL'si, başlangıç/bitiş aralığı.
+- MeetingNotch `Katıl` aksiyonunun açtığı URL ve ardından görülen process/window.
+- Core Audio process nesnesinin bundle ID/PID ve `isRunningInput` / `isRunningOutput`
+  değişiklikleri.
+- Desteklenen istemciye ait Accessibility adapter'ının meeting window, call controls ve
+  mute control durumu.
+
+`MeetingSession` domain modeli `scheduled`, `candidate`, `ready`, `recording`,
+`endSuspected`, `ended` durumlarını; `unknown`, `probable`, `confirmed` güven seviyesini ve
+kanıt setini taşır. Kurallar deterministic ve fixture-test edilebilir olur. Tek başına
+takvim saati, process'in açık olması veya uzun sessizlik `confirmed` başlangıç/bitiş
+üretmez.
+
+`CoreAudioProcessMonitor`, HAL process object listesini bundle ID/PID ile normalize eder ve
+`isRunningInput` / `isRunningOutput` snapshot'ını yalnız değiştiğinde yayınlar. Polling
+yaşam döngüsü UI'dan bağımsızdır; session coordinator yalnız desteklenen bundle ID'leri
+kanıta dönüştürür. Bu sinyal mute durumu olarak yorumlanmaz.
+
+V1 kalite kapısı Zoom Workplace native istemcisidir. Google Meet/Chrome, process-scope
+çıktının toplantı dışı tarayıcı sesini sızdırmadığı kanıtlanmadan desteklenen adapter olarak
+işaretlenmez. Diğer istemciler manuel kayıt moduna düşer; UI otomatik algılama iddiasında
+bulunmaz.
+
+Algılama kaydı habersiz başlatmaz. `confirmed` başlangıç kayıt teklifini görünür yapar.
+Kayıt sürerken `confirmed` bitiş iptal edilebilir kısa geri sayım başlatır; `probable`
+bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanılabilir kalır.
+
 ## Notch yaşam döngüsü
 
 - Uygulama açıldığında desteklenen cihazda kompakt notch görünümü hazırlanır.
@@ -93,12 +130,18 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 - DynamicNotchKit açılma, kapanma ve kompakt/geniş dönüşümleri uygulamanın hareket profiliyle
   yapılandırılır. macOS Reduce Motion değişikliği canlı izlenir ve etkin olduğunda hem panel
   içi hem pencere geçişleri algılanabilir hareket üretmeyecek kadar kısaltılır.
+- 2026-07-25 görsel yönü 344–368 piksel genişlik, 12 piksel dış padding, 8–10 piksel
+  bölüm aralığı, 10–12 piksel radius ve 11–14 pt type scale kullanır. İkon glyph'leri
+  11–13 pt olur; erişilebilir macOS hit target'ları 28–32 piksel korunur.
+- Yüzeyler nötr koyu/açık zemin, tek hairline ve yalnız durum rengi vurgusuyla çalışır.
+  Büyük dekoratif gölgeler ve iç içe kartlar kullanılmaz. Kompakt görünüm session durumu,
+  kayıt süresi ve meeting mic gate'ini tek bakışta taşır.
 
 ## Veri yaklaşımı
 
 - V1'de veritabanı yoktur; toplantı ve görevler Application Support altında saklanır.
 - Bir toplantı belgesi kararlı kimlik, başlık, başlangıç/bitiş, kaynak takvim kimliği ve URL,
-  işlem/provider durumu, normalize hata kodu ve ilişkili dosya adlarını taşır. Normalize
+  işlem durumu, normalize hata kodu ve ilişkili dosya adlarını taşır. Normalize
   transkript konuşmacı ve zaman damgalı segmentleri; özet çıktısı genel özet, kararlar ve
   sorumlu/tarih bilgisi uydurulmadan çıkarılan aksiyon maddelerini taşır.
 - Yazımlar atomik yapılır ve yarım kayıtlar Recovery alanında korunur.
@@ -107,8 +150,10 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   açılabilen `meeting.md` üretir. Markdown toplantı metadata'sı, kısa notlar, kararlar,
   aksiyonlar ve konuşmacı-zaman damgalı tam transkripti aynı UUID altında taşır.
 - Repository formatları şema sürümü taşır.
-- Provider API anahtarları provider kimliğiyle ayrılmış generic-password öğeleri olarak
-  yalnızca macOS Keychain'de ve `ThisDeviceOnly` erişilebilirlik sınıfında tutulur.
+- Tek ElevenLabs API anahtarı generic-password öğesi olarak yalnız macOS Keychain'deki
+  `elevenlabs-api-key` hesabında ve `ThisDeviceOnly` erişilebilirlik sınıfında tutulur. Eski
+  provider kimlikli `elevenLabs` hesabı yeni öğe başarıyla yazıldıktan sonra kayıpsız
+  migrate edilir ve eski öğe silinir.
 - API anahtarları tercih modellerine ve hata değerlerine eklenmez; serbest biçimli hata
   ayrıntıları OSLog'a hiç gönderilmez. Tanılama yalnızca sabit operasyon kodu, hata tipi,
   akış fazı ve hassas olmayan sayaçları taşır; kalıcı işleme hataları da serbest provider
@@ -126,11 +171,13 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   işlenemez. Uygulama açılışında yarım kalan `running` işler `queued` durumuna alınır,
   bozuk kuyruk belgesi Recovery alanında korunur ve başarısız işler içerik taşımayan hata
   koduyla kullanıcıya tekrar deneme olanağı verir.
-- Kuyruk worker'ı seçili provider adaptörünü çözer, meeting repository'den birleşik M4A'yı
-  alır ve aynı anda yalnızca claim edilmiş işi yürütür. Normalize sonuç önce sürümlü
+- Kuyruk worker'ına tek `TranscriptionServicing` bağımlılığı enjekte edilir; production
+  implementasyonu ElevenLabs'tir ve protokol yalnız test doubles için korunur. Worker meeting
+  repository'den birleşik M4A'yı alır ve aynı anda yalnızca claim edilmiş işi yürütür.
+  Normalize sonuç önce sürümlü
   `transcript.json`, sonra tamamlandı durumu olarak atomik yazılır; bu sıra force-quit
   sonrasında aynı idempotency anahtarıyla güvenli yeniden işlemeye izin verir. Başarıdan
-  sonra provider'a gerekmeyen ayrı ham kaynak parçaları silinir, birleşik kayıt korunur.
+  sonra ayrı ham kaynak parçaları silinir, birleşik kayıt korunur.
 - Kullanıcı kayıt hazırlığını veya henüz kalıcı olmayan aktif kaydı yalnızca açık onaydan
   sonra iptal edebilir; bu yol geçici parçaları siler. Upload/transkripsiyon/özet iptali ise
   kalıcı birleşik sesi silmez, çalışan işi `cancelled` hata koduyla tekrar denenebilir halde
@@ -148,10 +195,12 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   sesinin audio-only TCC izni için güvenilir bir preflight API bulunmadığından UI bu durumu
   `verificationRequired` olarak taşır; kesin karar Core Audio Process Tap hazırlanırken
   sistem tarafından verilir.
-- Sistem sesi yakalama `NSAudioCaptureUsageDescription` ile global, private ve unmuted bir
-  Core Audio Process Tap oluşturur. Uygulamanın kendi audio process'i tap dışında bırakılır;
-  tap özel aggregate device üzerinden Objective-C++ realtime callback'ine bağlanır ve M4A/AAC
-  dosyasına yazılır. Akış ekran görüntüsü veya ekran kaydı iznine bağlı değildir.
+- Mevcut sistem sesi altyapısı izin probunda `NSAudioCaptureUsageDescription` ile global,
+  private ve unmuted Core Audio Process Tap kullanabilir. Gerçek desteklenen toplantı
+  kaydında aynı altyapı yalnız doğrulanmış meeting process nesnelerini içeren private tap
+  kurar; sessizce global capture'a düşmez. Tap özel aggregate device üzerinden Objective-C++
+  realtime callback'ine bağlanır ve M4A/AAC dosyasına yazılır. Akış ekran görüntüsü veya
+  ekran kaydı iznine bağlı değildir.
 - Kullanıcının açık `İzin Ver` aksiyonu, tap içeren geçici aggregate device'ın IO akışını kısa
   süre gerçekten başlatır; macOS TCC kaydı ve yerel sistem istemi bu noktada oluşur. Probe
   dosyası hemen silinir ve eşzamanlı yinelenen istekler tek çağrıyla sınırlandırılır. Ret
@@ -165,6 +214,10 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 - İzin değişikliği için kontrollü relaunch istendiğinde çalışan kesin bundle URL'si korunur;
   ayrı yardımcı mevcut proses tamamen kapandıktan sonra aynı yolu yeni instance olarak açar.
   Böylece LaunchServices'ın bellekteki eski build'i öne getirmesi engellenir.
+- Accessibility izni yalnız desteklenen istemcide meeting window/call control ve mute
+  durumunu yerel olarak okumak için istenir. Ret veya sonradan kaldırılma kayıt erişimini
+  kapatmaz; session detector düşük güvene, microphone gate ise `unknown → closed` durumuna
+  düşer ve manuel fallback'i görünür yapar.
 
 ## Mikrofon cihaz yaşam döngüsü
 
@@ -187,6 +240,30 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   edilir. AAC dosyası bu kararlı client formatından üretilir; ilk dönüştürme/yazma hatası
   kaynağa ait terminal hata olarak tutulur ve sonraki her buffer için yinelenen log üretilmez.
 
+## Toplantı sesi ve mikrofon gate sınırı
+
+- Mevcut global system tap V1 hedefinde gerçek toplantı kaydı için kullanılmaz. Desteklenen
+  meeting session bir bundle ID/PID setine çözüldüğünde private `CATapDescription` yalnız bu
+  process nesnelerinin output sesini yakalar. MeetingNotch kendi sesi ve diğer uygulama
+  sesleri capture dışında kalır.
+- Meeting process'i restart olur veya child process değiştirirse session detector yeni PID
+  setini doğrular. Yeniden bağlama sırasında uygulama sessizce global tap'e düşmez; kullanıcı
+  uyarılır ve gerekiyorsa kayıt güvenli biçimde finalize edilir.
+- `kAudioProcessPropertyIsRunningInput`, input stream aktivitesini bildirir fakat istemci
+  mute durumunu kanıtlamaz. Gate'i tek başına açması yasaktır.
+- `MeetingMicrophoneGate` `open`, `closed`, `unknown` durumlarını taşır ve her kayıt
+  `closed` başlar. Desteklenen Accessibility adapter'ından doğrulanmış unmute veya kullanıcının
+  görünür manuel kontrolü `open` üretebilir.
+- `closed` ve `unknown` aralıklarında mikrofon PCM frame'leri encode edilmeden önce zero
+  fill edilir. Frame sayısı ve timestamp korunur; ortak timeline kaymaz. Gate sınırında kısa
+  fade click'i önler; konuşma pre-roll'u tutulmaz.
+- Gate geçişleri session metadata'sına timestamp, normalize source ve confidence ile
+  yazılır. UI metni, konuşma içeriği veya Accessibility ağacı kalıcılaştırılmaz.
+- Adapter/Accessibility kaybı anında `unknown`, ardından fail-closed davranış üretir.
+  Notch kayıt boyunca `Açık/Kapalı/Bilinmiyor` durumunu ve manuel shortcut'ı görünür tutar.
+- Privacy testi mute aralığında söylenen benzersiz canary phrase'i ham mic, birleşik M4A ve
+  transkriptte arar. Bu test geçmeden bir client adapter'ı “desteklenen” sayılamaz.
+
 ## Sonuç ve görev yüzeyleri
 
 - `AppDelegate` repository işlemlerini koordine eder; notch view'ları doğrudan dosya
@@ -203,17 +280,18 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   durdurma/finalize sonrasında tek M4A olarak kalıcı kuyruğa girer. ElevenLabs'in ayrı
   `scribe_v2_realtime` WebSocket modeli V1 sonrası kapsamındadır.
 
-- Provider adaptörleri ortak `TranscriptionProvider` sözleşmesini uygular ve sonucu domain
-  `Transcript`/`TranscriptSegment` modellerine normalize eder.
-- Capability modeli desteklenen formatı, dosya boyutu sınırını, diarization ve otomatik dil
-  algılama desteğini adaptör başlamadan doğrular.
+- Production'da yalnız `ElevenLabsTranscriptionService` bulunur. Dar
+  `TranscriptionServicing` sözleşmesi ağ implementasyonunu test double'dan ayırır; runtime
+  provider seçimi veya plugin noktası değildir.
+- Capability doğrulaması ElevenLabs'in desteklenen formatını, dosya boyutu sınırını,
+  diarization ve otomatik dil algılama gereksinimlerini istek başlamadan kontrol eder.
 - Transport ve HTTP hataları authentication, rate limit, timeout, bağlantı, provider ve
   decoding kategorilerine normalize edilir; provider response gövdesi domain hata sınırına
   taşınmaz.
 - Retry yalnızca geçici hatalarda sınırlı sayıda çalışır ve tüm denemelerde aynı request
   idempotency anahtarını korur. Upload callback'i `TranscriptionProgressBridge` üzerinden
   toplantı durum makinesinin `.uploading(progress:)` durumuna bağlanır.
-- Birincil `ElevenLabsTranscriptionProvider`, resmi `POST /v1/speech-to-text` sınırında
+- `ElevenLabsTranscriptionService`, resmi `POST /v1/speech-to-text` sınırında
   `scribe_v2`, `diarize=true`, word timestamp ve isteğe bağlı ISO dil kodu kullanır. Boş
   dil kodu provider'ın otomatik algılamasını etkin bırakır; Ayarlar Türkçe için `tr`
   gönderir. Yanıtın `words` dizisi ardışık speaker kimliklerine göre domain segmentlerine
@@ -227,12 +305,12 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
   biçimine bağlı kalmadan `speech_to_text` kapsamı verilmiş kısıtlı anahtarları destekler.
   Dönen token yalnızca yanıt bütünlüğünü doğrulamak için bellekte görülür, saklanmaz veya
   loglanmaz. Anahtar ancak başarıdan sonra Keychain'e kaydedilir; kimlik doğrulama nedeniyle
-  bekleyen işler atomik olarak yeniden kuyruğa alınır. Alternatif OpenAI adaptörü tamamlanana
-  kadar UI'da açıkça devre dışıdır.
+  bekleyen işler atomik olarak yeniden kuyruğa alınır. UI'da provider seçici veya alternatif
+  servis gösterilmez.
 
 ## Özet ve Markdown sınırı
 
-- `MeetingSummaryGenerating` transkripsiyon provider'ından bağımsızdır. V1 uygulaması
+- `MeetingSummaryGenerating` transkripsiyon HTTP servisinden bağımsızdır. V1 uygulaması
   `ExtractiveMeetingSummaryService` ile çalışır; uzak servise ikinci kez içerik göndermez.
 - Overview en fazla ilk üç anlamlı transkript cümlesinden oluşur. Karar ve aksiyonlar yalnızca
   Türkçe/İngilizce açık ifadeler eşleştiğinde eklenir. Sorumlu sadece birinci tekil şahıs
@@ -245,7 +323,8 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 ## Test sınırları
 
 - Domain durum geçişleri ve repository'ler birim testleriyle korunur.
-- Calendar matcher ve provider parser gerçek servis olmadan fixture ile test edilir.
+- Calendar matcher, meeting session detector, mute adapter ve ElevenLabs parser gerçek
+  servis olmadan fixture ile test edilir.
 - Ses yakalama ve notch davranışı gerçek macOS donanımında entegrasyon testi gerektirir.
 - Gerçek mikrofon testi `MEETINGNOTCH_RUN_AUDIO_INTEGRATION_TESTS=1` opt-in anahtarıyla
   `MicrophoneCaptureSource` sınırını coordinator'dan bağımsız çalıştırır; normal regresyon
@@ -253,3 +332,5 @@ görünümüdür; kayıt ve işleme yaşam döngüsü UI penceresinin açık olm
 - Gerçek sistem sesi testi aynı opt-in anahtarıyla harici bir sistem sesi oynatır ve
   `SystemAudioCaptureSource` çıktısının seviye, timestamp, süre, audio track ve M4A dosya
   bütünlüğünü doğrular; normal regresyon koşularında TCC istemi oluşturmamak için atlanır.
+- Gerçek client privacy testi opt-in çalışır: Zoom çağrısında mute/unmute ve hang-up
+  geçişlerini, meeting process-scope tap'i ve canary phrase sızıntısını birlikte doğrular.

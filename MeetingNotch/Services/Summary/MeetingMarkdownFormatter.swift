@@ -25,15 +25,11 @@ enum MeetingMarkdownFormatter {
         meeting: StoredMeeting,
         transcription: StoredTranscription
     ) -> String {
-        let provider = switch transcription.providerID {
-        case .elevenLabs: "ElevenLabs Scribe v2"
-        case .openAI: "OpenAI"
-        }
         let language = transcription.transcript.languageCode?.uppercased() ?? "Otomatik"
         return [
             "- Tarih: \(meeting.startedAt.formatted(date: .long, time: .shortened))",
             "- Süre: \(TranscriptTextFormatter.timestamp(meeting.duration))",
-            "- Transkripsiyon: \(provider)",
+            "- Transkripsiyon: ElevenLabs Scribe v2",
             "- Dil: \(language)"
         ].joined(separator: "\n")
     }

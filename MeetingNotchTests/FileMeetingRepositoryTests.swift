@@ -160,7 +160,7 @@ final class FileMeetingRepositoryTests: XCTestCase {
         )
 
         let updated = try await repository.saveTranscription(
-            TranscriptionResult(providerID: .elevenLabs, transcript: transcript),
+            TranscriptionResult(transcript: transcript),
             summary: summary,
             for: meeting
         )

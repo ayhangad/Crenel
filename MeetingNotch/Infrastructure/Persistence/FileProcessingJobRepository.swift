@@ -15,7 +15,8 @@ enum ProcessingJobRepositoryError: Error, Equatable {
 
 actor FileProcessingJobRepository: ProcessingJobRepository {
     private struct StoreDocument: Codable {
-        static let currentSchemaVersion = 1
+        static let currentSchemaVersion = 2
+        static let supportedSchemaVersions = 1...currentSchemaVersion
 
         let schemaVersion: Int
         var jobs: [ProcessingJob]
@@ -67,10 +68,13 @@ actor FileProcessingJobRepository: ProcessingJobRepository {
                 StoreDocument.self,
                 from: Data(contentsOf: storeURL)
             )
-            guard document.schemaVersion == StoreDocument.currentSchemaVersion else {
+            guard StoreDocument.supportedSchemaVersions.contains(document.schemaVersion) else {
                 throw ProcessingJobRepositoryError.unsupportedSchema(document.schemaVersion)
             }
             try validate(document.jobs)
+            if document.schemaVersion < StoreDocument.currentSchemaVersion {
+                try replaceAll(document.jobs)
+            }
             return document.jobs
         } catch let error as ProcessingJobRepositoryError {
             throw error

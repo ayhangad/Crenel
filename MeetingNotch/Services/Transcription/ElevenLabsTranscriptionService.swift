@@ -1,10 +1,9 @@
 import Foundation
 
-struct ElevenLabsTranscriptionProvider: TranscriptionProvider, Sendable {
+struct ElevenLabsTranscriptionService: TranscriptionServicing, Sendable {
     static let productionEndpoint = URL(string: "https://api.elevenlabs.io/v1/speech-to-text")!
 
-    let id: TranscriptionProviderID = .elevenLabs
-    let capabilities = TranscriptionProviderCapabilities(
+    let capabilities = TranscriptionServiceCapabilities(
         supportedFileExtensions: ["aac", "aiff", "flac", "m4a", "mp3", "ogg", "opus", "wav", "webm"],
         maximumFileSizeBytes: 5_000_000_000,
         supportsDiarization: true,
@@ -37,7 +36,7 @@ struct ElevenLabsTranscriptionProvider: TranscriptionProvider, Sendable {
 
         let apiKey: String
         do {
-            guard let storedKey = try await apiKeyRepository.apiKey(for: id),
+            guard let storedKey = try await apiKeyRepository.apiKey(),
                   !storedKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                 throw TranscriptionServiceError.authentication
             }
@@ -97,7 +96,7 @@ struct ElevenLabsTranscriptionProvider: TranscriptionProvider, Sendable {
                 throw error
             }
             let transcript = try ElevenLabsTranscriptParser().parse(response.data)
-            return TranscriptionResult(providerID: id, transcript: transcript)
+            return TranscriptionResult(transcript: transcript)
         } catch {
             throw TranscriptionErrorNormalizer.normalize(error)
         }

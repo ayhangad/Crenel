@@ -55,7 +55,6 @@ final class MeetingSummaryServiceTests: XCTestCase {
             processingStatus: .completed
         )
         let stored = StoredTranscription(
-            providerID: .elevenLabs,
             transcript: Transcript(
                 text: "Merhaba",
                 languageCode: "tr",

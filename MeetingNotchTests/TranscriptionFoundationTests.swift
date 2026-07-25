@@ -47,7 +47,7 @@ final class TranscriptionFoundationTests: XCTestCase {
             languageCode: "tr",
             requestsDiarization: true
         )
-        let capabilities = TranscriptionProviderCapabilities(
+        let capabilities = TranscriptionServiceCapabilities(
             supportedFileExtensions: ["m4a"],
             maximumFileSizeBytes: 100,
             supportsDiarization: false,
@@ -173,8 +173,8 @@ final class TranscriptionFoundationTests: XCTestCase {
     private func makeCapabilities(
         extensions: Set<String> = ["m4a"],
         maximumBytes: Int64 = 1_000
-    ) -> TranscriptionProviderCapabilities {
-        TranscriptionProviderCapabilities(
+    ) -> TranscriptionServiceCapabilities {
+        TranscriptionServiceCapabilities(
             supportedFileExtensions: extensions,
             maximumFileSizeBytes: maximumBytes,
             supportsDiarization: true,

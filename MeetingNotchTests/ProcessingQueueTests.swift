@@ -7,19 +7,18 @@ final class ProcessingQueueTests: XCTestCase {
         let queue = ProcessingQueue(repository: repository)
         let meetingID = UUID()
 
-        let first = try await queue.enqueue(meetingID: meetingID, providerID: .openAI)
-        let second = try await queue.enqueue(meetingID: meetingID, providerID: .elevenLabs)
+        let first = try await queue.enqueue(meetingID: meetingID)
+        let second = try await queue.enqueue(meetingID: meetingID)
         let jobs = try await queue.allJobs()
 
         XCTAssertEqual(first, second)
         XCTAssertEqual(jobs.count, 1)
-        XCTAssertEqual(jobs.first?.providerID, .openAI)
     }
 
     func testJobCanOnlyBeClaimedOnce() async throws {
         let repository = InMemoryProcessingJobRepository()
         let queue = ProcessingQueue(repository: repository)
-        _ = try await queue.enqueue(meetingID: UUID(), providerID: .openAI)
+        _ = try await queue.enqueue(meetingID: UUID())
 
         async let first = queue.claimNext()
         async let second = queue.claimNext()
@@ -33,7 +32,6 @@ final class ProcessingQueueTests: XCTestCase {
     func testRestoreRequeuesInterruptedRunningJob() async throws {
         let original = ProcessingJob(
             meetingID: UUID(),
-            providerID: .openAI,
             state: .running,
             attemptCount: 1
         )
@@ -53,7 +51,7 @@ final class ProcessingQueueTests: XCTestCase {
         let repository = InMemoryProcessingJobRepository()
         let queue = ProcessingQueue(repository: repository)
         let meetingID = UUID()
-        let original = try await queue.enqueue(meetingID: meetingID, providerID: .elevenLabs)
+        let original = try await queue.enqueue(meetingID: meetingID)
         _ = try await queue.claimNext()
         let failed = try await queue.markFailed(
             meetingID: meetingID,
@@ -69,41 +67,31 @@ final class ProcessingQueueTests: XCTestCase {
         XCTAssertEqual(retried?.idempotencyKey, original.idempotencyKey)
     }
 
-    func testRetryFailedOnlyRequeuesMatchingProviderAndFailureInOneWrite() async throws {
+    func testRetryFailedOnlyRequeuesMatchingFailureInOneWrite() async throws {
         let matchingFirst = ProcessingJob(
             meetingID: UUID(),
-            providerID: .elevenLabs,
             state: .failed,
             attemptCount: 1,
             lastFailure: .authentication
         )
         let matchingSecond = ProcessingJob(
             meetingID: UUID(),
-            providerID: .elevenLabs,
             state: .failed,
             attemptCount: 2,
             lastFailure: .authentication
         )
         let otherFailure = ProcessingJob(
             meetingID: UUID(),
-            providerID: .elevenLabs,
             state: .failed,
             lastFailure: .timeout
         )
-        let otherProvider = ProcessingJob(
-            meetingID: UUID(),
-            providerID: .openAI,
-            state: .failed,
-            lastFailure: .authentication
-        )
         let repository = InMemoryProcessingJobRepository(jobs: [
-            matchingFirst, matchingSecond, otherFailure, otherProvider
+            matchingFirst, matchingSecond, otherFailure
         ])
         let queue = ProcessingQueue(repository: repository)
         let retriedAt = Date(timeIntervalSince1970: 3_000)
 
         let retried = try await queue.retryFailed(
-            providerID: .elevenLabs,
             failure: .authentication,
             now: retriedAt
         )
@@ -119,8 +107,8 @@ final class ProcessingQueueTests: XCTestCase {
     func testRemoveAllClearsMemoryAndPersistentRepository() async throws {
         let repository = InMemoryProcessingJobRepository()
         let queue = ProcessingQueue(repository: repository)
-        _ = try await queue.enqueue(meetingID: UUID(), providerID: .elevenLabs)
-        _ = try await queue.enqueue(meetingID: UUID(), providerID: .openAI)
+        _ = try await queue.enqueue(meetingID: UUID())
+        _ = try await queue.enqueue(meetingID: UUID())
 
         try await queue.removeAll()
 
@@ -136,7 +124,6 @@ final class ProcessingQueueTests: XCTestCase {
         let repository = FileProcessingJobRepository(rootURL: root)
         let job = ProcessingJob(
             meetingID: UUID(),
-            providerID: .openAI,
             createdAt: Date(timeIntervalSince1970: 1_000)
         )
 
@@ -149,6 +136,45 @@ final class ProcessingQueueTests: XCTestCase {
                 atPath: root.appending(path: "ProcessingQueue/queue.json").path
             )
         )
+    }
+
+    func testLegacyProviderScopedQueueMigratesToSingleServiceSchema() async throws {
+        let root = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let layout = AppStorageLayout(root: root)
+        try layout.createDirectories()
+        let id = UUID()
+        let meetingID = UUID()
+        let idempotencyKey = UUID()
+        let createdAt = "2026-07-25T10:00:00Z"
+        let data = try JSONSerialization.data(withJSONObject: [
+            "schemaVersion": 1,
+            "jobs": [[
+                "id": id.uuidString,
+                "meetingID": meetingID.uuidString,
+                "providerID": "openAI",
+                "idempotencyKey": idempotencyKey.uuidString,
+                "createdAt": createdAt,
+                "updatedAt": createdAt,
+                "state": "queued",
+                "attemptCount": 0
+            ]]
+        ])
+        try data.write(to: layout.processingQueue.appending(path: "queue.json"))
+        let repository = FileProcessingJobRepository(rootURL: root)
+
+        let jobs = try await repository.loadAll()
+
+        XCTAssertEqual(jobs.map(\.meetingID), [meetingID])
+        let migratedData = try Data(
+            contentsOf: layout.processingQueue.appending(path: "queue.json")
+        )
+        let json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: migratedData) as? [String: Any]
+        )
+        XCTAssertEqual(json["schemaVersion"] as? Int, 2)
+        let migratedJobs = try XCTUnwrap(json["jobs"] as? [[String: Any]])
+        XCTAssertNil(migratedJobs.first?["providerID"])
     }
 
     func testCorruptQueueIsPreservedInRecovery() async throws {
@@ -184,10 +210,9 @@ final class ProcessingQueueTests: XCTestCase {
         let state = AppState()
         state.replaceStoredMeetings([queuedMeeting, failedMeeting])
         state.replaceProcessingJobs([
-            ProcessingJob(meetingID: queuedMeeting.id, providerID: .openAI),
+            ProcessingJob(meetingID: queuedMeeting.id),
             ProcessingJob(
                 meetingID: failedMeeting.id,
-                providerID: .openAI,
                 state: .failed,
                 lastFailure: .timeout
             )

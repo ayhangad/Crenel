@@ -1,8 +1,15 @@
 # MeetingNotch
 
 MeetingNotch, macOS notch çevresinde Dynamic Island benzeri çalışan bir toplantı
-kayıt uygulamasıdır. Mikrofon ve sistem sesini kaydeder; kaydı konuşmacı ayrımlı
-transkript, kısa özet ve aksiyon maddelerine dönüştürür.
+kayıt uygulamasıdır. Hedef V1, desteklenen istemcide toplantının başlangıç/bitişini
+yerel sinyallerle algılar; toplantı process sesini ve yalnız meeting mikrofonu açıkken
+kullanıcının sesini kaydeder. Kayıt tek uzak servis olan ElevenLabs Scribe v2 ile
+konuşmacı ayrımlı transkript, kısa özet ve aksiyon maddelerine dönüştürülür.
+
+2026-07-25 ürün odağının ayrıntıları ve mevcut uygulamadan geçiş sırası
+[`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) içindeki “V1 odak kararı” bölümündedir. Mevcut build
+henüz privacy-first microphone gate ve gerçek meeting session detector dönüşümünü
+tamamlamamıştır.
 
 ## Belgeler
 
@@ -85,10 +92,12 @@ arşivlenmiş görevler tek belgede bulunduğu için durum geçişi tek atomik y
 manuel sıralama yerine kararlı oluşturulma sırası kullanılır.
 
 Hassas olmayan uygulama tercihleri sürümlü bir belge olarak UserDefaults'ta tutulur.
-Provider API anahtarları tercih modelinin parçası değildir; provider kimliğiyle ayrılmış
-generic-password öğeleri olarak yalnızca macOS Keychain'de saklanır. Keychain öğeleri
-`ThisDeviceOnly` erişilebilirlik sınıfını kullanır ve Mac kilitliyken okunamaz. Anahtar
-değerleri hata metinlerine eklenmez. Ham `localizedDescription`, provider response metni,
+Tek ElevenLabs API anahtarı tercih modelinin parçası değildir; generic-password öğesi
+olarak yalnızca macOS Keychain'de saklanır. Eski provider-scoped `elevenLabs` hesabı ilk
+erişimde save-first olarak tek `elevenlabs-api-key` hesabına kayıpsız migrate edilir.
+Keychain öğesi `ThisDeviceOnly` erişilebilirlik
+sınıfını kullanır ve Mac kilitliyken okunamaz. Anahtar değeri hata metinlerine eklenmez.
+Ham `localizedDescription`, uzak servis response metni,
 toplantı başlığı ve transkript tanılama kayıtlarına gönderilmez; loglar yalnızca sabit
 operasyon kodu, hata tipi, akış fazı ve hassas olmayan sayaçları içerir. Uygulamada şu an
 bir analytics SDK'sı bulunmaz.
@@ -106,14 +115,15 @@ saklandıktan sonra arka plan kuyruğu sesi ElevenLabs bulutundaki `scribe_v2` m
 gönderir. Kayıt sırasında ağ gerekmez; upload/transkripsiyon hatasında ses korunur ve
 toplantı tekrar işlenebilir.
 
-Provider adaptörleri için ortak transkripsiyon sözleşmesi; normalize transcript sonucu,
-capability bilgisi, format/boyut doğrulaması, upload progress callback'i, güvenli hata
-normalizasyonu ve geçici hatalar için sınırlı retry politikası sunar. Birincil adaptör,
+Dar transkripsiyon hizmeti sözleşmesi; normalize transcript sonucu, format/boyut
+doğrulaması, upload progress callback'i, güvenli hata normalizasyonu ve geçici hatalar için
+sınırlı retry politikası sunar. Bu protokol provider seçimi için değil test doubles içindir.
+Production servisi,
 [ElevenLabs Speech to Text](https://elevenlabs.io/docs/api-reference/speech-to-text/convert)
 üzerinde `scribe_v2`, speaker diarization ve word timestamp kullanır. Dil Ayarlar'dan
-otomatik algılama, Türkçe veya İngilizce seçilebilir. API anahtarı resmi `/v1/models`
-isteğiyle doğrulandıktan sonra yalnızca Keychain'e yazılır. OpenAI alternatif adaptörü
-Faz 8.3 kapsamında henüz kullanıma açık değildir.
+otomatik algılama, Türkçe veya İngilizce seçilebilir. API anahtarı ses yüklemeyen resmi
+`/v1/single-use-token/realtime_scribe` isteğiyle doğrulandıktan sonra yalnızca Keychain'e
+yazılır. UI'da ikinci provider, ikinci API anahtarı veya OpenAI seçeneği bulunmaz.
 
 Finalize edilen toplantılar `ProcessingQueue/queue.json` dosyasına atomik olarak eklenir.
 Her toplantının idempotency anahtarı yeniden denemelerde korunur; aynı kayıt paralel iki

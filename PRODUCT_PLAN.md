@@ -25,26 +25,199 @@ uygun görevi seçmeli ve çalışmanın durumunu yine bu dosyada güncellemelid
 ## Ürün özeti
 
 MeetingNotch, macOS notch çevresinde Dynamic Island benzeri çalışan hafif bir toplantı
-kayıt uygulamasıdır. Yaklaşan toplantıları gösterebilir, mikrofon ve sistem sesini
-kaydeder, kaydı konuşmacı ayrımlı transkript ve kısa özete dönüştürür. Kullanıcı geçmiş
-toplantılarına erişebilir ve notch içinden basit bir görev listesi yönetebilir.
+kayıt uygulamasıdır. Takvim ve yerel macOS sinyalleriyle desteklenen toplantıyı algılar,
+toplantının başladığını/bittiğini kullanıcıya görünür biçimde bildirir, yalnızca toplantıya
+ait sesi kaydeder ve kaydı konuşmacı ayrımlı transkript ile kısa özete dönüştürür. Kullanıcı
+geçmiş toplantılarına erişebilir ve notch içinden basit bir görev listesi yönetebilir.
+
+V1'in tek uzak bağımlılığı ElevenLabs Scribe v2'dir. Kullanıcı yalnızca kendi ElevenLabs
+API anahtarını girer; provider seçmez, başka bir bulut hesabı bağlamaz ve ikinci bir API
+anahtarı yönetmez. EventKit, Core Audio, AVFoundation ve gerektiğinde macOS Accessibility
+yerel işletim sistemi sınırlarıdır; uzak entegrasyon sayılmaz ve servis hesabı gerektirmez.
 
 ## V1 tamamlanma tanımı
 
 V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bitmiş sayılır:
 
 - Notch veya notch olmayan Mac üzerinde uygulamanın temel paneli kullanılabilir.
+- Arayüz kompakt, düşük görsel gürültülü ve toplantı durumunu tek bakışta anlatır.
 - Kullanıcı gerekli izinleri anlayarak verebilir ve reddettiğinde uygulama bozulmaz.
 - Kullanıcı manuel olarak toplantı kaydı başlatıp durdurabilir.
-- Mikrofon ve sistem sesi güvenilir biçimde kaydedilir.
+- Desteklenen toplantı istemcisinde toplantının başlangıç ve bitişi yerel sinyallerle
+  algılanır; belirsiz durum kullanıcıya kesinmiş gibi sunulmaz.
+- Desteklenen toplantı istemcisinin sistem sesi mümkün olduğunda yalnızca ilgili process
+  üzerinden, mikrofon ise yalnızca toplantı mikrofonu açıkken kaydedilir.
+- Toplantı mikrofon durumu bilinmiyorsa privacy-first davranışla mikrofon sesinin kalıcı
+  kayda girmesi engellenir; kullanıcıya görünür durum ve güvenli manuel kontrol sunulur.
 - Yaklaşan çevrim içi toplantılar takvimden algılanıp gösterilir.
-- Kayıt seçili bulut servisiyle konuşmacı ayrımlı transkripte dönüştürülür.
+- Kayıt tek uzak servis olan ElevenLabs Scribe v2 ile konuşmacı ayrımlı transkripte
+  dönüştürülür ve yalnızca bir kullanıcı API anahtarı gerekir.
 - Kullanıcı kısa özet, transkript ve kayıt dosyasına geçmiş ekranından ulaşabilir.
 - Başarısız yükleme veya işleme işlemi veri kaybetmeden tekrar denenebilir.
 - Aktif görevler eklenebilir, tamamlanabilir ve arşivlenebilir.
-- Ayarlar, veri silme, gizlilik ve provider yapılandırması kullanılabilir.
+- Ayarlar, veri silme, gizlilik ve ElevenLabs API anahtarı yapılandırması kullanılabilir.
 - Temel erişilebilirlik, hata senaryoları, uzun kayıt ve cihaz değişimi testleri geçer.
 - İmzalanmış ve notarize edilmiş dağıtılabilir sürüm hazırlanır.
+
+## 2026-07-25 V1 odak kararı
+
+Bu bölüm tamamlanana kadar uygulama sırasının ana kaynağıdır. Eski fazlardaki tamamlanmış
+maddeler korunur; aşağıdaki sıra, numaralı faz sırasından daha yüksek önceliklidir.
+
+### Ürün sınırı
+
+- **Tek bulut API:** ElevenLabs Scribe v2. UI'da provider seçici, OpenAI seçeneği veya
+  gelecekteki provider vaadi gösterilmez.
+- **Tek credential:** Bir ElevenLabs API key. Anahtar Keychain'de tutulur; dil ve saklama
+  seçenekleri yerel tercihlerdir.
+- **Toplantı-first:** Kayıt, toplantı algılama, güvenli ses kapsamı, transkript ve sonuç
+  akışı release blocker'dır. Görevler çalışır halde korunur fakat yeni görev özelliği
+  geliştirilmez.
+- **Dar destek yüzeyi:** İlk kalite kapısı Zoom Workplace native istemcisidir. Google Meet
+  (Chrome) ancak privacy testinde tarayıcının toplantı dışı sesini kaydetmediği veya bu sınır
+  kullanıcıya güvenli biçimde yönetilebildiği doğrulanırsa ikinci adaptör olur. Microsoft
+  Teams ve diğer istemciler V1'i bloke etmez.
+- **Gizli otomasyon yok:** Algılama kaydı kendiliğinden ve habersiz başlatmaz. Güçlü
+  başlangıç sinyali notch üzerinde kayıt teklifini açar. Güçlü bitiş sinyali kayıt sırasında
+  iptal edilebilir kısa geri sayım sonrası kaydı durdurabilir; sinyal belirsizse kullanıcıya
+  sorulur.
+
+### Toplantı yaşam döngüsü sözleşmesi
+
+Takvim zamanı tek başına gerçek toplantı başlangıcı veya bitişi sayılmaz. Yeni session
+detector aşağıdaki bağımsız sinyalleri birleştirir:
+
+1. EventKit etkinliği ve toplantı URL'si yalnızca planlanmış bağlamı verir.
+2. Tanınan meeting process'inin açılması ve Core Audio `isRunningInput` /
+   `isRunningOutput` durumu gerçek istemci aktivitesine aday sinyal verir.
+3. İstemci adaptörünün Accessibility ağacında meeting window/call controls bulması güçlü
+   katılım sinyalidir.
+4. Kullanıcının MeetingNotch içindeki `Katıl` aksiyonu toplantı URL'si ile process/window
+   ilişkilendirmesini güçlendirir.
+5. Meeting UI'ın kaybolması, ilgili process audio IO'nun durması ve takvim bağlamı birlikte
+   bitiş güvenini yükseltir. Yalnızca sessizlik bitiş sayılmaz.
+
+Domain durumları `scheduled → candidate → ready → recording → endSuspected → ended`
+olarak modellenir. Her snapshot `confidence`, `evidence`, `clientID`, `processID`,
+`calendarMeetingID` ve son değişim zamanını taşır. UI yalnızca `confirmed` durumda
+“Toplantı başladı/bitti” der; daha düşük güven “Toplantı olabilir” olarak gösterilir.
+
+### Mikrofon gizlilik sözleşmesi
+
+- `isRunningInput`, toplantı process'inin bir input stream kullandığını gösterir; toplantı
+  uygulamasındaki mute düğmesinin kesin durumu değildir ve tek başına mikrofon gate'ini
+  açamaz.
+- Desteklenen istemci adaptörü mute/unmute durumunu erişilebilir call control durumundan
+  çıkarır. Adapter sonucu `open`, `closed` veya `unknown` olur.
+- `closed` ve `unknown` durumlarında mikrofon sample'ları dosyaya yazılmadan önce sıfırlanır;
+  timeline korunur fakat kullanıcının ortam konuşması kalıcı sese girmez.
+- `open` yalnızca doğrulanmış unmute sinyali veya kullanıcının görünür manuel “Toplantı
+  mikrofonu açık” kontrolüyle oluşur. Voice activity detection kullanıcının niyetini
+  tahmin etmek için kullanılmaz.
+- Her gate geçişi kayıt metadata'sına timestamp ve kaynakla yazılır; ham konuşma veya UI
+  metni loglanmaz.
+- Manuel fallback global shortcut ve notch kontrolüyle çalışır, kayıt boyunca görünürdür ve
+  yeni oturumda varsayılan olarak kapalı başlar.
+- Privacy kabul testi, mute iken söylenen benzersiz test cümlesinin ne ham mikrofon
+  parçasında ne birleşik M4A'da ne de transkriptte bulunmadığını doğrular.
+
+### Minimal/techy UI yönü
+
+- 420 px'e kadar büyüyen kart yığını yerine hedef genişlik 344–368 px; dış padding 12 px,
+  bölüm aralığı 8–10 px ve corner radius 10–12 px.
+- Görsel ikonlar çoğunlukla 11–13 pt olur; tıklama hedefleri macOS için 28–32 px korunur.
+  Küçük görünmek, küçük veya erişilemez hit target anlamına gelmez.
+- Nötr siyah/gri yüzey, tek hairline border ve yalnızca durum renginde vurgu kullanılır.
+  Dekoratif gradient, büyük gölge ve iç içe kartlar kaldırılır.
+- Başlıklar 13–14 pt semibold, ikincil metin 11–12 pt, süre/sayaçlar monospaced digit olur.
+- Kompakt notch yalnızca durum glyph'i, canlı süre ve mikrofon gate durumunu taşır.
+- Geniş panelin ilk satırı toplantı yaşam döngüsüdür: istemci + güven durumu, kayıt süresi,
+  meeting mic `Açık/Kapalı/Bilinmiyor`; ana aksiyon tek ve nettir.
+- Provider seçici kaldırılır. Ayarlar; `ElevenLabs API Key`, transkript dili, toplantı
+  algılama/Accessibility, mikrofon, takvim, saklama ve başlangıç tercihlerinden oluşur.
+- Görevler ikincil sekme olarak kalır; toplantı akışından daha yüksek görsel ağırlık taşımaz.
+
+### Uygulama sırası ve kalite kapıları
+
+#### A — Baseline ve tek API sadeleştirmesi
+
+- [x] Mevcut tüm birim testlerini ve imzalı Debug build'i güncel toolchain'de baseline
+  olarak çalıştırmak.
+- [x] UI'dan provider seçimini ve OpenAI “yakında” yüzeyini kaldırmak.
+- [x] `TranscriptionProviderID`/resolver kullanımını ürün modelinden çıkarmak; yalnızca eski
+  ayar ve queue belgelerini ElevenLabs'e migrate etmek için dar uyumluluk kodu bırakmak.
+- [x] Tek ElevenLabs Keychain kaydı için eski provider-scoped anahtarı kayıpsız migrate
+  etmek; doğrula, değiştir ve bağlantıyı kaldır akışlarını test etmek.
+- [x] Processing worker'a tek `TranscriptionServicing` bağımlılığı enjekte etmek; protokolü
+  çoklu provider özelliği için değil test doubles için korumak.
+
+**A çıkış kriteri:** Uygulamada tek API adı ve tek anahtar vardır; eski kullanıcı verisi
+açılır; fixture testleri, queue recovery ve gerçek anahtar doğrulama akışı bozulmaz.
+
+#### B — Toplantı session detector
+
+- [x] `MeetingSession`, `MeetingClientID`, `MeetingEvidence`, `DetectionConfidence` ve
+  yaşam döngüsü state machine'ini UI ve EventKit'ten bağımsız oluşturmak.
+- [x] Core Audio process listesini bundle ID/PID ile izleyen, input/output IO değişikliklerini
+  yayınlayan `AudioProcessMonitor` prototipini yapmak.
+- [ ] Zoom için process, meeting window ve call controls algılayan yerel adaptör prototipi
+  yapmak; Accessibility izni yok/reddedilmiş davranışı tasarlamak.
+- [ ] Takvim, `Katıl` aksiyonu, process audio ve client adapter sinyallerini deterministic
+  confidence kurallarıyla birleştirmek.
+- [ ] Güçlü başlangıçta kayıt teklifini; güçlü bitişte iptal edilebilir auto-stop geri
+  sayımını; belirsiz bitişte manuel onayı uygulamak.
+- [ ] Planlanmamış toplantı, geciken toplantı, erken katılma, ara verme, sessizlik,
+  uygulamanın açık kalması ve arka arkaya çağrı senaryolarını fixture testleriyle kapsamak.
+
+**B çıkış kriteri:** Zoom gerçek cihaz testinde başlangıç ve hang-up beşer ardışık koşuda
+doğru algılanır; yalnız sessizlik yanlış bitiş üretmez; izin yokken manuel kayıt çalışır.
+
+#### C — Privacy-first toplantı sesi
+
+- [ ] Global system tap yerine belirlenen meeting process'lerini içeren private Core Audio
+  process tap oluşturmak; MeetingNotch ve toplantı dışı uygulama sesini dışarıda bırakmak.
+- [ ] `MeetingMicrophoneGate` state machine ve timestamp'li gate event modelini oluşturmak.
+- [ ] Zoom mute control adaptörünü `open/closed/unknown` üretecek şekilde bağlamak.
+- [ ] Mikrofon writer'ında `closed/unknown` sample'larını encode öncesi sıfırlamak, gate
+  değişiminde click üretmeyen kısa fade uygulamak ve ortak timeline'ı korumak.
+- [ ] Görünür notch toggle + global shortcut fallback'i eklemek; her kayıtta kapalı başlatmak.
+- [ ] Ham mic, system track, birleşik M4A ve transkript üzerinde unique-phrase privacy
+  testini; hızlı mute/unmute, kulaklık ve cihaz değişimi senaryolarını çalıştırmak.
+- [ ] Meeting process'i değişir veya adapter kaybolursa gate'i fail-closed yapmak ve
+  kullanıcıya anında görünür uyarı vermek.
+
+**C çıkış kriteri:** Mute/unknown aralıklarında kullanıcı sesi hiçbir kalıcı çıktıya girmez;
+unmute aralıkları anlaşılırdır; toplantı dışı uygulama sesi process-scope testinde yoktur.
+
+#### D — Minimal UI dönüşümü
+
+- [ ] Renk, tipografi, spacing, radius, icon ve control-size token'larını tek theme dosyasında
+  tanımlamak.
+- [ ] Kompakt notch'u session/gate/kayıt süresi etrafında yeniden tasarlamak.
+- [ ] Geniş paneli tek ana status surface + ince geçmiş listesi olarak yeniden tasarlamak;
+  gereksiz kart, gölge ve büyük ikonları kaldırmak.
+- [ ] Settings ve onboarding'i tek API ve yeni Accessibility/mute sınırlarıyla yenilemek.
+- [ ] Toplantı detayını daha yoğun header, sade playback bar ve okunaklı transcript düzenine
+  geçirmek.
+- [ ] Koyu/açık, Increase Contrast, Reduce Motion, klavye ve VoiceOver durumlarını snapshot
+  veya preview matrisiyle doğrulamak.
+
+**D çıkış kriteri:** Tüm ana durumlar aynı token setini kullanır; 344–368 px panelde taşma
+yoktur; görsel ikonlar küçülürken kontroller klavye ve VoiceOver ile kullanılabilir kalır.
+
+#### E — Çalışan V1 ve release hardening
+
+- [ ] 60+ dakikalık Zoom toplantısında process-scope system audio, gated mic, finalize,
+  ElevenLabs upload, diarization, özet ve detay akışını uçtan uca tamamlamak.
+- [ ] İnternet kesintisi, 401/429/5xx, disk dolması, force quit, sleep/wake ve audio device
+  değişimi recovery matrisini geçirmek.
+- [ ] Google Meet/Chrome adaptörünü privacy kriterlerine karşı prototiplemek; geçerse ayrı
+  destek etiketiyle eklemek, geçmezse manuel mod olarak açıkça sınırlandırmak.
+- [ ] İmzalı/notarize release candidate'ı temiz kullanıcı hesabında notch ve harici ekranda
+  doğrulamak.
+
+**E çıkış kriteri:** İlk kurulumdan sonuç ekranına gerçek toplantı akışı veri sızıntısı
+olmadan tamamlanır ve V1 tamamlanma tanımındaki bütün maddeler geçer.
 
 ## Faz 0 — Temel ürün tanımı ve proje hazırlığı
 
@@ -63,6 +236,13 @@ V1 aşağıdakilerin tamamı gerçek bir macOS cihazında çalıştığında bit
 - [x] Uygulamanın görünen adı, bundle identifier ve sürümleme yaklaşımını kesinleştirmek.
 
 ### 0.2 V1 ürün kararları
+
+> [!IMPORTANT]
+> Bu bölüm 2026-07-25 tarihli ürün sadeleştirmesi kapsamında güncellenmiştir.
+
+- [x] V1'i tek transkripsiyon servisi, güvenli toplantı yaşam döngüsü ve privacy-first
+  mikrofon geçitleme etrafında yeniden planlamak; kalan işleri çalışan ürün önceliğine göre
+  sıralamak.
 
 V1 için birincil akış şöyledir: kullanıcı ilk açılışta ürünün kayıt ve bulut işleme
 sınırlarını görür; mikrofon ve sistem sesi izinlerini bağlam içinde, isteğe bağlı takvim
@@ -103,6 +283,12 @@ kanalı değildir.
 - [x] V1'in destekleyeceği dilleri belirlemek; arayüz ve transkript dili kararlarını ayırmak.
 - [x] Ham sesin varsayılan saklama ve otomatik silme politikasını belirlemek.
 - [x] Ana dağıtım kanalını kesinleştirmek: doğrudan dağıtım veya Mac App Store.
+- [x] V1 uzak servis sınırını yalnızca ElevenLabs Scribe v2 ve tek kullanıcı API anahtarı
+  olarak kesinleştirmek.
+- [x] Toplantı algılama ile otomatik/gizli kayıt başlatmayı ayırmak; başlangıçta görünür
+  teklif, güçlü bitişte iptal edilebilir auto-stop yaklaşımını kesinleştirmek.
+- [x] Mute durumu bilinmediğinde mikrofonu fail-closed tutan privacy sözleşmesini
+  kesinleştirmek.
 
 ### 0.3 Teknik risk prototipleri
 
@@ -212,6 +398,17 @@ kanalı değildir.
 - [ ] Açık/koyu tema ve yüksek kontrast görünümünü doğrulamak.
 - [ ] Mock verilerle tüm notch durumlarının preview'larını hazırlamak.
 
+### 2.4 Minimal/techy görsel sistem dönüşümü
+
+- [ ] Ortak UI token setini tanımlamak: yüzey, hairline, durum renkleri, 11–14 pt type
+  scale, 8/10/12 px spacing, 10–12 px radius ve 28–32 px control target.
+- [ ] 42 px ikon ağırlıklı sekme/pin kontrollerini daha küçük glyph ve yoğun macOS
+  kontrollerine dönüştürmek.
+- [ ] İç içe kartları, dekoratif büyük gölgeleri ve yinelenen başlıkları kaldırmak.
+- [ ] Kompakt notch'a meeting detection confidence ve mic gate durumunu eklemek.
+- [ ] Geniş paneli 344–368 px hedef genişlikte toplantı yaşam döngüsü merkezli yenilemek.
+- [ ] Ayarlar, onboarding ve meeting detail yüzeylerini aynı token setine taşımak.
+
 ### Faz 2 çıkış kriterleri
 
 - [ ] Notch paneli desteklenen cihazlarda kararlı çalışıyor.
@@ -249,7 +446,8 @@ kanalı değildir.
 
 - [x] Genel ayarlar bölümünü oluşturmak.
 - [x] Seçili mikrofon ayarını eklemek.
-- [x] Transkripsiyon provider seçimini eklemek.
+- [x] Transkripsiyon provider seçimini eklemek. 2026-07-25 ürünü sadeleştirme kararıyla bu
+  yüzey kaldırılacak; tamamlanmış madde yalnızca geçmiş uygulama durumunu belgeler.
 - [x] Provider API anahtarı girişini ve doğrulamasını eklemek.
 - [x] Transkript dili otomatik algılama/sabit dil seçimini eklemek.
 - [x] Toplantı öncesi hatırlatma süresi ayarını eklemek.
@@ -259,6 +457,9 @@ kanalı değildir.
 - [x] Veri klasörünü Finder'da açma aksiyonu eklemek.
 - [x] Tüm verileri silme aksiyonunu onay diyaloğuyla eklemek.
 - [x] Onboarding'i yeniden gösterme aksiyonu eklemek.
+- [ ] Provider picker'ı kaldırıp tek `ElevenLabs API Key` bağlantı yüzeyini uygulamak.
+- [ ] Accessibility iznini toplantı/mute algılama faydası, reddetme sonucu ve manuel
+  fallback ile bağlam içinde açıklamak.
 
 ### Faz 3 çıkış kriterleri
 
@@ -373,11 +574,32 @@ kanalı değildir.
 - [x] Çakışan toplantılarda en erken başlayanı seçmek.
 - [x] Takvim etkinliği güncellendiğinde notch state'ini yenilemek.
 
+### 6.4 Gerçek toplantı session algılama
+
+- [ ] Takvim bağlamından bağımsız meeting session domain modelini ve state machine'i
+  oluşturmak.
+- [ ] Core Audio process input/output aktivitesini bundle ID ve PID ile izlemek.
+- [ ] Zoom process/window/call-control adaptörünü Accessibility üzerinden prototiplemek.
+- [ ] Takvim, `Katıl`, process IO ve client adapter kanıtlarını confidence skoruna
+  dönüştürmek.
+- [ ] Başlangıç, bitiş şüphesi ve doğrulanmış bitiş davranışlarını notch'a bağlamak.
+- [ ] Manuel toplantı kaydını tüm algılama/Accessibility hata durumlarında korumak.
+
+### 6.5 Destek matrisi
+
+- [ ] Zoom Workplace native: planlı/plansız, erken/geç katılım, mute/unmute, hang-up ve
+  uygulamanın açık kalması senaryolarını gerçek cihazda doğrulamak.
+- [ ] Google Meet/Chrome: process-scope ve mute state doğruluğunu privacy spike ile ölçmek;
+  toplantı dışı tarayıcı sesi izolasyonu kanıtlanamazsa V1 desteğine almamak.
+- [ ] Desteklenmeyen istemcide “otomatik algılandı” iddiası yerine açık manuel mod sunmak.
+
 ### Faz 6 çıkış kriterleri
 
 - [ ] Desteklenen servislerde yaklaşan toplantılar güvenilir biçimde algılanıyor.
 - [x] Takvim özelliği kapalı veya izinsizken manuel kayıt etkilenmiyor.
 - [ ] Çakışma, iptal ve değişiklik senaryoları ele alınıyor.
+- [ ] Desteklenen istemcide gerçek başlangıç ve bitiş yalnız takvim saatine dayanmadan
+  güvenilir biçimde algılanıyor.
 
 ## Faz 7 — Ses kayıt motoru
 
@@ -413,6 +635,10 @@ kanalı değildir.
 - [ ] Çıkış cihazı veya sample rate değişimini ele almak.
 - [x] Core Audio Process Tap, aggregate device ve dosya kaynaklarını her bitiş/hata yolunda
   temizlemek.
+- [ ] Global tap'i desteklenen toplantı process'leriyle sınırlı private process tap'e
+  dönüştürmek.
+- [ ] Meeting process'i kapanır/değişirse tap'i güvenli yeniden bağlamak veya kaydı görünür
+  uyarıyla durdurmak.
 
 ### 7.4 Senkronizasyon ve dosya üretimi
 
@@ -436,17 +662,32 @@ kanalı değildir.
 - [ ] İsteğe bağlı pause/resume özelliğini ürün kararına göre uygulamak.
 - [ ] Kayıt sürerken uykuya geçme ve ekran kilidi davranışını belirlemek.
 
+### 7.6 Meeting mikrofon gate'i
+
+- [ ] `open/closed/unknown` durumlu, varsayılanı `closed` olan gate state machine'i
+  oluşturmak.
+- [ ] Client mute detector sonucunu gate'e bağlamak; Core Audio input aktivitesini yalnız
+  destekleyici kanıt olarak kullanmak.
+- [ ] `closed/unknown` sample'larını writer öncesinde sıfırlayıp timeline'ı korumak.
+- [ ] Gate geçişlerini timestamp + kaynakla kayıt metadata'sına yazmak.
+- [ ] Notch toggle ve global shortcut manuel fallback'i eklemek.
+- [ ] Adapter kaybı, Accessibility izni kaybı ve bilinmeyen durumda fail-closed davranmak.
+- [ ] Mute sırasında söylenen benzersiz cümlenin ham/birleşik/transkript çıktılarında
+  bulunmadığı privacy testini geçirmek.
+
 ### Faz 7 çıkış kriterleri
 
 - [ ] Farklı ses cihazlarıyla en az 60 dakikalık kayıt bozulmadan tamamlanıyor.
 - [ ] Mikrofon ve sistem sesi dinlenebilir, senkron ve provider'a uygun.
 - [ ] Cihaz değişimi, disk sorunu ve uygulama kapanması veri kaybını minimize ediyor.
+- [ ] Mikrofon yalnız toplantıya gönderildiği doğrulanmış aralıklarda kayda giriyor.
+- [ ] Desteklenen istemcide toplantı dışı uygulama sesi kayda girmiyor.
 
 ## Faz 8 — Transkripsiyon, diarization ve özet
 
-### 8.1 Ortak provider sözleşmesi
+### 8.1 Test edilebilir transkripsiyon hizmeti sözleşmesi
 
-- [x] Provider bağımsız transcription protokolünü tanımlamak.
+- [x] Transcription protokolünü tanımlamak.
 - [x] Normalize edilmiş transcript ve segment sonuçlarını kullanmak.
 - [x] Provider capability modelini tanımlamak.
 - [x] Dosya boyutu/format uygunluk kontrolünü ortak katmana eklemek.
@@ -454,7 +695,7 @@ kanalı değildir.
 - [x] Timeout, iptal, authentication ve rate-limit hatalarını normalize etmek.
 - [x] Retry politikasını idempotent ve sınırlı yapmak.
 
-### 8.2 Birincil provider
+### 8.2 Tek uzak servis: ElevenLabs Scribe v2
 
 - [x] ElevenLabs anahtar probunun production API'deki eksik dosya yanıt varyantlarına
   bağlı kalmamasını ve yanıltıcı provider hatası üretmemesini sağlamak.
@@ -469,18 +710,16 @@ kanalı değildir.
 - [x] Provider hatalarını kullanıcı dostu hale getirmek.
 - [x] Fixture/mock yanıtlarla birim testleri yazmak.
 
-### 8.3 Alternatif provider
+### 8.3 Tek servis ürün sınırı
 
-V1 kararı: ElevenLabs Scribe v2 tek production transkripsiyon provider'ıdır. OpenAI
-adaptörü UI'da devre dışı gösterilir ve aşağıdaki maddeler V1 sonrasına bırakılmıştır.
-
-- [ ] Alternatif provider client'ını uygulamak.
-- [ ] Dosya boyutu limitine göre sıkıştırma veya client-side chunking yapmak.
-- [ ] Chunk sınırlarında zaman offset'lerini birleştirmek.
-- [ ] Chunk'lar arasında konuşmacı kimliği tutarlılığını mümkün olduğunca korumak.
-- [ ] Gerekli diarized response formatını işlemek.
-- [ ] Provider'a özgü zorunlu chunking seçeneklerini uygulamak.
-- [ ] Fixture/mock yanıtlarla birim testleri yazmak.
+- [x] `TranscriptionProviderID` ve provider resolver'ı yeni ürün modelinden kaldırmak.
+- [x] Eski preferences/queue belgelerindeki provider alanını ElevenLabs'e kayıpsız migrate
+  edip yeni yazımlarda kaldırmak.
+- [x] Eski provider-scoped Keychain kaydını tek ElevenLabs credential kaydına migrate etmek.
+- [x] UI, onboarding, hata ve gizlilik metinlerinden provider seçimi/OpenAI vaadini
+  kaldırmak.
+- [x] Protocol/capability sınırlarını yalnız test doubles ve ElevenLabs request doğrulaması
+  için gereken minimum yüzeye indirmek.
 
 ### 8.4 Özet ve aksiyon maddeleri
 
@@ -498,9 +737,8 @@ adaptörü UI'da devre dışı gösterilir ve aşağıdaki maddeler V1 sonrasın
 - [x] Finalize edilmiş kayıtları kalıcı işleme kuyruğuna eklemek.
 - [x] Uygulama yeniden açıldığında yarım kalan işlemleri göstermek.
 - [x] Başarısız upload/transkripsiyon için `Tekrar Dene` aksiyonu sunmak.
-- [ ] Provider değiştirerek tekrar işleme seçeneğini değerlendirmek.
 - [x] Aynı kaydın yanlışlıkla paralel iki kez işlenmesini engellemek.
-- [x] Kalıcı kuyruğu seçili provider'ı çalıştıran arka plan worker'ına bağlamak.
+- [x] Kalıcı kuyruğu tek ElevenLabs servisini çalıştıran arka plan worker'ına bağlamak.
 - [x] Normalize transkript sonucunu toplantı dizinine atomik olarak kaydetmek.
 - [x] Başarılı işlemden sonra geçici parçaları temizlemek.
 
@@ -509,8 +747,8 @@ adaptörü UI'da devre dışı gösterilir ve aşağıdaki maddeler V1 sonrasın
 - [ ] Gerçek toplantı kaydı konuşmacı ayrımlı transkripte dönüşüyor.
 - [x] Özet, kararlar ve aksiyon maddeleri kullanıcıya gösterilebiliyor.
 - [x] Ağ veya provider hatası kaydı kaybettirmiyor ve tekrar denenebiliyor.
-- [x] En az iki provider ayarlardan seçilebilir veya ikinci provider açıkça sonraki sürüme
-  taşınmışsa plan buna göre güncellenmiş.
+- [x] Ürün yalnız ElevenLabs ve tek API anahtarıyla uçtan uca çalışıyor; ikinci provider'a
+  ait kullanıcı yüzeyi veya aktif runtime dalı bulunmuyor.
 
 ## Faz 9 — Toplantı geçmişi ve sonuç deneyimi
 
@@ -574,6 +812,14 @@ adaptörü UI'da devre dışı gösterilir ve aşağıdaki maddeler V1 sonrasın
 - [ ] Kayıt, upload ve save sırasında force quit sonrası kurtarmayı test etmek.
 - [ ] Çok uzun toplantı adı ve transkriptini test etmek.
 - [ ] Aynı anda yaklaşan iki toplantıyı test etmek.
+- [ ] Meeting client bulunamadı, Accessibility izni reddedildi ve mute state `unknown`
+  senaryolarında mikrofonun fail-closed kaldığını test etmek.
+- [ ] Meeting client hang-up, crash, process restart ve meeting window kapanma senaryolarını
+  test etmek.
+- [ ] Mute iken söylenen canary phrase'in hiçbir kalıcı ses/transkript çıktısına girmediğini
+  otomatik doğrulamak.
+- [ ] Process-scope tap sırasında müzik/bildirim/tarayıcı gibi toplantı dışı seslerin kayda
+  girmediğini doğrulamak.
 
 ### 10.2 Performans ve kaynak kullanımı
 
@@ -616,11 +862,14 @@ adaptörü UI'da devre dışı gösterilir ve aşağıdaki maddeler V1 sonrasın
 ### 11.1 Gizlilik ve güven
 
 - [ ] Açık kayıt göstergesinin kayıt boyunca görünür olduğunu doğrulamak.
-- [ ] Kullanıcıya hangi provider'a veri gönderildiğini göstermek.
+- [ ] Kullanıcıya sesin ElevenLabs Scribe v2'ye gönderildiğini göstermek.
+- [ ] Kayıt boyunca meeting mic gate durumunu `Açık/Kapalı/Bilinmiyor` olarak görünür
+  tutmak.
 - [ ] Kayıt öncesi gerekli yasal/etik bilgilendirme metnini hazırlamak.
 - [ ] Gizlilik politikası hazırlamak.
 - [ ] Kaydedilen yerel ve uzak veri türlerini açıkça belgelemek.
-- [ ] Provider veri saklama seçeneklerini belgelemek.
+- [ ] ElevenLabs veri saklama ve zero-retention seçeneklerini güncel resmi sözleşmeye göre
+  belgelemek.
 - [ ] Kullanıcı verisi silme akışını uçtan uca doğrulamak.
 - [ ] Uygulamanın gizli veya kullanıcıdan habersiz kayıt başlatmadığını doğrulamak.
 
@@ -681,6 +930,31 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 ## İlerleme günlüğü
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
+
+- 2026-07-25 — Tek API sadeleştirmesinin uygulama dilimi tamamlandı. Provider seçici ve
+  OpenAI yüzeyi kaldırıldı; `TranscriptionProviderID` ile runtime resolver silindi ve worker
+  doğrudan tek `TranscriptionServicing` bağımlılığı kullanıyor. Preferences ve processing
+  queue belgeleri şema v2'ye yükseltilerek eski provider alanları okunup yeni yazımlardan
+  çıkarılıyor. Eski `elevenLabs` Keychain hesabı save-first olarak tek
+  `elevenlabs-api-key` hesabına migrate ediliyor; doğrulama, değiştirme ve bağlantıyı
+  kaldırma akışları korundu. 176 testten 173'ü geçti, üç opt-in donanım testi atlandı.
+
+- 2026-07-25 — Meeting session detector'ın domain çekirdeği eklendi. Calendar, join,
+  process, Core Audio IO, client UI ve manuel kayıt kanıtları normalize edilerek
+  `scheduled → candidate → ready → recording → endSuspected → ended` akışına indirgeniyor;
+  sessizlik tek başına bitiş üretmiyor ve bitmiş session terminal kalıyor. Core Audio process
+  listesi bundle ID/PID ile okunuyor, input/output IO değişiklikleri yalnız snapshot
+  değiştiğinde yayınlanıyor. Tam pakette 188 testten 185'i geçti; üç opt-in donanım testi
+  atlandı.
+
+- 2026-07-25 — V1 odağı tek uzak servis/tek credential olarak ElevenLabs Scribe v2'ye
+  daraltıldı; provider seçimi ve OpenAI yüzeyi kaldırılacak işler arasına alındı. Takvim
+  saatinden ayrı gerçek meeting session detector, Zoom-first istemci adaptörü,
+  process-scope sistem sesi ve mute/unknown aralıklarını encode öncesi sıfırlayan
+  privacy-first mikrofon gate'i ana release hattı yapıldı. Minimal/techy UI için yoğunluk,
+  ikon, type, spacing ve surface token hedefleri belirlendi; görevler yeni özellik almayan
+  ikincil yüzey olarak konumlandı. Güncel Xcode ile 172 testten 169'u geçti, üç opt-in
+  donanım testi atlandı; Apple Development imzalı Debug build'in codesign bütünlüğü geçti.
 
 - 2026-07-20 — AirPods gibi 24 kHz Bluetooth mikrofonlarda kaydı sıfır bayt bırakan
   `kCMSampleBufferError_RequiredParameterMissing` giderildi. Capture sample'ları artık

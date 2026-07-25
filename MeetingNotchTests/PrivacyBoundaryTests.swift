@@ -28,7 +28,6 @@ final class PrivacyBoundaryTests: XCTestCase {
     func testPersistableProcessingFailureContainsNoProviderPayload() throws {
         let job = ProcessingJob(
             meetingID: UUID(),
-            providerID: .openAI,
             lastFailure: .authentication
         )
 

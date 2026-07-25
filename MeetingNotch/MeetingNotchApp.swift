@@ -57,7 +57,8 @@ struct MeetingNotchApp: App {
                 onDeleteAllData: appDelegate.deleteAllData,
                 onResetOnboarding: appDelegate.resetOnboarding,
                 onLoadTranscriptionSettings: appDelegate.loadTranscriptionSettings,
-                onSaveTranscriptionSettings: appDelegate.saveTranscriptionSettings
+                onSaveTranscriptionSettings: appDelegate.saveTranscriptionSettings,
+                onDeleteTranscriptionAPIKey: appDelegate.deleteTranscriptionAPIKey
             )
             .environmentObject(appDelegate.appState)
         }
