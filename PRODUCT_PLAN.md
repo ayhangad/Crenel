@@ -73,14 +73,18 @@ maddeler korunur; aşağıdaki sıra, numaralı faz sırasından daha yüksek ö
 - **Toplantı-first:** Kayıt, toplantı algılama, güvenli ses kapsamı, transkript ve sonuç
   akışı release blocker'dır. Görevler çalışır halde korunur fakat yeni görev özelliği
   geliştirilmez.
-- **Dar destek yüzeyi:** İlk kalite kapısı Zoom Workplace native istemcisidir. Google Meet
-  (Chrome) ancak privacy testinde tarayıcının toplantı dışı sesini kaydetmediği veya bu sınır
-  kullanıcıya güvenli biçimde yönetilebildiği doğrulanırsa ikinci adaptör olur. Microsoft
-  Teams ve diğer istemciler V1'i bloke etmez.
+- **Dar destek yüzeyi:** V1'in iki zorunlu kalite kapısı Zoom Workplace native istemcisi ve
+  Google Meet/Chrome'dur. Her ikisi için başlangıç/bitiş algılama, mute durumu ve yalnızca
+  toplantı sesini kapsayan privacy-first kayıt doğrulanır. Chrome'da toplantı sekmesi
+  güvenle izole edilemiyorsa kayıt global sese sessizce düşmez; kullanıcıya açıkça gösterilen
+  güvenli fallback uygulanır. Microsoft Teams ve diğer istemciler V1'i bloke etmez.
 - **Gizli otomasyon yok:** Algılama kaydı kendiliğinden ve habersiz başlatmaz. Güçlü
   başlangıç sinyali notch üzerinde kayıt teklifini açar. Güçlü bitiş sinyali kayıt sırasında
   iptal edilebilir kısa geri sayım sonrası kaydı durdurabilir; sinyal belirsizse kullanıcıya
   sorulur.
+- [x] Zoom Workplace ve Google Meet/Chrome'u başlangıç/bitiş algılama, mute gate, güvenli
+  sistem sesi ve gerçek cihaz testleri bakımından eşit zorunlu V1 destek yüzeyi yapmak.
+  — ✅ Tamamlandı: 2026-07-29 / V1 support scope
 
 ### Toplantı yaşam döngüsü sözleşmesi
 
@@ -123,8 +127,10 @@ olarak modellenir. Her snapshot `confidence`, `evidence`, `clientID`, `processID
 
 ### Minimal/techy UI yönü
 
-- 420 px'e kadar büyüyen kart yığını yerine hedef genişlik 344–368 px; dış padding 12 px,
-  bölüm aralığı 8–10 px ve corner radius 10–12 px.
+- Ana toplantı/görev paneli 404–424 px, uzun transkript taşıyan notch içi detay 480–520 px
+  aralığında akışkan büyür; yatay dış padding 8 px, dikey dış padding 10 px, bölüm aralığı
+  12–14 px ve corner radius 10–12 px olur. Kompaktlık içerik alanını daraltmak değil,
+  gereksiz yüzey/padding kaybını azaltmaktır.
 - Görsel ikonlar çoğunlukla 11–13 pt olur; tıklama hedefleri macOS için 28–32 px korunur.
   Küçük görünmek, küçük veya erişilemez hit target anlamına gelmez.
 - Nötr siyah/gri yüzey, tek hairline border ve yalnızca durum renginde vurgu kullanılır.
@@ -160,8 +166,9 @@ açılır; fixture testleri, queue recovery ve gerçek anahtar doğrulama akış
   yaşam döngüsü state machine'ini UI ve EventKit'ten bağımsız oluşturmak.
 - [x] Core Audio process listesini bundle ID/PID ile izleyen, input/output IO değişikliklerini
   yayınlayan `AudioProcessMonitor` prototipini yapmak.
-- [ ] Zoom için process, meeting window ve call controls algılayan yerel adaptör prototipi
-  yapmak; Accessibility izni yok/reddedilmiş davranışı tasarlamak.
+- [x] Zoom ve Google Meet/Chrome için process, meeting window/tab ve call controls algılayan
+  yerel adaptör prototipleri yapmak; Accessibility izni yok/reddedilmiş davranışı tasarlamak.
+  — ✅ Tamamlandı: 2026-07-29 / Zoom + Google Meet Accessibility adapters
 - [ ] Takvim, `Katıl` aksiyonu, process audio ve client adapter sinyallerini deterministic
   confidence kurallarıyla birleştirmek.
 - [ ] Güçlü başlangıçta kayıt teklifini; güçlü bitişte iptal edilebilir auto-stop geri
@@ -169,15 +176,17 @@ açılır; fixture testleri, queue recovery ve gerçek anahtar doğrulama akış
 - [ ] Planlanmamış toplantı, geciken toplantı, erken katılma, ara verme, sessizlik,
   uygulamanın açık kalması ve arka arkaya çağrı senaryolarını fixture testleriyle kapsamak.
 
-**B çıkış kriteri:** Zoom gerçek cihaz testinde başlangıç ve hang-up beşer ardışık koşuda
-doğru algılanır; yalnız sessizlik yanlış bitiş üretmez; izin yokken manuel kayıt çalışır.
+**B çıkış kriteri:** Zoom ve Google Meet/Chrome gerçek cihaz testlerinde başlangıç ve
+hang-up ayrı ayrı beşer ardışık koşuda doğru algılanır; yalnız sessizlik yanlış bitiş
+üretmez; izin yokken manuel kayıt çalışır.
 
 #### C — Privacy-first toplantı sesi
 
 - [ ] Global system tap yerine belirlenen meeting process'lerini içeren private Core Audio
   process tap oluşturmak; MeetingNotch ve toplantı dışı uygulama sesini dışarıda bırakmak.
 - [ ] `MeetingMicrophoneGate` state machine ve timestamp'li gate event modelini oluşturmak.
-- [ ] Zoom mute control adaptörünü `open/closed/unknown` üretecek şekilde bağlamak.
+- [ ] Zoom ve Google Meet/Chrome mute control adaptörlerini `open/closed/unknown` üretecek
+  şekilde bağlamak.
 - [ ] Mikrofon writer'ında `closed/unknown` sample'larını encode öncesi sıfırlamak, gate
   değişiminde click üretmeyen kısa fade uygulamak ve ortak timeline'ı korumak.
 - [ ] Görünür notch toggle + global shortcut fallback'i eklemek; her kayıtta kapalı başlatmak.
@@ -191,28 +200,42 @@ unmute aralıkları anlaşılırdır; toplantı dışı uygulama sesi process-sc
 
 #### D — Minimal UI dönüşümü
 
-- [ ] Renk, tipografi, spacing, radius, icon ve control-size token'larını tek theme dosyasında
+- [x] Renk, tipografi, spacing, radius, icon ve control-size token'larını tek theme dosyasında
   tanımlamak.
 - [ ] Kompakt notch'u session/gate/kayıt süresi etrafında yeniden tasarlamak.
-- [ ] Geniş paneli tek ana status surface + ince geçmiş listesi olarak yeniden tasarlamak;
+- [x] Geniş paneli tek ana status surface + ince geçmiş listesi olarak yeniden tasarlamak;
   gereksiz kart, gölge ve büyük ikonları kaldırmak.
 - [ ] Settings ve onboarding'i tek API ve yeni Accessibility/mute sınırlarıyla yenilemek.
-- [ ] Toplantı detayını daha yoğun header, sade playback bar ve okunaklı transcript düzenine
-  geçirmek.
+- [x] Toplantı detayını daha yoğun header, sade playback bar ve okunaklı transcript düzenine
+  geçirmek; detay, ayrı pencere yerine notch içi drill-down olarak açılmalı ve düz metin /
+  Markdown kopyalama aksiyonları ilk satırdan erişilebilir olmalı.
 - [ ] Koyu/açık, Increase Contrast, Reduce Motion, klavye ve VoiceOver durumlarını snapshot
   veya preview matrisiyle doğrulamak.
 
-**D çıkış kriteri:** Tüm ana durumlar aynı token setini kullanır; 344–368 px panelde taşma
-yoktur; görsel ikonlar küçülürken kontroller klavye ve VoiceOver ile kullanılabilir kalır.
+- [x] Ana paneli 424 px, toplantı detayını ekran uygunsa 520 px genişliğe akışkan taşıyan
+  layout'u; 8 px yatay dış padding ve 12–14 px dikey bölüm ritmiyle uygulamak.
+  — ✅ Tamamlandı: 2026-07-29 / precision UI polish
+- [x] Notch içindeki başlıkları sans, metadata/süre/sayaçları mono rollerine ayırmak;
+  recent ve detail satırlarında optik ikon-metin hizasını düzeltmek.
+  — ✅ Tamamlandı: 2026-07-29 / precision UI polish
+- [x] Görevler sekmesini aynı yüzey/type token'larıyla yeniden tasarlamak; satır içi kalıcı
+  silme ikonlarını kaldırıp destructive aksiyonları context menu + onaya taşımak.
+  — ✅ Tamamlandı: 2026-07-29 / precision UI polish
+
+**D çıkış kriteri:** Tüm ana durumlar aynı token setini kullanır; ana panel 404–424 px,
+detail 480–520 px aralığında ekran alanına göre taşmadan çalışır; görsel ikonlar küçülürken
+kontroller klavye ve VoiceOver ile kullanılabilir kalır.
 
 #### E — Çalışan V1 ve release hardening
 
-- [ ] 60+ dakikalık Zoom toplantısında process-scope system audio, gated mic, finalize,
-  ElevenLabs upload, diarization, özet ve detay akışını uçtan uca tamamlamak.
+- [ ] Zoom ve Google Meet/Chrome'da ayrı ayrı 60+ dakikalık toplantıda güvenli kapsamlı
+  system audio, gated mic, finalize, ElevenLabs upload, diarization, özet ve detay akışını
+  uçtan uca tamamlamak.
 - [ ] İnternet kesintisi, 401/429/5xx, disk dolması, force quit, sleep/wake ve audio device
   değişimi recovery matrisini geçirmek.
-- [ ] Google Meet/Chrome adaptörünü privacy kriterlerine karşı prototiplemek; geçerse ayrı
-  destek etiketiyle eklemek, geçmezse manuel mod olarak açıkça sınırlandırmak.
+- [ ] Google Meet/Chrome'da toplantı sekmesi dışındaki tarayıcı sesinin kalıcı sistem
+  kaydına veya transkripte girmediğini canary-audio privacy testiyle doğrulamak; izolasyon
+  kaybolduğunda kaydı fail-closed duruma geçirmek ve görünür güvenli fallback sunmak.
 - [ ] İmzalı/notarize release candidate'ı temiz kullanıcı hesabında notch ve harici ekranda
   doğrulamak.
 
@@ -400,13 +423,14 @@ kanalı değildir.
 
 ### 2.4 Minimal/techy görsel sistem dönüşümü
 
-- [ ] Ortak UI token setini tanımlamak: yüzey, hairline, durum renkleri, 11–14 pt type
+- [x] Ortak UI token setini tanımlamak: yüzey, hairline, durum renkleri, 11–14 pt type
   scale, 8/10/12 px spacing, 10–12 px radius ve 28–32 px control target.
-- [ ] 42 px ikon ağırlıklı sekme/pin kontrollerini daha küçük glyph ve yoğun macOS
+- [x] 42 px ikon ağırlıklı sekme/pin kontrollerini daha küçük glyph ve yoğun macOS
   kontrollerine dönüştürmek.
-- [ ] İç içe kartları, dekoratif büyük gölgeleri ve yinelenen başlıkları kaldırmak.
+- [x] İç içe kartları, dekoratif büyük gölgeleri ve yinelenen başlıkları kaldırmak.
 - [ ] Kompakt notch'a meeting detection confidence ve mic gate durumunu eklemek.
-- [ ] Geniş paneli 344–368 px hedef genişlikte toplantı yaşam döngüsü merkezli yenilemek.
+- [x] Geniş paneli 404–424 px, toplantı detayını 480–520 px hedef genişlikte toplantı yaşam
+  döngüsü merkezli ve ekran alanına göre akışkan yenilemek.
 - [ ] Ayarlar, onboarding ve meeting detail yüzeylerini aynı token setine taşımak.
 
 ### Faz 2 çıkış kriterleri
@@ -579,7 +603,8 @@ kanalı değildir.
 - [ ] Takvim bağlamından bağımsız meeting session domain modelini ve state machine'i
   oluşturmak.
 - [ ] Core Audio process input/output aktivitesini bundle ID ve PID ile izlemek.
-- [ ] Zoom process/window/call-control adaptörünü Accessibility üzerinden prototiplemek.
+- [x] Zoom process/window ve Google Meet Chrome window/tab/call-control adaptörlerini
+  Accessibility üzerinden prototiplemek.
 - [ ] Takvim, `Katıl`, process IO ve client adapter kanıtlarını confidence skoruna
   dönüştürmek.
 - [ ] Başlangıç, bitiş şüphesi ve doğrulanmış bitiş davranışlarını notch'a bağlamak.
@@ -589,8 +614,10 @@ kanalı değildir.
 
 - [ ] Zoom Workplace native: planlı/plansız, erken/geç katılım, mute/unmute, hang-up ve
   uygulamanın açık kalması senaryolarını gerçek cihazda doğrulamak.
-- [ ] Google Meet/Chrome: process-scope ve mute state doğruluğunu privacy spike ile ölçmek;
-  toplantı dışı tarayıcı sesi izolasyonu kanıtlanamazsa V1 desteğine almamak.
+- [ ] Google Meet/Chrome: planlı/plansız, erken/geç katılım, mute/unmute, hang-up ve
+  uygulamanın açık kalması senaryolarını gerçek cihazda doğrulamak.
+- [ ] Google Meet/Chrome'da toplantı sekmesi dışındaki tarayıcı sesini canary-audio ile
+  doğrulamak; izolasyon kaybolduğunda global kayda düşmeyen fail-closed fallback'i test etmek.
 - [ ] Desteklenmeyen istemcide “otomatik algılandı” iddiası yerine açık manuel mod sunmak.
 
 ### Faz 6 çıkış kriterleri
@@ -827,6 +854,9 @@ kanalı değildir.
 - [ ] Hover panel kapalıyken gereksiz render/polling olmadığını doğrulamak.
 - [ ] Kayıt sırasında memory kullanımını uzun süre izlemek.
 - [ ] Büyük transkript açılış ve kaydırma performansını ölçmek.
+- [x] Mikrofon cihaz keşfini CMIO/AVFoundation provider arızasında ana thread'i
+  bloklamayacak şekilde izole etmek.
+  — ✅ Tamamlandı: 2026-07-29 / CMIO hang hardening
 - [ ] Dosya erişimini ana thread dışında tutmak.
 - [ ] Ses realtime callback'lerinde allocation ve bloklayan işlem olmadığını doğrulamak.
 - [ ] Instruments ile temel leak ve retain-cycle taraması yapmak.
@@ -931,6 +961,34 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
 
+- 2026-07-29 — Apple kamera extension provider'ının ürettiği CMIO bağlantı hataları
+  toplantı detayı açıkken UI'ı bekletebiliyordu. Mikrofon cihaz keşfi ana actor'dan
+  utility-priority detached işe taşındı, tekrar eden refresh istekleri birleştirildi ve
+  gereksiz `.external` device type kaldırıldı. Aynı CMIO hata dizisi test ortamında yeniden
+  üretilirken 500 ms geciken keşfin UI başlangıcını bloklamadığı doğrulandı. 199 testten
+  196'sı geçti, üç opt-in donanım testi atlandı; focused Thread Sanitizer, static analyze,
+  imzalı Debug build, codesign ve canlı main-thread sample kontrolleri geçti.
+
+- 2026-07-29 — Zoom Workplace ve Google Meet/Chrome için ortak, fixture-test edilebilir
+  Accessibility adapter sınırı tamamlandı. Bundle ID/PID eşleme, sınırlı AX tree taraması,
+  meeting window/tab, call controls ve `open/closed/unknown` mikrofon sonucu normalize
+  ediliyor. İzin yokken ağaç okunmadan fail-closed snapshot üretiliyor; desteklenmeyen
+  process izin istemiyor ve sıradan Chrome penceresi Meet sayılmıyor. İmzalı Debug build ile
+  197 test geçti; üç opt-in donanım testi beklendiği gibi atlandı.
+
+- 2026-07-29 — Google Meet/Chrome, Zoom Workplace ile eşit zorunlu V1 destek yüzeyi yapıldı.
+  Session algılama, mute gate, 60+ dakika uçtan uca test ve privacy kabulü iki istemci için
+  ayrı ayrı zorunlu. Chrome toplantı sekmesi dışındaki ses izole edilemezse global kayda
+  sessizce düşmeyen fail-closed güvenli fallback ürün sözleşmesine eklendi.
+
+- 2026-07-29 — Notch arayüzünün precision UI geçişi tamamlandı. Ana panel 424 px'e,
+  transkript detayı 520 px'e akışkan genişliyor; yatay padding 8 px'e inerken bölüm ritmi
+  12–14 px'e çıkarıldı. Başlık/gövde için sans, tarih/süre/sayaç için mono roller ayrıldı;
+  Recent ve Görevler satırları ortak sabit ikon grid'i ve divider yapısına taşındı.
+  Görünür satır içi silme ikonları kaldırıldı; destructive işlemler context/taşma menüsü ve
+  onay üzerinden çalışıyor. Markdown/TXT kopyalama notch detail içinde kalıyor. İmzalı Debug
+  build ile 189 test geçti; üç opt-in donanım testi beklendiği gibi atlandı.
+
 - 2026-07-25 — Tek API sadeleştirmesinin uygulama dilimi tamamlandı. Provider seçici ve
   OpenAI yüzeyi kaldırıldı; `TranscriptionProviderID` ile runtime resolver silindi ve worker
   doğrudan tek `TranscriptionServicing` bağımlılığı kullanıyor. Preferences ve processing
@@ -949,7 +1007,7 @@ Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şe
 
 - 2026-07-25 — V1 odağı tek uzak servis/tek credential olarak ElevenLabs Scribe v2'ye
   daraltıldı; provider seçimi ve OpenAI yüzeyi kaldırılacak işler arasına alındı. Takvim
-  saatinden ayrı gerçek meeting session detector, Zoom-first istemci adaptörü,
+  saatinden ayrı gerçek meeting session detector, Zoom + Google Meet istemci adaptörleri,
   process-scope sistem sesi ve mute/unknown aralıklarını encode öncesi sıfırlayan
   privacy-first mikrofon gate'i ana release hattı yapıldı. Minimal/techy UI için yoğunluk,
   ikon, type, spacing ve surface token hedefleri belirlendi; görevler yeni özellik almayan

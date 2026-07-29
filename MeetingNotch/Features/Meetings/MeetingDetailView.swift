@@ -1,5 +1,4 @@
 @preconcurrency import AVFoundation
-import AppKit
 import SwiftUI
 
 enum TranscriptTextFormatter {
@@ -39,6 +38,15 @@ enum TranscriptTextFormatter {
     }
 }
 
+struct MeetingDetailContent: Identifiable {
+    let meeting: StoredMeeting
+    let storedTranscription: StoredTranscription?
+    let markdown: String?
+    let audioURL: URL
+
+    var id: UUID { meeting.id }
+}
+
 @MainActor
 final class MeetingAudioPlayer: ObservableObject {
     @Published private(set) var currentTime: TimeInterval = 0
@@ -55,10 +63,12 @@ final class MeetingAudioPlayer: ObservableObject {
             forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
             queue: .main
         ) { [weak self] time in
-            guard let self else { return }
-            self.currentTime = min(max(time.seconds, 0), self.duration)
-            if self.currentTime >= self.duration - 0.1 {
-                self.isPlaying = false
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.currentTime = min(max(time.seconds, 0), self.duration)
+                if self.currentTime >= self.duration - 0.1 {
+                    self.isPlaying = false
+                }
             }
         }
     }
@@ -93,222 +103,280 @@ final class MeetingAudioPlayer: ObservableObject {
     }
 }
 
+struct MeetingDetailToolbar: View {
+    let content: MeetingDetailContent
+    let onBack: () -> Void
+    let onCopyText: (String) -> Void
+
+    @State private var copiedFormat: CopyFormat?
+
+    private enum CopyFormat {
+        case text
+        case markdown
+    }
+
+    var body: some View {
+        HStack(spacing: MeetingNotchTheme.itemSpacing) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+            }
+            .buttonStyle(MeetingNotchIconButtonStyle())
+            .help("Toplantılara dön")
+            .accessibilityLabel("Toplantılara dön")
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(content.meeting.title)
+                    .font(MeetingNotchTheme.titleFont)
+                    .lineLimit(1)
+
+                Text(detailLine)
+                    .font(MeetingNotchTheme.metadataFont)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let transcription = content.storedTranscription {
+                Button {
+                    copy(
+                        TranscriptTextFormatter.plainText(transcription.transcript),
+                        format: .text
+                    )
+                } label: {
+                    copyLabel("TXT", format: .text)
+                }
+                .buttonStyle(
+                    MeetingNotchIconButtonStyle(
+                        tint: MeetingNotchTheme.success,
+                        isActive: copiedFormat == .text
+                    )
+                )
+                .help("Transkripti düz metin olarak kopyala")
+                .accessibilityLabel("Transkripti düz metin olarak kopyala")
+            }
+
+            Button {
+                guard let markdown = content.markdown else { return }
+                copy(markdown, format: .markdown)
+            } label: {
+                copyLabel("MD", format: .markdown)
+            }
+            .buttonStyle(
+                MeetingNotchIconButtonStyle(
+                    tint: MeetingNotchTheme.accent,
+                    isActive: copiedFormat == .markdown
+                )
+            )
+            .disabled(content.markdown == nil)
+            .help("Toplantıyı Markdown olarak kopyala")
+            .accessibilityLabel("Toplantıyı Markdown olarak kopyala")
+        }
+    }
+
+    private var detailLine: String {
+        let date = content.meeting.startedAt.formatted(date: .abbreviated, time: .shortened)
+        let duration = TranscriptTextFormatter.timestamp(content.meeting.duration)
+        return "\(date.uppercased())  /  \(duration)"
+    }
+
+    @ViewBuilder
+    private func copyLabel(_ label: String, format: CopyFormat) -> some View {
+        if copiedFormat == format {
+            Image(systemName: "checkmark")
+                .contentTransition(.symbolEffect(.replace))
+        } else {
+            Text(label)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+        }
+    }
+
+    private func copy(_ value: String, format: CopyFormat) {
+        onCopyText(value)
+        copiedFormat = format
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.2))
+            guard copiedFormat == format else { return }
+            copiedFormat = nil
+        }
+    }
+}
+
 struct MeetingDetailView: View {
-    let meeting: StoredMeeting
-    let storedTranscription: StoredTranscription?
-    let markdown: String?
-    let audioURL: URL
-    let onCopyTranscript: (String) -> Void
+    let content: MeetingDetailContent
+    let onCopyText: (String) -> Void
     let onExportMarkdown: (String) -> Void
     let onRevealAudio: (URL) -> Void
     let onRetry: (StoredMeeting) -> Void
     let onDelete: (StoredMeeting) -> Void
 
     @StateObject private var player: MeetingAudioPlayer
-    @State private var showsDeleteConfirmation = false
 
     init(
-        meeting: StoredMeeting,
-        storedTranscription: StoredTranscription?,
-        markdown: String? = nil,
-        audioURL: URL,
-        onCopyTranscript: @escaping (String) -> Void,
-        onExportMarkdown: @escaping (String) -> Void = { _ in },
+        content: MeetingDetailContent,
+        onCopyText: @escaping (String) -> Void,
+        onExportMarkdown: @escaping (String) -> Void,
         onRevealAudio: @escaping (URL) -> Void,
         onRetry: @escaping (StoredMeeting) -> Void,
         onDelete: @escaping (StoredMeeting) -> Void
     ) {
-        self.meeting = meeting
-        self.storedTranscription = storedTranscription
-        self.markdown = markdown
-        self.audioURL = audioURL
-        self.onCopyTranscript = onCopyTranscript
+        self.content = content
+        self.onCopyText = onCopyText
         self.onExportMarkdown = onExportMarkdown
         self.onRevealAudio = onRevealAudio
         self.onRetry = onRetry
         self.onDelete = onDelete
         _player = StateObject(
-            wrappedValue: MeetingAudioPlayer(url: audioURL, duration: meeting.duration)
+            wrappedValue: MeetingAudioPlayer(
+                url: content.audioURL,
+                duration: content.meeting.duration
+            )
         )
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
+        LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
+            CompactAudioPlayer(player: player)
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    AudioPlayerCard(player: player)
-
-                    if let storedTranscription {
-                        if let summary = storedTranscription.summary {
-                            summarySection(summary)
-                        }
-                        transcriptSection(storedTranscription.transcript)
-                    } else {
-                        processingState
-                    }
+            if let storedTranscription = content.storedTranscription {
+                if let summary = storedTranscription.summary {
+                    summarySection(summary)
                 }
-                .padding(24)
+                transcriptSection(storedTranscription.transcript)
+            } else {
+                processingState
             }
-        }
-        .frame(minWidth: 680, minHeight: 560)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .alert("Toplantı silinsin mi?", isPresented: $showsDeleteConfirmation) {
-            Button("Sil", role: .destructive) { onDelete(meeting) }
-            Button("Vazgeç", role: .cancel) {}
-        } message: {
-            Text("“\(meeting.title)” kaydı, ses dosyası ve transkripti kalıcı olarak silinecek.")
+
+            utilityActions
         }
     }
 
-    private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text(meeting.title)
-                    .font(.title2.weight(.semibold))
-                    .lineLimit(2)
-                Text("\(meeting.startedAt.formatted(date: .long, time: .shortened)) · \(TranscriptTextFormatter.timestamp(meeting.duration))")
-                    .font(.callout.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
+    private var utilityActions: some View {
+        HStack {
+            Spacer(minLength: 0)
 
-            Spacer()
-
-            if let storedTranscription {
-                Menu {
-                    Button("Düz Metni Kopyala", systemImage: "doc.on.doc") {
-                        onCopyTranscript(TranscriptTextFormatter.plainText(storedTranscription.transcript))
-                    }
-                    if let markdown {
-                        Button("Markdown Kopyala", systemImage: "text.document") {
-                            onCopyTranscript(markdown)
-                        }
-                        Button("Markdown Dosyası Kaydet…", systemImage: "square.and.arrow.down") {
-                            onExportMarkdown(markdown)
-                        }
-                    }
-                } label: {
-                    Label("Kopyala / Dışa Aktar", systemImage: "square.and.arrow.up")
-                }
-            }
-
-            Button {
-                onRevealAudio(audioURL)
-            } label: {
-                Label("Sesi Göster", systemImage: "folder")
-            }
-
-            if meeting.processingStatus == .failed || meeting.processingStatus == .recorded {
+            Menu {
                 Button {
-                    onRetry(meeting)
+                    onRevealAudio(content.audioURL)
                 } label: {
-                    Label("Tekrar Dene", systemImage: "arrow.clockwise")
+                    Label("Sesi Finder’da göster", systemImage: "waveform.path")
                 }
-            }
 
-            Button(role: .destructive) {
-                showsDeleteConfirmation = true
+                if let markdown = content.markdown {
+                    Button {
+                        onExportMarkdown(markdown)
+                    } label: {
+                        Label("Markdown kaydet", systemImage: "arrow.down.doc")
+                    }
+                }
+
+                if content.meeting.processingStatus == .failed
+                    || content.meeting.processingStatus == .recorded {
+                    Button {
+                        onRetry(content.meeting)
+                    } label: {
+                        Label("İşlemeyi tekrar dene", systemImage: "arrow.clockwise")
+                    }
+                }
+
+                Divider()
+
+                Button(role: .destructive) {
+                    onDelete(content.meeting)
+                } label: {
+                    Label("Toplantıyı sil", systemImage: "trash")
+                }
             } label: {
-                Image(systemName: "trash")
+                Label("Diğer işlemler", systemImage: "ellipsis")
             }
-            .help("Toplantıyı sil")
-            .accessibilityLabel("Toplantıyı sil")
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help("Ses, dışa aktarma ve toplantı işlemleri")
         }
-        .buttonStyle(.bordered)
-        .padding(20)
+        .font(MeetingNotchTheme.controlFont)
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 2)
     }
 
     private func summarySection(_ summary: MeetingSummary) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Label("Toplantı Notları", systemImage: "sparkles")
-                    .font(.headline)
-                Spacer()
-                Button("Notları Kopyala", systemImage: "doc.on.doc") {
-                    onCopyTranscript(MeetingMarkdownFormatter.notes(summary))
+        VStack(alignment: .leading, spacing: MeetingNotchTheme.contentSpacing) {
+            sectionHeader("Notlar", symbol: "sparkles") {
+                Button {
+                    onCopyText(MeetingMarkdownFormatter.notes(summary))
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
+                .help("Notları kopyala")
+                .accessibilityLabel("Toplantı notlarını kopyala")
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Kısa Özet")
-                    .font(.subheadline.weight(.semibold))
-                Text(summary.overview.isEmpty
+            Text(
+                summary.overview.isEmpty
                     ? "Transkript özetlenecek yeterli içerik taşımıyor."
-                    : summary.overview)
-                    .textSelection(.enabled)
-            }
-
-            SummaryList(
-                title: "Kararlar",
-                emptyText: "Açıkça belirtilmiş karar bulunamadı.",
-                values: summary.decisions
+                    : summary.overview
             )
+            .font(MeetingNotchTheme.bodyFont)
+            .foregroundStyle(summary.overview.isEmpty ? .secondary : .primary)
+            .textSelection(.enabled)
+            .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: .leading, spacing: 7) {
-                Text("Aksiyon Maddeleri")
-                    .font(.subheadline.weight(.semibold))
-                if summary.actionItems.isEmpty {
-                    Text("Açıkça belirtilmiş aksiyon maddesi bulunamadı.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(summary.actionItems) { action in
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Image(systemName: "circle")
-                                .font(.system(size: 7))
-                                .foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(action.title)
-                                    .textSelection(.enabled)
-                                if let detail = actionDetail(action) {
-                                    Text(detail)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
+            if !summary.decisions.isEmpty {
+                CompactSummaryList(title: "Kararlar", values: summary.decisions)
+            }
+
+            if !summary.actionItems.isEmpty {
+                CompactSummaryList(
+                    title: "Aksiyonlar",
+                    values: summary.actionItems.map(\.title)
+                )
             }
         }
-        .padding(16)
-        .background(.quaternary.opacity(0.42), in: RoundedRectangle(cornerRadius: 14))
-    }
-
-    private func actionDetail(_ action: ActionItem) -> String? {
-        var details: [String] = []
-        if let assignee = action.assignee { details.append("Sorumlu: \(assignee)") }
-        if let dueDate = action.dueDate {
-            details.append("Tarih: \(dueDate.formatted(date: .abbreviated, time: .omitted))")
+        .padding(.horizontal, MeetingNotchTheme.panelHorizontalPadding)
+        .padding(.vertical, MeetingNotchTheme.panelVerticalPadding)
+        .background(
+            MeetingNotchTheme.surface,
+            in: RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.surfaceRadius,
+                style: .continuous
+            )
+        )
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.surfaceRadius,
+                style: .continuous
+            )
+            .stroke(MeetingNotchTheme.subtleHairline, lineWidth: 1)
         }
-        return details.isEmpty ? nil : details.joined(separator: " · ")
     }
 
     @ViewBuilder
     private func transcriptSection(_ transcript: Transcript) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label("Transkript", systemImage: "text.bubble")
-                    .font(.headline)
-                Spacer()
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Transkript", symbol: "quote.bubble") {
                 Text("\(transcript.segments.count) segment")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .font(MeetingNotchTheme.dataFont)
+                    .foregroundStyle(.tertiary)
             }
+            .padding(.bottom, 6)
 
             if transcript.segments.isEmpty {
                 Text(transcript.text)
+                    .font(MeetingNotchTheme.bodyFont)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(16)
-                    .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 14))
+                    .padding(.vertical, 8)
             } else {
-                LazyVStack(alignment: .leading, spacing: 10) {
-                    ForEach(transcript.segments) { segment in
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(transcript.segments.enumerated()), id: \.element.id) { index, segment in
                         TranscriptSegmentRow(segment: segment) {
                             player.seek(to: segment.startTime)
+                        }
+
+                        if index < transcript.segments.count - 1 {
+                            Divider()
+                                .overlay(MeetingNotchTheme.subtleHairline)
                         }
                     }
                 }
@@ -317,23 +385,59 @@ struct MeetingDetailView: View {
     }
 
     private var processingState: some View {
-        VStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(systemName: processingIcon)
-                .font(.system(size: 28, weight: .medium))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(processingColor)
-            Text(processingTitle)
-                .font(.headline)
-            Text(processingDetail)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                .frame(width: 30, height: 30)
+                .background(
+                    processingColor.opacity(0.12),
+                    in: RoundedRectangle(
+                        cornerRadius: MeetingNotchTheme.controlRadius,
+                        style: .continuous
+                    )
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(processingTitle)
+                    .font(MeetingNotchTheme.titleFont)
+                Text(processingDetail)
+                    .font(MeetingNotchTheme.bodyFont)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
-        .frame(maxWidth: .infinity, minHeight: 220)
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 16))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, MeetingNotchTheme.panelHorizontalPadding)
+        .padding(.vertical, MeetingNotchTheme.panelVerticalPadding)
+        .background(
+            MeetingNotchTheme.surface,
+            in: RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.surfaceRadius,
+                style: .continuous
+            )
+        )
+    }
+
+    private func sectionHeader<Accessory: View>(
+        _ title: String,
+        symbol: String,
+        @ViewBuilder accessory: () -> Accessory
+    ) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(MeetingNotchTheme.accent)
+            Text(title)
+                .font(MeetingNotchTheme.sectionTitleFont)
+                .foregroundStyle(.secondary)
+            Spacer()
+            accessory()
+        }
     }
 
     private var processingIcon: String {
-        switch meeting.processingStatus {
+        switch content.meeting.processingStatus {
         case .failed: "exclamationmark.triangle"
         case .recorded: "clock"
         case .processing: "waveform.badge.magnifyingglass"
@@ -342,72 +446,72 @@ struct MeetingDetailView: View {
     }
 
     private var processingColor: Color {
-        meeting.processingStatus == .failed ? .orange : .accentColor
+        content.meeting.processingStatus == .failed ? .orange : MeetingNotchTheme.accent
     }
 
     private var processingTitle: String {
-        switch meeting.processingStatus {
+        switch content.meeting.processingStatus {
         case .failed: "Transkripsiyon tamamlanamadı"
-        case .recorded: "Transkripsiyon kuyruğa alınacak"
+        case .recorded: "Transkripsiyon sırada"
         case .processing: "Transkripsiyon hazırlanıyor"
         case .completed: "Transkript okunamadı"
         }
     }
 
     private var processingDetail: String {
-        switch meeting.processingStatus {
-        case .failed: "Ses kaydınız korunuyor. Üstteki Tekrar Dene düğmesiyle işlemi yeniden başlatabilirsiniz."
-        case .recorded, .processing: "Bu pencereyi kapatabilirsiniz; işleme arka planda devam eder."
-        case .completed: "Ses kaydı korunuyor. Transkript dosyası için işlemeyi yeniden deneyebilirsiniz."
+        switch content.meeting.processingStatus {
+        case .failed: "Ses kaydı korunuyor. Tekrar deneyebilirsiniz."
+        case .recorded, .processing: "İşleme arka planda devam ediyor."
+        case .completed: "Ses kaydı korunuyor; işlemeyi yeniden deneyebilirsiniz."
         }
     }
 }
 
-private struct SummaryList: View {
+private struct CompactSummaryList: View {
     let title: String
-    let emptyText: String
     let values: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
-            if values.isEmpty {
-                Text(emptyText)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(Array(values.enumerated()), id: \.offset) { _, value in
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Image(systemName: "circle.fill")
-                            .font(.system(size: 4))
-                            .foregroundStyle(.secondary)
-                        Text(value)
-                            .textSelection(.enabled)
-                    }
+                .font(MeetingNotchTheme.sectionTitleFont)
+                .foregroundStyle(.tertiary)
+
+            ForEach(Array(values.enumerated()), id: \.offset) { _, value in
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Circle()
+                        .fill(MeetingNotchTheme.accent)
+                        .frame(width: 4, height: 4)
+                    Text(value)
+                        .font(MeetingNotchTheme.bodyFont)
+                        .textSelection(.enabled)
                 }
             }
         }
     }
 }
 
-private struct AudioPlayerCard: View {
+private struct CompactAudioPlayer: View {
     @ObservedObject var player: MeetingAudioPlayer
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 8) {
             Button(action: player.togglePlayback) {
                 Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .frame(width: 38, height: 38)
+                    .contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.circle)
+            .buttonStyle(
+                MeetingNotchIconButtonStyle(
+                    tint: MeetingNotchTheme.accent,
+                    isActive: player.isPlaying
+                )
+            )
             .accessibilityLabel(player.isPlaying ? "Sesi duraklat" : "Sesi oynat")
 
             Text(TranscriptTextFormatter.timestamp(player.currentTime))
-                .font(.caption.monospacedDigit())
+                .font(MeetingNotchTheme.dataFont)
                 .foregroundStyle(.secondary)
-                .frame(width: 48, alignment: .trailing)
+                .frame(width: 36, alignment: .trailing)
 
             Slider(
                 value: Binding(
@@ -416,15 +520,30 @@ private struct AudioPlayerCard: View {
                 ),
                 in: 0...player.duration
             )
+            .controlSize(.mini)
+            .tint(MeetingNotchTheme.accent)
             .accessibilityLabel("Kayıt konumu")
 
             Text(TranscriptTextFormatter.timestamp(player.duration))
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 48, alignment: .leading)
+                .font(MeetingNotchTheme.dataFont)
+                .foregroundStyle(.tertiary)
+                .frame(width: 36, alignment: .leading)
         }
-        .padding(14)
-        .background(.quaternary.opacity(0.42), in: RoundedRectangle(cornerRadius: 14))
+        .padding(8)
+        .background(
+            MeetingNotchTheme.surface,
+            in: RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.surfaceRadius,
+                style: .continuous
+            )
+        )
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.surfaceRadius,
+                style: .continuous
+            )
+            .stroke(MeetingNotchTheme.subtleHairline, lineWidth: 1)
+        }
     }
 }
 
@@ -432,29 +551,50 @@ private struct TranscriptSegmentRow: View {
     let segment: TranscriptSegment
     let onSeek: () -> Void
 
+    @State private var isHovering = false
+
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(displaySpeakerName)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tint)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text(displaySpeakerName.uppercased())
+                    .font(MeetingNotchTheme.sectionTitleFont)
+                    .foregroundStyle(MeetingNotchTheme.accent)
+                    .lineLimit(1)
 
                 Button(action: onSeek) {
                     Text(TranscriptTextFormatter.timestamp(segment.startTime))
-                        .font(.caption2.monospacedDigit().weight(.medium))
+                        .font(MeetingNotchTheme.dataFont)
+                        .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.borderless)
                 .help("Bu noktadan oynat")
+
+                Spacer()
+
+                if isHovering {
+                    Image(systemName: "play")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.tertiary)
+                        .transition(.opacity)
+                }
             }
-            .frame(width: 92, alignment: .leading)
 
             Text(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))
-                .font(.body)
+                .font(MeetingNotchTheme.bodyFont)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(14)
-        .background(.quaternary.opacity(0.34), in: RoundedRectangle(cornerRadius: 13))
+        .padding(.horizontal, 4)
+        .padding(.vertical, 10)
+        .background(
+            isHovering ? MeetingNotchTheme.surfaceHover : .clear,
+            in: RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.controlRadius,
+                style: .continuous
+            )
+        )
+        .onHover { isHovering = $0 }
         .accessibilityElement(children: .contain)
     }
 
@@ -463,4 +603,73 @@ private struct TranscriptSegmentRow: View {
         return name.flatMap { $0.isEmpty ? nil : $0 }
             ?? TranscriptTextFormatter.fallbackSpeakerName(segment.speakerID)
     }
+}
+
+#Preview("Compact meeting detail") {
+    let meeting = StoredMeeting(
+        id: UUID(),
+        title: "Product sync / transcription",
+        startedAt: Date().addingTimeInterval(-2_148),
+        endedAt: Date(),
+        sourceMeeting: nil,
+        audioFileName: "preview.m4a",
+        processingStatus: .completed
+    )
+    let transcript = Transcript(
+        text: "",
+        languageCode: "tr",
+        segments: [
+            TranscriptSegment(
+                speakerID: "speaker_0",
+                speakerName: "Ayhan",
+                startTime: 12,
+                endTime: 29,
+                text: "Notch içindeki toplantı detayını ana sonuç yüzeyi olarak kullanalım."
+            ),
+            TranscriptSegment(
+                speakerID: "speaker_1",
+                speakerName: "Deniz",
+                startTime: 31,
+                endTime: 48,
+                text: "Transkript ve Markdown kopyalama aksiyonları her zaman üst satırda kalsın."
+            )
+        ]
+    )
+    let content = MeetingDetailContent(
+        meeting: meeting,
+        storedTranscription: StoredTranscription(
+            transcript: transcript,
+            summary: MeetingSummary(
+                overview: "Toplantı sonuçları ayrı pencere açmadan notch içinde tüketilecek.",
+                decisions: ["Detay paneli 520 px genişliğe çıkarıldı."],
+                actionItems: [ActionItem(title: "Koyu ve açık görünüm matrisini doğrula.")]
+            )
+        ),
+        markdown: "# Product sync",
+        audioURL: URL(fileURLWithPath: "/tmp/meeting-notch-preview.m4a")
+    )
+
+    VStack(spacing: MeetingNotchTheme.sectionSpacing) {
+        MeetingDetailToolbar(
+            content: content,
+            onBack: {},
+            onCopyText: { _ in }
+        )
+        ScrollView {
+            MeetingDetailView(
+                content: content,
+                onCopyText: { _ in },
+                onExportMarkdown: { _ in },
+                onRevealAudio: { _ in },
+                onRetry: { _ in },
+                onDelete: { _ in }
+            )
+        }
+        .scrollIndicators(.hidden)
+    }
+    .padding(.horizontal, MeetingNotchTheme.panelHorizontalPadding)
+    .padding(.vertical, MeetingNotchTheme.panelVerticalPadding)
+    .frame(width: MeetingNotchTheme.detailPanelWidth, height: 600)
+    .background(.black)
+    .environment(\.colorScheme, .dark)
 }

@@ -103,10 +103,26 @@ takvim saati, process'in açık olması veya uzun sessizlik `confirmed` başlang
 yaşam döngüsü UI'dan bağımsızdır; session coordinator yalnız desteklenen bundle ID'leri
 kanıta dönüştürür. Bu sinyal mute durumu olarak yorumlanmaz.
 
-V1 kalite kapısı Zoom Workplace native istemcisidir. Google Meet/Chrome, process-scope
-çıktının toplantı dışı tarayıcı sesini sızdırmadığı kanıtlanmadan desteklenen adapter olarak
-işaretlenmez. Diğer istemciler manuel kayıt moduna düşer; UI otomatik algılama iddiasında
-bulunmaz.
+`AccessibilityMeetingClientAdapter`, Core Audio snapshot'ındaki bundle ID/PID'yi Zoom
+Workplace veya Google Meet/Chrome istemcisine eşler. Sistem güveni yoksa ağaç okunmaz;
+adapter `accessibilityPermissionRequired`, görünmeyen UI kanıtı ve `unknown` mikrofon
+durumuyla fail-closed snapshot üretir. İzin istemi yalnız kullanıcı aksiyonuyla
+`promptForAccessibility` açıldığında tetiklenir; desteklenmeyen process izin istemez.
+
+İzin varken Accessibility ağacı derinlik ve node sayısı sınırıyla bellekte taranır. Ham
+başlık, açıklama, URL veya control metni loglanmaz ve domain'e taşınmaz; adapter yalnız
+`meetingWindowPresent`, `callControlsPresent` ve `open/closed/unknown` normalize sonucunu
+yayınlar. Zoom meeting/end/microphone kontrolleri istemci penceresinde, Google Meet ise
+`meet.google.com`/Google Meet bağlamı bulunan Chrome penceresinde aranır. Sıradan Chrome
+penceresi veya yalnız “mute” benzeri ilgisiz bir web kontrolü meeting kanıtı sayılmaz.
+
+V1'in zorunlu kalite kapıları Zoom Workplace native istemcisi ve Google Meet/Chrome'dur.
+Her ikisi için gerçek başlangıç/bitiş, call controls ve mute durumu normalize adapter
+kanıtlarıyla üretilir. Chrome process'i birden fazla sekmenin sesini taşıyabildiğinden,
+Google Meet kaydı toplantı sekmesi dışındaki sesi dışladığını canary-audio testiyle
+kanıtlamadan global veya process-wide kayda sessizce düşmez. İzolasyon kaybolursa kayıt
+fail-closed olur ve UI güvenli fallback'i açıkça gösterir. Diğer istemciler manuel kayıt
+moduna düşer; UI otomatik algılama iddiasında bulunmaz.
 
 Algılama kaydı habersiz başlatmaz. `confirmed` başlangıç kayıt teklifini görünür yapar.
 Kayıt sürerken `confirmed` bitiş iptal edilebilir kısa geri sayım başlatır; `probable`
@@ -124,15 +140,17 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   ilerleme göstergesiyle taşır; daha düşük öncelikli toplantı veya görev bilgisi işleme
   durumunu örtemez. Başarı ve hata paneli otomatik açılır; etkileşim yoksa 8 saniye sonra
   kompakt duruma döner, başarı akışı boşta durumuna sıfırlanırken hata kurtarma için korunur.
-- Geniş panel aktif ekranın görünür alanına göre en fazla 420 piksel genişlik ve 500 piksel
-  içerik yüksekliği kullanır; daha küçük alanlarda içerik kaydırılır. Sekmeler ok tuşları
-  ve Komut-1/Komut-2 ile değiştirilebilir.
+- Geniş panel aktif ekranın görünür alanına göre toplantı/görev kökünde en fazla 424 piksel,
+  uzun transkript taşıyan notch içi detail drill-down'ında en fazla 520 piksel genişlik ve
+  600 piksel içerik yüksekliği kullanır; daha küçük alanlarda içerik kaydırılır. Sekmeler
+  ok tuşları ve Komut-1/Komut-2 ile değiştirilebilir.
 - DynamicNotchKit açılma, kapanma ve kompakt/geniş dönüşümleri uygulamanın hareket profiliyle
   yapılandırılır. macOS Reduce Motion değişikliği canlı izlenir ve etkin olduğunda hem panel
   içi hem pencere geçişleri algılanabilir hareket üretmeyecek kadar kısaltılır.
-- 2026-07-25 görsel yönü 344–368 piksel genişlik, 12 piksel dış padding, 8–10 piksel
-  bölüm aralığı, 10–12 piksel radius ve 11–14 pt type scale kullanır. İkon glyph'leri
-  11–13 pt olur; erişilebilir macOS hit target'ları 28–32 piksel korunur.
+- 2026-07-29 görsel yönü kök panelde 404–424, detail'da 480–520 piksel akışkan genişlik;
+  8 piksel yatay / 10 piksel dikey dış padding, 12–14 piksel bölüm aralığı, 10–12 piksel
+  radius ve 11–14 pt type scale kullanır. Başlıklar sans, metadata/süre/sayaçlar mono olur.
+  İkon glyph'leri 11–13 pt olur; erişilebilir macOS hit target'ları 28–32 piksel korunur.
 - Yüzeyler nötr koyu/açık zemin, tek hairline ve yalnız durum rengi vurgusuyla çalışır.
   Büyük dekoratif gölgeler ve iç içe kartlar kullanılmaz. Kompakt görünüm session durumu,
   kayıt süresi ve meeting mic gate'ini tek bakışta taşır.
@@ -224,6 +242,13 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 - Kullanılabilir ses girişleri AVFoundation discovery session ile listelenir; sistem
   varsayılanı ayrıca işaretlenir. Bağlanma ve ayrılma bildirimleri uygulama yaşamı boyunca
   izlenir ve Ayarlar listesi açıkken de canlı güncellenir.
+- AVFoundation cihaz keşfi CMIO extension/provider zincirini de uyandırabildiği için ana
+  actor üzerinde çalıştırılmaz. Keşif utility-priority detached işte normalize
+  `MicrophoneDevice` değerlerine dönüştürülür; yalnız sonuç ana actor üzerinden yayınlanır.
+  CMIO provider'ı gecikir veya geçersiz bağlantı döndürürse notch UI ve toplantı detayı
+  bekletilmez. Audio discovery için yalnız `.microphone` device type kullanılır; daha geniş
+  `.external` taraması eklenmez. AVFoundation bu dar kapsamda da CMIO provider'larını
+  başlatabildiğinden sistem logları tamamen kaybolmayabilir; güvenlik sınırı UI izolasyonudur.
 - Kullanıcı tercihi cihazın kararlı AVFoundation `uniqueID` değeri olarak yerel ayar
   belgesinde saklanır; `nil` sistem varsayılanını ifade eder. Eski ayar belgelerinde alanın
   bulunmaması geriye uyumlu biçimde sistem varsayılanına karşılık gelir.
@@ -268,11 +293,23 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 
 - `AppDelegate` repository işlemlerini koordine eder; notch view'ları doğrudan dosya
   sistemine erişmez. `AppState`, aktif/arşiv görevlerini ve kompakt rozet sayısını yayınlar.
-- Toplantı satırı AppKit tarafından tutulan ayrı bir SwiftUI detay penceresi açar. Detay
-  penceresi normalize transcript'i ve birleşik audio URL'sini alır; dosya silme, Finder,
-  retry ve pano aksiyonlarını coordinator closure'ları üzerinden yürütür.
+- Toplantı satırı ayrı pencere açmaz; `AppDelegate` repository'den normalize transcript,
+  kalıcı Markdown ve birleşik audio URL'sini yükleyip `AppState` üzerindeki geçici detail
+  içeriğine taşır. Geniş notch paneli sekmelerden toplantı detail drill-down'ına akışkan
+  geçer; geri aksiyonu kullanıcıyı aynı panelde geçmiş listesine döndürür.
+- Detail üst satırında düz metin ve Markdown pano aksiyonları doğrudan erişilebilirdir.
+  Markdown dosyası kaydetme, Finder, retry ve silme gibi seyrek/dış etki üreten işlemler tek
+  taşma menüsünde toplanır ve coordinator closure'ları üzerinden yürür; notch view'ları dosya
+  sistemine doğrudan erişmez.
+- Görevler yüzeyi iç içe kart kullanmaz; sabit ikon kolonu, divider tabanlı satırlar, sans
+  başlık ve mono tarih/sayaç rolleriyle toplantı listesiyle aynı optik grid'i paylaşır.
+  Tamamlama/geri alma satırın birincil kontrolüdür. Düzenleme context menu ile erişilebilir;
+  silme ve arşiv temizleme görünür satır ikonları yerine context/taşma menüsünden açılır ve
+  kalıcı işlemden önce onay ister.
 - AVPlayer tabanlı audio controller timestamp seek ve süre ilerlemesini yönetir. Segmentler
-  uzun transcript'te eager view üretmemek için `ScrollView` içindeki `LazyVStack` ile çizilir.
+  520 px'e kadar genişleyen detail panelindeki uzun transcript'te eager view üretmemek için
+  `ScrollView` içindeki
+  `LazyVStack` ile çizilir.
 
 ## Transkripsiyon sınırı
 
@@ -332,5 +369,7 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 - Gerçek sistem sesi testi aynı opt-in anahtarıyla harici bir sistem sesi oynatır ve
   `SystemAudioCaptureSource` çıktısının seviye, timestamp, süre, audio track ve M4A dosya
   bütünlüğünü doğrular; normal regresyon koşularında TCC istemi oluşturmamak için atlanır.
-- Gerçek client privacy testi opt-in çalışır: Zoom çağrısında mute/unmute ve hang-up
-  geçişlerini, meeting process-scope tap'i ve canary phrase sızıntısını birlikte doğrular.
+- Gerçek client privacy testleri opt-in çalışır: Zoom ile Google Meet/Chrome çağrılarında
+  mute/unmute ve hang-up geçişlerini, güvenli system-audio kapsamını, canary phrase
+  sızıntısını ve Google Meet için toplantı dışı sekme canary-audio izolasyonunu birlikte
+  doğrular.

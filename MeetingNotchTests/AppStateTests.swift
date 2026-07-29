@@ -59,6 +59,34 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(state.notchPanelAvailableSize, CGSize(width: 800, height: 600))
     }
 
+    func testMeetingDetailDrillsDownInsideMeetingsTabAndClosesWhenMeetingIsRemoved() {
+        let state = AppState()
+        let meeting = StoredMeeting(
+            id: UUID(),
+            title: "Planlama",
+            startedAt: Date(timeIntervalSince1970: 100),
+            endedAt: Date(timeIntervalSince1970: 160),
+            sourceMeeting: nil,
+            audioFileName: "meeting.m4a"
+        )
+        let content = MeetingDetailContent(
+            meeting: meeting,
+            storedTranscription: nil,
+            markdown: nil,
+            audioURL: URL(fileURLWithPath: "/tmp/meeting.m4a")
+        )
+        state.selectedTab = .tasks
+
+        state.presentMeetingDetail(content)
+
+        XCTAssertEqual(state.selectedTab, .meetings)
+        XCTAssertEqual(state.presentedMeetingDetail?.id, meeting.id)
+
+        state.removeStoredMeeting(id: meeting.id)
+
+        XCTAssertNil(state.presentedMeetingDetail)
+    }
+
     func testRecordingPreparationStartsOnlyFromIdle() {
         let state = AppState()
 

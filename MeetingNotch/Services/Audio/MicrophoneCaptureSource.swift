@@ -144,7 +144,7 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
 
     private func availableDevices() -> [AVCaptureDevice] {
         AVCaptureDevice.DiscoverySession(
-            deviceTypes: [.microphone, .external],
+            deviceTypes: [.microphone],
             mediaType: .audio,
             position: .unspecified
         ).devices.filter(\.isConnected)

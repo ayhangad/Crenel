@@ -21,7 +21,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var screenParametersObservation: AnyCancellable?
     private var accessibilityDisplayObservation: AnyCancellable?
     private var activeNotchScreen: NSScreen?
-    private var meetingDetailWindows: [UUID: NSWindowController] = [:]
     private var onboardingWindowController: NSWindowController?
     private let notchScreenResolver = NotchScreenResolver()
     private let audioPermissionService = AudioCapturePermissionService()
@@ -89,6 +88,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.recover(from: failure)
                 },
                 onOpenStoredMeeting: { [weak self] meeting in self?.openStoredMeeting(meeting) },
+                onCopyText: { [weak self] text in self?.copyToPasteboard(text) },
+                onExportMarkdown: { [weak self] markdown, meeting in
+                    self?.exportMarkdown(markdown, for: meeting)
+                },
+                onRevealAudio: { url in
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                },
                 onDeleteStoredMeeting: { [weak self] meeting in self?.deleteStoredMeeting(meeting) },
                 onRetryStoredMeeting: { [weak self] meeting in self?.retryProcessing(meeting) },
                 onOpenRecovery: { [weak self] in self?.openRecoveryDirectory() },
@@ -281,13 +287,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func loadMicrophoneSettings() async -> MicrophoneSettingsSnapshot {
         let preferences = (try? await appSettingsRepository.load()) ?? .default
         return MicrophoneSettingsSnapshot(
-            devices: microphoneDeviceService.currentDevices(),
+            devices: await microphoneDeviceService.currentDevices(),
             selectedDeviceID: preferences.selectedMicrophoneID
         )
     }
 
     func saveMicrophoneSelection(_ deviceID: String?) async -> SettingsActionResult {
-        let devices = microphoneDeviceService.currentDevices()
+        let devices = await microphoneDeviceService.currentDevices()
         if let deviceID, !devices.contains(where: { $0.id == deviceID }) {
             return .failed(message: "Seçilen mikrofon artık bağlı değil. Listeyi yenileyin.")
         }
@@ -368,8 +374,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.processingTask = nil
         processingRestartRequested = false
         meetingMonitor.stop()
-        meetingDetailWindows.values.forEach { $0.close() }
-        meetingDetailWindows.removeAll()
+        appState.dismissMeetingDetail()
 
         var keychainDeletionFailed = false
         do {
@@ -873,59 +878,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 markdown = nil
             }
-            self.presentMeetingDetail(
-                meeting,
-                transcription: transcription,
-                markdown: markdown,
-                audioURL: audioURL
+            self.appState.presentMeetingDetail(
+                MeetingDetailContent(
+                    meeting: meeting,
+                    storedTranscription: transcription,
+                    markdown: markdown,
+                    audioURL: audioURL
+                )
             )
         }
     }
 
-    private func presentMeetingDetail(
-        _ meeting: StoredMeeting,
-        transcription: StoredTranscription?,
-        markdown: String?,
-        audioURL: URL
-    ) {
-        meetingDetailWindows[meeting.id]?.close()
-
-        let rootView = MeetingDetailView(
-            meeting: meeting,
-            storedTranscription: transcription,
-            markdown: markdown,
-            audioURL: audioURL,
-            onCopyTranscript: { text in
-                let pasteboard = NSPasteboard.general
-                pasteboard.clearContents()
-                pasteboard.setString(text, forType: .string)
-            },
-            onExportMarkdown: { [weak self] markdown in
-                self?.exportMarkdown(markdown, for: meeting)
-            },
-            onRevealAudio: { url in
-                NSWorkspace.shared.activateFileViewerSelecting([url])
-            },
-            onRetry: { [weak self] meeting in
-                self?.retryProcessing(meeting)
-            },
-            onDelete: { [weak self] meeting in
-                self?.deleteStoredMeetingConfirmed(meeting)
-            }
-        )
-        let hostingController = NSHostingController(rootView: rootView)
-        let window = NSWindow(contentViewController: hostingController)
-        window.title = meeting.title
-        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
-        window.setContentSize(NSSize(width: 820, height: 680))
-        window.minSize = NSSize(width: 680, height: 560)
-        window.center()
-        window.isReleasedWhenClosed = false
-
-        let controller = NSWindowController(window: window)
-        meetingDetailWindows[meeting.id] = controller
-        controller.showWindow(nil)
-        NSApp.activate(ignoringOtherApps: true)
+    private func copyToPasteboard(_ text: String) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
     }
 
     private func exportMarkdown(_ markdown: String, for meeting: StoredMeeting) {
@@ -977,7 +944,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try await self.meetingRepository.delete(id: meeting.id)
                 try? await self.processingQueue.remove(meetingID: meeting.id)
                 self.appState.removeStoredMeeting(id: meeting.id)
-                self.meetingDetailWindows.removeValue(forKey: meeting.id)?.close()
             } catch {
                 AppLogger.persistenceFailed(
                     operation: "delete-meeting",
@@ -1057,6 +1023,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             appState.processingBeganSummarizing()
         case .completed(let meeting):
             appState.processingCompleted(meeting)
+            if appState.presentedMeetingDetail?.id == meeting.id {
+                openStoredMeeting(meeting)
+            }
             if appState.processingJobs.isEmpty {
                 presentTransientStatus(appState.meetingFlow)
             }

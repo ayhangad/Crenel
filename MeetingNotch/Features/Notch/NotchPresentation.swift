@@ -56,10 +56,11 @@ struct NotchStatusResolver {
 }
 
 struct NotchPanelLayout: Equatable {
-    static let preferredWidth: CGFloat = 420
+    static let preferredWidth: CGFloat = 424
+    static let preferredDetailWidth: CGFloat = 520
     static let minimumWidth: CGFloat = 320
-    static let preferredContentHeight: CGFloat = 500
-    static let minimumContentHeight: CGFloat = 230
+    static let preferredContentHeight: CGFloat = 600
+    static let minimumContentHeight: CGFloat = 200
 
     let width: CGFloat
     let maximumContentHeight: CGFloat
@@ -69,10 +70,13 @@ struct NotchPanelLayout: Equatable {
         self.maximumContentHeight = maximumContentHeight
     }
 
-    init(availableSize: CGSize) {
+    init(
+        availableSize: CGSize,
+        preferredWidth: CGFloat = Self.preferredWidth
+    ) {
         let availableWidth = max(0, availableSize.width - 32)
         let availableContentHeight = max(0, availableSize.height - 150)
-        width = min(Self.preferredWidth, availableWidth)
+        width = min(preferredWidth, availableWidth)
         maximumContentHeight = min(Self.preferredContentHeight, availableContentHeight)
     }
 }

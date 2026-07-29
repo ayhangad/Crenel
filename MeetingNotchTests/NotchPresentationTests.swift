@@ -91,7 +91,14 @@ final class NotchPresentationTests: XCTestCase {
     func testPanelUsesPreferredSizeOnLargeScreenAndStaysWithinSmallScreen() {
         XCTAssertEqual(
             NotchPanelLayout(availableSize: CGSize(width: 1_440, height: 900)),
-            NotchPanelLayout(width: 420, maximumContentHeight: 500)
+            NotchPanelLayout(width: 424, maximumContentHeight: 600)
+        )
+        XCTAssertEqual(
+            NotchPanelLayout(
+                availableSize: CGSize(width: 1_440, height: 900),
+                preferredWidth: 520
+            ),
+            NotchPanelLayout(width: 520, maximumContentHeight: 600)
         )
 
         let constrained = NotchPanelLayout(availableSize: CGSize(width: 360, height: 500))

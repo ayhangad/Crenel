@@ -32,6 +32,7 @@ final class AppState: ObservableObject {
     @Published private(set) var recordingRecoverySummary: RecordingRecoverySummary?
     @Published private(set) var processingJobs: [ProcessingJob] = []
     @Published private(set) var tasks: [TaskItem] = []
+    @Published private(set) var presentedMeetingDetail: MeetingDetailContent?
 
     private var flowMachine: MeetingFlowMachine
     private var suppressedReminderKey: String?
@@ -100,6 +101,18 @@ final class AppState: ObservableObject {
         if lastStoredMeeting?.id == id {
             lastStoredMeeting = nil
         }
+        if presentedMeetingDetail?.id == id {
+            presentedMeetingDetail = nil
+        }
+    }
+
+    func presentMeetingDetail(_ content: MeetingDetailContent) {
+        selectedTab = .meetings
+        presentedMeetingDetail = content
+    }
+
+    func dismissMeetingDetail() {
+        presentedMeetingDetail = nil
     }
 
     func replaceProcessingJobs(_ jobs: [ProcessingJob]) {
@@ -257,6 +270,7 @@ final class AppState: ObservableObject {
         processingJobs = []
         tasks = []
         recordingRecoverySummary = nil
+        presentedMeetingDetail = nil
         refreshTaskCount()
         if !meetingFlow.requiresTerminationConfirmation {
             send(.reset)
@@ -344,6 +358,15 @@ final class AppState: ObservableObject {
         if let lastStoredMeeting,
            let updated = storedMeetings.first(where: { $0.id == lastStoredMeeting.id }) {
             self.lastStoredMeeting = updated
+        }
+        if let detail = presentedMeetingDetail,
+           let updated = storedMeetings.first(where: { $0.id == detail.id }) {
+            presentedMeetingDetail = MeetingDetailContent(
+                meeting: updated,
+                storedTranscription: detail.storedTranscription,
+                markdown: detail.markdown,
+                audioURL: detail.audioURL
+            )
         }
     }
 

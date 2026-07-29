@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TasksView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var newTaskTitle = ""
     @State private var showsArchive = false
     @State private var taskPendingDeletion: TaskItem?
@@ -15,42 +16,20 @@ struct TasksView: View {
     let onDeleteArchive: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
             header
             addField
+            activeSection
 
-            ScrollView {
-                LazyVStack(spacing: 8) {
-                    if appState.activeTasks.isEmpty {
-                        emptyState
-                    } else {
-                        ForEach(appState.activeTasks) { task in
-                            TaskRowView(
-                                task: task,
-                                onUpdate: onUpdate,
-                                onPrimaryAction: { onComplete(task) },
-                                onDelete: { taskPendingDeletion = task }
-                            )
-                        }
-                    }
-
-                    if !appState.archivedTasks.isEmpty {
-                        archiveSection
-                    }
-                }
+            if !appState.archivedTasks.isEmpty {
+                archiveSection
             }
-            .frame(maxHeight: 330)
         }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.055))
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.075), lineWidth: 1)
-        }
-        .alert("Görev silinsin mi?", isPresented: deleteTaskAlertBinding, presenting: taskPendingDeletion) { task in
+        .alert(
+            "Görev silinsin mi?",
+            isPresented: deleteTaskAlertBinding,
+            presenting: taskPendingDeletion
+        ) { task in
             Button("Sil", role: .destructive) { onDelete(task) }
             Button("Vazgeç", role: .cancel) {}
         } message: { task in
@@ -62,97 +41,205 @@ struct TasksView: View {
         } message: {
             Text("\(appState.archivedTasks.count) arşivlenmiş görev kalıcı olarak silinecek.")
         }
+        .animation(
+            reduceMotion ? nil : .smooth(duration: 0.2),
+            value: showsArchive
+        )
     }
 
     private var header: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.mint)
-                .frame(width: 42, height: 42)
-                .background(.mint.opacity(0.14), in: RoundedRectangle(cornerRadius: 12))
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Görevler")
-                    .font(.system(size: 16, weight: .semibold))
-                Text("\(appState.activeTaskCount) aktif · \(appState.archivedTasks.count) arşiv")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("Görevler")
+                .font(MeetingNotchTheme.titleFont)
 
             Spacer()
+
+            HStack(spacing: 6) {
+                Text("\(appState.activeTaskCount)")
+                    .foregroundStyle(MeetingNotchTheme.success)
+                Text("AKTİF")
+                    .foregroundStyle(.secondary)
+                Text("/")
+                    .foregroundStyle(.quaternary)
+                Text("\(appState.archivedTasks.count)")
+                    .foregroundStyle(.secondary)
+                Text("ARŞİV")
+                    .foregroundStyle(.tertiary)
+            }
+            .font(MeetingNotchTheme.metadataFont.monospacedDigit())
         }
+        .padding(.horizontal, 2)
     }
 
     private var addField: some View {
         HStack(spacing: 8) {
+            Image(systemName: "plus")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(
+                    canAdd
+                        ? MeetingNotchTheme.accent
+                        : Color.secondary.opacity(0.45)
+                )
+                .frame(width: 16)
+
             TextField("Yeni görev ekle", text: $newTaskTitle)
+                .font(MeetingNotchTheme.bodyFont)
                 .textFieldStyle(.plain)
                 .onSubmit(addTask)
                 .accessibilityLabel("Yeni görev başlığı")
 
             Button(action: addTask) {
-                Image(systemName: "plus")
-                    .font(.system(size: 13, weight: .bold))
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
+                Image(systemName: "arrow.up")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(canAdd ? Color.white : Color.secondary)
-            .background(canAdd ? Color.accentColor : Color.white.opacity(0.06), in: Circle())
+            .buttonStyle(
+                MeetingNotchIconButtonStyle(
+                    tint: MeetingNotchTheme.accent,
+                    isActive: canAdd
+                )
+            )
             .disabled(!canAdd)
             .accessibilityLabel("Görevi ekle")
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 5)
-        .frame(minHeight: 42)
-        .background(Color.white.opacity(0.065), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.leading, 10)
+        .padding(.trailing, 4)
+        .frame(minHeight: 40)
+        .background(
+            MeetingNotchTheme.surface,
+            in: RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.surfaceRadius,
+                style: .continuous
+            )
+        )
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.surfaceRadius,
+                style: .continuous
+            )
+            .stroke(MeetingNotchTheme.hairline, lineWidth: 1)
+        }
     }
 
-    private var emptyState: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(.mint)
-            Text("Aktif görev yok — yenisini yukarıdan ekleyebilirsiniz.")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+    private var activeSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            sectionHeader(
+                title: "Aktif görevler",
+                count: appState.activeTasks.count
+            )
+
+            if appState.activeTasks.isEmpty {
+                HStack(spacing: 10) {
+                    Image(systemName: "circle.dashed")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 18)
+
+                    Text("Aktif görev yok")
+                        .font(MeetingNotchTheme.bodyFont)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 4)
+                .frame(minHeight: 46)
+            } else {
+                taskList(
+                    appState.activeTasks,
+                    primaryAction: onComplete
+                )
+            }
         }
-        .padding(.horizontal, 12)
-        .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var archiveSection: some View {
-        DisclosureGroup(isExpanded: $showsArchive) {
-            LazyVStack(spacing: 7) {
-                ForEach(appState.archivedTasks) { task in
-                    TaskRowView(
-                        task: task,
-                        onUpdate: onUpdate,
-                        onPrimaryAction: { onRestore(task) },
-                        onDelete: { taskPendingDeletion = task }
-                    )
-                }
-
-                Button(role: .destructive) {
-                    showsDeleteArchiveConfirmation = true
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Button {
+                    showsArchive.toggle()
                 } label: {
-                    Label("Arşivi temizle", systemImage: "trash")
-                        .font(.caption.weight(.medium))
-                        .frame(maxWidth: .infinity, minHeight: 36)
+                    HStack(spacing: 7) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .bold))
+                            .rotationEffect(.degrees(showsArchive ? 90 : 0))
+
+                        Text("Arşiv")
+                            .font(MeetingNotchTheme.sectionTitleFont)
+
+                        Text("\(appState.archivedTasks.count)")
+                            .font(MeetingNotchTheme.dataFont.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                    }
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(.red)
-                .background(.red.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                .accessibilityLabel(
+                    showsArchive
+                        ? "Görev arşivini daralt"
+                        : "Görev arşivini genişlet"
+                )
+
+                Menu {
+                    Button("Arşivi temizle", systemImage: "trash", role: .destructive) {
+                        showsDeleteArchiveConfirmation = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 28, height: 28)
+                .help("Arşiv seçenekleri")
+                .accessibilityLabel("Arşiv seçenekleri")
             }
-            .padding(.top, 8)
-        } label: {
-            Label("Arşiv (\(appState.archivedTasks.count))", systemImage: "archivebox")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.secondary)
+            .padding(.horizontal, 2)
+
+            if showsArchive {
+                taskList(
+                    appState.archivedTasks,
+                    primaryAction: onRestore
+                )
+                .transition(
+                    reduceMotion
+                        ? .opacity
+                        : .opacity.combined(with: .offset(y: -6))
+                )
+            }
         }
-        .padding(10)
-        .background(Color.white.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func sectionHeader(title: String, count: Int) -> some View {
+        HStack {
+            Text(title)
+                .font(MeetingNotchTheme.sectionTitleFont)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text("\(count)")
+                .font(MeetingNotchTheme.dataFont.monospacedDigit())
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 2)
+    }
+
+    private func taskList(
+        _ tasks: [TaskItem],
+        primaryAction: @escaping (TaskItem) -> Void
+    ) -> some View {
+        LazyVStack(spacing: 0) {
+            ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
+                TaskRowView(
+                    task: task,
+                    onUpdate: onUpdate,
+                    onPrimaryAction: { primaryAction(task) },
+                    onDelete: { taskPendingDeletion = task }
+                )
+
+                if index < tasks.count - 1 {
+                    Divider()
+                        .overlay(MeetingNotchTheme.subtleHairline)
+                        .padding(.leading, 30)
+                }
+            }
+        }
+        .padding(.horizontal, 2)
     }
 
     private var canAdd: Bool {
@@ -180,6 +267,7 @@ private struct TaskRowView: View {
     let onDelete: () -> Void
 
     @State private var isEditing = false
+    @State private var isHovering = false
     @State private var draftTitle: String
 
     init(
@@ -196,68 +284,113 @@ private struct TaskRowView: View {
     }
 
     var body: some View {
-        HStack(spacing: 7) {
+        HStack(spacing: 10) {
             Button(action: onPrimaryAction) {
-                Image(systemName: task.isArchived ? "arrow.uturn.backward.circle" : "circle")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(task.isArchived ? Color.secondary : Color.mint)
-                    .frame(width: 32, height: 32)
+                Image(systemName: task.isArchived ? "arrow.uturn.backward" : "circle")
+                    .font(.system(size: task.isArchived ? 10 : 13, weight: .semibold))
+                    .foregroundStyle(task.isArchived ? Color.secondary : MeetingNotchTheme.success)
+                    .frame(width: 28, height: 32)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help(task.isArchived ? "Aktife geri al" : "Tamamla ve arşivle")
+            .accessibilityLabel(task.isArchived ? "Görevi aktife geri al" : "Görevi tamamla")
 
             if isEditing {
                 TextField("Görev başlığı", text: $draftTitle)
+                    .font(MeetingNotchTheme.rowTitleFont)
                     .textFieldStyle(.plain)
                     .onSubmit(commitEdit)
+
+                Button(action: cancelEdit) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(MeetingNotchIconButtonStyle())
+                .accessibilityLabel("Düzenlemeyi iptal et")
+
+                Button(action: commitEdit) {
+                    Image(systemName: "checkmark")
+                }
+                .buttonStyle(
+                    MeetingNotchIconButtonStyle(
+                        tint: MeetingNotchTheme.success,
+                        isActive: true
+                    )
+                )
+                .disabled(TaskItem.normalizedTitle(draftTitle) == nil)
+                .accessibilityLabel("Düzenlemeyi kaydet")
             } else {
                 Button {
                     isEditing = true
                 } label: {
-                    Text(task.title)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(task.isArchived ? .secondary : .primary)
-                        .strikethrough(task.isArchived)
-                        .lineLimit(2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(task.title)
+                            .font(MeetingNotchTheme.rowTitleFont)
+                            .foregroundStyle(task.isArchived ? .secondary : .primary)
+                            .strikethrough(task.isArchived)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Text(metadataText.uppercased())
+                            .font(MeetingNotchTheme.metadataFont.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Düzenlemek için tıklayın")
             }
-
-            if isEditing {
-                Button(action: commitEdit) {
-                    Image(systemName: "checkmark")
-                        .frame(width: 30, height: 30)
-                }
-                .buttonStyle(.plain)
-                .disabled(TaskItem.normalizedTitle(draftTitle) == nil)
-                .accessibilityLabel("Düzenlemeyi kaydet")
-            }
-
-            Button(role: .destructive, action: onDelete) {
-                Image(systemName: "trash")
-                    .frame(width: 30, height: 30)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.red.opacity(0.75))
-            .accessibilityLabel("\(task.title) görevini sil")
         }
-        .padding(.horizontal, 5)
-        .frame(minHeight: 42)
-        .background(Color.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 11))
+        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
+        .frame(minHeight: 50)
+        .background(
+            isHovering ? MeetingNotchTheme.surface : .clear,
+            in: RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.controlRadius,
+                style: .continuous
+            )
+        )
+        .onHover { isHovering = $0 }
         .onChange(of: task.title) { _, newValue in
             if !isEditing { draftTitle = newValue }
         }
+        .contextMenu {
+            Button(
+                task.isArchived ? "Aktife geri al" : "Tamamla",
+                systemImage: task.isArchived ? "arrow.uturn.backward" : "checkmark",
+                action: onPrimaryAction
+            )
+
+            if !task.isArchived {
+                Button("Düzenle", systemImage: "pencil") {
+                    isEditing = true
+                }
+            }
+
+            Divider()
+
+            Button("Görevi sil", systemImage: "trash", role: .destructive, action: onDelete)
+        }
+    }
+
+    private var metadataText: String {
+        if let completedAt = task.completedAt {
+            return "Tamamlandı \(completedAt.formatted(date: .abbreviated, time: .shortened))"
+        }
+        return "Eklendi \(task.createdAt.formatted(date: .abbreviated, time: .shortened))"
     }
 
     private func commitEdit() {
         guard let title = TaskItem.normalizedTitle(draftTitle) else { return }
         onUpdate(task, title)
         draftTitle = title
+        isEditing = false
+    }
+
+    private func cancelEdit() {
+        draftTitle = task.title
         isEditing = false
     }
 }

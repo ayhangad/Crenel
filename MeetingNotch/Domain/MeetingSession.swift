@@ -6,6 +6,12 @@ enum MeetingClientID: String, Codable, CaseIterable, Equatable, Sendable {
     case unsupported
 }
 
+enum MeetingMicrophoneState: String, Codable, Equatable, Sendable {
+    case open
+    case closed
+    case unknown
+}
+
 enum DetectionConfidence: Int, Codable, Comparable, Equatable, Sendable {
     case unknown
     case probable
