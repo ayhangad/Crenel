@@ -5,6 +5,8 @@ struct SettingsView: View {
 
     let onRequestMicrophoneAccess: () -> Void
     let onRequestSystemAudioAccess: () -> Void
+    let onRequestAccessibilityAccess: () -> Void
+    let onOpenAccessibilitySettings: () -> Void
     let onOpenSystemSettings: (AudioSourceKind) -> Void
     let onRelaunchApplication: () -> Void
     let onRefreshPermissions: () -> Void
@@ -51,6 +53,8 @@ struct SettingsView: View {
     init(
         onRequestMicrophoneAccess: @escaping () -> Void = {},
         onRequestSystemAudioAccess: @escaping () -> Void = {},
+        onRequestAccessibilityAccess: @escaping () -> Void = {},
+        onOpenAccessibilitySettings: @escaping () -> Void = {},
         onOpenSystemSettings: @escaping (AudioSourceKind) -> Void = { _ in },
         onRelaunchApplication: @escaping () -> Void = {},
         onRefreshPermissions: @escaping () -> Void = {},
@@ -83,6 +87,8 @@ struct SettingsView: View {
     ) {
         self.onRequestMicrophoneAccess = onRequestMicrophoneAccess
         self.onRequestSystemAudioAccess = onRequestSystemAudioAccess
+        self.onRequestAccessibilityAccess = onRequestAccessibilityAccess
+        self.onOpenAccessibilitySettings = onOpenAccessibilitySettings
         self.onOpenSystemSettings = onOpenSystemSettings
         self.onRelaunchApplication = onRelaunchApplication
         self.onRefreshPermissions = onRefreshPermissions
@@ -188,10 +194,43 @@ struct SettingsView: View {
                     onOpenSystemSettings: onOpenSystemSettings,
                     onRelaunchApplication: onRelaunchApplication
                 )
+
+                AccessibilityPermissionRow(
+                    isGranted: appState.accessibilityPermissionGranted,
+                    onRequestAccess: onRequestAccessibilityAccess,
+                    onOpenSystemSettings: onOpenAccessibilitySettings
+                )
             } header: {
                 Text("Kayıt İzinleri")
             } footer: {
-                Text("MeetingNotch kayıt başlatmadan önce iki izni de yeniden kontrol eder. Sistem sesi iznini yeni verdiğiniz halde durum değişmiyorsa uygulamayı bir kez yeniden başlatın.")
+                Text("Mikrofon ve sistem sesi kayıt başlarken yeniden doğrulanır. Accessibility yalnız Zoom/Meet görüşme ve mute durumunu yerel okumak içindir; izin yoksa manuel kayıt gizlenmez ve mikrofon güvenli kapalı kalır.")
+            }
+
+            Section("Gizlilik Sınırı") {
+                LabeledContent("Toplantı mikrofonu") {
+                    Text("Her kayıtta kapalı başlar")
+                        .foregroundStyle(.secondary)
+                }
+                LabeledContent("Belirsiz mute durumu") {
+                    Text("Ses kayda alınmaz")
+                        .foregroundStyle(.secondary)
+                }
+                LabeledContent("Manuel kontrol") {
+                    Text("Notch veya ⌥⌘M")
+                        .font(.body.monospaced())
+                        .foregroundStyle(.secondary)
+                }
+                LabeledContent("Google Meet") {
+                    Text("Sekme izolasyonu yoksa fail-closed")
+                        .foregroundStyle(.secondary)
+                }
+                LabeledContent("Meet sekme bağlantısı") {
+                    Label(
+                        browserAudioStatusText,
+                        systemImage: browserAudioStatusSymbol
+                    )
+                    .foregroundStyle(browserAudioStatusColor)
+                }
             }
 
             Section {
@@ -201,7 +240,7 @@ struct SettingsView: View {
                 }
 
                 LabeledContent("Nerede çalışır?") {
-                    Text("ElevenLabs bulutu")
+                    Text("Yalnız ElevenLabs bulutu")
                         .foregroundStyle(.secondary)
                 }
 
@@ -247,7 +286,7 @@ struct SettingsView: View {
             } header: {
                 Text("Transkripsiyon")
             } footer: {
-                Text("MeetingNotch canlı transkript üretmez. Kaydı durdurduğunuzda mikrofon ve sistem sesi tek M4A dosyasında güvenceye alınır, ardından konuşmacı ayrımı ve zaman damgaları için ElevenLabs’e yüklenir. Anahtar önce doğrulanır ve yalnızca bu Mac’in Keychain’inde tutulur. Ağ ya da servis hatasında ses kaydı silinmez; tekrar deneyebilirsiniz.")
+                Text("MeetingNotch canlı transkript üretmez ve ikinci bir uzak servis kullanmaz. Kaydı durdurduğunuzda mikrofon ve sistem sesi tek M4A dosyasında güvenceye alınır, ardından konuşmacı ayrımı ve zaman damgaları için ElevenLabs Scribe v2’ye yüklenir. Tek anahtar önce doğrulanır ve yalnızca bu Mac’in Keychain’inde tutulur. Ağ ya da servis hatasında ses kaydı silinmez; tekrar deneyebilirsiniz.")
             }
 
             Section {
@@ -314,6 +353,33 @@ struct SettingsView: View {
             Button("Kalıcı Olarak Sil", role: .destructive) { deleteAllData() }
         } message: {
             Text("Toplantılar, ses kayıtları, transkriptler, görevler, ayarlar ve Keychain’deki ElevenLabs anahtarı kalıcı olarak silinecek. Bu işlem geri alınamaz.")
+        }
+    }
+
+    private var browserAudioStatusText: String {
+        switch appState.browserAudioConnectionStatus {
+        case .unavailable: "Kullanılamıyor"
+        case .waitingForMeetTab: "Meet sekmesi bekleniyor"
+        case .tabConnected: "Sekme bağlı"
+        case .recording: "Kayıt hattına bağlı"
+        }
+    }
+
+    private var browserAudioStatusSymbol: String {
+        switch appState.browserAudioConnectionStatus {
+        case .unavailable: "exclamationmark.shield.fill"
+        case .waitingForMeetTab: "puzzlepiece.extension"
+        case .tabConnected: "checkmark.shield.fill"
+        case .recording: "record.circle.fill"
+        }
+    }
+
+    private var browserAudioStatusColor: Color {
+        switch appState.browserAudioConnectionStatus {
+        case .unavailable: .red
+        case .waitingForMeetTab: .secondary
+        case .tabConnected: .green
+        case .recording: .red
         }
     }
 
@@ -560,7 +626,7 @@ private struct PermissionRow: View {
         }
         .padding(.vertical, 4)
         .frame(minHeight: 40)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityValue(statusTitle)
     }
 
@@ -593,5 +659,53 @@ private struct PermissionRow: View {
         case .verificationRequired, .notDetermined: .orange
         case .denied, .restricted: .red
         }
+    }
+}
+
+private struct AccessibilityPermissionRow: View {
+    let isGranted: Bool
+    let onRequestAccess: () -> Void
+    let onOpenSystemSettings: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: isGranted ? "checkmark" : "exclamationmark")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(isGranted ? .green : .orange)
+                .frame(width: 28, height: 28)
+                .background(
+                    (isGranted ? Color.green : Color.orange).opacity(0.12),
+                    in: Circle()
+                )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Accessibility")
+                    .font(.body.weight(.medium))
+                Text("Zoom/Meet call controls ve mute durumunu yerel okur; UI metni saklanmaz.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 16)
+
+            if isGranted {
+                Label("Hazır", systemImage: "checkmark")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.green)
+            } else {
+                HStack(spacing: 8) {
+                    Button("İzin Ver", action: onRequestAccess)
+                    Button("Ayarları Aç", action: onOpenSystemSettings)
+                }
+                .controlSize(.large)
+            }
+        }
+        .padding(.vertical, 4)
+        .frame(minHeight: 44)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(
+            isGranted ? "İzin verildi" : "İzin verilmedi; mikrofon güvenli kapalı"
+        )
     }
 }

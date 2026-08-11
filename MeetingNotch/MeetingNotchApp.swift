@@ -22,6 +22,11 @@ struct MeetingNotchApp: App {
             }
             .keyboardShortcut("r")
 
+            Button("Toplantı Mikrofonunu Aç/Kapat", systemImage: "mic.badge.plus") {
+                appDelegate.toggleMeetingMicrophoneGate()
+            }
+            .keyboardShortcut("m", modifiers: [.command, .option])
+
             Button("Takvimi Yenile", systemImage: "calendar.badge.clock") {
                 appDelegate.refreshCalendar()
             }
@@ -46,9 +51,14 @@ struct MeetingNotchApp: App {
             SettingsView(
                 onRequestMicrophoneAccess: appDelegate.requestMicrophoneAccess,
                 onRequestSystemAudioAccess: appDelegate.requestSystemAudioAccess,
+                onRequestAccessibilityAccess: appDelegate.requestAccessibilityAccess,
+                onOpenAccessibilitySettings: appDelegate.openAccessibilitySettings,
                 onOpenSystemSettings: appDelegate.openSystemSettings,
                 onRelaunchApplication: appDelegate.relaunchApplication,
-                onRefreshPermissions: appDelegate.refreshAudioPermissions,
+                onRefreshPermissions: {
+                    appDelegate.refreshAudioPermissions()
+                    appDelegate.refreshAccessibilityPermission()
+                },
                 onLoadGeneralSettings: appDelegate.loadGeneralSettings,
                 onSaveGeneralSettings: appDelegate.saveGeneralSettings,
                 onLoadMicrophoneSettings: appDelegate.loadMicrophoneSettings,

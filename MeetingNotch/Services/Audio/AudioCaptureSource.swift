@@ -10,3 +10,7 @@ protocol AudioCaptureSource: AnyObject {
     func stop() async throws -> CapturedAudioTrack
     func cancel() async
 }
+
+protocol MeetingMicrophoneGateUpdating: AnyObject {
+    func updateMicrophoneGate(_ gate: MeetingMicrophoneGate)
+}

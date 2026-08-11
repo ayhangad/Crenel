@@ -59,6 +59,26 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(state.notchPanelAvailableSize, CGSize(width: 800, height: 600))
     }
 
+    func testNotchPresentationPublishesPhysicalNotchAppearanceWithAvailableSize() {
+        let state = AppState()
+
+        state.updateNotchPanelPresentation(
+            availableSize: CGSize(width: 1_440, height: 900),
+            hasPhysicalNotch: true
+        )
+
+        XCTAssertEqual(state.notchPanelAvailableSize, CGSize(width: 1_440, height: 900))
+        XCTAssertTrue(state.notchPanelHasPhysicalNotch)
+
+        state.updateNotchPanelPresentation(
+            availableSize: CGSize(width: 1_920, height: 1_080),
+            hasPhysicalNotch: false
+        )
+
+        XCTAssertEqual(state.notchPanelAvailableSize, CGSize(width: 1_920, height: 1_080))
+        XCTAssertFalse(state.notchPanelHasPhysicalNotch)
+    }
+
     func testMeetingDetailDrillsDownInsideMeetingsTabAndClosesWhenMeetingIsRemoved() {
         let state = AppState()
         let meeting = StoredMeeting(
@@ -173,6 +193,21 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(state.lastRecordingResult, result)
     }
 
+    func testSafetyInterruptionAtomicallyWarnsAndMovesRecordingToFinalizing() {
+        let state = AppState()
+        let session = RecordingSession(startedAt: .now)
+        state.prepareForRecording()
+        state.recordingStarted(session)
+
+        XCTAssertTrue(state.stopRecordingForSafety(message: "Disk kritik"))
+
+        XCTAssertEqual(state.meetingFlow.phase, .finalizingAudio)
+        XCTAssertEqual(state.recordingSafetyMessage, "Disk kritik")
+        XCTAssertEqual(state.selectedTab, .meetings)
+        XCTAssertFalse(state.stopRecordingForSafety(message: "İkinci uyarı"))
+        XCTAssertEqual(state.recordingSafetyMessage, "Disk kritik")
+    }
+
     func testCompletedMeetingResolvesByFlowIdentifier() {
         let state = AppState()
         let session = RecordingSession(startedAt: .now)
@@ -249,5 +284,17 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.processingJobs.isEmpty)
         XCTAssertTrue(state.tasks.isEmpty)
         XCTAssertEqual(state.activeTaskCount, 0)
+    }
+
+    func testBrowserAudioConnectionStatusIsPublishedForVisibleFallbackUI() {
+        let state = AppState()
+
+        XCTAssertEqual(state.browserAudioConnectionStatus, .unavailable)
+        state.updateBrowserAudioConnectionStatus(.waitingForMeetTab)
+        XCTAssertEqual(state.browserAudioConnectionStatus, .waitingForMeetTab)
+        state.updateBrowserAudioConnectionStatus(.tabConnected)
+        XCTAssertEqual(state.browserAudioConnectionStatus, .tabConnected)
+        state.updateBrowserAudioConnectionStatus(.recording)
+        XCTAssertEqual(state.browserAudioConnectionStatus, .recording)
     }
 }

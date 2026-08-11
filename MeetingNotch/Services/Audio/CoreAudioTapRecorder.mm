@@ -27,11 +27,20 @@ struct RecorderState {
     AudioStreamBasicDescription clientFormat = {};
     std::atomic<float> currentLevel;
     std::atomic<double> firstSampleTime;
+    std::atomic<double> lastSampleTime;
     std::atomic<bool> hasCapturedAudio;
+    std::atomic<UInt64> capturedFrameCount;
+    std::atomic<bool> hasWriteError;
     bool isRunning = false;
     __strong NSURL *outputURL = nil;
 
-    RecorderState() : currentLevel(0), firstSampleTime(-1), hasCapturedAudio(false) {}
+    RecorderState()
+        : currentLevel(0),
+          firstSampleTime(-1),
+          lastSampleTime(-1),
+          hasCapturedAudio(false),
+          capturedFrameCount(0),
+          hasWriteError(false) {}
 };
 
 NSError *RecorderError(OSStatus status, NSString *message) {
@@ -122,14 +131,25 @@ OSStatus AudioInputCallback(
         return kAudioHardwareNoError;
     }
 
-    if (state->firstSampleTime.load(std::memory_order_relaxed) < 0 && inputTime != nullptr) {
+    if (inputTime != nullptr) {
         const auto seconds = static_cast<double>(AudioConvertHostTimeToNanos(inputTime->mHostTime))
             / 1'000'000'000.0;
-        state->firstSampleTime.store(seconds, std::memory_order_relaxed);
+        if (state->firstSampleTime.load(std::memory_order_relaxed) < 0) {
+            state->firstSampleTime.store(seconds, std::memory_order_relaxed);
+        }
+        const auto duration = state->clientFormat.mSampleRate > 0
+            ? static_cast<double>(frameCount) / state->clientFormat.mSampleRate
+            : 0;
+        state->lastSampleTime.store(seconds + duration, std::memory_order_relaxed);
     }
     state->hasCapturedAudio.store(true, std::memory_order_relaxed);
+    state->capturedFrameCount.fetch_add(frameCount, std::memory_order_relaxed);
     UpdateLevel(state, inputData);
-    return ExtAudioFileWriteAsync(state->audioFile, frameCount, inputData);
+    const auto status = ExtAudioFileWriteAsync(state->audioFile, frameCount, inputData);
+    if (status != kAudioHardwareNoError) {
+        state->hasWriteError.store(true, std::memory_order_relaxed);
+    }
+    return status;
 }
 
 void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
@@ -185,23 +205,61 @@ void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
     return _state->firstSampleTime.load(std::memory_order_relaxed);
 }
 
+- (NSTimeInterval)lastSampleTime {
+    return _state->lastSampleTime.load(std::memory_order_relaxed);
+}
+
 - (BOOL)hasCapturedAudio {
     return _state->hasCapturedAudio.load(std::memory_order_relaxed);
 }
 
-- (BOOL)prepareWithOutputURL:(NSURL *)outputURL error:(NSError **)error {
-    DestroyCaptureResources(_state, true);
-    _state->outputURL = outputURL;
-    _state->currentLevel.store(0, std::memory_order_relaxed);
-    _state->firstSampleTime.store(-1, std::memory_order_relaxed);
-    _state->hasCapturedAudio.store(false, std::memory_order_relaxed);
+- (unsigned long long)capturedFrameCount {
+    return _state->capturedFrameCount.load(std::memory_order_relaxed);
+}
 
+- (BOOL)hasWriteError {
+    return _state->hasWriteError.load(std::memory_order_relaxed);
+}
+
+- (BOOL)prepareWithOutputURL:(NSURL *)outputURL error:(NSError **)error {
     const auto ownProcess = CurrentProcessAudioObject();
     NSArray<NSNumber *> *excludedProcesses = ownProcess == kAudioObjectUnknown
         ? @[]
         : @[ @(ownProcess) ];
     CATapDescription *tapDescription =
         [[CATapDescription alloc] initStereoGlobalTapButExcludeProcesses:excludedProcesses];
+    return [self prepareWithOutputURL:outputURL tapDescription:tapDescription error:error];
+}
+
+- (BOOL)prepareWithOutputURL:(NSURL *)outputURL
+    includedProcessObjectIDs:(NSArray<NSNumber *> *)includedProcessObjectIDs
+                       error:(NSError **)error {
+    if (includedProcessObjectIDs.count == 0) {
+        if (error != nullptr) {
+            *error = RecorderError(
+                kAudioHardwareIllegalOperationError,
+                @"Toplantı sesi için doğrulanmış process bulunamadı."
+            );
+        }
+        return NO;
+    }
+    CATapDescription *tapDescription =
+        [[CATapDescription alloc] initStereoMixdownOfProcesses:includedProcessObjectIDs];
+    return [self prepareWithOutputURL:outputURL tapDescription:tapDescription error:error];
+}
+
+- (BOOL)prepareWithOutputURL:(NSURL *)outputURL
+              tapDescription:(CATapDescription *)tapDescription
+                       error:(NSError **)error {
+    DestroyCaptureResources(_state, true);
+    _state->outputURL = outputURL;
+    _state->currentLevel.store(0, std::memory_order_relaxed);
+    _state->firstSampleTime.store(-1, std::memory_order_relaxed);
+    _state->lastSampleTime.store(-1, std::memory_order_relaxed);
+    _state->hasCapturedAudio.store(false, std::memory_order_relaxed);
+    _state->capturedFrameCount.store(0, std::memory_order_relaxed);
+    _state->hasWriteError.store(false, std::memory_order_relaxed);
+
     tapDescription.name = @"MeetingNotch System Audio";
     [tapDescription setPrivate:YES];
     tapDescription.muteBehavior = CATapUnmuted;

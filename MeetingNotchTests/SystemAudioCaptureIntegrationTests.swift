@@ -9,10 +9,9 @@ final class SystemAudioCaptureIntegrationTests: XCTestCase {
     override func setUpWithError() throws {
         try super.setUpWithError()
 
-        guard ProcessInfo.processInfo.environment["MEETINGNOTCH_RUN_AUDIO_INTEGRATION_TESTS"] == "1" else {
+        guard AudioIntegrationTestOptIn.isEnabled else {
             throw XCTSkip(
-                "Gerçek sistem sesi testi opt-in çalışır: "
-                    + "MEETINGNOTCH_RUN_AUDIO_INTEGRATION_TESTS=1"
+                "Gerçek sistem sesi testi opt-in çalışır: Scripts/audio-integration-tests.sh"
             )
         }
 
@@ -33,7 +32,7 @@ final class SystemAudioCaptureIntegrationTests: XCTestCase {
 
     func testCapturesReadableM4AFromExternalSystemAudio() async throws {
         let outputURL = outputDirectory.appending(path: "system-audio-prototype.m4a")
-        let source = SystemAudioCaptureSource()
+        let source = SystemAudioCaptureSource(scope: .explicitManualGlobal)
         let levelProbe = SystemAudioLevelProbe()
         source.onLevelChange = { level in
             levelProbe.record(level)

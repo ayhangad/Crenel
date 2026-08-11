@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MeetingNotch</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="status-dot" aria-hidden="true"></span>
+        <div>
+          <h1>Google Meet sesi</h1>
+          <p id="status" role="status" aria-live="polite">Bağlantı denetleniyor…</p>
+        </div>
+      </header>
+
+      <section aria-labelledby="privacy-title">
+        <h2 id="privacy-title">Açık ve sınırlı ses erişimi</h2>
+        <p>
+          Yalnız o anda açık olan <strong>meet.google.com görüşme sekmesinin sesi</strong>
+          cihazınızdaki MeetingNotch uygulamasına aktarılır. Diğer sekmeler okunmaz veya
+          kaydedilmez.
+        </p>
+        <p>
+          MeetingNotch kayıt başlatıldığında sesi yerel toplantı dosyasına ekler. Kayıt
+          bittikten sonra birleşik ses, transkript üretmek için ElevenLabs Scribe v2’ye
+          gönderilebilir.
+        </p>
+      </section>
+
+      <p class="consent">
+        “Meet sekmesini bağla” düğmesine basarak seçili sekme sesinin yalnız bu amaçla
+        işlenmesini onaylarsınız.
+      </p>
+
+      <button id="capture-button" type="button" disabled>Meet sekmesini bağla</button>
+      <p id="error" class="error" role="alert" hidden></p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

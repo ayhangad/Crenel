@@ -1,0 +1,170 @@
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #111214;
+  color: #f4f5f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 344px;
+  background: #111214;
+}
+
+main {
+  padding: 14px;
+}
+
+header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #2b2d31;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #777b84;
+}
+
+body[data-state="active"] .status-dot {
+  background: #e14a4a;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+#status {
+  margin-top: 2px;
+  color: #aeb2ba;
+  font-size: 11px;
+}
+
+section {
+  padding: 13px 0 11px;
+}
+
+h2 {
+  margin-bottom: 7px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+section p,
+.consent,
+.error {
+  color: #bdc1c9;
+  font-size: 11px;
+  line-height: 1.42;
+}
+
+section p + p {
+  margin-top: 7px;
+}
+
+.consent {
+  padding: 10px;
+  border: 1px solid #30333a;
+  border-radius: 10px;
+  background: #181a1e;
+}
+
+button {
+  width: 100%;
+  min-height: 34px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 9px;
+  background: #f4f5f7;
+  color: #111214;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #ffffff;
+}
+
+button:focus-visible {
+  outline: 2px solid #8ab4f8;
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+body[data-state="active"] button {
+  border: 1px solid #41444b;
+  background: transparent;
+  color: #f4f5f7;
+}
+
+.error {
+  margin-top: 9px;
+  color: #ff8f8f;
+}
+
+@media (prefers-color-scheme: light) {
+  :root,
+  body {
+    background: #f7f7f8;
+    color: #17181a;
+  }
+
+  header {
+    border-color: #dedfe2;
+  }
+
+  #status,
+  section p,
+  .consent {
+    color: #555a63;
+  }
+
+  .consent {
+    border-color: #dedfe2;
+    background: #ffffff;
+  }
+
+  button {
+    background: #17181a;
+    color: #ffffff;
+  }
+
+  button:hover:not(:disabled) {
+    background: #2d2f33;
+  }
+
+  body[data-state="active"] button {
+    border-color: #c8cbd0;
+    color: #17181a;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  .status-dot {
+    transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+  }
+}

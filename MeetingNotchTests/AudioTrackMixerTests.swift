@@ -80,7 +80,8 @@ final class AudioTrackMixerTests: XCTestCase {
                 presentationTime: CMTime(
                     seconds: 10 + (Double(index) * 0.1),
                     preferredTimescale: 48_000
-                )
+                ),
+                microphoneGateState: .open
             )
         }
 
@@ -90,11 +91,72 @@ final class AudioTrackMixerTests: XCTestCase {
         let duration = try await asset.load(.duration).seconds
 
         XCTAssertEqual(try XCTUnwrap(firstSampleTime), 10, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(writer.lastSampleTime), 10.4, accuracy: 0.001)
         XCTAssertEqual(file.fileFormat.sampleRate, 48_000, accuracy: 0.1)
         XCTAssertEqual(file.fileFormat.channelCount, 1)
         XCTAssertGreaterThan(duration, 0.35)
         XCTAssertLessThan(duration, 0.50)
         XCTAssertGreaterThan(file.length, 0)
+    }
+
+    func testClockDriftPolicyCorrectsOnlyBoundedLongRunningDrift() {
+        let policy = AudioClockDriftPolicy()
+
+        XCTAssertEqual(
+            policy.playbackRate(
+                fileDuration: 3_603.6,
+                capturedTimelineDuration: 3_600
+            ),
+            1.001,
+            accuracy: 0.000_001
+        )
+        XCTAssertEqual(
+            policy.playbackRate(fileDuration: 30.1, capturedTimelineDuration: 30),
+            1
+        )
+        XCTAssertEqual(
+            policy.playbackRate(fileDuration: 3_700, capturedTimelineDuration: 3_600),
+            1
+        )
+    }
+
+    func testSoftLimiterPreservesNormalSamplesAndBoundsHotMixes() {
+        XCTAssertEqual(AudioSampleLimiter.limited(0.5), 0.5)
+        XCTAssertEqual(AudioSampleLimiter.limited(-0.5), -0.5)
+        XCTAssertLessThanOrEqual(AudioSampleLimiter.limited(1.5), 0.999)
+        XCTAssertGreaterThanOrEqual(AudioSampleLimiter.limited(-1.5), -0.999)
+        XCTAssertEqual(AudioSampleLimiter.limited(.infinity), 0)
+    }
+
+    func testMixerAppliesTimestampBasedDriftCorrectionToRenderedDuration() async throws {
+        let microphoneURL = temporaryDirectory.appending(path: "drift-microphone.m4a")
+        let systemURL = temporaryDirectory.appending(path: "drift-system.m4a")
+        try makeTone(at: microphoneURL, duration: 0.5, frequency: 440)
+        try makeTone(at: systemURL, duration: 0.5, frequency: 660)
+        let outputURL = temporaryDirectory.appending(path: "drift-recording.m4a")
+        let mixer = AudioTrackMixer(driftPolicy: AudioClockDriftPolicy(minimumDuration: 0))
+
+        _ = try await mixer.mix(
+            tracks: [
+                CapturedAudioTrack(
+                    source: .microphone,
+                    fileURL: microphoneURL,
+                    firstSampleTime: 10,
+                    lastSampleTime: 10.51
+                ),
+                CapturedAudioTrack(
+                    source: .systemAudio,
+                    fileURL: systemURL,
+                    firstSampleTime: 10,
+                    lastSampleTime: 10.51
+                )
+            ],
+            outputURL: outputURL
+        )
+
+        let duration = try await AVURLAsset(url: outputURL).load(.duration).seconds
+        XCTAssertGreaterThan(duration, 0.505)
+        XCTAssertLessThan(duration, 0.54)
     }
 
     private func makeTone(at url: URL, duration: TimeInterval, frequency: Double) throws {

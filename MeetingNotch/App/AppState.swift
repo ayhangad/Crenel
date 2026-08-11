@@ -12,6 +12,7 @@ final class AppState: ObservableObject {
     @Published var selectedTab: PanelTab = .meetings
     @Published private(set) var isNotchPinned = false
     @Published private(set) var notchPanelAvailableSize = CGSize(width: 1_024, height: 768)
+    @Published private(set) var notchPanelHasPhysicalNotch = false
     @Published private(set) var meetingFlow: MeetingFlowState
     @Published private(set) var activeTaskCount = 0
     @Published private(set) var userFacingFailure: AppFailure?
@@ -33,6 +34,12 @@ final class AppState: ObservableObject {
     @Published private(set) var processingJobs: [ProcessingJob] = []
     @Published private(set) var tasks: [TaskItem] = []
     @Published private(set) var presentedMeetingDetail: MeetingDetailContent?
+    @Published private(set) var meetingSessionDetection: MeetingSessionDetectionSnapshot?
+    @Published private(set) var meetingLifecyclePrompt: MeetingLifecyclePrompt?
+    @Published private(set) var meetingMicrophoneGate: MeetingMicrophoneGate?
+    @Published private(set) var recordingSafetyMessage: String?
+    @Published private(set) var accessibilityPermissionGranted = false
+    @Published private(set) var browserAudioConnectionStatus = BrowserAudioConnectionStatus.unavailable
 
     private var flowMachine: MeetingFlowMachine
     private var suppressedReminderKey: String?
@@ -67,12 +74,24 @@ final class AppState: ObservableObject {
 
     @discardableResult
     func prepareForRecording() -> Bool {
-        send(.requestedRecording)
+        let didPrepare = send(.requestedRecording)
+        if didPrepare {
+            recordingSafetyMessage = nil
+        }
+        return didPrepare
     }
 
     @discardableResult
     func stopRecording() -> Bool {
         send(.requestedStop)
+    }
+
+    @discardableResult
+    func stopRecordingForSafety(message: String) -> Bool {
+        guard meetingFlow.isRecording else { return false }
+        recordingSafetyMessage = message
+        selectedTab = .meetings
+        return send(.requestedStop)
     }
 
     func recordingStarted(_ session: RecordingSession) {
@@ -195,6 +214,18 @@ final class AppState: ObservableObject {
         notchPanelAvailableSize = size
     }
 
+    func updateNotchPanelPresentation(
+        availableSize: CGSize,
+        hasPhysicalNotch: Bool
+    ) {
+        updateNotchPanelAvailableSize(availableSize)
+        notchPanelHasPhysicalNotch = hasPhysicalNotch
+    }
+
+    func updateBrowserAudioConnectionStatus(_ status: BrowserAudioConnectionStatus) {
+        browserAudioConnectionStatus = status
+    }
+
     @discardableResult
     func toggleNotchPin() -> Bool {
         isNotchPinned.toggle()
@@ -224,6 +255,7 @@ final class AppState: ObservableObject {
 
     func cancelCurrentFlow() {
         recordingCaptureStatus = .idle
+        recordingSafetyMessage = nil
         send(.cancel)
     }
 
@@ -233,6 +265,7 @@ final class AppState: ObservableObject {
     }
 
     func resetFlow() {
+        recordingSafetyMessage = nil
         send(.reset)
     }
 
@@ -242,6 +275,28 @@ final class AppState: ObservableObject {
 
     func updateAudioCapturePermissions(_ permissions: AudioCapturePermissionSnapshot) {
         audioCapturePermissions = permissions
+    }
+
+    func updateMeetingSessionDetection(_ snapshot: MeetingSessionDetectionSnapshot) {
+        meetingSessionDetection = snapshot
+        AppLogger.meetingSessionUpdated(snapshot)
+    }
+
+    func presentMeetingLifecyclePrompt(_ prompt: MeetingLifecyclePrompt) {
+        meetingLifecyclePrompt = prompt
+        selectedTab = .meetings
+    }
+
+    func dismissMeetingLifecyclePrompt() {
+        meetingLifecyclePrompt = nil
+    }
+
+    func updateMeetingMicrophoneGate(_ gate: MeetingMicrophoneGate) {
+        meetingMicrophoneGate = gate
+    }
+
+    func updateAccessibilityPermission(granted: Bool) {
+        accessibilityPermissionGranted = granted
     }
 
     func replaceTasks(_ tasks: [TaskItem]) {

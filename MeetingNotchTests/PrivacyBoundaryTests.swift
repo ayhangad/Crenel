@@ -38,4 +38,39 @@ final class PrivacyBoundaryTests: XCTestCase {
         XCTAssertFalse(document.localizedCaseInsensitiveContains("message"))
         XCTAssertFalse(document.localizedCaseInsensitiveContains("transcript"))
     }
+
+    func testMeetingSessionDiagnosticExcludesCalendarIDProcessIDAndUIContent() {
+        let secretCalendarID = "gizli-musteri-toplantisi"
+        let session = MeetingSession(
+            state: .ready,
+            confidence: .confirmed,
+            evidence: [
+                .calendarContext(meetingID: secretCalendarID, isWithinScheduledWindow: true),
+                .process(processID: 98_765, isRunning: true),
+                .clientUI(clientID: .zoom, meetingWindowPresent: true, callControlsPresent: true)
+            ],
+            clientID: .zoom,
+            processID: 98_765,
+            calendarMeetingID: secretCalendarID
+        )
+        let snapshot = MeetingSessionDetectionSnapshot(
+            session: session,
+            audioProcess: nil,
+            client: MeetingClientSnapshot(
+                clientID: .zoom,
+                processID: 98_765,
+                availability: .available,
+                meetingWindowPresent: true,
+                callControlsPresent: true,
+                microphoneState: .closed
+            )
+        )
+
+        let logLine = AppLogger.meetingSessionDiagnostic(snapshot).logLine
+
+        XCTAssertTrue(logLine.contains("client=zoom"))
+        XCTAssertTrue(logLine.contains("state=ready"))
+        XCTAssertFalse(logLine.contains(secretCalendarID))
+        XCTAssertFalse(logLine.contains("98765"))
+    }
 }

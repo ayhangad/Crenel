@@ -14,6 +14,7 @@ enum AppLogger {
     private static let lifecycle = Logger(subsystem: subsystem, category: "lifecycle")
     private static let audio = Logger(subsystem: subsystem, category: "audio")
     private static let persistence = Logger(subsystem: subsystem, category: "persistence")
+    private static let meetingSession = Logger(subsystem: subsystem, category: "meeting-session")
 
     static func transitioned(from: MeetingFlowState.Phase, to: MeetingFlowState.Phase) {
         flow.debug("Flow transition: \(from.rawValue, privacy: .public) -> \(to.rawValue, privacy: .public)")
@@ -21,6 +22,34 @@ enum AppLogger {
 
     static func rejected(eventName: String, phase: MeetingFlowState.Phase) {
         flow.notice("Rejected flow event \(eventName, privacy: .public) in \(phase.rawValue, privacy: .public)")
+    }
+
+    static func meetingSessionUpdated(_ snapshot: MeetingSessionDetectionSnapshot) {
+        let diagnostic = meetingSessionDiagnostic(snapshot)
+        meetingSession.notice("\(diagnostic.logLine, privacy: .public)")
+    }
+
+    static func meetingSessionDiagnostic(
+        _ snapshot: MeetingSessionDetectionSnapshot
+    ) -> MeetingSessionDiagnostic {
+        let session = snapshot.session
+        let confidence: String
+        switch session.confidence {
+        case .unknown:
+            confidence = "unknown"
+        case .probable:
+            confidence = "probable"
+        case .confirmed:
+            confidence = "confirmed"
+        }
+        return MeetingSessionDiagnostic(
+            sessionID: session.id,
+            state: session.state.rawValue,
+            confidence: confidence,
+            client: session.clientID?.rawValue ?? "none",
+            microphone: snapshot.microphoneState.rawValue,
+            evidenceKinds: session.evidence.map { $0.kind.rawValue }
+        )
     }
 
     static func terminationRequiresConfirmation(phase: MeetingFlowState.Phase) {

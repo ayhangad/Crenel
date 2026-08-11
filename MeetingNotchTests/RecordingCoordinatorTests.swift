@@ -28,7 +28,10 @@ final class RecordingCoordinatorTests: XCTestCase {
             endDate: .now.addingTimeInterval(1_800)
         )
 
-        let session = try await coordinator.start(meeting: meeting)
+        let session = try await coordinator.start(
+            meeting: meeting,
+            systemAudioScope: .meetingProcesses([42])
+        )
 
         XCTAssertEqual(session.meetingID, meeting.id)
         XCTAssertEqual(session.sourceMeeting, meeting)
@@ -44,7 +47,10 @@ final class RecordingCoordinatorTests: XCTestCase {
         let microphone = MockAudioCaptureSource(kind: .microphone)
         let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
         let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
-        let session = try await coordinator.start(meeting: nil)
+        let session = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .explicitManualGlobal
+        )
 
         let result = try await coordinator.stop()
 
@@ -63,7 +69,10 @@ final class RecordingCoordinatorTests: XCTestCase {
         let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
 
         do {
-            _ = try await coordinator.start(meeting: nil)
+            _ = try await coordinator.start(
+                meeting: nil,
+                systemAudioScope: .explicitManualGlobal
+            )
             XCTFail("Start should fail")
         } catch {
             XCTAssertTrue(microphone.didCancel)
@@ -83,13 +92,16 @@ final class RecordingCoordinatorTests: XCTestCase {
         let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
         let coordinator = RecordingCoordinator(
             microphoneFactory: { _ in microphone },
-            systemAudioFactory: { systemAudio },
+            systemAudioFactory: { _ in systemAudio },
             minimumFreeDiskSpace: .max,
             storageRoot: temporaryRoot
         )
 
         do {
-            _ = try await coordinator.start(meeting: nil)
+            _ = try await coordinator.start(
+                meeting: nil,
+                systemAudioScope: .explicitManualGlobal
+            )
             XCTFail("Start should fail")
         } catch let error as RecordingCaptureError {
             XCTAssertEqual(error, .insufficientDiskSpace)
@@ -98,6 +110,43 @@ final class RecordingCoordinatorTests: XCTestCase {
         } catch {
             XCTFail("Unexpected error: \(error)")
         }
+
+        let temporaryDirectory = temporaryRoot.appending(path: "MeetingNotch/Temporary")
+        let remaining = (try? FileManager.default.contentsOfDirectory(
+            at: temporaryDirectory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        XCTAssertTrue(remaining.isEmpty)
+    }
+
+    func testStorageMonitorReportsLowDiskWhileRecording() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        var availableCapacity: Int64 = 1_000
+        let interruption = expectation(description: "storage safety interruption")
+        let coordinator = RecordingCoordinator(
+            microphoneFactory: { _ in microphone },
+            systemAudioFactory: { _ in systemAudio },
+            minimumFreeDiskSpace: 500,
+            storageRoot: temporaryRoot,
+            mixer: MockAudioTrackMixer(),
+            availableCapacityProvider: { _ in availableCapacity },
+            storageSafetyCheckInterval: .milliseconds(10)
+        )
+        coordinator.onSafetyInterruption = { issue in
+            XCTAssertEqual(issue, .diskSpaceBecameLow)
+            interruption.fulfill()
+        }
+
+        _ = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .explicitManualGlobal
+        )
+        availableCapacity = 0
+
+        await fulfillment(of: [interruption], timeout: 1)
+        XCTAssertEqual(coordinator.currentStorageSafetyIssue(), .diskSpaceBecameLow)
+        await coordinator.cancel()
     }
 
     func testMixFailurePreservesRawTracksAndRecoveryManifest() async throws {
@@ -105,12 +154,15 @@ final class RecordingCoordinatorTests: XCTestCase {
         let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
         let coordinator = RecordingCoordinator(
             microphoneFactory: { _ in microphone },
-            systemAudioFactory: { systemAudio },
+            systemAudioFactory: { _ in systemAudio },
             minimumFreeDiskSpace: 0,
             storageRoot: temporaryRoot,
             mixer: FailingAudioTrackMixer()
         )
-        let session = try await coordinator.start(meeting: nil)
+        let session = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .explicitManualGlobal
+        )
         let directory = temporaryRoot
             .appending(path: "MeetingNotch/Temporary/\(session.id.uuidString)")
 
@@ -139,13 +191,17 @@ final class RecordingCoordinatorTests: XCTestCase {
                 requestedDeviceID = deviceID
                 return microphone
             },
-            systemAudioFactory: { systemAudio },
+            systemAudioFactory: { _ in systemAudio },
             minimumFreeDiskSpace: 0,
             storageRoot: temporaryRoot,
             mixer: MockAudioTrackMixer()
         )
 
-        _ = try await coordinator.start(meeting: nil, microphoneDeviceID: "usb-microphone")
+        _ = try await coordinator.start(
+            meeting: nil,
+            microphoneDeviceID: "usb-microphone",
+            systemAudioScope: .explicitManualGlobal
+        )
 
         XCTAssertEqual(requestedDeviceID, "usb-microphone")
         await coordinator.cancel()
@@ -163,7 +219,10 @@ final class RecordingCoordinatorTests: XCTestCase {
             connectionChanges.append(state)
         }
 
-        _ = try await coordinator.start(meeting: nil)
+        _ = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .explicitManualGlobal
+        )
         microphone.emitConnectionState(.disconnected(deviceName: "USB Mikrofon"))
         await Task.yield()
 
@@ -175,13 +234,206 @@ final class RecordingCoordinatorTests: XCTestCase {
         await coordinator.cancel()
     }
 
+    func testClientAdapterMicrophoneStateUpdatesLiveGateAndCaptureMetadata() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+        var gateChanges: [MeetingMicrophoneGate] = []
+        coordinator.onMicrophoneGateChange = { gateChanges.append($0) }
+        let session = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .meetingProcesses([71])
+        )
+
+        coordinator.updateMicrophoneGate(
+            from: detectionSnapshot(
+                audioObjectID: 71,
+                processID: 7_100,
+                availability: .available,
+                microphoneState: .open
+            ),
+            at: session.startedAt.addingTimeInterval(1)
+        )
+
+        XCTAssertEqual(gateChanges.map(\.state), [.closed, .open])
+        XCTAssertEqual(microphone.receivedGates.last?.state, .open)
+        XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .clientAdapter)
+
+        let result = try await coordinator.stop()
+        XCTAssertEqual(result.session.microphoneGateEvents.map(\.state), [.closed, .open])
+    }
+
+    func testAccessibilityLossMakesOpenMicrophoneGateUnknown() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+        let session = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .meetingProcesses([72])
+        )
+        coordinator.updateMicrophoneGate(
+            from: detectionSnapshot(
+                audioObjectID: 72,
+                processID: 7_200,
+                availability: .available,
+                microphoneState: .open
+            ),
+            at: session.startedAt.addingTimeInterval(1)
+        )
+
+        coordinator.updateMicrophoneGate(
+            from: detectionSnapshot(
+                audioObjectID: 72,
+                processID: 7_200,
+                availability: .accessibilityPermissionRequired,
+                microphoneState: .unknown
+            ),
+            at: session.startedAt.addingTimeInterval(2)
+        )
+
+        XCTAssertEqual(microphone.receivedGates.last?.state, .unknown)
+        XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .adapterUnavailable)
+        await coordinator.cancel()
+    }
+
+    func testMeetingProcessChangeMakesOpenMicrophoneGateUnknown() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+        let session = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .meetingProcesses([73])
+        )
+        coordinator.updateMicrophoneGate(
+            from: detectionSnapshot(
+                audioObjectID: 73,
+                processID: 7_300,
+                availability: .available,
+                microphoneState: .open
+            ),
+            at: session.startedAt.addingTimeInterval(1)
+        )
+
+        coordinator.updateMicrophoneGate(
+            from: detectionSnapshot(
+                audioObjectID: 74,
+                processID: 7_301,
+                availability: .available,
+                microphoneState: .open
+            ),
+            at: session.startedAt.addingTimeInterval(2)
+        )
+
+        XCTAssertEqual(microphone.receivedGates.last?.state, .unknown)
+        XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .processChanged)
+        await coordinator.cancel()
+    }
+
+    func testManualMicrophoneControlOverridesUnknownAndPersistsEvent() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+        let session = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .explicitManualGlobal
+        )
+
+        coordinator.setManualMicrophoneState(
+            .open,
+            at: session.startedAt.addingTimeInterval(1)
+        )
+
+        XCTAssertEqual(microphone.receivedGates.last?.state, .open)
+        XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .manualControl)
+        let result = try await coordinator.stop()
+        XCTAssertEqual(result.session.microphoneGateEvents.last?.state, .open)
+        XCTAssertEqual(result.session.microphoneGateEvents.last?.source, .manualControl)
+    }
+
+    func testMicrophoneDeviceRecoveryDoesNotOpenClosedPrivacyGate() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+        _ = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .explicitManualGlobal
+        )
+
+        microphone.emitConnectionState(.recovered(deviceName: "Kulaklık Mikrofonu"))
+        await Task.yield()
+
+        XCTAssertEqual(microphone.receivedGates.last?.state, .closed)
+        XCTAssertFalse(try XCTUnwrap(microphone.receivedGates.last).permitsAudio)
+        await coordinator.cancel()
+    }
+
+    func testSystemInterruptionFailsOpenGateClosedAndPersistsReason() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
+        let session = try await coordinator.start(
+            meeting: nil,
+            systemAudioScope: .explicitManualGlobal
+        )
+        coordinator.setManualMicrophoneState(
+            .open,
+            at: session.startedAt.addingTimeInterval(1)
+        )
+
+        coordinator.failClosedForSystemInterruption(
+            at: session.startedAt.addingTimeInterval(2)
+        )
+
+        XCTAssertEqual(microphone.receivedGates.last?.state, .unknown)
+        XCTAssertEqual(
+            microphone.receivedGates.last?.events.last?.source,
+            .systemInterruption
+        )
+        let result = try await coordinator.stop()
+        XCTAssertEqual(
+            result.session.microphoneGateEvents.last?.source,
+            .systemInterruption
+        )
+    }
+
+    private func detectionSnapshot(
+        audioObjectID: UInt32,
+        processID: Int32,
+        availability: MeetingClientAdapterAvailability,
+        microphoneState: MeetingMicrophoneState
+    ) -> MeetingSessionDetectionSnapshot {
+        MeetingSessionDetectionSnapshot(
+            session: MeetingSession(
+                state: .recording,
+                confidence: .confirmed,
+                clientID: .zoom,
+                processID: processID
+            ),
+            audioProcess: AudioProcessSnapshot(
+                audioObjectID: audioObjectID,
+                processID: processID,
+                bundleIdentifier: "us.zoom.xos",
+                isRunningInput: true,
+                isRunningOutput: true
+            ),
+            client: MeetingClientSnapshot(
+                clientID: .zoom,
+                processID: processID,
+                availability: availability,
+                meetingWindowPresent: true,
+                callControlsPresent: availability == .available,
+                microphoneState: microphoneState
+            )
+        )
+    }
+
     private func makeCoordinator(
         microphone: MockAudioCaptureSource,
         systemAudio: MockAudioCaptureSource
     ) -> RecordingCoordinator {
         RecordingCoordinator(
             microphoneFactory: { _ in microphone },
-            systemAudioFactory: { systemAudio },
+            systemAudioFactory: { _ in systemAudio },
             minimumFreeDiskSpace: 0,
             storageRoot: temporaryRoot,
             mixer: MockAudioTrackMixer()
@@ -202,7 +454,7 @@ private final class FailingAudioTrackMixer: AudioTrackMixing, @unchecked Sendabl
     }
 }
 
-private final class MockAudioCaptureSource: AudioCaptureSource {
+private final class MockAudioCaptureSource: AudioCaptureSource, MeetingMicrophoneGateUpdating {
     let kind: AudioSourceKind
     var onLevelChange: (@Sendable (Float) -> Void)?
     var onConnectionStateChange: (@Sendable (AudioSourceConnectionState) -> Void)?
@@ -212,6 +464,7 @@ private final class MockAudioCaptureSource: AudioCaptureSource {
     private(set) var didPrepare = false
     private(set) var didStart = false
     private(set) var didCancel = false
+    private(set) var receivedGates: [MeetingMicrophoneGate] = []
 
     init(kind: AudioSourceKind) {
         self.kind = kind
@@ -242,5 +495,9 @@ private final class MockAudioCaptureSource: AudioCaptureSource {
 
     func emitConnectionState(_ state: AudioSourceConnectionState) {
         onConnectionStateChange?(state)
+    }
+
+    func updateMicrophoneGate(_ gate: MeetingMicrophoneGate) {
+        receivedGates.append(gate)
     }
 }

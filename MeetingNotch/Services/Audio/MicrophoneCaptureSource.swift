@@ -2,7 +2,7 @@
 import CoreMedia
 import Foundation
 
-final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
+final class MicrophoneCaptureSource: NSObject, AudioCaptureSource, MeetingMicrophoneGateUpdating {
     let kind = AudioSourceKind.microphone
     var onLevelChange: (@Sendable (Float) -> Void)?
     var onConnectionStateChange: (@Sendable (AudioSourceConnectionState) -> Void)?
@@ -12,6 +12,8 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
     private let output = AVCaptureAudioDataOutput()
     private let selectedDeviceID: String?
     private let notificationCenter: NotificationCenter
+    private let microphoneGateLock = NSLock()
+    private var microphoneGate: MeetingMicrophoneGate?
     private var writer: SampleBufferAudioWriter?
     private var outputURL: URL?
     private var currentInput: AVCaptureDeviceInput?
@@ -96,7 +98,8 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
         return CapturedAudioTrack(
             source: .microphone,
             fileURL: outputURL,
-            firstSampleTime: firstSampleTime
+            firstSampleTime: firstSampleTime,
+            lastSampleTime: writer.lastSampleTime
         )
     }
 
@@ -105,6 +108,12 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource {
         await stopSession()
         writer?.cancel()
         reset()
+    }
+
+    func updateMicrophoneGate(_ gate: MeetingMicrophoneGate) {
+        microphoneGateLock.withLock {
+            microphoneGate = gate
+        }
     }
 
     private func stopSession() async {
@@ -248,7 +257,10 @@ extension MicrophoneCaptureSource: AVCaptureAudioDataOutputSampleBufferDelegate 
         didOutput sampleBuffer: CMSampleBuffer,
         from connection: AVCaptureConnection
     ) {
-        writer?.append(sampleBuffer)
+        let gateState = microphoneGateLock.withLock {
+            microphoneGate?.state ?? .closed
+        }
+        writer?.append(sampleBuffer, microphoneGateState: gateState)
         onLevelChange?(AudioLevelMeter.normalizedLevel(from: sampleBuffer))
     }
 }

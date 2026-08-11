@@ -7,15 +7,18 @@ kullanıcının sesini kaydeder. Kayıt tek uzak servis olan ElevenLabs Scribe v
 konuşmacı ayrımlı transkript, kısa özet ve aksiyon maddelerine dönüştürülür.
 
 2026-07-25 ürün odağının ayrıntıları ve mevcut uygulamadan geçiş sırası
-[`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) içindeki “V1 odak kararı” bölümündedir. Mevcut build
-henüz privacy-first microphone gate ve gerçek meeting session detector dönüşümünü
-tamamlamamıştır.
+[`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) içindeki “V1 odak kararı” bölümündedir. Güncel build;
+gerçek meeting session detector, Zoom private process tap, fail-closed microphone gate ve
+görünür manuel fallback'i içerir. Google Meet/Chrome için kullanıcı gesture'ıyla yalnız
+aktif görüşme sekmesini alan MV3 extension, native messaging helper ve kullanıcıya özel
+uygulama IPC hattı bulunur; köprü bağlı değilse sistem sesi kaydı bilinçli olarak başlatılmaz.
 
 ## Belgeler
 
 - [Ürün geliştirme planı](PRODUCT_PLAN.md)
 - [Mimari rehber](ARCHITECTURE.md)
 - [Ortak geliştirme kuralları](AGENTS.md)
+- [V1 release doğrulama runbook'u](QA/V1_RELEASE_RUNBOOK.md)
 - [İlk araştırma notları](project-overview.md)
 
 ## Gereksinimler
@@ -59,6 +62,25 @@ xcodebuild \
   build test
 ```
 
+Google Meet extension protokolü ve Chrome Web Store kod paketi için:
+
+```sh
+Scripts/chrome-extension-tests.sh
+Scripts/chrome-web-store-package.sh
+```
+
+İkinci komut checksum'lı Store ZIP'ini `artifacts/chrome-store/` altında üretir. Listeleme
+metni, gizlilik politikası taslağı, ikon/promosyon varlıkları ve yayın checklist'i
+`BrowserExtension/ChromeWebStore/` altındadır.
+
+Gerçek privacy canary çıktılarını 997 Hz, minimum süre ve yasaklı transcript cümlesi için
+denetlemek üzere `Scripts/privacy-canary-audit.sh --help` kullanılabilir. Araç 65+ dakikalık
+dosyaları belleğe bütünüyle almadan parça parça okur ve JSON + Markdown kanıtı üretir.
+
+Gerçek Zoom/Meet session başlangıç–bitiş koşularından sonra privacy-safe OSLog kanıtını
+toplayıp beşli `ready/confirmed → ended/confirmed` zincirini doğrulamak için
+`Scripts/session-acceptance-collect.sh --help` kullanılabilir.
+
 ## Yerel kayıt prototipi
 
 `Kaydı Başlat` ilk kullanımda mikrofon ile Ekran ve Sistem Sesi Kaydı izinlerini
@@ -81,8 +103,8 @@ klasörüne alınır. Uygulama dışından arşiv dosyalarını değiştirmek de
 veya eksilen toplantılar güvenli biçimde arşiv listesinden çıkarılıp kurtarmaya taşınır.
 Uygulama yeniden açıldığında yarım kalan kayıtlar otomatik taranır: geçerli ham sesler
 yeniden finalize edilir, tamamlanmış kayıtlar arşive alınır ve okunamayan kaynaklar
-silinmeden `Recovery` altında korunur. Uzun kayıtlardaki clock drift düzeltmesi Faz
-7.4'te açık görevdir.
+silinmeden `Recovery` altında korunur. Uzun kayıtlardaki clock drift, pitch'i koruyan sınırlı
+time-pitch düzeltmesiyle normalize edilir; sıcak miksler offline soft limiter'dan geçer.
 
 Görevler `Tasks/tasks.json` içinde aktif/arşiv durumu ve şema sürümüyle atomik olarak
 saklanır. Bozuk görev belgesi veri kaybını önlemek için silinmeden `Recovery` klasörüne
@@ -105,8 +127,8 @@ bir analytics SDK'sı bulunmaz.
 Toplantı saklama politikası varsayılan olarak süresizdir. Pozitif bir gün sayısı seçilmişse
 uygulama açılışta ve ardından 24 saatte bir toplantı bitiş zamanlarını kontrol eder; süresi
 dolan toplantı klasörünü tüm bağlı dosyalarıyla siler. Tek bir kaydın silinememesi diğer
-süresi dolmuş kayıtların temizlenmesini engellemez. Ayarlar UI'ından politika seçimi Faz
-3.3 kapsamındaki açık görevdir.
+süresi dolmuş kayıtların temizlenmesini engellemez. Saklama süresi Ayarlar'dan 7/30/90 gün
+veya süresiz olarak seçilebilir.
 
 ## Transkripsiyon ve işleme kuyruğu
 
@@ -142,8 +164,8 @@ transkript tamamlanmış sonuç olarak saklanır.
 
 ## Toplantı sonucu
 
-Notch içindeki bir geçmiş toplantıya tıklamak ayrı detay penceresini açar. Birleşik M4A
-aynı pencerede oynatılabilir; konuşmacı ayrımlı transcript segmentleri `LazyVStack` ile
+Notch içindeki bir geçmiş toplantıya tıklamak panel içinde genişleyen detay görünümünü açar.
+Birleşik M4A aynı pencerede oynatılabilir; konuşmacı ayrımlı transcript segmentleri `LazyVStack` ile
 gösterilir ve timestamp düğmesi oynatıcıyı ilgili noktaya taşır. Transkript düz metin
 olarak panoya kopyalanabilir, ses Finder'da gösterilebilir, başarısız işlem yeniden
 denenebilir ve toplantı güçlü onay sonrasında bağlı dosyalarıyla silinebilir. Aynı ekranda

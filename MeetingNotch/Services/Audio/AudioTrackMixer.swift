@@ -25,9 +25,73 @@ enum AudioMixError: LocalizedError, Equatable {
     }
 }
 
+struct AudioClockDriftPolicy: Equatable, Sendable {
+    let minimumDuration: TimeInterval
+    let minimumCorrectionFraction: Double
+    let maximumCorrectionFraction: Double
+
+    init(
+        minimumDuration: TimeInterval = 60,
+        minimumCorrectionFraction: Double = 0.000_05,
+        maximumCorrectionFraction: Double = 0.02
+    ) {
+        self.minimumDuration = minimumDuration
+        self.minimumCorrectionFraction = minimumCorrectionFraction
+        self.maximumCorrectionFraction = maximumCorrectionFraction
+    }
+
+    func playbackRate(
+        fileDuration: TimeInterval,
+        capturedTimelineDuration: TimeInterval?
+    ) -> Double {
+        guard let capturedTimelineDuration,
+              fileDuration >= minimumDuration,
+              capturedTimelineDuration >= minimumDuration,
+              fileDuration.isFinite,
+              capturedTimelineDuration.isFinite,
+              fileDuration > 0,
+              capturedTimelineDuration > 0 else { return 1 }
+
+        let rate = fileDuration / capturedTimelineDuration
+        let correction = abs(rate - 1)
+        guard correction >= minimumCorrectionFraction,
+              correction <= maximumCorrectionFraction else { return 1 }
+        return rate
+    }
+}
+
+enum AudioSampleLimiter {
+    static let ceiling: Float = 0.98
+
+    static func limited(_ sample: Float) -> Float {
+        guard sample.isFinite else { return 0 }
+        let magnitude = abs(sample)
+        guard magnitude > ceiling else { return sample }
+        let headroom = 1 - ceiling
+        let curve = Float(1 - Foundation.exp(-Double((magnitude - ceiling) / headroom)))
+        let limitedMagnitude = min(ceiling + headroom * curve, 0.999)
+        return sample < 0 ? -limitedMagnitude : limitedMagnitude
+    }
+
+    static func process(_ buffer: AVAudioPCMBuffer) {
+        guard let channels = buffer.floatChannelData else { return }
+        for channelIndex in 0..<Int(buffer.format.channelCount) {
+            let samples = channels[channelIndex]
+            for frameIndex in 0..<Int(buffer.frameLength) {
+                samples[frameIndex] = limited(samples[frameIndex])
+            }
+        }
+    }
+}
+
 actor AudioTrackMixer: AudioTrackMixing {
     private let outputSampleRate = 48_000.0
     private let maximumFrameCount: AVAudioFrameCount = 4_096
+    private let driftPolicy: AudioClockDriftPolicy
+
+    init(driftPolicy: AudioClockDriftPolicy = AudioClockDriftPolicy()) {
+        self.driftPolicy = driftPolicy
+    }
 
     func mix(tracks: [CapturedAudioTrack], outputURL: URL) async throws -> URL {
         let sources = try loadSources(from: tracks)
@@ -87,7 +151,24 @@ actor AudioTrackMixer: AudioTrackMixing {
             let player = AVAudioPlayerNode()
             player.volume = volume(for: source.capture.source)
             engine.attach(player)
-            engine.connect(player, to: engine.mainMixerNode, format: source.file.processingFormat)
+            let fileDuration = Double(source.file.length) / source.file.processingFormat.sampleRate
+            let playbackRate = driftPolicy.playbackRate(
+                fileDuration: fileDuration,
+                capturedTimelineDuration: source.capturedTimelineDuration
+            )
+            if playbackRate == 1 {
+                engine.connect(player, to: engine.mainMixerNode, format: source.file.processingFormat)
+            } else {
+                let timePitch = AVAudioUnitTimePitch()
+                timePitch.rate = Float(playbackRate)
+                engine.attach(timePitch)
+                engine.connect(player, to: timePitch, format: source.file.processingFormat)
+                engine.connect(
+                    timePitch,
+                    to: engine.mainMixerNode,
+                    format: source.file.processingFormat
+                )
+            }
             let startTime = AVAudioTime(
                 sampleTime: AVAudioFramePosition(source.offset * outputSampleRate),
                 atRate: outputSampleRate
@@ -95,7 +176,7 @@ actor AudioTrackMixer: AudioTrackMixing {
             player.scheduleFile(source.file, at: startTime)
             players.append(player)
 
-            let sourceDuration = Double(source.file.length) / source.file.processingFormat.sampleRate
+            let sourceDuration = fileDuration / playbackRate
             totalDuration = max(totalDuration, source.offset + sourceDuration)
         }
 
@@ -130,6 +211,7 @@ actor AudioTrackMixer: AudioTrackMixing {
 
                 switch try engine.renderOffline(frames, to: buffer) {
                 case .success:
+                    AudioSampleLimiter.process(buffer)
                     try outputFile.write(from: buffer)
                     stalledRenderCount = 0
                 case .cannotDoInCurrentContext, .insufficientDataFromInputNode:
@@ -175,4 +257,11 @@ private struct SourceAudio {
     let capture: CapturedAudioTrack
     let file: AVAudioFile
     let offset: TimeInterval
+
+    var capturedTimelineDuration: TimeInterval? {
+        guard let firstSampleTime = capture.firstSampleTime,
+              let lastSampleTime = capture.lastSampleTime,
+              lastSampleTime > firstSampleTime else { return nil }
+        return lastSampleTime - firstSampleTime
+    }
 }

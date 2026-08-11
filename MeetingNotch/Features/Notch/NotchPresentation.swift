@@ -1,6 +1,12 @@
 import Foundation
 
 enum NotchCompactStatus: Equatable {
+    struct RecordingStatus: Equatable {
+        let startedAt: Date
+        let clientID: MeetingClientID?
+        let microphoneState: MeetingMicrophoneState
+    }
+
     enum ProcessingStage: Equatable {
         case preparing
         case finalizing
@@ -9,7 +15,7 @@ enum NotchCompactStatus: Equatable {
         case summarizing
     }
 
-    case recording(startedAt: Date)
+    case recording(RecordingStatus)
     case processing(ProcessingStage)
     case completed
     case failed
@@ -22,11 +28,19 @@ struct NotchStatusResolver {
     static func compactStatus(
         flow: MeetingFlowState,
         nextMeeting: Meeting?,
-        activeTaskCount: Int
+        activeTaskCount: Int,
+        meetingDetection: MeetingSessionDetectionSnapshot? = nil,
+        microphoneGate: MeetingMicrophoneGate? = nil
     ) -> NotchCompactStatus {
         switch flow {
         case .recording(let startedAt):
-            return .recording(startedAt: startedAt)
+            return .recording(
+                .init(
+                    startedAt: startedAt,
+                    clientID: meetingDetection?.session.clientID,
+                    microphoneState: microphoneGate?.state ?? .unknown
+                )
+            )
         case .preparingRecording:
             return .processing(.preparing)
         case .finalizingAudio:
@@ -120,5 +134,110 @@ struct NotchMotionProfile: Equatable {
             closingDuration: 0.2,
             conversionDuration: 0.3
         )
+    }
+}
+
+enum NotchPreviewColorScheme: String, CaseIterable, Hashable {
+    case light
+    case dark
+}
+
+enum NotchPreviewAuditFocus: String, CaseIterable, Hashable {
+    case appearance
+    case keyboard
+    case voiceOver
+}
+
+struct NotchPreviewProfile: Equatable, Hashable {
+    let name: String
+    let colorScheme: NotchPreviewColorScheme
+    let increasedContrast: Bool
+    let reducesMotion: Bool
+    let auditFocus: NotchPreviewAuditFocus
+
+    static let requiredMatrix: [Self] = [
+        Self(
+            name: "Light · Standard",
+            colorScheme: .light,
+            increasedContrast: false,
+            reducesMotion: false,
+            auditFocus: .appearance
+        ),
+        Self(
+            name: "Dark · Standard",
+            colorScheme: .dark,
+            increasedContrast: false,
+            reducesMotion: false,
+            auditFocus: .appearance
+        ),
+        Self(
+            name: "Light · Increase Contrast",
+            colorScheme: .light,
+            increasedContrast: true,
+            reducesMotion: false,
+            auditFocus: .appearance
+        ),
+        Self(
+            name: "Dark · Reduce Motion",
+            colorScheme: .dark,
+            increasedContrast: false,
+            reducesMotion: true,
+            auditFocus: .appearance
+        ),
+        Self(
+            name: "Keyboard · Tasks",
+            colorScheme: .dark,
+            increasedContrast: false,
+            reducesMotion: false,
+            auditFocus: .keyboard
+        ),
+        Self(
+            name: "VoiceOver · Recording",
+            colorScheme: .dark,
+            increasedContrast: true,
+            reducesMotion: true,
+            auditFocus: .voiceOver
+        )
+    ]
+}
+
+enum NotchAccessibilityContract {
+    static func tabLabel(_ tab: AppState.PanelTab) -> String {
+        "\(tab.rawValue) sekmesi"
+    }
+
+    static func tabShortcutDescription(_ tab: AppState.PanelTab) -> String {
+        switch tab {
+        case .meetings: "Command 1"
+        case .tasks: "Command 2"
+        }
+    }
+
+    static func recordingSessionLabel(clientID: MeetingClientID?) -> String {
+        "\(clientName(clientID)) oturumu kaydediliyor"
+    }
+
+    static func microphoneGateLabel(_ state: MeetingMicrophoneState) -> String {
+        "Toplantı mikrofonu \(microphoneGateTitle(state))"
+    }
+
+    static func recordingDurationLabel(_ formattedDuration: String) -> String {
+        "Kayıt süresi \(formattedDuration)"
+    }
+
+    private static func clientName(_ clientID: MeetingClientID?) -> String {
+        switch clientID {
+        case .zoom: "Zoom"
+        case .googleMeetChrome: "Google Meet"
+        case .unsupported, nil: "Toplantı"
+        }
+    }
+
+    private static func microphoneGateTitle(_ state: MeetingMicrophoneState) -> String {
+        switch state {
+        case .open: "açık"
+        case .closed: "kapalı"
+        case .unknown: "bilinmiyor, güvenli kapalı"
+        }
     }
 }

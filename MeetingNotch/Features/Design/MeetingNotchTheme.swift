@@ -12,13 +12,27 @@ enum MeetingNotchTheme {
     static let surfaceRadius: CGFloat = 12
     static let controlRadius: CGFloat = 9
     static let controlHeight: CGFloat = 32
+    static let tabHeight: CGFloat = 34
+    static let tabBarPadding: CGFloat = 3
     static let iconSize: CGFloat = 12
 
-    static let surface = Color.white.opacity(0.045)
-    static let surfaceHover = Color.white.opacity(0.075)
-    static let elevatedSurface = Color.white.opacity(0.065)
-    static let hairline = Color.white.opacity(0.08)
-    static let subtleHairline = Color.white.opacity(0.055)
+    // These surfaces are intentionally semantic. Physical notch content forces a dark
+    // appearance while floating panels continue to inherit the system appearance.
+    static let surface = Color.primary.opacity(0.065)
+    static let surfaceHover = Color.primary.opacity(0.105)
+    static let elevatedSurface = Color.primary.opacity(0.095)
+    static let hairline = Color.primary.opacity(0.14)
+    static let subtleHairline = Color.primary.opacity(0.09)
+
+    static let inactiveTabForegroundOpacity = 0.68
+    static let inactiveTabHoverForegroundOpacity = 0.88
+    static let activeTabFillOpacity = 0.11
+
+    static let inactiveTabForeground = Color.primary.opacity(inactiveTabForegroundOpacity)
+    static let inactiveTabHoverForeground = Color.primary.opacity(inactiveTabHoverForegroundOpacity)
+    static let activeTabForeground = Color.primary
+    static let activeTabFill = Color.primary.opacity(activeTabFillOpacity)
+    static let tabTrackFill = Color.primary.opacity(0.055)
 
     static let accent = Color(red: 1.0, green: 0.45, blue: 0.12)
     static let success = Color(red: 0.20, green: 0.82, blue: 0.45)
@@ -52,6 +66,34 @@ enum MeetingNotchTheme {
     }
 }
 
+enum MeetingNotchPanelAppearance {
+    static func colorScheme(
+        inherited: ColorScheme,
+        hasPhysicalNotch: Bool
+    ) -> ColorScheme {
+        hasPhysicalNotch ? .dark : inherited
+    }
+}
+
+private struct MeetingNotchPanelAppearanceModifier: ViewModifier {
+    let hasPhysicalNotch: Bool
+
+    func body(content: Content) -> some View {
+        content.transformEnvironment(\.colorScheme) { inherited in
+            inherited = MeetingNotchPanelAppearance.colorScheme(
+                inherited: inherited,
+                hasPhysicalNotch: hasPhysicalNotch
+            )
+        }
+    }
+}
+
+extension View {
+    func meetingNotchPanelAppearance(hasPhysicalNotch: Bool) -> some View {
+        modifier(MeetingNotchPanelAppearanceModifier(hasPhysicalNotch: hasPhysicalNotch))
+    }
+}
+
 struct MeetingNotchIconButtonStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
@@ -71,7 +113,7 @@ struct MeetingNotchIconButtonStyle: ButtonStyle {
             .background(
                 isActive
                     ? tint.opacity(0.14)
-                    : Color.white.opacity(configuration.isPressed ? 0.09 : 0.045),
+                    : Color.primary.opacity(configuration.isPressed ? 0.09 : 0.045),
                 in: RoundedRectangle(
                     cornerRadius: MeetingNotchTheme.controlRadius,
                     style: .continuous

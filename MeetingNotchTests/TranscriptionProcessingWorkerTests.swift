@@ -164,6 +164,46 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         XCTAssertTrue(jobs.isEmpty)
     }
 
+    func testNetworkRecoveryRetriesDurableJobWithoutChangingIdentity() async throws {
+        let meetingRepository = FileMeetingRepository(rootURL: root)
+        let meeting = try await meetingRepository.saveCapture(try makeCapture())
+        let queue = ProcessingQueue(repository: FileProcessingJobRepository(rootURL: root))
+        let original = try await queue.enqueue(meetingID: meeting.id)
+        let settings = UserDefaultsAppSettingsRepository(
+            defaults: defaults,
+            storageKey: "preferences"
+        )
+        let service = RecoveringWorkerTranscriptionService()
+        let worker = TranscriptionProcessingWorker(
+            queue: queue,
+            meetingRepository: meetingRepository,
+            settingsRepository: settings,
+            transcriptionService: service,
+            retryPolicy: TranscriptionRetryPolicy(maximumAttempts: 1, baseDelay: 0)
+        )
+
+        await worker.drain()
+
+        let offlineJobs = try await queue.allJobs()
+        let offlineJob = try XCTUnwrap(offlineJobs.first)
+        XCTAssertEqual(offlineJob.state, .failed)
+        XCTAssertEqual(offlineJob.lastFailure, .networkUnavailable)
+        XCTAssertEqual(offlineJob.idempotencyKey, original.idempotencyKey)
+        let audioURL = await meetingRepository.audioFileURL(for: meeting)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: audioURL.path))
+
+        let retried = try await queue.retry(meetingID: meeting.id)
+        XCTAssertEqual(retried?.idempotencyKey, original.idempotencyKey)
+        await worker.drain()
+
+        let completedJobs = try await queue.allJobs()
+        let transcription = try await meetingRepository.loadTranscription(for: meeting.id)
+        let requestCount = await service.requestCount()
+        XCTAssertTrue(completedJobs.isEmpty)
+        XCTAssertEqual(transcription?.transcript.text, "Bağlantı geri geldi")
+        XCTAssertEqual(requestCount, 2)
+    }
+
     @MainActor
     func testAppStateMovesProcessingFlowToCompleted() async throws {
         let state = AppState()
@@ -240,6 +280,43 @@ private struct BlockingWorkerTranscriptionService: TranscriptionServicing {
         try await Task.sleep(for: .seconds(30))
         throw TranscriptionServiceError.providerUnavailable
     }
+}
+
+private actor RecoveringWorkerTranscriptionService: TranscriptionServicing {
+    nonisolated let capabilities = TranscriptionServiceCapabilities(
+        supportedFileExtensions: ["m4a"],
+        maximumFileSizeBytes: 1_000_000,
+        supportsDiarization: true,
+        supportsAutomaticLanguageDetection: true
+    )
+    private var count = 0
+
+    func transcribe(
+        _ request: TranscriptionRequest,
+        uploadProgress: @escaping TranscriptionUploadProgress
+    ) throws -> TranscriptionResult {
+        count += 1
+        guard count > 1 else {
+            throw TranscriptionServiceError.networkUnavailable
+        }
+        uploadProgress(1)
+        return TranscriptionResult(
+            transcript: Transcript(
+                text: "Bağlantı geri geldi",
+                languageCode: "tr",
+                segments: [
+                    TranscriptSegment(
+                        speakerID: "speaker_0",
+                        startTime: 0,
+                        endTime: 1,
+                        text: "Bağlantı geri geldi"
+                    )
+                ]
+            )
+        )
+    }
+
+    func requestCount() -> Int { count }
 }
 
 private actor WorkerStubTranscriptionService: TranscriptionServicing {

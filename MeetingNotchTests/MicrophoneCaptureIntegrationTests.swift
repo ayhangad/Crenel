@@ -9,10 +9,9 @@ final class MicrophoneCaptureIntegrationTests: XCTestCase {
     override func setUpWithError() throws {
         try super.setUpWithError()
 
-        guard ProcessInfo.processInfo.environment["MEETINGNOTCH_RUN_AUDIO_INTEGRATION_TESTS"] == "1" else {
+        guard AudioIntegrationTestOptIn.isEnabled else {
             throw XCTSkip(
-                "Gerçek mikrofon testi opt-in çalışır: "
-                    + "MEETINGNOTCH_RUN_AUDIO_INTEGRATION_TESTS=1"
+                "Gerçek mikrofon testi opt-in çalışır: Scripts/audio-integration-tests.sh"
             )
         }
 
@@ -64,6 +63,15 @@ final class MicrophoneCaptureIntegrationTests: XCTestCase {
             await source.cancel()
             throw error
         }
+    }
+}
+
+enum AudioIntegrationTestOptIn {
+    static let sentinelPath = "/tmp/MeetingNotch.run-audio-integration-tests"
+
+    static var isEnabled: Bool {
+        ProcessInfo.processInfo.environment["MEETINGNOTCH_RUN_AUDIO_INTEGRATION_TESTS"] == "1"
+            || FileManager.default.fileExists(atPath: sentinelPath)
     }
 }
 

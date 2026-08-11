@@ -3,11 +3,14 @@ import SwiftUI
 struct NotchPanelView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Namespace private var tabSelection
     let onRequestCalendarAccess: () -> Void
     let onOpenMeetingURL: (URL) -> Void
     let onStartRecording: () -> Void
     let onStopRecording: () -> Void
+    let onToggleMeetingMicrophone: () -> Void
+    let onDismissMeetingPrompt: () -> Void
+    let onContinueRecording: () -> Void
+    let onConfirmMeetingEnded: () -> Void
     let onCancelFlow: () -> Void
     let onRecoverFromFailure: (AppFailure) -> Void
     let onOpenStoredMeeting: (StoredMeeting) -> Void
@@ -31,6 +34,10 @@ struct NotchPanelView: View {
         onOpenMeetingURL: @escaping (URL) -> Void = { _ in },
         onStartRecording: @escaping () -> Void = {},
         onStopRecording: @escaping () -> Void = {},
+        onToggleMeetingMicrophone: @escaping () -> Void = {},
+        onDismissMeetingPrompt: @escaping () -> Void = {},
+        onContinueRecording: @escaping () -> Void = {},
+        onConfirmMeetingEnded: @escaping () -> Void = {},
         onCancelFlow: @escaping () -> Void = {},
         onRecoverFromFailure: @escaping (AppFailure) -> Void = { _ in },
         onOpenStoredMeeting: @escaping (StoredMeeting) -> Void = { _ in },
@@ -53,6 +60,10 @@ struct NotchPanelView: View {
         self.onOpenMeetingURL = onOpenMeetingURL
         self.onStartRecording = onStartRecording
         self.onStopRecording = onStopRecording
+        self.onToggleMeetingMicrophone = onToggleMeetingMicrophone
+        self.onDismissMeetingPrompt = onDismissMeetingPrompt
+        self.onContinueRecording = onContinueRecording
+        self.onConfirmMeetingEnded = onConfirmMeetingEnded
         self.onCancelFlow = onCancelFlow
         self.onRecoverFromFailure = onRecoverFromFailure
         self.onOpenStoredMeeting = onOpenStoredMeeting
@@ -91,10 +102,7 @@ struct NotchPanelView: View {
                 .transition(panelContentTransition)
             } else {
                 HStack(spacing: 6) {
-                    NotchTabBar(
-                        selection: $appState.selectedTab,
-                        selectionNamespace: tabSelection
-                    )
+                    NotchTabBar(selection: $appState.selectedTab)
 
                     Button(action: onTogglePin) {
                         Image(systemName: appState.isNotchPinned ? "pin.fill" : "pin")
@@ -102,7 +110,7 @@ struct NotchPanelView: View {
                     }
                     .buttonStyle(
                         MeetingNotchIconButtonStyle(
-                            tint: MeetingNotchTheme.accent,
+                            tint: appState.isNotchPinned ? MeetingNotchTheme.accent : .secondary,
                             isActive: appState.isNotchPinned
                         )
                     )
@@ -136,6 +144,10 @@ struct NotchPanelView: View {
                                 onOpenMeetingURL: onOpenMeetingURL,
                                 onStartRecording: onStartRecording,
                                 onStopRecording: onStopRecording,
+                                onToggleMeetingMicrophone: onToggleMeetingMicrophone,
+                                onDismissMeetingPrompt: onDismissMeetingPrompt,
+                                onContinueRecording: onContinueRecording,
+                                onConfirmMeetingEnded: onConfirmMeetingEnded,
                                 onCancelFlow: onCancelFlow,
                                 onRecoverFromFailure: onRecoverFromFailure,
                                 onOpenStoredMeeting: onOpenStoredMeeting,
@@ -171,7 +183,9 @@ struct NotchPanelView: View {
         .padding(.horizontal, MeetingNotchTheme.panelHorizontalPadding)
         .padding(.vertical, MeetingNotchTheme.panelVerticalPadding)
         .frame(width: layout.width)
-        .environment(\.colorScheme, .dark)
+        .meetingNotchPanelAppearance(
+            hasPhysicalNotch: appState.notchPanelHasPhysicalNotch
+        )
         .onMoveCommand { direction in
             guard appState.presentedMeetingDetail == nil else { return }
             switch direction {
@@ -209,11 +223,14 @@ struct NotchPanelView: View {
 private struct NotchTabBar: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var selection: AppState.PanelTab
-    let selectionNamespace: Namespace.ID
+    @State private var hoveredTab: AppState.PanelTab?
 
     var body: some View {
         HStack(spacing: 2) {
             ForEach(AppState.PanelTab.allCases) { tab in
+                let isSelected = selection == tab
+                let isHovered = hoveredTab == tab
+
                 Button {
                     withAnimation(reduceMotion ? nil : .smooth(duration: 0.22)) {
                         selection = tab
@@ -222,38 +239,76 @@ private struct NotchTabBar: View {
                     HStack(spacing: 6) {
                         Image(systemName: tab.symbol)
                             .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(
+                                isSelected
+                                    ? MeetingNotchTheme.accent
+                                    : tabForeground(isHovered: isHovered)
+                            )
                         Text(tab.rawValue)
                             .font(MeetingNotchTheme.controlFont)
+                            .foregroundStyle(
+                                isSelected
+                                    ? MeetingNotchTheme.activeTabForeground
+                                    : tabForeground(isHovered: isHovered)
+                            )
                     }
-                    .foregroundStyle(
-                        selection == tab
-                            ? MeetingNotchTheme.accent
-                            : Color.secondary
-                    )
-                    .frame(maxWidth: .infinity, minHeight: MeetingNotchTheme.controlHeight)
+                    .frame(maxWidth: .infinity, minHeight: MeetingNotchTheme.tabHeight)
                     .contentShape(Rectangle())
                     .background {
-                        if selection == tab {
+                        if isSelected {
                             RoundedRectangle(
                                 cornerRadius: MeetingNotchTheme.controlRadius,
                                 style: .continuous
                             )
-                                .fill(MeetingNotchTheme.surface)
-                                .matchedGeometryEffect(
-                                    id: "selected-panel-tab",
-                                    in: selectionNamespace
-                                )
+                                .fill(MeetingNotchTheme.activeTabFill)
+                                .overlay {
+                                    RoundedRectangle(
+                                        cornerRadius: MeetingNotchTheme.controlRadius,
+                                        style: .continuous
+                                    )
+                                    .stroke(MeetingNotchTheme.hairline, lineWidth: 1)
+                                }
+                                .overlay(alignment: .bottom) {
+                                    Capsule()
+                                        .fill(MeetingNotchTheme.accent)
+                                        .frame(width: 28, height: 2)
+                                        .padding(.bottom, 2)
+                                }
+                        } else if isHovered {
+                            RoundedRectangle(
+                                cornerRadius: MeetingNotchTheme.controlRadius,
+                                style: .continuous
+                            )
+                            .fill(MeetingNotchTheme.surfaceHover)
                         }
                     }
+                    .animation(
+                        reduceMotion ? nil : .easeOut(duration: 0.16),
+                        value: isSelected
+                    )
                 }
                 .buttonStyle(NotchTabButtonStyle())
+                .onHover { hovering in
+                    withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) {
+                        hoveredTab = hovering ? tab : nil
+                    }
+                }
                 .keyboardShortcut(tab.keyboardShortcut, modifiers: .command)
-                .help("\(tab.rawValue) sekmesi (⌘\(tab.shortcutDescription))")
-                .accessibilityLabel("\(tab.rawValue) sekmesi")
-                .accessibilityAddTraits(selection == tab ? .isSelected : [])
+                .help(
+                    "\(tab.rawValue) sekmesi (\(NotchAccessibilityContract.tabShortcutDescription(tab)))"
+                )
+                .accessibilityLabel(NotchAccessibilityContract.tabLabel(tab))
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
-        .padding(2)
+        .padding(MeetingNotchTheme.tabBarPadding)
+        .background(
+            MeetingNotchTheme.tabTrackFill,
+            in: RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.surfaceRadius,
+                style: .continuous
+            )
+        )
         .overlay {
             RoundedRectangle(
                 cornerRadius: MeetingNotchTheme.surfaceRadius,
@@ -263,6 +318,12 @@ private struct NotchTabBar: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Panel sekmeleri")
+    }
+
+    private func tabForeground(isHovered: Bool) -> Color {
+        isHovered
+            ? MeetingNotchTheme.inactiveTabHoverForeground
+            : MeetingNotchTheme.inactiveTabForeground
     }
 }
 
@@ -310,6 +371,10 @@ private struct MeetingStatusView: View {
     let onOpenMeetingURL: (URL) -> Void
     let onStartRecording: () -> Void
     let onStopRecording: () -> Void
+    let onToggleMeetingMicrophone: () -> Void
+    let onDismissMeetingPrompt: () -> Void
+    let onContinueRecording: () -> Void
+    let onConfirmMeetingEnded: () -> Void
     let onCancelFlow: () -> Void
     let onRecoverFromFailure: (AppFailure) -> Void
     let onOpenStoredMeeting: (StoredMeeting) -> Void
@@ -359,6 +424,20 @@ private struct MeetingStatusView: View {
 
                 if appState.meetingFlow.phase == .preparingRecording || appState.meetingFlow.isRecording {
                     CaptureSourcesView(status: appState.recordingCaptureStatus)
+                    if appState.meetingFlow.isRecording,
+                       let gate = appState.meetingMicrophoneGate {
+                        MeetingMicrophoneGateControl(
+                            gate: gate,
+                            onToggle: onToggleMeetingMicrophone
+                        )
+                        if let warning = microphonePrivacyWarning(for: gate) {
+                            Label(warning, systemImage: "exclamationmark.shield.fill")
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .accessibilityLabel("Mikrofon gizlilik uyarısı: \(warning)")
+                        }
+                    }
                     if let message = appState.recordingCaptureStatus.microphone.connectionState.message {
                         Label(message, systemImage: microphoneNoticeSymbol)
                             .font(.caption)
@@ -368,11 +447,52 @@ private struct MeetingStatusView: View {
                             .fixedSize(horizontal: false, vertical: true)
                             .accessibilityLabel("Mikrofon uyarısı: \(message)")
                     }
+                    if let message = appState.recordingCaptureStatus.systemAudio.connectionState.message {
+                        Label(message, systemImage: "speaker.slash.fill")
+                            .font(.caption)
+                            .foregroundStyle(
+                                appState.recordingCaptureStatus.systemAudio.isReady ? .orange : .red
+                            )
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityLabel("Sistem sesi uyarısı: \(message)")
+                    }
                 }
 
-                actionArea
+                if let message = appState.recordingSafetyMessage {
+                    Label(message, systemImage: "externaldrive.badge.exclamationmark")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel("Kayıt güvenliği uyarısı: \(message)")
+                }
+
+                if appState.meetingSessionDetection?.session.clientID == .googleMeetChrome,
+                   !appState.meetingFlow.isRecording {
+                    Label(
+                        googleMeetBridgeStatusText,
+                        systemImage: googleMeetBridgeStatusSymbol
+                    )
+                    .font(.caption)
+                    .foregroundStyle(
+                        appState.browserAudioConnectionStatus == .tabConnected ? .green : .orange
+                    )
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Google Meet ses bağlantısı: \(googleMeetBridgeStatusText)")
+                }
+
+                if let prompt = appState.meetingLifecyclePrompt {
+                    MeetingLifecyclePromptView(
+                        prompt: prompt,
+                        onStartRecording: onStartRecording,
+                        onDismiss: onDismissMeetingPrompt,
+                        onContinueRecording: onContinueRecording,
+                        onConfirmEnd: onConfirmMeetingEnded
+                    )
+                } else {
+                    actionArea
+                }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 12)
             .padding(.vertical, 12)
             .background(
                 RoundedRectangle(
@@ -419,10 +539,47 @@ private struct MeetingStatusView: View {
         }
     }
 
+    private var googleMeetBridgeStatusText: String {
+        switch appState.browserAudioConnectionStatus {
+        case .unavailable:
+            "Google Meet ses köprüsü kullanılamıyor; kayıt başlamaz."
+        case .waitingForMeetTab:
+            "Görüşme sekmesinde MeetingNotch Chrome uzantısına basın."
+        case .tabConnected:
+            "Google Meet sekmesi güvenli biçimde bağlı."
+        case .recording:
+            "Google Meet sekme sesi kayıt hattına bağlı."
+        }
+    }
+
+    private var googleMeetBridgeStatusSymbol: String {
+        switch appState.browserAudioConnectionStatus {
+        case .unavailable: "exclamationmark.shield.fill"
+        case .waitingForMeetTab: "puzzlepiece.extension"
+        case .tabConnected: "checkmark.shield.fill"
+        case .recording: "record.circle.fill"
+        }
+    }
+
     private var microphoneNoticeSymbol: String {
         appState.recordingCaptureStatus.microphone.isReady
             ? "arrow.triangle.2.circlepath"
             : "mic.slash.fill"
+    }
+
+    private func microphonePrivacyWarning(
+        for gate: MeetingMicrophoneGate
+    ) -> String? {
+        switch gate.events.last?.source {
+        case .adapterUnavailable:
+            "Mikrofon durumu doğrulanamıyor. Ortam sesi güvenli olarak kayda kapatıldı."
+        case .processChanged:
+            "Toplantı süreci değişti. Yeni süreç doğrulanana kadar mikrofon kayda kapatıldı."
+        case .systemInterruption:
+            "Mac uykuya geçiyor. Mikrofon güvenli kapatıldı ve kayıt sonlandırılıyor."
+        default:
+            nil
+        }
     }
 
     @ViewBuilder
@@ -632,6 +789,124 @@ private struct MeetingStatusView: View {
     }
 }
 
+private struct MeetingLifecyclePromptView: View {
+    let prompt: MeetingLifecyclePrompt
+    let onStartRecording: () -> Void
+    let onDismiss: () -> Void
+    let onContinueRecording: () -> Void
+    let onConfirmEnd: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: symbol)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 18, height: 18)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(MeetingNotchTheme.controlFont)
+                    Text(detail)
+                        .font(MeetingNotchTheme.bodyFont)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 6)
+
+                if case .autoStop(_, _, let deadline) = prompt {
+                    AutoStopCountdownView(deadline: deadline)
+                }
+            }
+
+            switch prompt {
+            case .recordingOffer:
+                HStack(spacing: 8) {
+                    Button("Şimdi Değil", action: onDismiss)
+                        .buttonStyle(NotchActionButtonStyle(tone: .secondary))
+                    Button(action: onStartRecording) {
+                        Label("Kaydı Başlat", systemImage: "record.circle")
+                    }
+                    .buttonStyle(NotchActionButtonStyle(tone: .primary))
+                }
+            case .endConfirmation, .autoStop:
+                HStack(spacing: 8) {
+                    Button("Kayda Devam Et", action: onContinueRecording)
+                        .buttonStyle(NotchActionButtonStyle(tone: .secondary))
+                    Button(role: .destructive, action: onConfirmEnd) {
+                        Label("Şimdi Durdur", systemImage: "stop.fill")
+                    }
+                    .buttonStyle(NotchActionButtonStyle(tone: .danger))
+                }
+            }
+        }
+        .padding(.top, 2)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(title). \(detail)")
+    }
+
+    private var title: String {
+        switch prompt {
+        case .recordingOffer:
+            "Toplantı algılandı"
+        case .endConfirmation:
+            "Toplantı bitmiş olabilir"
+        case .autoStop:
+            "Toplantı bitti"
+        }
+    }
+
+    private var detail: String {
+        switch prompt {
+        case .recordingOffer(_, let clientID):
+            "\(clientName(clientID)) için kayıt başlatılsın mı?"
+        case .endConfirmation:
+            "Sinyaller kesin değil. Kaydı siz durdurabilirsiniz."
+        case .autoStop:
+            "Kayıt geri sayım sonunda güvenli biçimde durdurulacak."
+        }
+    }
+
+    private var symbol: String {
+        switch prompt {
+        case .recordingOffer: "video.badge.checkmark"
+        case .endConfirmation: "questionmark.circle"
+        case .autoStop: "stopwatch"
+        }
+    }
+
+    private var tint: Color {
+        switch prompt {
+        case .recordingOffer: MeetingNotchTheme.accent
+        case .endConfirmation: .orange
+        case .autoStop: .red
+        }
+    }
+
+    private func clientName(_ clientID: MeetingClientID?) -> String {
+        switch clientID {
+        case .zoom: "Zoom"
+        case .googleMeetChrome: "Google Meet"
+        case .unsupported, nil: "Toplantı"
+        }
+    }
+}
+
+private struct AutoStopCountdownView: View {
+    let deadline: Date
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let seconds = max(0, Int(ceil(deadline.timeIntervalSince(context.date))))
+            Text("\(seconds) sn")
+                .font(MeetingNotchTheme.dataFont.monospacedDigit())
+                .foregroundStyle(.red)
+                .accessibilityLabel("Kaydın durmasına \(seconds) saniye")
+        }
+    }
+}
+
 private struct NotchActionButtonStyle: ButtonStyle {
     enum Tone {
         case primary
@@ -690,7 +965,7 @@ private struct NotchActionButtonStyle: ButtonStyle {
 
     private var strokeColor: Color {
         switch tone {
-        case .primary: Color.white.opacity(0.18)
+        case .primary: Color.primary.opacity(0.18)
         case .secondary: MeetingNotchTheme.subtleHairline
         case .danger: Color.red.opacity(0.18)
         }
@@ -938,16 +1213,17 @@ private struct CaptureSourcesView: View {
         switch state {
         case .preparing: "hourglass"
         case .ready: defaultSymbol
-        case .recovered: "arrow.triangle.2.circlepath"
+        case .recovered, .pipelineRecovered: "arrow.triangle.2.circlepath"
         case .disconnected: "mic.slash.fill"
+        case .pipelineStalled: "speaker.slash.fill"
         }
     }
 
     private func sourceColor(_ state: AudioSourceConnectionState) -> Color {
         switch state {
-        case .preparing, .recovered: .orange
+        case .preparing, .recovered, .pipelineRecovered: .orange
         case .ready: .green
-        case .disconnected: .red
+        case .disconnected, .pipelineStalled: .red
         }
     }
 
@@ -956,6 +1232,52 @@ private struct CaptureSourcesView: View {
             return "\(title): \(message)"
         }
         return "\(title) \(status.isReady ? "hazır" : "hazırlanıyor")"
+    }
+}
+
+private struct MeetingMicrophoneGateControl: View {
+    let gate: MeetingMicrophoneGate
+    let onToggle: () -> Void
+
+    var body: some View {
+        Button(action: onToggle) {
+            HStack(spacing: 7) {
+                Image(systemName: symbol)
+                    .foregroundStyle(color)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Toplantı mikrofonu: \(title)")
+                        .font(MeetingNotchTheme.controlFont)
+                    Text("Manuel değiştir: ⌥⌘M")
+                        .font(MeetingNotchTheme.metadataFont)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(NotchActionButtonStyle(tone: gate.permitsAudio ? .primary : .secondary))
+        .help("Mikrofon kaydını aç veya gizlilik için kapat (⌥⌘M)")
+        .accessibilityLabel("Toplantı mikrofonu \(title). Değiştirmek için Option Command M.")
+    }
+
+    private var title: String {
+        switch gate.state {
+        case .open: "Açık"
+        case .closed: "Kapalı"
+        case .unknown: "Bilinmiyor · güvenli kapalı"
+        }
+    }
+
+    private var symbol: String {
+        gate.permitsAudio ? "mic.fill" : "mic.slash.fill"
+    }
+
+    private var color: Color {
+        switch gate.state {
+        case .open: .green
+        case .closed: .secondary
+        case .unknown: .orange
+        }
     }
 }
 
@@ -983,12 +1305,52 @@ struct CompactLeadingView: View {
             nextMeeting: appState.nextMeeting,
             reminderLevel: appState.meetingReminderLevel
         )
-        Image(systemName: presentation.compactIcon)
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(presentation.color)
-            .frame(minWidth: 18, minHeight: 18)
-            .accessibilityLabel(presentation.title)
+        let status = NotchStatusResolver.compactStatus(
+            flow: appState.meetingFlow,
+            nextMeeting: appState.nextMeeting,
+            activeTaskCount: appState.activeTaskCount,
+            meetingDetection: appState.meetingSessionDetection,
+            microphoneGate: appState.meetingMicrophoneGate
+        )
+
+        Group {
+            switch status {
+            case .recording(let recording):
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(.red)
+                        .frame(width: 5, height: 5)
+                    Image(systemName: clientSymbol(recording.clientID))
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(.red)
+                .frame(minWidth: 22, minHeight: 18)
+                .accessibilityLabel(
+                    NotchAccessibilityContract.recordingSessionLabel(
+                        clientID: recording.clientID
+                    )
+                )
+            default:
+                Image(systemName: presentation.compactIcon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(presentation.color)
+                    .frame(minWidth: 18, minHeight: 18)
+                    .accessibilityLabel(presentation.title)
+            }
+        }
+        .meetingNotchPanelAppearance(
+            hasPhysicalNotch: appState.notchPanelHasPhysicalNotch
+        )
     }
+
+    private func clientSymbol(_ clientID: MeetingClientID?) -> String {
+        switch clientID {
+        case .zoom: "video.fill"
+        case .googleMeetChrome: "globe"
+        case .unsupported, nil: "waveform.badge.mic"
+        }
+    }
+
 }
 
 private struct MeetingCountdownView: View {
@@ -1019,45 +1381,72 @@ struct CompactTrailingView: View {
         let status = NotchStatusResolver.compactStatus(
             flow: appState.meetingFlow,
             nextMeeting: appState.nextMeeting,
-            activeTaskCount: appState.activeTaskCount
+            activeTaskCount: appState.activeTaskCount,
+            meetingDetection: appState.meetingSessionDetection,
+            microphoneGate: appState.meetingMicrophoneGate
         )
 
-        switch status {
-        case .recording(let startedAt):
-            RecordingElapsedTimeView(startedAt: startedAt, compact: true)
-                .foregroundStyle(.red)
-        case .processing(let stage):
-            switch stage {
-            case .uploading(let progress):
-                Text(progress, format: .percent.precision(.fractionLength(0)))
+        Group {
+            switch status {
+            case .recording(let recording):
+                HStack(spacing: 5) {
+                    Image(systemName: recording.microphoneState == .open ? "mic.fill" : "mic.slash.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(gateColor(recording.microphoneState))
+                        .accessibilityLabel(
+                            NotchAccessibilityContract.microphoneGateLabel(
+                                recording.microphoneState
+                            )
+                        )
+                    RecordingElapsedTimeView(startedAt: recording.startedAt, compact: true)
+                        .foregroundStyle(.red)
+                }
+                .accessibilityElement(children: .contain)
+            case .processing(let stage):
+                switch stage {
+                case .uploading(let progress):
+                    Text(progress, format: .percent.precision(.fractionLength(0)))
+                        .font(MeetingNotchTheme.metadataFont.monospacedDigit())
+                        .accessibilityLabel("Yükleme ilerlemesi")
+                default:
+                    Label(stage.shortTitle, systemImage: "ellipsis")
+                        .font(MeetingNotchTheme.metadataFont)
+                        .foregroundStyle(MeetingNotchTheme.accent)
+                }
+            case .completed:
+                Image(systemName: "checkmark")
+                    .foregroundStyle(.green)
+                    .accessibilityLabel("İşlem tamamlandı")
+            case .failed:
+                Image(systemName: "exclamationmark")
+                    .foregroundStyle(.red)
+                    .accessibilityLabel("İşlem hatası")
+            case .upcoming(let startDate):
+                CompactMeetingCountdownView(startDate: startDate)
+            case .tasks(let count):
+                Label("\(count)", systemImage: "checkmark.circle")
                     .font(MeetingNotchTheme.metadataFont.monospacedDigit())
-                    .accessibilityLabel("Yükleme ilerlemesi")
-            default:
-                Label(stage.shortTitle, systemImage: "ellipsis")
+                    .foregroundStyle(.mint)
+                    .accessibilityLabel("\(count) aktif görev")
+            case .idle:
+                Text("READY")
                     .font(MeetingNotchTheme.metadataFont)
-                    .foregroundStyle(MeetingNotchTheme.accent)
+                    .foregroundStyle(.secondary)
             }
-        case .completed:
-            Image(systemName: "checkmark")
-                .foregroundStyle(.green)
-                .accessibilityLabel("İşlem tamamlandı")
-        case .failed:
-            Image(systemName: "exclamationmark")
-                .foregroundStyle(.red)
-                .accessibilityLabel("İşlem hatası")
-        case .upcoming(let startDate):
-            CompactMeetingCountdownView(startDate: startDate)
-        case .tasks(let count):
-            Label("\(count)", systemImage: "checkmark.circle")
-                .font(MeetingNotchTheme.metadataFont.monospacedDigit())
-                .foregroundStyle(.mint)
-                .accessibilityLabel("\(count) aktif görev")
-        case .idle:
-            Text("READY")
-                .font(MeetingNotchTheme.metadataFont)
-                .foregroundStyle(.secondary)
+        }
+        .meetingNotchPanelAppearance(
+            hasPhysicalNotch: appState.notchPanelHasPhysicalNotch
+        )
+    }
+
+    private func gateColor(_ state: MeetingMicrophoneState) -> Color {
+        switch state {
+        case .open: .green
+        case .closed: .secondary
+        case .unknown: .orange
         }
     }
+
 }
 
 private extension NotchCompactStatus.ProcessingStage {
@@ -1097,11 +1486,15 @@ private struct RecordingElapsedTimeView: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            Text(Self.format(context.date.timeIntervalSince(startedAt)))
+            let duration = Self.format(context.date.timeIntervalSince(startedAt))
+            Text(duration)
                 .font(
                     compact
                         ? MeetingNotchTheme.metadataFont.monospacedDigit()
                         : MeetingNotchTheme.dataFont
+                )
+                .accessibilityLabel(
+                    NotchAccessibilityContract.recordingDurationLabel(duration)
                 )
         }
     }
@@ -1257,7 +1650,66 @@ private struct MeetingFlowPresentation {
     }
 }
 
-#Preview {
-    NotchPanelView()
-        .environmentObject(AppState())
+#if DEBUG
+private struct NotchPanelAuditPreview: View {
+    @StateObject private var appState: AppState
+    let profile: NotchPreviewProfile
+
+    init(profile: NotchPreviewProfile) {
+        self.profile = profile
+        let startedAt = Date().addingTimeInterval(-83)
+        let initialFlow: MeetingFlowState = profile.auditFocus == .voiceOver
+            ? .recording(startedAt: startedAt)
+            : .idle
+        let state = AppState(initialFlow: initialFlow)
+        if profile.auditFocus == .keyboard {
+            state.selectedTab = .tasks
+        }
+        if profile.auditFocus == .voiceOver {
+            state.updateMeetingMicrophoneGate(
+                MeetingMicrophoneGate(recordingStartedAt: startedAt)
+            )
+        }
+        _appState = StateObject(wrappedValue: state)
+    }
+
+    var body: some View {
+        NotchPanelView()
+            .environmentObject(appState)
+            .environment(
+                \.colorScheme,
+                profile.colorScheme == .light ? .light : .dark
+            )
+            .contrast(profile.increasedContrast ? 1.35 : 1)
+            .transaction { transaction in
+                if profile.reducesMotion {
+                    transaction.disablesAnimations = true
+                }
+            }
+    }
 }
+
+#Preview("Light · Standard") {
+    NotchPanelAuditPreview(profile: NotchPreviewProfile.requiredMatrix[0])
+}
+
+#Preview("Dark · Standard") {
+    NotchPanelAuditPreview(profile: NotchPreviewProfile.requiredMatrix[1])
+}
+
+#Preview("Light · Increase Contrast") {
+    NotchPanelAuditPreview(profile: NotchPreviewProfile.requiredMatrix[2])
+}
+
+#Preview("Dark · Reduce Motion") {
+    NotchPanelAuditPreview(profile: NotchPreviewProfile.requiredMatrix[3])
+}
+
+#Preview("Keyboard · Tasks") {
+    NotchPanelAuditPreview(profile: NotchPreviewProfile.requiredMatrix[4])
+}
+
+#Preview("VoiceOver · Recording") {
+    NotchPanelAuditPreview(profile: NotchPreviewProfile.requiredMatrix[5])
+}
+#endif

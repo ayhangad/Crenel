@@ -169,48 +169,71 @@ açılır; fixture testleri, queue recovery ve gerçek anahtar doğrulama akış
 - [x] Zoom ve Google Meet/Chrome için process, meeting window/tab ve call controls algılayan
   yerel adaptör prototipleri yapmak; Accessibility izni yok/reddedilmiş davranışı tasarlamak.
   — ✅ Tamamlandı: 2026-07-29 / Zoom + Google Meet Accessibility adapters
-- [ ] Takvim, `Katıl` aksiyonu, process audio ve client adapter sinyallerini deterministic
+- [x] Takvim, `Katıl` aksiyonu, process audio ve client adapter sinyallerini deterministic
   confidence kurallarıyla birleştirmek.
-- [ ] Güçlü başlangıçta kayıt teklifini; güçlü bitişte iptal edilebilir auto-stop geri
+  — ✅ Tamamlandı: 2026-08-11 / deterministic session coordinator
+- [x] Güçlü başlangıçta kayıt teklifini; güçlü bitişte iptal edilebilir auto-stop geri
   sayımını; belirsiz bitişte manuel onayı uygulamak.
-- [ ] Planlanmamış toplantı, geciken toplantı, erken katılma, ara verme, sessizlik,
+  — ✅ Tamamlandı: 2026-08-11 / lifecycle prompts and safe auto-stop
+- [x] Planlanmamış toplantı, geciken toplantı, erken katılma, ara verme, sessizlik,
   uygulamanın açık kalması ve arka arkaya çağrı senaryolarını fixture testleriyle kapsamak.
+  — ✅ Tamamlandı: 2026-08-11 / session lifecycle fixture matrix
 
 **B çıkış kriteri:** Zoom ve Google Meet/Chrome gerçek cihaz testlerinde başlangıç ve
 hang-up ayrı ayrı beşer ardışık koşuda doğru algılanır; yalnız sessizlik yanlış bitiş
 üretmez; izin yokken manuel kayıt çalışır.
 
+— 🧪 Fiziksel kanıt hattı hazır: 2026-08-11 / privacy-safe OSLog collector + 4/4 Swift ve
+CLI pass/fail session auditor; istemci/senaryo başına gerçek 5× koşular bekliyor
+— ⛔ Bloke: Kullanıcı kontrollü sentetik Zoom/Meet görüşmeleri ve `QA/Evidence` fiziksel
+kanıtları yok; uygulama görüşmeye veya kullanıcı hesabına kendiliğinden katılamaz
+
 #### C — Privacy-first toplantı sesi
 
-- [ ] Global system tap yerine belirlenen meeting process'lerini içeren private Core Audio
+- [x] Global system tap yerine belirlenen meeting process'lerini içeren private Core Audio
   process tap oluşturmak; MeetingNotch ve toplantı dışı uygulama sesini dışarıda bırakmak.
-- [ ] `MeetingMicrophoneGate` state machine ve timestamp'li gate event modelini oluşturmak.
-- [ ] Zoom ve Google Meet/Chrome mute control adaptörlerini `open/closed/unknown` üretecek
+  — ✅ Tamamlandı: 2026-08-11 / private meeting-process tap and fail-closed scope
+- [x] `MeetingMicrophoneGate` state machine ve timestamp'li gate event modelini oluşturmak.
+  — ✅ Tamamlandı: 2026-08-11 / fail-closed microphone gate domain
+- [x] Zoom ve Google Meet/Chrome mute control adaptörlerini `open/closed/unknown` üretecek
   şekilde bağlamak.
-- [ ] Mikrofon writer'ında `closed/unknown` sample'larını encode öncesi sıfırlamak, gate
+  — ✅ Tamamlandı: 2026-08-11 / live adapter-to-recording gate bridge
+- [x] Mikrofon writer'ında `closed/unknown` sample'larını encode öncesi sıfırlamak, gate
   değişiminde click üretmeyen kısa fade uygulamak ve ortak timeline'ı korumak.
-- [ ] Görünür notch toggle + global shortcut fallback'i eklemek; her kayıtta kapalı başlatmak.
+  — ✅ Tamamlandı: 2026-08-11 / zero-fill PCM gate with boundary fades
+- [x] Görünür notch toggle + global shortcut fallback'i eklemek; her kayıtta kapalı başlatmak.
+  — ✅ Tamamlandı: 2026-08-11 / visible gate control and ⌥⌘M hotkey
 - [ ] Ham mic, system track, birleşik M4A ve transkript üzerinde unique-phrase privacy
   testini; hızlı mute/unmute, kulaklık ve cihaz değişimi senaryolarını çalıştırmak.
-- [ ] Meeting process'i değişir veya adapter kaybolursa gate'i fail-closed yapmak ve
+  — ⛔ Bloke: Otomasyon hazır; gerçek cihazda kullanıcının sesli canary onayı, kulaklık ve
+  cihaz değişimi koşusu bekliyor
+- [x] Meeting process'i değişir veya adapter kaybolursa gate'i fail-closed yapmak ve
   kullanıcıya anında görünür uyarı vermek.
+  — ✅ Tamamlandı: 2026-08-11 / fail-closed runtime interruption warning
 
 **C çıkış kriteri:** Mute/unknown aralıklarında kullanıcı sesi hiçbir kalıcı çıktıya girmez;
 unmute aralıkları anlaşılırdır; toplantı dışı uygulama sesi process-scope testinde yoktur.
 
 #### D — Minimal UI dönüşümü
 
+- [x] Fiziksel notch/floating panel appearance regresyonunu gidermek; aktif ve pasif
+  sekmeleri her görünümde okunur tutmak, ana yüzeylerin kontrast/hiyerarşi/hover-focus
+  durumlarını yeniden cilalamak ve görsel sözleşme testleriyle korumak.
+  — ✅ Tamamlandı: 2026-08-11 / physical-notch appearance and stable tab layout
 - [x] Renk, tipografi, spacing, radius, icon ve control-size token'larını tek theme dosyasında
   tanımlamak.
-- [ ] Kompakt notch'u session/gate/kayıt süresi etrafında yeniden tasarlamak.
+- [x] Kompakt notch'u session/gate/kayıt süresi etrafında yeniden tasarlamak.
+  — ✅ Tamamlandı: 2026-08-11 / session client, live duration and microphone gate
 - [x] Geniş paneli tek ana status surface + ince geçmiş listesi olarak yeniden tasarlamak;
   gereksiz kart, gölge ve büyük ikonları kaldırmak.
-- [ ] Settings ve onboarding'i tek API ve yeni Accessibility/mute sınırlarıyla yenilemek.
+- [x] Settings ve onboarding'i tek API ve yeni Accessibility/mute sınırlarıyla yenilemek.
+  — ✅ Tamamlandı: 2026-08-11 / single ElevenLabs boundary and Accessibility consent
 - [x] Toplantı detayını daha yoğun header, sade playback bar ve okunaklı transcript düzenine
   geçirmek; detay, ayrı pencere yerine notch içi drill-down olarak açılmalı ve düz metin /
   Markdown kopyalama aksiyonları ilk satırdan erişilebilir olmalı.
-- [ ] Koyu/açık, Increase Contrast, Reduce Motion, klavye ve VoiceOver durumlarını snapshot
+- [x] Koyu/açık, Increase Contrast, Reduce Motion, klavye ve VoiceOver durumlarını snapshot
   veya preview matrisiyle doğrulamak.
+  — ✅ Tamamlandı: 2026-08-11 / six-state preview and accessibility contract matrix
 
 - [x] Ana paneli 424 px, toplantı detayını ekran uygunsa 520 px genişliğe akışkan taşıyan
   layout'u; 8 px yatay dış padding ve 12–14 px dikey bölüm ritmiyle uygulamak.
@@ -231,13 +254,35 @@ kontroller klavye ve VoiceOver ile kullanılabilir kalır.
 - [ ] Zoom ve Google Meet/Chrome'da ayrı ayrı 60+ dakikalık toplantıda güvenli kapsamlı
   system audio, gated mic, finalize, ElevenLabs upload, diarization, özet ve detay akışını
   uçtan uca tamamlamak.
+  — ⛔ Bloke: `QA/V1_RELEASE_RUNBOOK.md` hazır; kullanıcı kontrollü iki fiziksel 65 dk
+  görüşme ve test ElevenLabs anahtarı bekliyor
 - [ ] İnternet kesintisi, 401/429/5xx, disk dolması, force quit, sleep/wake ve audio device
   değişimi recovery matrisini geçirmek.
+  — ⛔ Bloke: Automation 102/102 + canary/session CLI + 3/3 physical audio smoke geçti;
+  ağ/uyku/force-quit ve disposable volume testleri için kullanıcı onayı bekleniyor
 - [ ] Google Meet/Chrome'da toplantı sekmesi dışındaki tarayıcı sesinin kalıcı sistem
   kaydına veya transkripte girmediğini canary-audio privacy testiyle doğrulamak; izolasyon
   kaybolduğunda kaydı fail-closed duruma geçirmek ve görünür güvenli fallback sunmak.
+  — ⛔ Bloke: MV3/native bridge hazır; gerçek Meet görüşmesi ve ikinci sekme sesli canary
+  koşusu kullanıcı etkileşimi bekliyor
+  - [ ] Kullanıcının extension action tıklamasıyla yalnız aktif `meet.google.com` sekmesini
+    alan MV3 `tabCapture` + offscreen audio katmanını uygulamak; tab sesini kullanıcıya geri
+    oynatmak ve başka origin/tab için fail-closed davranmak.
+    — ⛔ Bloke: static+protocol+consent 6/6; gerçek Chrome/Meet tab koşusu bekliyor
+  - [x] Sabit extension origin allowlist'i, session nonce, sequence/backpressure ve PCM
+    doğrulaması olan native messaging helper + uygulama IPC köprüsünü uygulamak.
+    — ✅ Tamamlandı: 2026-08-11 / embedded host + user-scoped IPC + M4A source; 9/9
+  - [ ] Extension kurulum/onboarding, canlı bağlantı durumu, kopmada görünür güvenli durdurma
+    ve Chrome Web Store dağıtım yolunu tamamlamak.
+    — ⛔ Bloke: disclosure popup, onboarding/status ve Store ZIP/metin/varlık hazır;
+    publisher hesabı, dashboard ID, public HTTPS policy/support bilgileri ve review bekliyor
+  - [ ] Toplantı sekmesi + ikinci Chrome sekmesi canary-audio koşusunu ham system, final M4A
+    ve transkriptte fiziksel olarak doğrulamak.
+    — ⛔ Bloke: Swift 4/4 + CLI auditor hazır; fiziksel iki sekmeli koşu bekliyor
 - [ ] İmzalı/notarize release candidate'ı temiz kullanıcı hesabında notch ve harici ekranda
   doğrulamak.
+  — ⛔ Bloke: RC script + evidence template hazır; Keychain'de Developer ID Application
+  sertifikası ve `MeetingNotch-Notary` profili yok, temiz hesap fiziksel testi bekliyor
 
 **E çıkış kriteri:** İlk kurulumdan sonuç ekranına gerçek toplantı akışı veri sızıntısı
 olmadan tamamlanır ve V1 tamamlanma tanımındaki bütün maddeler geçer.
@@ -418,8 +463,8 @@ kanalı değildir.
 - [x] Panel boyutlarını içerik ve ekran alanına göre sınırlandırmak.
 - [x] Açılma, kapanma ve durum değişimi animasyonlarını uygulamak.
 - [x] Animasyon azaltma erişilebilirlik ayarına uymak.
-- [ ] Açık/koyu tema ve yüksek kontrast görünümünü doğrulamak.
-- [ ] Mock verilerle tüm notch durumlarının preview'larını hazırlamak.
+- [x] Açık/koyu tema ve yüksek kontrast görünümünü doğrulamak.
+- [x] Mock verilerle tüm notch durumlarının preview'larını hazırlamak.
 
 ### 2.4 Minimal/techy görsel sistem dönüşümü
 
@@ -600,15 +645,15 @@ kanalı değildir.
 
 ### 6.4 Gerçek toplantı session algılama
 
-- [ ] Takvim bağlamından bağımsız meeting session domain modelini ve state machine'i
+- [x] Takvim bağlamından bağımsız meeting session domain modelini ve state machine'i
   oluşturmak.
-- [ ] Core Audio process input/output aktivitesini bundle ID ve PID ile izlemek.
+- [x] Core Audio process input/output aktivitesini bundle ID ve PID ile izlemek.
 - [x] Zoom process/window ve Google Meet Chrome window/tab/call-control adaptörlerini
   Accessibility üzerinden prototiplemek.
-- [ ] Takvim, `Katıl`, process IO ve client adapter kanıtlarını confidence skoruna
+- [x] Takvim, `Katıl`, process IO ve client adapter kanıtlarını confidence skoruna
   dönüştürmek.
-- [ ] Başlangıç, bitiş şüphesi ve doğrulanmış bitiş davranışlarını notch'a bağlamak.
-- [ ] Manuel toplantı kaydını tüm algılama/Accessibility hata durumlarında korumak.
+- [x] Başlangıç, bitiş şüphesi ve doğrulanmış bitiş davranışlarını notch'a bağlamak.
+- [x] Manuel toplantı kaydını tüm algılama/Accessibility hata durumlarında korumak.
 
 ### 6.5 Destek matrisi
 
@@ -639,7 +684,8 @@ kanalı değildir.
 - [x] Kayıt başladığını yalnızca iki kaynak hazır olduğunda UI'a bildirmek.
 - [x] Manuel durdurmayı uygulamak.
 - [x] Güvenli iptal ve dosya temizleme davranışını uygulamak.
-- [ ] Maksimum kayıt süresi veya disk dolması sınırlarını yönetmek.
+- [x] Maksimum kayıt süresi veya disk dolması sınırlarını yönetmek.
+  — ✅ Tamamlandı: 2026-08-11 / kayıt sırasında periyodik disk güvenlik denetimi ve güvenli finalize
 
 ### 7.2 Mikrofon yakalama
 
@@ -658,23 +704,27 @@ kanalı değildir.
 - [x] Yakalanacak process/global audio davranışını belirlemek.
 - [x] Uygulamanın kendi bildirim sesini gerekiyorsa capture dışında bırakmak.
 - [x] Sistem sesi buffer'larını timestamp bilgisiyle kaydetmek.
-- [ ] Sessizlik ile kopmuş audio pipeline durumunu mümkün olduğunca ayırt etmek.
-- [ ] Çıkış cihazı veya sample rate değişimini ele almak.
+- [x] Sessizlik ile kopmuş audio pipeline durumunu mümkün olduğunca ayırt etmek.
+  — ✅ Tamamlandı: 2026-08-11 / frame heartbeat, writer error ve fail-closed güvenli durdurma
+- [x] Çıkış cihazı veya sample rate değişimini ele almak.
+  — ✅ Tamamlandı: 2026-08-11 / normalize-or-fail-closed device policy
 - [x] Core Audio Process Tap, aggregate device ve dosya kaynaklarını her bitiş/hata yolunda
   temizlemek.
-- [ ] Global tap'i desteklenen toplantı process'leriyle sınırlı private process tap'e
+- [x] Global tap'i desteklenen toplantı process'leriyle sınırlı private process tap'e
   dönüştürmek.
-- [ ] Meeting process'i kapanır/değişirse tap'i güvenli yeniden bağlamak veya kaydı görünür
+- [x] Meeting process'i kapanır/değişirse tap'i güvenli yeniden bağlamak veya kaydı görünür
   uyarıyla durdurmak.
 
 ### 7.4 Senkronizasyon ve dosya üretimi
 
 - [x] İki ses kaynağı için ortak timeline stratejisini uygulamak.
 - [x] Başlangıç offset'ini ele almak.
-- [ ] Uzun süreli clock drift'ini ele almak.
+- [x] Uzun süreli clock drift'ini ele almak.
+  — ✅ Tamamlandı: 2026-08-11 / bounded timestamp-based time-pitch correction
 - [x] Sample rate ve kanal düzenini normalize etmek.
 - [x] Kaynak gain dengesini uygulamak.
-- [ ] Limiter uygulayarak clipping'i önlemek.
+- [x] Limiter uygulayarak clipping'i önlemek.
+  — ✅ Tamamlandı: 2026-08-11 / offline mix soft limiter
 - [x] Provider için tek ve geçerli M4A/AAC dosyası üretmek.
 - [x] Nihai dosyanın süresini ve okunabilirliğini doğrulamak.
 - [x] Finalize işlemi başarısız olursa kaynak geçici dosyaları korumak.
@@ -686,19 +736,21 @@ kanalı değildir.
 - [x] Mikrofon/system audio durum göstergelerini sunmak.
 - [x] Kaydı durdurma kontrolü eklemek.
 - [x] İptal kontrolünü yanlış dokunmayı önleyecek şekilde sunmak.
-- [ ] İsteğe bağlı pause/resume özelliğini ürün kararına göre uygulamak.
-- [ ] Kayıt sürerken uykuya geçme ve ekran kilidi davranışını belirlemek.
+- [x] İsteğe bağlı pause/resume özelliğini ürün kararına göre uygulamak.
+  — ✅ Ürün kararı: 2026-08-11 / V1 dışında; timeline ve privacy gate karmaşıklığı ertelendi
+- [x] Kayıt sürerken uykuya geçme ve ekran kilidi davranışını belirlemek.
+  — ✅ Tamamlandı: 2026-08-11 / sleep, screen sleep and session resign fail-closed
 
 ### 7.6 Meeting mikrofon gate'i
 
-- [ ] `open/closed/unknown` durumlu, varsayılanı `closed` olan gate state machine'i
+- [x] `open/closed/unknown` durumlu, varsayılanı `closed` olan gate state machine'i
   oluşturmak.
-- [ ] Client mute detector sonucunu gate'e bağlamak; Core Audio input aktivitesini yalnız
+- [x] Client mute detector sonucunu gate'e bağlamak; Core Audio input aktivitesini yalnız
   destekleyici kanıt olarak kullanmak.
-- [ ] `closed/unknown` sample'larını writer öncesinde sıfırlayıp timeline'ı korumak.
-- [ ] Gate geçişlerini timestamp + kaynakla kayıt metadata'sına yazmak.
-- [ ] Notch toggle ve global shortcut manuel fallback'i eklemek.
-- [ ] Adapter kaybı, Accessibility izni kaybı ve bilinmeyen durumda fail-closed davranmak.
+- [x] `closed/unknown` sample'larını writer öncesinde sıfırlayıp timeline'ı korumak.
+- [x] Gate geçişlerini timestamp + kaynakla kayıt metadata'sına yazmak.
+- [x] Notch toggle ve global shortcut manuel fallback'i eklemek.
+- [x] Adapter kaybı, Accessibility izni kaybı ve bilinmeyen durumda fail-closed davranmak.
 - [ ] Mute sırasında söylenen benzersiz cümlenin ham/birleşik/transkript çıktılarında
   bulunmadığı privacy testini geçirmek.
 
@@ -839,11 +891,11 @@ kanalı değildir.
 - [ ] Kayıt, upload ve save sırasında force quit sonrası kurtarmayı test etmek.
 - [ ] Çok uzun toplantı adı ve transkriptini test etmek.
 - [ ] Aynı anda yaklaşan iki toplantıyı test etmek.
-- [ ] Meeting client bulunamadı, Accessibility izni reddedildi ve mute state `unknown`
+- [x] Meeting client bulunamadı, Accessibility izni reddedildi ve mute state `unknown`
   senaryolarında mikrofonun fail-closed kaldığını test etmek.
-- [ ] Meeting client hang-up, crash, process restart ve meeting window kapanma senaryolarını
+- [x] Meeting client hang-up, crash, process restart ve meeting window kapanma senaryolarını
   test etmek.
-- [ ] Mute iken söylenen canary phrase'in hiçbir kalıcı ses/transkript çıktısına girmediğini
+- [x] Mute iken söylenen canary phrase'in hiçbir kalıcı ses/transkript çıktısına girmediğini
   otomatik doğrulamak.
 - [ ] Process-scope tap sırasında müzik/bildirim/tarayıcı gibi toplantı dışı seslerin kayda
   girmediğini doğrulamak.
@@ -946,6 +998,7 @@ kanalı değildir.
 
 Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin arasına alınmaz.
 
+- [ ] Timeline ve privacy gate semantiğiyle birlikte kayıt pause/resume özelliği.
 - [ ] Cihazlar arası bulut senkronizasyonu.
 - [ ] Tamamen cihaz üstü transkripsiyon.
 - [ ] Canlı transkript.
@@ -960,6 +1013,106 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 ## İlerleme günlüğü
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
+
+- 2026-08-11 — Fiziksel notch UI appearance regresyonu giderildi. DynamicNotchKit'in siyah
+  yüzeyinde sistem açık teması miras alıp pasif sekme ve ikincil metni karartması engellendi;
+  fiziksel notch expanded/compact içerikleri koyu görünümü kullanırken floating panel sistem
+  temasını koruyor. Sekme seçiminin ilk frame'de layout'u daraltabilen matched-geometry
+  arka planı kaldırıldı; iki sekme sabit genişlikte her zaman görünür, pasif/hover/seçili
+  durumlar ayrı kontrast ve yüzey token'larıyla çalışıyor. Pin kontrolünün pasif vurgusu,
+  status surface hiyerarşisi ve konsantrik tab radius'ları da düzeltildi. Açık sistem teması
+  + siyah fiziksel-notch zemini offscreen PNG smoke testiyle render edildi; tam pakette 287
+  testten 284'ü geçti, üç opt-in donanım testi beklendiği gibi atlandı ve imzalı Debug build
+  üretildi.
+
+- 2026-08-11 — V1 completion/blocker audit'i yapıldı. `QA/Evidence` altında gerçek Zoom/Meet
+  kabul kanıtı bulunmadı; kurulu Zoom Workplace 6.7.7 ve Chrome 151 fiziksel görüşme için
+  kullanıcı hesabı/etkileşimi bekliyor. Keychain'de yalnız Apple Development kimliği var;
+  Developer ID Application sertifikası ve `MeetingNotch-Notary` profili bulunmuyor. Chrome
+  Web Store publisher/dashboard ID ile public HTTPS gizlilik, destek ve geliştirici alanları
+  da dış hesap bilgisi bekliyor. Kod, otomasyon, kanıt collector'ları ve imzalı Debug kapısı
+  yeşil kaldı; fiziksel ses kaydı, destructive sistem koşulları veya hesap yayını kullanıcı
+  onayı olmadan başlatılmadı.
+
+- 2026-08-11 — Google Meet sekme izolasyonunun production hattı hazırlandı. Kullanıcı
+  onaylı MV3 popup yalnız canonical Meet sekmesini `tabCapture` ile offscreen audio'ya
+  bağlıyor, sesi yerel çıkışa geri oynatıyor ve sabit extension origin'li native messaging
+  helper üzerinden kullanıcıya özel Unix socket'e iletiyor. Sequence/backpressure, framing,
+  PCM ve kopma sınırları iki kez doğrulanıyor; gerçek gömülü helper stdin → socket → broker
+  → ACK akışı ve PCM → M4A encode testi geçti. Uygulama/onboarding canlı `bekleniyor / bağlı /
+  kayıt hattında` durumunu ve fail-closed güvenlik durdurmasını gösteriyor. Ağustos 2026
+  Chrome veri açıklama kuralı için yakalama öncesi açık onay popup'ı, minimum izin
+  gerekçeleri, gizlilik politikası taslağı, Store metni, ikon/promosyon varlıkları ve
+  checksum'lı v0.1.0 ZIP üretimi eklendi. Gerçek ham/final M4A'yı belleğe bütünüyle almadan
+  997 Hz tone, minimum süre ve transcript canary cümlesi için JSON/Markdown kanıta dönüştüren
+  auditor da eklendi; temiz/sızıntılı CLI fixture'ları ayrı exit code'larla doğrulandı.
+  Session acceptance collector ise privacy-safe unified loglardan istemci/senaryo başına
+  beşli `ready/confirmed → ended/confirmed` zincirini ve terminal state regresyonunu denetliyor.
+  Extension testleri 6/6, recovery paketi 102/102 ve tam macOS paketi 283 testten 280 geçiş +
+  üç opt-in donanım skip ile yeşil. Helper yalnız
+  `Contents/Library/LaunchServices` altında bulunuyor; uygulama/helper Apple Development
+  Hardened Runtime imzaları strict/deep doğrulamadan geçti. Gerçek Chrome iki sekmeli
+  canary, Store dashboard ID/public policy/review, 65 dakikalık istemci koşuları ve
+  Developer ID notarization açık.
+
+- 2026-08-11 — Minimal UI ve release-hardening hazırlığı tamamlandı. Kompakt notch Zoom/Meet
+  istemcisi, kayıt süresi ve fail-closed mic gate'i gösteriyor; ayarlar/onboarding tek
+  ElevenLabs sınırını ve Accessibility rızasını açıklıyor. Light/dark, contrast, reduced
+  motion, keyboard ve VoiceOver sözleşmelerini kapsayan altı preview durumu eklendi.
+  Recovery otomasyonu ağ geri dönüşü, aynı idempotency key ile retry, sleep sırasında
+  `systemInterruption` fail-closed/finalize, force-quit queue/capture ve cihaz değişimini
+  kapsıyor. Kayıt sırasında 30 saniyelik disk güvenlik denetimi kritik alanda görünür
+  uyarıyla finalize ediyor; Core Audio frame heartbeat'i gerçek sessizliği kopmuş pipeline
+  ve writer hatasından ayırıp fail-closed durduruyor. V1 fiziksel test runbook'u, kanıt
+  şablonu ve Developer ID + notarization RC betiği hazırlandı. Timestamp tabanlı bounded
+  drift düzeltmesi pitch'i koruyor; offline soft limiter sıcak miksleri 1.0 altında tutuyor.
+  Ekran uyku/oturum pasif olayları da güvenli finalize'a bağlı. 257 testten 254'ü geçti, üç
+  opt-in donanım testi normal pakette atlandı; düzeltilen opt-in runner ile fiziksel mic,
+  system audio M4A ve izin/tap probu ayrıca 3/3 geçti. Apple
+  Development imzalı Debug build ve universal unsigned Release archive geçti. Developer ID
+  sertifikası/notary profili, gerçek 65 dakika koşuları ve güvenli Chrome tab izolasyonu açık.
+
+- 2026-08-11 — Privacy-first mikrofon hattı tamamlandı: her kayıt kapalı gate ile başlıyor;
+  Zoom/Meet adapter durumları timestamp'li metadata event'lerine bağlanıyor; `closed/unknown`
+  PCM frame'leri encode öncesi sıfırlanıyor ve beş milisaniyelik sınır fade'leri timeline'ı
+  koruyor. Notch kontrolü ile sistem genelindeki ⌥⌘M kısayolu manuel fallback sağlıyor;
+  process/Accessibility kaybı gate'i `unknown` yapıp notch uyarısını açıyor. Sentetik canary
+  ham mic, system ve birleşik M4A'da sızıntı göstermedi; hızlı gate ve 24/48 kHz geçişleri
+  geçti. Toplam 243 testten 240'ı geçti, üç opt-in donanım testi atlandı; imzalı Debug build
+  ve strict codesign doğrulandı. Gerçek konuşma/kulaklık/transkript privacy koşusu açık.
+
+- 2026-08-11 — Gerçek toplantı kaydının sistem sesi private Core Audio process tap'e
+  taşındı. Doğrulanmış Zoom audio process nesnesi doğrudan tap kapsamına veriliyor;
+  process kaybolur/eşleşmezse global capture'a düşmeden kayıt engelleniyor. Google Meet'te
+  Chrome process-wide kapsamı sekme izolasyonu kanıtlanana kadar fail-closed tutuluyor;
+  yalnız kullanıcının toplantı bağlamı dışındaki açık manuel kaydı ayrı global kapsamı
+  kullanabiliyor. Toplam 224 testten 221'i geçti, üç opt-in donanım testi atlandı; imzalı
+  Debug build ve strict codesign doğrulaması geçti.
+
+- 2026-08-11 — Session fixture matrisi planlı/plansız toplantı, takvim aralığından önce ve
+  sonra katılım, sessizlik/ara, client process'inin görüşme sonrasında açık kalması,
+  Accessibility olmadan manuel kayıt ve aynı PID üzerinde arka arkaya görüşmeleri kapsayacak
+  şekilde genişletildi. Sessizlik bitiş üretmiyor; takvimsiz belirsiz hang-up kullanıcı
+  onayında kalıyor; yeni call controls aynı process üzerinde yeni session kimliği açıyor.
+  Toplam 218 testten 215'i geçti, üç opt-in donanım testi atlandı; imzalı Debug build ve
+  codesign bütünlüğü doğrulandı. Zoom ve Google Meet gerçek çağrı beşli koşuları fiziksel
+  kalite kapısı olarak açık tutuldu.
+
+- 2026-08-11 — Confirmed meeting başlangıcı tek seferlik görünür kayıt teklifine; probable
+  bitiş manuel kullanıcı onayına; confirmed bitiş ise beş saniyelik iptal edilebilir
+  auto-stop akışına bağlandı. Kullanıcının “Kayda Devam Et” seçimi aynı session için yeni
+  otomatik durdurma baskısını engelliyor; sayaç ve karar aksiyonları notch ana yüzeyinde
+  görünür kalıyor. Toplam 211 testten 208'i geçti, üç opt-in donanım testi atlandı; imzalı
+  Debug build ve codesign bütünlüğü doğrulandı.
+
+- 2026-08-11 — Takvim, MeetingNotch `Katıl` aksiyonu, Core Audio process IO ve normalize
+  Accessibility adapter snapshot'larını tek deterministic `MeetingSessionCoordinator`
+  altında birleştiren production hattı tamamlandı. Meeting controls, mevcut session PID'si,
+  URL ile eşleşen istemci ve aktif IO için kararlı seçim sırası uygulandı; sıradan boşta
+  Chrome penceresi ile tek başına takvim bağlamı confirmed toplantıya yükseltilmiyor.
+  Coordinator AppState, kayıt başlangıç/bitişi ve gerçek URL açma akışına bağlandı. Toplam
+  205 testten 202'si geçti, üç opt-in donanım testi atlandı; imzalı Debug build ve codesign
+  bütünlüğü doğrulandı.
 
 - 2026-07-29 — Apple kamera extension provider'ının ürettiği CMIO bağlantı hataları
   toplantı detayı açıkken UI'ı bekletebiliyordu. Mikrofon cihaz keşfi ana actor'dan

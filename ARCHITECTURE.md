@@ -124,6 +124,36 @@ kanıtlamadan global veya process-wide kayda sessizce düşmez. İzolasyon kaybo
 fail-closed olur ve UI güvenli fallback'i açıkça gösterir. Diğer istemciler manuel kayıt
 moduna düşer; UI otomatik algılama iddiasında bulunmaz.
 
+Google Meet system audio izolasyonu Chrome'un process sınırından çıkarılamaz. Bu istemcide
+tek güvenli production yolu ayrı Manifest V3 extension'dır: kullanıcı aktif Meet sekmesinde
+extension action'ı açar; popup seçili sekme sesinin yerel uygulamada nasıl işleneceğini ve
+kayıt sonrası ElevenLabs sınırını yakalama öncesi açıkça gösterir. Kullanıcının `Meet sekmesini
+bağla` onayıyla `chrome.tabCapture.getMediaStreamId()` yalnız o sekme için stream üretir ve
+offscreen document stream'i tüketirken sesi tekrar yerel çıkışa bağlar. Extension ID'si
+sabittir; başka origin, kullanıcı gesture'ı olmayan başlangıç veya native bridge kaybı
+capture başlatmaz ya da anında fail-closed durdurur. Store ZIP'i yalnız runtime dosyalarını
+taşır; ikonlar ve checksum deterministik paket betiğiyle üretilir. Web Store item ID'si native
+host allowlist'iyle eşleşmeden production yayını yapılmaz.
+
+Offscreen audio worklet 48 kHz hedefli küçük PCM S16LE frame'leri sıra numarası ve rastgele
+session UUID ile üretir. Frame'ler yalnız sabit origin allowlist'li Chrome native messaging
+host'una gider. Helper mesaj boyutu, sample rate, kanal, sıra, session nonce ve backpressure
+kurallarını doğruladıktan sonra uygulamanın kullanıcıya özel IPC kanalına aktarır; extension
+veya helper tek başına kalıcı toplantı dosyası seçemez. Meeting URL'sinin path'i, başlık,
+DOM metni ve ses içeriği loglanmaz. Chrome Web Store kurulumu ve action tıklaması onboarding
+üzerinde açık bir Google Meet önkoşuludur.
+
+Native sınır iki ayrı doğrulamadan oluşur. `MeetingNotchBrowserAudioHost`, Chrome'un 4-byte
+little-endian framed stdio mesajını sabit extension origin, session UUID, sequence, PCM boyutu,
+sample rate ve kanal sayısıyla doğrular. Doğrulanmış event, yalnız o kullanıcı için `0700`
+geçici dizin ve `0600` Unix socket üzerinden `BrowserAudioIPCServer`'a taşınır; socket yazımı
+`SO_NOSIGPIPE` ile uygulama sürecini kopuk peer'dan korur. `BrowserAudioStreamBroker` session
+ve sequence'i yeniden doğrular; `BrowserAudioCaptureSource` yalnız aktif broker session'ında
+PCM'i 48 kHz mono AAC M4A'ya dönüştürür. Host/IPC/tab kopması `.pipelineStalled` üretip mevcut
+güvenli-finalize yolunu tetikler. Uygulama paketi helper'ı `Contents/Library/LaunchServices`
+altında taşır ve Chrome native-host manifestini yalnız sabit origin ile kullanıcı hesabına
+kurar. UI `kullanılamıyor / sekme bekleniyor / bağlı / kayıt hattına bağlı` durumunu gösterir.
+
 Algılama kaydı habersiz başlatmaz. `confirmed` başlangıç kayıt teklifini görünür yapar.
 Kayıt sürerken `confirmed` bitiş iptal edilebilir kısa geri sayım başlatır; `probable`
 bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanılabilir kalır.
@@ -154,6 +184,10 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 - Yüzeyler nötr koyu/açık zemin, tek hairline ve yalnız durum rengi vurgusuyla çalışır.
   Büyük dekoratif gölgeler ve iç içe kartlar kullanılmaz. Kompakt görünüm session durumu,
   kayıt süresi ve meeting mic gate'ini tek bakışta taşır.
+- DynamicNotchKit fiziksel notch yüzeyini daima siyah çizdiği için bu ekrandaki expanded ve
+  compact içerik açık sistem temasında da koyu `ColorScheme` kullanır. Notch olmayan floating
+  panel sistem görünümünü miras almaya devam eder. Sekme layout'u seçili durum animasyonunda
+  yeniden ölçülmez; iki sekme her frame'de görünür kalır, yalnız renk ve yüzey durumu değişir.
 
 ## Veri yaklaşımı
 
@@ -176,6 +210,11 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   ayrıntıları OSLog'a hiç gönderilmez. Tanılama yalnızca sabit operasyon kodu, hata tipi,
   akış fazı ve hassas olmayan sayaçları taşır; kalıcı işleme hataları da serbest provider
   mesajı yerine normalize edilmiş hata kodu saklar. V1'de analytics SDK'sı yoktur.
+- Fiziksel session kabulünde kullanılan `meeting-session` OSLog kategorisi yalnız rastgele
+  session UUID'si, normalize state/confidence/client/microphone ve evidence türlerini taşır.
+  PID, takvim kimliği, meeting URL'si, pencere/rol metni veya görüşme içeriği loglanmaz.
+  QA collector bu kayıtları geçici NDJSON kanıtına çevirir; production analytics veya kalıcı
+  kullanıcı profili oluşturmaz.
 - Toplantı saklama politikası ayar belgesinde tutulur ve eksik alan süresiz saklama olarak
   geriye uyumlu okunur. Süre seçilmişse açılışta ve 24 saatte bir çalışan servis, bitiş
   zamanı eşik öncesinde kalan toplantı klasörlerini repository üzerinden serialize ederek
@@ -267,10 +306,11 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 
 ## Toplantı sesi ve mikrofon gate sınırı
 
-- Mevcut global system tap V1 hedefinde gerçek toplantı kaydı için kullanılmaz. Desteklenen
-  meeting session bir bundle ID/PID setine çözüldüğünde private `CATapDescription` yalnız bu
-  process nesnelerinin output sesini yakalar. MeetingNotch kendi sesi ve diğer uygulama
-  sesleri capture dışında kalır.
+- Mevcut global system tap V1 hedefinde gerçek toplantı kaydı için kullanılmaz. Zoom meeting
+  session bir bundle ID/PID setine çözüldüğünde private `CATapDescription` yalnız bu process
+  nesnelerinin output sesini yakalar. Google Meet system audio yalnız yukarıdaki extension
+  tab stream'inden gelir. MeetingNotch kendi sesi ve diğer uygulama/Chrome sekmesi sesleri
+  capture dışında kalır.
 - Meeting process'i restart olur veya child process değiştirirse session detector yeni PID
   setini doğrular. Yeniden bağlama sırasında uygulama sessizce global tap'e düşmez; kullanıcı
   uyarılır ve gerekiyorsa kayıt güvenli biçimde finalize edilir.
@@ -363,12 +403,21 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 - Calendar matcher, meeting session detector, mute adapter ve ElevenLabs parser gerçek
   servis olmadan fixture ile test edilir.
 - Ses yakalama ve notch davranışı gerçek macOS donanımında entegrasyon testi gerektirir.
-- Gerçek mikrofon testi `MEETINGNOTCH_RUN_AUDIO_INTEGRATION_TESTS=1` opt-in anahtarıyla
-  `MicrophoneCaptureSource` sınırını coordinator'dan bağımsız çalıştırır; normal regresyon
-  koşularında TCC istemi oluşturmamak için atlanır.
-- Gerçek sistem sesi testi aynı opt-in anahtarıyla harici bir sistem sesi oynatır ve
+- Gerçek mikrofon testi `Scripts/audio-integration-tests.sh` opt-in runner'ıyla
+  `MicrophoneCaptureSource` sınırını coordinator'dan bağımsız çalıştırır; runner yalnız test
+  süresince `/tmp` sentinel'i oluşturur ve her çıkış yolunda temizler. Normal regresyon
+  koşularında TCC istemi oluşturmamak için test atlanır.
+- Gerçek sistem sesi testi aynı runner ile harici bir sistem sesi oynatır ve
   `SystemAudioCaptureSource` çıktısının seviye, timestamp, süre, audio track ve M4A dosya
   bütünlüğünü doğrular; normal regresyon koşularında TCC istemi oluşturmamak için atlanır.
+- Otomatik recovery matrisi `Scripts/recovery-matrix-tests.sh` ile disk, capture recovery,
+  queue restore/idempotency, transport retry, cihaz/gate kesintisi, pipeline heartbeat,
+  drift/limiter ve privacy canary testlerini tek koşuda toplar; log ile sonuç özetini
+  `artifacts/qa/` altında üretir.
+- Browser audio otomasyonu extension origin/URL/backpressure testlerine ek olarak gerçek gömülü
+  native-host executable'ını framed stdin/stdout, kullanıcı socket'i, broker ve M4A writer
+  üzerinden uçtan uca çalıştırır. Bu test gerçek Chrome `tabCapture` ve iki sekmeli fiziksel
+  privacy canary'nin yerine geçmez.
 - Gerçek client privacy testleri opt-in çalışır: Zoom ile Google Meet/Chrome çağrılarında
   mute/unmute ve hang-up geçişlerini, güvenli system-audio kapsamını, canary phrase
   sızıntısını ve Google Meet için toplantı dışı sekme canary-audio izolasyonunu birlikte

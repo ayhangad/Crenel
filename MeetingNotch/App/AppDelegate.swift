@@ -15,19 +15,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var processingTask: Task<Void, Never>?
     private var permissionRefreshTask: Task<Void, Never>?
     private var transientStatusTask: Task<Void, Never>?
+    private var meetingAutoStopTask: Task<Void, Never>?
     private var pendingRelaunchURL: URL?
     private var processingRestartRequested = false
+    private var meetingLifecyclePolicy = MeetingSessionLifecyclePolicy()
     private var notchHoverObservation: AnyCancellable?
     private var screenParametersObservation: AnyCancellable?
     private var accessibilityDisplayObservation: AnyCancellable?
+    private var workspaceWillSleepObservation: AnyCancellable?
+    private var workspaceDidWakeObservation: AnyCancellable?
+    private var workspaceScreensDidSleepObservation: AnyCancellable?
+    private var workspaceScreensDidWakeObservation: AnyCancellable?
+    private var workspaceSessionDidResignObservation: AnyCancellable?
+    private var workspaceSessionDidBecomeObservation: AnyCancellable?
     private var activeNotchScreen: NSScreen?
     private var onboardingWindowController: NSWindowController?
     private let notchScreenResolver = NotchScreenResolver()
     private let audioPermissionService = AudioCapturePermissionService()
     private let microphoneDeviceService = MicrophoneDeviceService()
     private let applicationRelauncher = ApplicationRelauncher()
+    private let microphoneGateHotKey = GlobalHotKeyMonitor()
+    private let browserAudioBroker = BrowserAudioStreamBroker()
+    private lazy var browserAudioIPCServer = BrowserAudioIPCServer(broker: browserAudioBroker)
     private let launchAtLoginService: any LaunchAtLoginServicing = LaunchAtLoginService()
     private lazy var meetingMonitor = MeetingMonitor(provider: EventKitMeetingProvider())
+    private lazy var meetingSessionCoordinator = MeetingSessionCoordinator()
     private lazy var meetingRepository: any MeetingRepository = FileMeetingRepository()
     private let taskRepository: any TaskRepository = FileTaskRepository()
     private let appSettingsRepository: any AppSettingsRepository = UserDefaultsAppSettingsRepository()
@@ -49,13 +61,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         repository: meetingRepository
     )
     private lazy var recordingCoordinator: RecordingCoordinator = {
-        let coordinator = RecordingCoordinator()
+        let coordinator = RecordingCoordinator(systemAudioFactory: { [weak self] scope in
+            guard let self else { return SystemAudioCaptureSource(scope: scope) }
+            switch scope {
+            case .browserTab:
+                return BrowserAudioCaptureSource(broker: self.browserAudioBroker)
+            case .meetingProcesses, .explicitManualGlobal:
+                return SystemAudioCaptureSource(scope: scope)
+            }
+        })
         coordinator.onStatusChange = { [weak self] status in
             self?.appState.updateRecordingCaptureStatus(status)
         }
-        coordinator.onSourceConnectionChange = { [weak self] _, connectionState in
+        coordinator.onSourceConnectionChange = { [weak self] source, connectionState in
             guard connectionState.needsAttention else { return }
             self?.presentNotch(followPointer: false)
+            if source == .systemAudio, connectionState == .pipelineStalled {
+                self?.handleRecordingSafetyInterruption(
+                    connectionState.message ?? "Sistem sesi akışı koptu."
+                )
+            }
+        }
+        coordinator.onSafetyInterruption = { [weak self] error in
+            self?.handleRecordingSafetyInterruption(
+                error.errorDescription ?? "Kayıt güvenliği için kayıt durduruluyor."
+            )
+        }
+        coordinator.onMicrophoneGateChange = { [weak self] gate in
+            guard let self else { return }
+            self.appState.updateMeetingMicrophoneGate(gate)
+            switch gate.events.last?.source {
+            case .adapterUnavailable, .processChanged, .systemInterruption:
+                self.presentNotch(followPointer: false)
+            default:
+                break
+            }
         }
         return coordinator
     }()
@@ -78,11 +118,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onRequestCalendarAccess: { [weak self] in
                     self?.requestCalendarAccess()
                 },
-                onOpenMeetingURL: { url in
-                    NSWorkspace.shared.open(url)
-                },
+                onOpenMeetingURL: { [weak self] url in self?.openMeetingURL(url) },
                 onStartRecording: { [weak self] in self?.beginRecording() },
                 onStopRecording: { [weak self] in self?.stopRecordingFlow() },
+                onToggleMeetingMicrophone: { [weak self] in
+                    self?.toggleMeetingMicrophoneGate()
+                },
+                onDismissMeetingPrompt: { [weak self] in
+                    self?.dismissMeetingLifecyclePrompt()
+                },
+                onContinueRecording: { [weak self] in
+                    self?.continueRecordingAfterMeetingSignal()
+                },
+                onConfirmMeetingEnded: { [weak self] in
+                    self?.confirmMeetingEnded()
+                },
                 onCancelFlow: { [weak self] in self?.cancelRecordingFlow() },
                 onRecoverFromFailure: { [weak self] failure in
                     self?.recover(from: failure)
@@ -123,10 +173,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         MultipartFormFileBuilder.removeStaleUploadBodies()
+        configureBrowserAudioBridge()
+        configureMeetingSessionCoordinator()
+        microphoneGateHotKey.start { [weak self] in
+            self?.toggleMeetingMicrophoneGate()
+        }
         configureMeetingMonitor()
         configureNotchInteraction()
+        configureWorkspacePowerEvents()
         configureMicrophoneDevices()
         refreshAudioPermissions()
+        refreshAccessibilityPermission()
         loadStoredMeetings()
         loadTasks()
         startPeriodicRetentionCleanup()
@@ -147,12 +204,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         processingTask?.cancel()
         permissionRefreshTask?.cancel()
         transientStatusTask?.cancel()
+        meetingAutoStopTask?.cancel()
         notchHoverController.cancel()
         notchHoverObservation = nil
         screenParametersObservation = nil
         accessibilityDisplayObservation = nil
+        workspaceWillSleepObservation = nil
+        workspaceDidWakeObservation = nil
+        workspaceScreensDidSleepObservation = nil
+        workspaceScreensDidWakeObservation = nil
+        workspaceSessionDidResignObservation = nil
+        workspaceSessionDidBecomeObservation = nil
         meetingMonitor.stop()
+        Task { await meetingSessionCoordinator.stop() }
         microphoneDeviceService.stopMonitoring()
+        microphoneGateHotKey.stop()
+        browserAudioIPCServer.stop()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -161,6 +228,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidBecomeActive(_ notification: Notification) {
         refreshAudioPermissions(recheckingFor: .seconds(3))
+        refreshAccessibilityPermission()
+    }
+
+    private func configureWorkspacePowerEvents() {
+        let center = NSWorkspace.shared.notificationCenter
+        workspaceWillSleepObservation = center.publisher(for: NSWorkspace.willSleepNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.systemWillSleep()
+            }
+        workspaceDidWakeObservation = center.publisher(for: NSWorkspace.didWakeNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.systemDidWake()
+            }
+        workspaceScreensDidSleepObservation = center.publisher(
+            for: NSWorkspace.screensDidSleepNotification
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _ in
+            self?.systemWillSleep()
+        }
+        workspaceScreensDidWakeObservation = center.publisher(
+            for: NSWorkspace.screensDidWakeNotification
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _ in
+            self?.systemDidWake()
+        }
+        workspaceSessionDidResignObservation = center.publisher(
+            for: NSWorkspace.sessionDidResignActiveNotification
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _ in
+            self?.systemWillSleep()
+        }
+        workspaceSessionDidBecomeObservation = center.publisher(
+            for: NSWorkspace.sessionDidBecomeActiveNotification
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _ in
+            self?.systemDidWake()
+        }
+    }
+
+    private func systemWillSleep() {
+        switch appState.meetingFlow.phase {
+        case .recording:
+            recordingCoordinator.failClosedForSystemInterruption()
+            presentNotch(followPointer: false)
+            stopRecordingFlow()
+        case .preparingRecording:
+            cancelRecordingFlow()
+        default:
+            break
+        }
+    }
+
+    private func systemDidWake() {
+        refreshAudioPermissions(recheckingFor: .seconds(3))
+        refreshAccessibilityPermission(recheckingFor: .seconds(3))
+        microphoneDeviceService.startMonitoring()
+        Task { [weak self] in
+            await self?.meetingSessionCoordinator.refresh()
+        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -205,6 +337,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         presentNotch(followPointer: true)
     }
 
+    func toggleMeetingMicrophoneGate() {
+        guard appState.meetingFlow.isRecording,
+              let gate = appState.meetingMicrophoneGate else { return }
+        recordingCoordinator.setManualMicrophoneState(
+            gate.permitsAudio ? .closed : .open
+        )
+        presentNotch(followPointer: false)
+    }
+
     func refreshCalendar() {
         Task {
             await meetingMonitor.refresh()
@@ -232,6 +373,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.openSystemSettings(for: .systemAudio)
             } else {
                 self.refreshAudioPermissions(recheckingFor: .seconds(3))
+            }
+        }
+    }
+
+    func requestAccessibilityAccess() {
+        let granted = SystemAccessibilityAuthorizer().isTrusted(prompt: true)
+        appState.updateAccessibilityPermission(granted: granted)
+        refreshAccessibilityPermission(recheckingFor: .seconds(5))
+    }
+
+    func openAccessibilitySettings() {
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+        ) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func refreshAccessibilityPermission(recheckingFor duration: Duration? = nil) {
+        appState.updateAccessibilityPermission(
+            granted: SystemAccessibilityAuthorizer().isTrusted(prompt: false)
+        )
+        guard let duration else { return }
+        Task { [weak self] in
+            let clock = ContinuousClock()
+            let deadline = clock.now.advanced(by: duration)
+            while !Task.isCancelled, clock.now < deadline {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard let self else { return }
+                let granted = SystemAccessibilityAuthorizer().isTrusted(prompt: false)
+                self.appState.updateAccessibilityPermission(granted: granted)
+                if granted {
+                    await self.meetingSessionCoordinator.refresh()
+                    return
+                }
             }
         }
     }
@@ -464,6 +639,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         meetingMonitor.onSnapshotChange = { [weak self] snapshot, shouldPresent in
             guard let self else { return }
+            Task {
+                await self.meetingSessionCoordinator.updateCalendarMeeting(
+                    snapshot.nextMeeting
+                )
+            }
             let willPresent = self.appState.applyMeetingSnapshot(
                 snapshot,
                 shouldPresent: shouldPresent
@@ -471,6 +651,94 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard willPresent else { return }
             self.presentMeetingReminder()
         }
+    }
+
+    private func configureMeetingSessionCoordinator() {
+        Task { [weak self] in
+            guard let self else { return }
+            await self.meetingSessionCoordinator.start { [weak self] snapshot in
+                await self?.receiveMeetingSessionDetection(snapshot)
+            }
+        }
+    }
+
+    private func receiveMeetingSessionDetection(
+        _ snapshot: MeetingSessionDetectionSnapshot
+    ) {
+        appState.updateMeetingSessionDetection(snapshot)
+        recordingCoordinator.updateMicrophoneGate(from: snapshot)
+        let decision = meetingLifecyclePolicy.evaluate(
+            snapshot.session,
+            isRecording: appState.meetingFlow.isRecording,
+            canOfferRecording: canOfferDetectedRecording
+        )
+        applyMeetingLifecycleDecision(decision)
+    }
+
+    private var canOfferDetectedRecording: Bool {
+        switch appState.meetingFlow {
+        case .idle, .upcomingMeeting:
+            true
+        default:
+            false
+        }
+    }
+
+    private func applyMeetingLifecycleDecision(
+        _ decision: MeetingSessionLifecycleDecision
+    ) {
+        switch decision {
+        case .none:
+            return
+        case .dismiss:
+            meetingAutoStopTask?.cancel()
+            meetingAutoStopTask = nil
+            appState.dismissMeetingLifecyclePrompt()
+        case .present(let prompt):
+            meetingAutoStopTask?.cancel()
+            meetingAutoStopTask = nil
+            appState.presentMeetingLifecyclePrompt(prompt)
+            presentNotch(followPointer: false)
+            guard case .autoStop(_, _, let deadline) = prompt else { return }
+            meetingAutoStopTask = Task { [weak self] in
+                let delay = max(0, deadline.timeIntervalSinceNow)
+                do {
+                    try await Task.sleep(for: .seconds(delay))
+                } catch {
+                    return
+                }
+                guard let self,
+                      self.appState.meetingLifecyclePrompt == prompt,
+                      self.appState.meetingFlow.isRecording else {
+                    return
+                }
+                _ = self.meetingLifecyclePolicy.confirmEnd(sessionID: prompt.sessionID)
+                self.appState.dismissMeetingLifecyclePrompt()
+                self.meetingAutoStopTask = nil
+                self.stopRecordingFlow()
+            }
+        }
+    }
+
+    private func dismissMeetingLifecyclePrompt() {
+        applyMeetingLifecycleDecision(
+            meetingLifecyclePolicy.dismissRecordingOffer()
+        )
+    }
+
+    private func continueRecordingAfterMeetingSignal() {
+        guard let prompt = appState.meetingLifecyclePrompt else { return }
+        applyMeetingLifecycleDecision(
+            meetingLifecyclePolicy.continueRecording(sessionID: prompt.sessionID)
+        )
+    }
+
+    private func confirmMeetingEnded() {
+        guard let prompt = appState.meetingLifecyclePrompt else { return }
+        applyMeetingLifecycleDecision(
+            meetingLifecyclePolicy.confirmEnd(sessionID: prompt.sessionID)
+        )
+        stopRecordingFlow()
     }
 
     private func configureMicrophoneDevices() {
@@ -515,6 +783,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let rootView = OnboardingView(
             onRequestMicrophoneAccess: { [weak self] in self?.requestMicrophoneAccess() },
             onRequestSystemAudioAccess: { [weak self] in self?.requestSystemAudioAccess() },
+            onRequestAccessibilityAccess: { [weak self] in self?.requestAccessibilityAccess() },
             onRequestCalendarAccess: { [weak self] in self?.requestCalendarAccess() },
             onComplete: { [weak self] in self?.completeOnboarding() }
         )
@@ -610,7 +879,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             && !notchScreenResolver.isSameScreen(previousScreen, targetScreen)
 
         activeNotchScreen = targetScreen
-        appState.updateNotchPanelAvailableSize(targetScreen.visibleFrame.size)
+        updateNotchPanelPresentation(for: targetScreen)
         notchHoverController.markExpanded()
         if needsRelocation {
             await notch.hide()
@@ -633,8 +902,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let screen = resolved ?? NSScreen.main ?? NSScreen.screens[0]
         activeNotchScreen = screen
-        appState.updateNotchPanelAvailableSize(screen.visibleFrame.size)
+        updateNotchPanelPresentation(for: screen)
         return screen
+    }
+
+    private func updateNotchPanelPresentation(for screen: NSScreen) {
+        appState.updateNotchPanelPresentation(
+            availableSize: screen.visibleFrame.size,
+            hasPhysicalNotch: notchScreenResolver.hasPhysicalNotch(screen)
+        )
     }
 
     private func screenParametersDidChange() {
@@ -656,30 +932,69 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func openMeetingURL(_ url: URL) {
+        let meeting = appState.nextMeeting
+        Task { [weak self] in
+            guard let self else { return }
+            await self.meetingSessionCoordinator.recordJoinAction(
+                meeting: meeting,
+                url: url
+            )
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     private func beginRecording() {
         let sourceMeeting = appState.nextMeeting
+        applyMeetingLifecycleDecision(
+            meetingLifecyclePolicy.dismissRecordingOffer()
+        )
         guard appState.prepareForRecording() else { return }
 
         recordingTask?.cancel()
         recordingTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let permissions = await self.audioPermissionService.verifyAccessForRecording()
+                let systemAudioScope = try MeetingAudioCaptureScopeResolver(
+                    browserAudioAvailable: { [weak self] in
+                        self?.browserAudioBroker.hasActiveSession ?? false
+                    }
+                ).resolve(
+                    detection: self.appState.meetingSessionDetection,
+                    meeting: sourceMeeting
+                )
+                let permissions: AudioCapturePermissionSnapshot
+                switch systemAudioScope {
+                case .browserTab:
+                    permissions = await self.audioPermissionService.requestMicrophoneAccess()
+                case .meetingProcesses, .explicitManualGlobal:
+                    permissions = await self.audioPermissionService.verifyAccessForRecording()
+                }
                 self.appState.updateAudioCapturePermissions(permissions)
-                guard permissions.canRecord else {
+                let hasRequiredPermissions = permissions.microphone == .authorized
+                    && (systemAudioScope == .browserTab || permissions.canRecord)
+                guard hasRequiredPermissions else {
                     self.presentRecordingFailure(self.permissionFailure(from: permissions))
                     return
                 }
                 let preferences = (try? await self.appSettingsRepository.load()) ?? .default
                 let session = try await self.recordingCoordinator.start(
                     meeting: sourceMeeting,
-                    microphoneDeviceID: preferences.selectedMicrophoneID
+                    microphoneDeviceID: preferences.selectedMicrophoneID,
+                    systemAudioScope: systemAudioScope
                 )
+                if let detection = self.appState.meetingSessionDetection {
+                    self.recordingCoordinator.updateMicrophoneGate(
+                        from: detection,
+                        at: session.startedAt
+                    )
+                }
                 guard !Task.isCancelled else {
                     await self.recordingCoordinator.cancel()
                     return
                 }
                 self.appState.recordingStarted(session)
+                await self.meetingSessionCoordinator.recordingStarted(at: session.startedAt)
             } catch is CancellationError {
                 await self.recordingCoordinator.cancel()
             } catch {
@@ -689,13 +1004,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func configureBrowserAudioBridge() {
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else {
+            return
+        }
+        do {
+            browserAudioBroker.setStatusHandler { [weak self] status in
+                Task { @MainActor [weak self] in
+                    self?.appState.updateBrowserAudioConnectionStatus(status)
+                }
+            }
+            try browserAudioIPCServer.start()
+            _ = try BrowserAudioNativeHostInstaller().install(bundleURL: Bundle.main.bundleURL)
+            appState.updateBrowserAudioConnectionStatus(.waitingForMeetTab)
+        } catch {
+            browserAudioIPCServer.stop()
+            browserAudioBroker.setStatusHandler(nil)
+            appState.updateBrowserAudioConnectionStatus(.unavailable)
+            AppLogger.recordingOperationFailed(operation: "browser-audio-bridge-start", error: error)
+        }
+    }
+
     private func stopRecordingFlow() {
+        prepareRecordingStopUI()
         guard appState.stopRecording() else { return }
+        finalizeRecordingAfterStopRequest()
+    }
+
+    private func prepareRecordingStopUI() {
+        meetingAutoStopTask?.cancel()
+        meetingAutoStopTask = nil
+        appState.dismissMeetingLifecyclePrompt()
+    }
+
+    private func finalizeRecordingAfterStopRequest() {
         recordingTask?.cancel()
         recordingTask = Task { [weak self] in
             guard let self else { return }
             do {
                 let result = try await self.recordingCoordinator.stop()
+                await self.meetingSessionCoordinator.recordingStopped(
+                    at: result.session.endedAt ?? Date()
+                )
                 let storedMeeting = try await self.meetingRepository.saveCapture(result)
                 self.appState.recordingSaved(result, storedMeeting: storedMeeting)
                 await self.enqueueForProcessing(storedMeeting)
@@ -706,7 +1056,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func handleRecordingSafetyInterruption(_ message: String) {
+        prepareRecordingStopUI()
+        guard appState.stopRecordingForSafety(message: message) else { return }
+        presentNotch(followPointer: false)
+        finalizeRecordingAfterStopRequest()
+    }
+
     private func cancelRecordingFlow() {
+        meetingAutoStopTask?.cancel()
+        meetingAutoStopTask = nil
+        appState.dismissMeetingLifecyclePrompt()
         switch appState.meetingFlow.phase {
         case .uploading, .transcribing, .summarizing:
             // Cancelling processing must not delete the durable recording. The worker marks
@@ -719,6 +1079,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             recordingTask = Task { [weak self] in
                 guard let self else { return }
                 await self.recordingCoordinator.cancel()
+                await self.meetingSessionCoordinator.recordingStopped()
             }
         default:
             return
@@ -1073,7 +1434,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         switch captureError {
         case .microphonePermissionDenied, .systemAudioPermissionDenied:
             return .permission("Kayıt için gerekli ses iznini Sistem Ayarları'ndan açın.", settings: true)
-        case .insufficientDiskSpace:
+        case .insufficientDiskSpace, .diskSpaceBecameLow:
             return .fileSystem("Kayıt için yeterli boş disk alanı yok.", diskFull: true)
         case .alreadyRecording:
             return .recording("Zaten devam eden bir kayıt var.", retryable: false)
@@ -1081,6 +1442,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .recording("Kullanılabilir bir mikrofon bulunamadı.", retryable: false)
         case .noDisplay:
             return .recording("Sistem sesini yakalamak için kullanılabilir ekran bulunamadı.")
+        case .meetingProcessUnavailable:
+            return .recording(
+                "Toplantı sesi güvenli biçimde doğrulanamadı. Toplantı istemcisi açıkken tekrar deneyin."
+            )
+        case .browserMeetingAudioIsolationUnavailable:
+            return AppFailure(
+                category: .recording,
+                title: "Google Meet sesi güvenli ayrılamadı",
+                message: "MeetingNotch gizlilik için global ses kaydına geçmedi ve hiçbir kayıt başlatmadı. Güvenli fallback olarak görüşmeye kayıtsız devam edin veya Zoom masaüstü istemcisini kullanın.",
+                recoveryAction: .dismiss
+            )
         case .sourceDidNotProduceAudio(let source), .sourceFailed(let source, _):
             return .recording("\(source.displayName) kaydı tamamlanamadı. Bağlantıyı kontrol edip tekrar deneyin.")
         }

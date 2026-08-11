@@ -6,6 +6,7 @@ struct OnboardingView: View {
 
     let onRequestMicrophoneAccess: () -> Void
     let onRequestSystemAudioAccess: () -> Void
+    let onRequestAccessibilityAccess: () -> Void
     let onRequestCalendarAccess: () -> Void
     let onComplete: () -> Void
 
@@ -15,6 +16,8 @@ struct OnboardingView: View {
         case welcome
         case microphone
         case systemAudio
+        case browserAudio
+        case accessibility
         case calendar
         case cloud
     }
@@ -57,6 +60,22 @@ struct OnboardingView: View {
                         detail: "Sistem sesi izni, görüşmedeki diğer kişilerin sesini yakalar. macOS bu izni Gizlilik ve Güvenlik > Sistem Sesini Kaydetme bölümünde yönetir.",
                         status: appState.audioCapturePermissions.systemAudio
                     )
+                case .browserAudio:
+                    onboardingContent(
+                        icon: "globe.badge.chevron.backward",
+                        title: "Google Meet sekmesini siz bağlarsınız",
+                        detail: "Chrome uzantısı yalnız aktif meet.google.com görüşme sekmesinde, siz araç çubuğu düğmesine bastığınızda ses yakalar. Diğer sekmeler ve uygulamalar bu kaynağa dahil edilmez.",
+                        callout: browserAudioStatusText
+                    )
+                case .accessibility:
+                    onboardingContent(
+                        icon: "accessibility",
+                        title: "Mute durumunu yalnız doğrulanmış kontrolden oku",
+                        detail: "Accessibility izni, Zoom ve Google Meet’in görüşme kontrollerini yerel olarak okuyup toplantı mikrofonunun açık, kapalı veya bilinmiyor durumunu belirler. MeetingNotch konuşma içeriğini ya da pencere metnini saklamaz.",
+                        callout: appState.accessibilityPermissionGranted
+                            ? "Accessibility hazır. Her yeni kayıt yine güvenli olarak kapalı başlar."
+                            : "İzin verilmezse kayıt kullanılabilir kalır; mikrofon gate’i bilinmiyor durumunda kayda kapalıdır ve ⌥⌘M ile görünür biçimde açılabilir."
+                    )
                 case .calendar:
                     onboardingContent(
                         icon: "calendar.badge.clock",
@@ -67,9 +86,9 @@ struct OnboardingView: View {
                 case .cloud:
                     onboardingContent(
                         icon: "lock.shield.fill",
-                        title: "Bulut işleme sınırı açık olsun",
-                        detail: "Kayıt tamamlandığında birleşik ses dosyası, transkript üretmek için seçtiğiniz üçüncü taraf provider’a yüklenir. V1’de birincil provider ElevenLabs’tir.",
-                        callout: "API anahtarınız yalnızca macOS Keychain’de; toplantı dosyalarınız yerel Application Support klasöründe tutulur."
+                        title: "Tek bulut servisi: ElevenLabs",
+                        detail: "Kayıt tamamlandığında birleşik ses dosyası, konuşmacı ayrımlı transkript üretmek için yalnızca ElevenLabs Scribe v2’ye yüklenir. Canlı ses akışı veya ikinci bir yapay zekâ servisi kullanılmaz.",
+                        callout: "Tek ElevenLabs API anahtarınız yalnızca macOS Keychain’de; toplantı dosyalarınız yerel Application Support klasöründe tutulur."
                     )
                 }
             }
@@ -165,8 +184,10 @@ struct OnboardingView: View {
         switch step {
         case .welcome:
             "Başlayalım"
-        case .microphone, .systemAudio:
+        case .microphone, .systemAudio, .accessibility:
             "İzin Ver ve Devam Et"
+        case .browserAudio:
+            "Devam Et"
         case .calendar:
             "Takvime İzin Ver"
         case .cloud:
@@ -183,6 +204,11 @@ struct OnboardingView: View {
             move(to: Step.systemAudio.rawValue)
         case .systemAudio:
             onRequestSystemAudioAccess()
+            move(to: Step.browserAudio.rawValue)
+        case .browserAudio:
+            move(to: Step.accessibility.rawValue)
+        case .accessibility:
+            onRequestAccessibilityAccess()
             move(to: Step.calendar.rawValue)
         case .calendar:
             onRequestCalendarAccess()
@@ -211,6 +237,19 @@ struct OnboardingView: View {
             "Takvim durumu okunamadı; daha sonra Ayarlar’dan deneyebilirsiniz."
         case .notDetermined:
             "Bu izin isteğe bağlıdır ve Ayarlar’dan kapatılabilir."
+        }
+    }
+
+    private var browserAudioStatusText: String {
+        switch appState.browserAudioConnectionStatus {
+        case .unavailable:
+            "Tarayıcı ses köprüsü kullanılamıyor; Google Meet kaydı güvenli olarak başlamaz."
+        case .waitingForMeetTab:
+            "Köprü hazır. Görüşme sekmesinde MeetingNotch uzantı düğmesine basın."
+        case .tabConnected:
+            "Google Meet sekmesi bağlı; kayıt başlatılabilir."
+        case .recording:
+            "Google Meet sekmesinin sesi güvenli kayıt hattına bağlı."
         }
     }
 

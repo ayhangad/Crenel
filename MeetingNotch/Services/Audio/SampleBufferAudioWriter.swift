@@ -13,28 +13,45 @@ final class SampleBufferAudioWriter {
     private var converter: AVAudioConverter?
     private var terminalError: RecordingCaptureError?
     private var isFinished = false
+    private let privacyGate: MicrophonePCMPrivacyGate?
     private(set) var firstSampleTime: TimeInterval?
+    private(set) var lastSampleTime: TimeInterval?
 
-    init(outputURL: URL, source: AudioSourceKind) {
+    init(
+        outputURL: URL,
+        source: AudioSourceKind,
+        appliesMicrophonePrivacyGate: Bool = true
+    ) {
         self.outputURL = outputURL
         self.source = source
+        privacyGate = appliesMicrophonePrivacyGate
+            ? MicrophonePCMPrivacyGate(sampleRate: Self.outputSampleRate)
+            : nil
     }
 
-    func append(_ sampleBuffer: CMSampleBuffer) {
+    func append(
+        _ sampleBuffer: CMSampleBuffer,
+        microphoneGateState: MeetingMicrophoneState
+    ) {
         guard sampleBuffer.isValid, CMSampleBufferDataIsReady(sampleBuffer) else { return }
 
         do {
             let buffer = try SampleBufferPCMExtractor.copyPCMBuffer(from: sampleBuffer)
             append(
                 buffer,
-                presentationTime: CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                presentationTime: CMSampleBufferGetPresentationTimeStamp(sampleBuffer),
+                microphoneGateState: microphoneGateState
             )
         } catch {
             recordTerminalError(error)
         }
     }
 
-    func append(_ buffer: AVAudioPCMBuffer, presentationTime: CMTime) {
+    func append(
+        _ buffer: AVAudioPCMBuffer,
+        presentationTime: CMTime,
+        microphoneGateState: MeetingMicrophoneState
+    ) {
         guard buffer.frameLength > 0 else { return }
 
         lock.lock()
@@ -55,7 +72,10 @@ final class SampleBufferAudioWriter {
                 pcmFormat: file.processingFormat,
                 frameCapacity: capacity
             ) else {
-                throw RecordingCaptureError.sourceFailed(source, "Mikrofon buffer'ı hazırlanamadı.")
+                throw RecordingCaptureError.sourceFailed(
+                    source,
+                    "\(source.displayName) buffer'ı hazırlanamadı."
+                )
             }
 
             var suppliedInput = false
@@ -75,9 +95,20 @@ final class SampleBufferAudioWriter {
             }
             guard convertedBuffer.frameLength > 0 else { return }
 
-            try file.write(from: convertedBuffer)
-            if firstSampleTime == nil {
-                firstSampleTime = Self.numericTime(presentationTime)
+            let bufferStartTime = Self.numericTime(presentationTime)
+            if firstSampleTime == nil { firstSampleTime = bufferStartTime }
+            lastSampleTime = max(
+                lastSampleTime ?? bufferStartTime,
+                bufferStartTime + (Double(buffer.frameLength) / buffer.format.sampleRate)
+            )
+            if let privacyGate,
+               let readyBuffer = privacyGate.enqueue(
+                   convertedBuffer,
+                   state: microphoneGateState
+               ) {
+                try file.write(from: readyBuffer)
+            } else if privacyGate == nil {
+                try file.write(from: convertedBuffer)
             }
         } catch {
             storeTerminalError(error)
@@ -87,10 +118,20 @@ final class SampleBufferAudioWriter {
     func finish() async throws -> TimeInterval? {
         var fileToClose: AVAudioFile?
         let result: (RecordingCaptureError?, TimeInterval?) = lock.withLock {
+            if terminalError == nil,
+               let finalBuffer = privacyGate?.flush(),
+               let audioFile {
+                do {
+                    try audioFile.write(from: finalBuffer)
+                } catch {
+                    storeTerminalError(error)
+                }
+            }
             isFinished = true
             fileToClose = audioFile
             audioFile = nil
             converter = nil
+            privacyGate?.reset()
             return (terminalError, firstSampleTime)
         }
 
@@ -108,6 +149,7 @@ final class SampleBufferAudioWriter {
             fileToClose = audioFile
             audioFile = nil
             converter = nil
+            privacyGate?.reset()
         }
         withExtendedLifetime(fileToClose) {}
         fileToClose = nil
@@ -129,7 +171,10 @@ final class SampleBufferAudioWriter {
         )
         guard audioFile.processingFormat.sampleRate == Self.outputSampleRate,
               audioFile.processingFormat.channelCount == Self.outputChannelCount else {
-            throw RecordingCaptureError.sourceFailed(source, "Mikrofon dosya formatı hazırlanamadı.")
+            throw RecordingCaptureError.sourceFailed(
+                source,
+                "\(source.displayName) dosya formatı hazırlanamadı."
+            )
         }
         self.audioFile = audioFile
         return audioFile
