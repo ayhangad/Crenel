@@ -4,7 +4,7 @@ import Foundation
 protocol CalendarMeetingProviding: Sendable {
     func authorizationState() async -> CalendarAccessState
     func requestAccess() async throws -> Bool
-    func meetings(from startDate: Date, to endDate: Date) async throws -> [Meeting]
+    func query(from startDate: Date, to endDate: Date) async throws -> CalendarMeetingQueryResult
 }
 
 actor EventKitMeetingProvider: CalendarMeetingProviding {
@@ -42,17 +42,29 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
         return granted
     }
 
-    func meetings(from startDate: Date, to endDate: Date) -> [Meeting] {
+    func query(
+        from startDate: Date,
+        to endDate: Date
+    ) -> CalendarMeetingQueryResult {
+        eventStore.refreshSourcesIfNecessary()
+        let calendars = eventStore.calendars(for: .event)
         let predicate = eventStore.predicateForEvents(
             withStart: startDate,
             end: endDate,
-            calendars: nil
+            calendars: calendars
+        )
+        let events = eventStore.events(matching: predicate)
+        let meetings = deduplicatedMeetings(
+            events
+                .filter(isRelevantEvent)
+                .compactMap(makeMeeting)
         )
 
-        return eventStore.events(matching: predicate)
-            .filter(isRelevantEvent)
-            .compactMap(makeMeeting)
-            .sorted { $0.startDate < $1.startDate }
+        return CalendarMeetingQueryResult(
+            meetings: meetings,
+            sources: sourceSummaries(for: calendars),
+            scannedEventCount: events.count
+        )
     }
 
     private func isRelevantEvent(_ event: EKEvent) -> Bool {
@@ -76,11 +88,13 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
 
         let occurrence = event.occurrenceDate ?? event.startDate
         let sourceIdentifier = [
+            event.calendar.calendarIdentifier,
             event.eventIdentifier ?? "event",
             String(occurrence?.timeIntervalSince1970 ?? 0)
         ].joined(separator: "|")
 
         return Meeting(
+            id: MeetingStableIdentifier.uuid(for: sourceIdentifier),
             title: event.title?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
                 ?? "İsimsiz Toplantı",
             startDate: event.startDate,
@@ -89,6 +103,60 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
             calendarIdentifier: event.calendar.calendarIdentifier,
             externalIdentifier: sourceIdentifier
         )
+    }
+
+    private func deduplicatedMeetings(_ meetings: [Meeting]) -> [Meeting] {
+        var seen = Set<String>()
+        return meetings
+            .sorted { lhs, rhs in
+                if lhs.startDate == rhs.startDate {
+                    return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+                }
+                return lhs.startDate < rhs.startDate
+            }
+            .filter { meeting in
+                let key = [
+                    meeting.title.folding(
+                        options: [.caseInsensitive, .diacriticInsensitive],
+                        locale: .current
+                    ),
+                    String(meeting.startDate.timeIntervalSince1970),
+                    String(meeting.endDate.timeIntervalSince1970),
+                    meeting.meetingURL?.absoluteString ?? ""
+                ].joined(separator: "|")
+                return seen.insert(key).inserted
+            }
+    }
+
+    private func sourceSummaries(for calendars: [EKCalendar]) -> [CalendarSourceSummary] {
+        let counts = calendars.reduce(into: [CalendarAccountKind: Int]()) { result, calendar in
+            result[accountKind(for: calendar.source), default: 0] += 1
+        }
+
+        return CalendarAccountKind.allCases.compactMap { kind in
+            guard let count = counts[kind], count > 0 else { return nil }
+            return CalendarSourceSummary(kind: kind, calendarCount: count)
+        }
+    }
+
+    private func accountKind(for source: EKSource) -> CalendarAccountKind {
+        let normalizedTitle = source.title.folding(
+            options: [.caseInsensitive, .diacriticInsensitive],
+            locale: Locale(identifier: "en_US_POSIX")
+        )
+        if normalizedTitle.contains("google") || normalizedTitle.contains("gmail") {
+            return .google
+        }
+
+        return switch source.sourceType {
+        case .local: .local
+        case .exchange: .exchange
+        case .calDAV: .calDAV
+        case .mobileMe: .iCloud
+        case .subscribed: .subscribed
+        case .birthdays: .other
+        @unknown default: .other
+        }
     }
 }
 

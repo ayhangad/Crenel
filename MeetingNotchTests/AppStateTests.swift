@@ -179,6 +179,56 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(state.meetingFlow, .preparingRecording)
     }
 
+    func testCalendarHealthAndUpcomingMeetingsArePublishedInStableOrder() {
+        let state = AppState()
+        let later = Meeting(
+            title: "Sonra",
+            startDate: Date(timeIntervalSince1970: 200),
+            endDate: Date(timeIntervalSince1970: 300)
+        )
+        let earlier = Meeting(
+            title: "Önce",
+            startDate: Date(timeIntervalSince1970: 100),
+            endDate: Date(timeIntervalSince1970: 200)
+        )
+        let snapshot = CalendarIntegrationSnapshot(
+            sources: [CalendarSourceSummary(kind: .google, calendarCount: 2)],
+            scannedEventCount: 4,
+            matchedMeetingCount: 2,
+            refreshedAt: Date(timeIntervalSince1970: 50)
+        )
+
+        state.updateCalendarIntegrationSnapshot(snapshot)
+        state.updateCalendarRefreshState(isRefreshing: true)
+        state.updateUpcomingMeetings([later, earlier])
+
+        XCTAssertEqual(state.calendarIntegrationSnapshot, snapshot)
+        XCTAssertTrue(state.isCalendarRefreshing)
+        XCTAssertEqual(state.upcomingMeetings.map(\.title), ["Önce", "Sonra"])
+    }
+
+    func testJoinURLResolvesTheSelectedUpcomingMeetingInsteadOfAlwaysTheFirst() {
+        let firstURL = URL(string: "https://meet.google.com/first-room")!
+        let secondURL = URL(string: "https://meet.google.com/second-room")!
+        let first = Meeting(
+            title: "İlk",
+            startDate: Date(timeIntervalSince1970: 100),
+            endDate: Date(timeIntervalSince1970: 200),
+            meetingURL: firstURL
+        )
+        let second = Meeting(
+            title: "İkinci",
+            startDate: Date(timeIntervalSince1970: 200),
+            endDate: Date(timeIntervalSince1970: 300),
+            meetingURL: secondURL
+        )
+        let state = AppState()
+        state.updateUpcomingMeetings([first, second])
+
+        XCTAssertEqual(state.upcomingMeeting(matching: secondURL), second)
+        XCTAssertNil(state.upcomingMeeting(matching: URL(string: "https://example.com")!))
+    }
+
     func testLocallySavedRecordingCompletesFlow() {
         let state = AppState()
         let session = RecordingSession(startedAt: .now)
@@ -249,12 +299,14 @@ final class AppStateTests: XCTestCase {
         XCTAssertEqual(state.activeTaskCount, 2)
 
         var completed = first
-        completed.completedAt = Date(timeIntervalSince1970: 3)
+        completed.setStatus(.completed, at: Date(timeIntervalSince1970: 3))
         state.upsertTask(completed)
 
         XCTAssertEqual(state.activeTasks.map(\.id), [second.id])
         XCTAssertEqual(state.archivedTasks.map(\.id), [first.id])
         XCTAssertEqual(state.activeTaskCount, 1)
+        XCTAssertEqual(state.activeTaskCount(for: .backlog), 1)
+        XCTAssertEqual(state.activeTaskCount(for: .completed), 0)
 
         state.removeTask(id: second.id)
         XCTAssertEqual(state.activeTaskCount, 0)

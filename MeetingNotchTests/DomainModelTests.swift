@@ -2,6 +2,17 @@ import XCTest
 @testable import MeetingNotch
 
 final class DomainModelTests: XCTestCase {
+    func testMeetingStableIdentifierIsDeterministicAndNamespaced() {
+        let first = MeetingStableIdentifier.uuid(for: "calendar|event|100")
+        let repeated = MeetingStableIdentifier.uuid(for: "calendar|event|100")
+        let different = MeetingStableIdentifier.uuid(for: "calendar|event|101")
+
+        XCTAssertEqual(first, repeated)
+        XCTAssertNotEqual(first, different)
+        XCTAssertEqual((first.uuid.6 & 0xf0) >> 4, 8)
+        XCTAssertEqual(first.uuid.8 & 0xc0, 0x80)
+    }
+
     func testMeetingRoundTripsThroughJSON() throws {
         let meeting = Meeting(
             title: "Ürün Toplantısı",
@@ -51,5 +62,31 @@ final class DomainModelTests: XCTestCase {
 
         XCTAssertEqual(decoded.id, id)
         XCTAssertTrue(decoded.isArchived)
+        XCTAssertEqual(decoded.status, .completed)
+        XCTAssertEqual(decoded.archivedAt, decoded.completedAt)
+    }
+
+    func testTaskStatusAndArchiveHaveSeparateLifecycles() {
+        let completionDate = Date(timeIntervalSince1970: 2_000)
+        var task = TaskItem(title: "Durumlu görev", status: .inProgress)
+
+        task.archive(at: Date(timeIntervalSince1970: 1_500))
+        XCTAssertEqual(task.status, .inProgress)
+        XCTAssertTrue(task.isArchived)
+        XCTAssertNil(task.completedAt)
+
+        task.restore()
+        XCTAssertEqual(task.status, .inProgress)
+        XCTAssertFalse(task.isArchived)
+
+        task.setStatus(.completed, at: completionDate)
+        XCTAssertEqual(task.status, .completed)
+        XCTAssertEqual(task.completedAt, completionDate)
+        XCTAssertEqual(task.archivedAt, completionDate)
+
+        task.restore()
+        XCTAssertEqual(task.status, .todo)
+        XCTAssertNil(task.completedAt)
+        XCTAssertFalse(task.isArchived)
     }
 }

@@ -9,6 +9,60 @@ enum CalendarAccessState: Equatable, Sendable {
     case failed(String)
 }
 
+enum CalendarAccountKind: String, CaseIterable, Hashable, Sendable {
+    case google
+    case iCloud
+    case exchange
+    case calDAV
+    case local
+    case subscribed
+    case other
+
+    var title: String {
+        switch self {
+        case .google: "Google"
+        case .iCloud: "iCloud"
+        case .exchange: "Exchange"
+        case .calDAV: "CalDAV"
+        case .local: "Bu Mac"
+        case .subscribed: "Abonelik"
+        case .other: "Diğer"
+        }
+    }
+}
+
+struct CalendarSourceSummary: Equatable, Identifiable, Sendable {
+    let kind: CalendarAccountKind
+    let calendarCount: Int
+
+    var id: CalendarAccountKind { kind }
+}
+
+struct CalendarMeetingQueryResult: Equatable, Sendable {
+    let meetings: [Meeting]
+    let sources: [CalendarSourceSummary]
+    let scannedEventCount: Int
+
+    var readableCalendarCount: Int {
+        sources.reduce(0) { $0 + $1.calendarCount }
+    }
+}
+
+struct CalendarIntegrationSnapshot: Equatable, Sendable {
+    let sources: [CalendarSourceSummary]
+    let scannedEventCount: Int
+    let matchedMeetingCount: Int
+    let refreshedAt: Date
+
+    var readableCalendarCount: Int {
+        sources.reduce(0) { $0 + $1.calendarCount }
+    }
+
+    var hasGoogleAccount: Bool {
+        sources.contains { $0.kind == .google }
+    }
+}
+
 enum MeetingReminderLevel: Int, Comparable, Codable, Sendable {
     case none = 0
     case tenMinutes = 1

@@ -51,6 +51,22 @@ toplantı hatırlatmaları imlecin bulunduğu ekranda gösterilir; notch olmayan
 içerik floating panel olarak açılır. Genişletilmiş paneldeki pin düğmesi paneli hover
 sonrasında da açık tutar.
 
+## Takvim ve Google toplantıları
+
+MeetingNotch Gmail gelen kutusunu okumaz ve ayrı bir Google OAuth hesabı istemez. Google
+Calendar toplantıları macOS'un yerel EventKit sınırından gelir:
+
+1. Sistem Ayarları > İnternet Hesapları'nda Google hesabını ekleyip Takvim'i etkinleştirin.
+2. MeetingNotch > Ayarlar > Takvim Bağlantısı'nda entegrasyonu açıp ayarları kaydedin.
+3. `Takvime İzin Ver` ile macOS tam takvim erişimini onaylayın ve `Şimdi Yenile`e basın.
+
+Aynı bölüm Google/iCloud/Exchange/CalDAV kaynak türlerini, okunabilir takvim sayısını,
+taranan etkinlikleri, eşleşen çevrim içi toplantıları ve son yenilemeyi gösterir. Google
+kaynağı görünmüyorsa `Hesapları Aç`; izin reddedilmişse `Takvim İznini Aç`; sorgu hatasında
+`Tekrar Dene` doğru Sistem Ayarları veya yenileme yoluna gider. Etkinliğin URL, konum ya da
+not alanında bulunan Zoom, Google Meet ve Microsoft Teams linkleri desteklenir; Google ve
+Outlook yönlendirme linkleri, HTML/percent encoding ve şemasız linkler normalize edilir.
+
 ## Doğrulama
 
 ```sh

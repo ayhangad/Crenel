@@ -5,6 +5,9 @@ import Foundation
 final class MeetingMonitor {
     var onAccessStateChange: ((CalendarAccessState) -> Void)?
     var onSnapshotChange: ((MeetingReminderSnapshot, Bool) -> Void)?
+    var onMeetingsChange: (([Meeting]) -> Void)?
+    var onIntegrationSnapshotChange: ((CalendarIntegrationSnapshot?) -> Void)?
+    var onRefreshStateChange: ((Bool) -> Void)?
 
     private let provider: any CalendarMeetingProviding
     private let refreshInterval: TimeInterval
@@ -15,6 +18,8 @@ final class MeetingMonitor {
     private var calendarChangeTask: Task<Void, Never>?
     private var timeZoneChangeTask: Task<Void, Never>?
     private var lastPresentationKey: String?
+    private var isRefreshing = false
+    private var refreshRequestedWhileRunning = false
 
     init(
         provider: any CalendarMeetingProviding,
@@ -37,6 +42,8 @@ final class MeetingMonitor {
         } else {
             stop()
             onAccessStateChange?(.notDetermined)
+            onIntegrationSnapshotChange?(nil)
+            onMeetingsChange?([])
             publish(MeetingReminderSnapshot(nextMeeting: nil, level: .none, secondsUntilStart: nil))
         }
     }
@@ -83,13 +90,12 @@ final class MeetingMonitor {
     }
 
     func requestAccess() async {
-        guard isEnabled else { return }
         onAccessStateChange?(.requesting)
 
         do {
             let granted = try await provider.requestAccess()
             onAccessStateChange?(granted ? .authorized : .denied)
-            if granted {
+            if granted, isEnabled {
                 await refresh()
             }
         } catch {
@@ -99,27 +105,55 @@ final class MeetingMonitor {
 
     func refresh() async {
         guard isEnabled else { return }
+        guard !isRefreshing else {
+            refreshRequestedWhileRunning = true
+            return
+        }
+        isRefreshing = true
+        onRefreshStateChange?(true)
+        defer {
+            isRefreshing = false
+            onRefreshStateChange?(false)
+            if refreshRequestedWhileRunning {
+                refreshRequestedWhileRunning = false
+                Task { [weak self] in await self?.refresh() }
+            }
+        }
+
         let accessState = await provider.authorizationState()
+        guard isEnabled else { return }
         onAccessStateChange?(accessState)
 
         guard accessState == .authorized else {
+            onIntegrationSnapshotChange?(nil)
+            onMeetingsChange?([])
             publish(MeetingReminderSnapshot(nextMeeting: nil, level: .none, secondsUntilStart: nil))
             return
         }
 
         let currentDate = now()
         do {
-            let meetings = try await provider.meetings(
+            let result = try await provider.query(
                 from: currentDate.addingTimeInterval(-60 * 60),
                 to: currentDate.addingTimeInterval(24 * 60 * 60)
             )
+            guard isEnabled else { return }
+            onIntegrationSnapshotChange?(CalendarIntegrationSnapshot(
+                sources: result.sources,
+                scannedEventCount: result.scannedEventCount,
+                matchedMeetingCount: result.meetings.count,
+                refreshedAt: currentDate
+            ))
+            onMeetingsChange?(result.meetings.filter { $0.endDate > currentDate })
             publish(.evaluate(
-                meetings: meetings,
+                meetings: result.meetings,
                 now: currentDate,
                 reminderLeadTime: reminderLeadTime
             ))
         } catch {
             onAccessStateChange?(.failed("Yaklaşan toplantılar okunamadı."))
+            onMeetingsChange?([])
+            publish(MeetingReminderSnapshot(nextMeeting: nil, level: .none, secondsUntilStart: nil))
         }
     }
 

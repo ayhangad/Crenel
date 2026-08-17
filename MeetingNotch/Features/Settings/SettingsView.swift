@@ -10,6 +10,10 @@ struct SettingsView: View {
     let onOpenSystemSettings: (AudioSourceKind) -> Void
     let onRelaunchApplication: () -> Void
     let onRefreshPermissions: () -> Void
+    let onRequestCalendarAccess: () -> Void
+    let onRefreshCalendar: () -> Void
+    let onOpenCalendarSettings: () -> Void
+    let onOpenInternetAccounts: () -> Void
     let onLoadGeneralSettings: () async -> GeneralSettingsSnapshot
     let onSaveGeneralSettings: (GeneralSettingsSnapshot) async -> SettingsActionResult
     let onLoadMicrophoneSettings: () async -> MicrophoneSettingsSnapshot
@@ -58,6 +62,10 @@ struct SettingsView: View {
         onOpenSystemSettings: @escaping (AudioSourceKind) -> Void = { _ in },
         onRelaunchApplication: @escaping () -> Void = {},
         onRefreshPermissions: @escaping () -> Void = {},
+        onRequestCalendarAccess: @escaping () -> Void = {},
+        onRefreshCalendar: @escaping () -> Void = {},
+        onOpenCalendarSettings: @escaping () -> Void = {},
+        onOpenInternetAccounts: @escaping () -> Void = {},
         onLoadGeneralSettings: @escaping () async -> GeneralSettingsSnapshot = { .default },
         onSaveGeneralSettings: @escaping (
             GeneralSettingsSnapshot
@@ -92,6 +100,10 @@ struct SettingsView: View {
         self.onOpenSystemSettings = onOpenSystemSettings
         self.onRelaunchApplication = onRelaunchApplication
         self.onRefreshPermissions = onRefreshPermissions
+        self.onRequestCalendarAccess = onRequestCalendarAccess
+        self.onRefreshCalendar = onRefreshCalendar
+        self.onOpenCalendarSettings = onOpenCalendarSettings
+        self.onOpenInternetAccounts = onOpenInternetAccounts
         self.onLoadGeneralSettings = onLoadGeneralSettings
         self.onSaveGeneralSettings = onSaveGeneralSettings
         self.onLoadMicrophoneSettings = onLoadMicrophoneSettings
@@ -107,15 +119,6 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section("Genel") {
-                Toggle("Takvim toplantılarını göster", isOn: $isCalendarEnabled)
-
-                Picker("Toplantı hatırlatması", selection: $reminderLeadTime) {
-                    Text("5 dakika ve 1 dakika önce").tag(TimeInterval(5 * 60))
-                    Text("10 dakika ve 1 dakika önce").tag(TimeInterval(10 * 60))
-                    Text("15 dakika ve 1 dakika önce").tag(TimeInterval(15 * 60))
-                }
-                .disabled(!isCalendarEnabled)
-
                 Toggle("Login’de otomatik aç", isOn: $launchAtLogin)
 
                 Picker("Toplantıları sakla", selection: $retentionDays) {
@@ -125,15 +128,9 @@ struct SettingsView: View {
                     Text("90 gün").tag(90 as Int?)
                 }
 
-                settingsActionRow(
-                    message: generalSettingsMessage,
-                    isFailure: generalSettingsFailed,
-                    buttonTitle: "Değişiklikleri Kaydet",
-                    isBusy: isSavingGeneralSettings,
-                    isDisabled: isLoadingGeneralSettings,
-                    action: saveGeneralSettings
-                )
             }
+
+            calendarSettingsSection
 
             Section {
                 Picker("Kayıt mikrofonu", selection: $selectedMicrophoneID) {
@@ -290,11 +287,6 @@ struct SettingsView: View {
             }
 
             Section {
-                LabeledContent("Takvim durumu") {
-                    Text(calendarStatusTitle)
-                        .foregroundStyle(.secondary)
-                }
-
                 Button("Veri Klasörünü Finder’da Aç", systemImage: "folder") {
                     onOpenDataDirectory()
                 }
@@ -546,8 +538,55 @@ struct SettingsView: View {
         }
     }
 
+    private var calendarSettingsSection: some View {
+        Section {
+            Toggle("Takvim toplantılarını göster", isOn: $isCalendarEnabled)
+
+            Picker("Toplantı hatırlatması", selection: $reminderLeadTime) {
+                Text("5 dakika ve 1 dakika önce").tag(TimeInterval(5 * 60))
+                Text("10 dakika ve 1 dakika önce").tag(TimeInterval(10 * 60))
+                Text("15 dakika ve 1 dakika önce").tag(TimeInterval(15 * 60))
+            }
+            .disabled(!isCalendarEnabled)
+
+            LabeledContent("Bağlantı") {
+                Label(calendarStatusTitle, systemImage: calendarStatusSymbol)
+                    .foregroundStyle(calendarStatusColor)
+            }
+
+            if let snapshot = appState.calendarIntegrationSnapshot,
+               appState.calendarAccessState == .authorized {
+                CalendarIntegrationDetails(snapshot: snapshot)
+            }
+
+            HStack(spacing: 8) {
+                calendarPrimaryAction
+
+                Button("Hesapları Aç", systemImage: "person.crop.circle.badge.plus") {
+                    onOpenInternetAccounts()
+                }
+                .disabled(!isCalendarEnabled)
+            }
+            .controlSize(.large)
+
+            settingsActionRow(
+                message: generalSettingsMessage,
+                isFailure: generalSettingsFailed,
+                buttonTitle: "Genel ve Takvim Ayarlarını Kaydet",
+                isBusy: isSavingGeneralSettings,
+                isDisabled: isLoadingGeneralSettings,
+                action: saveGeneralSettings
+            )
+        } header: {
+            Text("Takvim Bağlantısı")
+        } footer: {
+            Text("Google toplantıları Gmail gelen kutusu okunarak değil, bu Mac’e eklenmiş Google Calendar hesabından alınır. Etkinliğin URL, konum veya not alanındaki Zoom, Google Meet ve Microsoft Teams bağlantıları eşleştirilir; e-posta içeriği MeetingNotch’a verilmez.")
+        }
+    }
+
     private var calendarStatusTitle: String {
         guard isCalendarEnabled else { return "Kapalı" }
+        if appState.isCalendarRefreshing { return "Yenileniyor" }
         return switch appState.calendarAccessState {
         case .authorized: "Bağlı"
         case .requesting: "İzin bekleniyor"
@@ -557,11 +596,113 @@ struct SettingsView: View {
         }
     }
 
+    private var calendarStatusSymbol: String {
+        guard isCalendarEnabled else { return "calendar.badge.minus" }
+        if appState.isCalendarRefreshing { return "arrow.triangle.2.circlepath" }
+        return switch appState.calendarAccessState {
+        case .authorized: "checkmark.circle.fill"
+        case .requesting: "clock.fill"
+        case .denied, .restricted: "exclamationmark.triangle.fill"
+        case .failed: "xmark.octagon.fill"
+        case .notDetermined: "calendar.badge.plus"
+        }
+    }
+
+    private var calendarStatusColor: Color {
+        guard isCalendarEnabled else { return .secondary }
+        return switch appState.calendarAccessState {
+        case .authorized: .green
+        case .requesting, .notDetermined: .secondary
+        case .denied, .restricted: .orange
+        case .failed: .red
+        }
+    }
+
+    @ViewBuilder
+    private var calendarPrimaryAction: some View {
+        switch appState.calendarAccessState {
+        case .authorized:
+            Button("Şimdi Yenile", systemImage: "arrow.clockwise") {
+                onRefreshCalendar()
+            }
+            .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
+        case .denied, .restricted:
+            Button("Takvim İznini Aç", systemImage: "gearshape") {
+                onOpenCalendarSettings()
+            }
+            .disabled(!isCalendarEnabled)
+        case .requesting:
+            Button("İzin Bekleniyor…", systemImage: "clock") {}
+                .disabled(true)
+        case .failed:
+            Button("Tekrar Dene", systemImage: "arrow.clockwise") {
+                onRefreshCalendar()
+            }
+            .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
+        case .notDetermined:
+            Button("Takvime İzin Ver", systemImage: "calendar.badge.plus") {
+                onRequestCalendarAccess()
+            }
+            .disabled(!isCalendarEnabled)
+        }
+    }
+
     private var microphoneFooterText: String {
         if availableMicrophones.isEmpty {
             return "Bağlı mikrofon bulunamadı. Bir mikrofon bağladıktan sonra liste otomatik yenilenir."
         }
         return "Seçili cihaz kayıt başlarken yeniden doğrulanır. Bağlı değilse sistem varsayılanına geçilir; kayıt sırasında bağlantı değişirse notch üzerinde uyarı gösterilir."
+    }
+}
+
+private struct CalendarIntegrationDetails: View {
+    let snapshot: CalendarIntegrationSnapshot
+
+    var body: some View {
+        LabeledContent("Hesap kaynakları") {
+            Text(sourceDescription)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+
+        LabeledContent("Okunabilir içerik") {
+            Text(readableContentDescription)
+                .font(.body.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+
+        LabeledContent("Çevrim içi toplantı") {
+            Text(snapshot.matchedMeetingCount, format: .number)
+                .font(.body.monospacedDigit())
+                .foregroundStyle(snapshot.matchedMeetingCount == 0 ? Color.gray : Color.green)
+        }
+
+        LabeledContent("Son yenileme") {
+            Text(snapshot.refreshedAt, style: .relative)
+                .font(.body.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+
+        if !snapshot.hasGoogleAccount {
+            Label {
+                Text("Google Calendar görünmüyor. Google hesabını macOS İnternet Hesapları’na ekleyip Takvim’i açın.")
+            } icon: {
+                Image(systemName: "exclamationmark.triangle.fill")
+            }
+            .font(.caption)
+            .foregroundStyle(.orange)
+        }
+    }
+
+    private var sourceDescription: String {
+        let description = snapshot.sources
+            .map { "\($0.kind.title) (\($0.calendarCount))" }
+            .joined(separator: " · ")
+        return description.isEmpty ? "Takvim kaynağı bulunamadı" : description
+    }
+
+    private var readableContentDescription: String {
+        "\(snapshot.readableCalendarCount) takvim · \(snapshot.scannedEventCount) etkinlik"
     }
 }
 

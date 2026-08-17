@@ -10,7 +10,8 @@ struct TasksView: View {
 
     let onAdd: (String) -> Void
     let onUpdate: (TaskItem, String) -> Void
-    let onComplete: (TaskItem) -> Void
+    let onChangeStatus: (TaskItem, TaskStatus) -> Void
+    let onArchive: (TaskItem) -> Void
     let onRestore: (TaskItem) -> Void
     let onDelete: (TaskItem) -> Void
     let onDeleteArchive: () -> Void
@@ -18,11 +19,14 @@ struct TasksView: View {
     var body: some View {
         LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
             header
-            addField
-            activeSection
 
-            if !appState.archivedTasks.isEmpty {
-                archiveSection
+            if showsArchive {
+                archiveContent
+                    .transition(contentTransition)
+            } else {
+                addField
+                activeContent
+                    .transition(contentTransition)
             }
         }
         .alert(
@@ -41,45 +45,66 @@ struct TasksView: View {
         } message: {
             Text("\(appState.archivedTasks.count) arşivlenmiş görev kalıcı olarak silinecek.")
         }
-        .animation(
-            reduceMotion ? nil : .smooth(duration: 0.2),
-            value: showsArchive
-        )
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: showsArchive)
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text("Görevler")
+        HStack(spacing: 8) {
+            Text(showsArchive ? "Arşiv" : "Görevler")
                 .font(MeetingNotchTheme.titleFont)
 
-            Spacer()
+            Spacer(minLength: 4)
 
-            HStack(spacing: 6) {
-                Text("\(appState.activeTaskCount)")
-                    .foregroundStyle(MeetingNotchTheme.success)
-                Text("AKTİF")
-                    .foregroundStyle(.secondary)
-                Text("/")
-                    .foregroundStyle(.quaternary)
-                Text("\(appState.archivedTasks.count)")
-                    .foregroundStyle(.secondary)
-                Text("ARŞİV")
-                    .foregroundStyle(.tertiary)
+            if !showsArchive {
+                statusSummary
             }
-            .font(MeetingNotchTheme.metadataFont.monospacedDigit())
+
+            Button {
+                showsArchive.toggle()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: showsArchive ? "arrow.left" : "archivebox")
+                    Text(showsArchive ? "Görevler" : "Arşiv")
+                    if !showsArchive, !appState.archivedTasks.isEmpty {
+                        Text("\(appState.archivedTasks.count)")
+                            .font(MeetingNotchTheme.metadataFont.monospacedDigit())
+                    }
+                }
+            }
+            .buttonStyle(
+                MeetingNotchCompactButtonStyle(
+                    tint: showsArchive ? MeetingNotchTheme.accent : .secondary,
+                    isActive: showsArchive
+                )
+            )
+            .help(showsArchive ? "Aktif görevlere dön" : "Görev arşivini aç")
+            .accessibilityLabel(showsArchive ? "Aktif görevlere dön" : "Görev arşivini aç")
         }
         .padding(.horizontal, 2)
+    }
+
+    private var statusSummary: some View {
+        HStack(spacing: 7) {
+            ForEach(TaskStatus.activeCases) { status in
+                let count = appState.activeTaskCount(for: status)
+                HStack(spacing: 3) {
+                    Image(systemName: status.symbolName)
+                        .font(.system(size: 10, weight: .semibold))
+                    Text("\(count)")
+                        .font(MeetingNotchTheme.metadataFont.monospacedDigit())
+                }
+                .foregroundStyle(count == 0 ? Color.secondary.opacity(0.42) : status.tint)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(status.title): \(count)")
+            }
+        }
     }
 
     private var addField: some View {
         HStack(spacing: 8) {
             Image(systemName: "plus")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(
-                    canAdd
-                        ? MeetingNotchTheme.accent
-                        : Color.secondary.opacity(0.45)
-                )
+                .foregroundStyle(canAdd ? MeetingNotchTheme.accent : Color.secondary.opacity(0.45))
                 .frame(width: 16)
 
             TextField("Yeni görev ekle", text: $newTaskTitle)
@@ -98,7 +123,7 @@ struct TasksView: View {
                 )
             )
             .disabled(!canAdd)
-            .accessibilityLabel("Görevi ekle")
+            .accessibilityLabel("Görevi backlog'a ekle")
         }
         .padding(.leading, 10)
         .padding(.trailing, 4)
@@ -119,123 +144,81 @@ struct TasksView: View {
         }
     }
 
-    private var activeSection: some View {
+    private var activeContent: some View {
         VStack(alignment: .leading, spacing: 6) {
-            sectionHeader(
-                title: "Aktif görevler",
-                count: appState.activeTasks.count
-            )
-
             if appState.activeTasks.isEmpty {
-                HStack(spacing: 10) {
-                    Image(systemName: "circle.dashed")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 18)
-
-                    Text("Aktif görev yok")
-                        .font(MeetingNotchTheme.bodyFont)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 4)
-                .frame(minHeight: 46)
+                emptyState(symbol: "checkmark.circle", text: "Aktif görev yok")
             } else {
-                taskList(
-                    appState.activeTasks,
-                    primaryAction: onComplete
-                )
+                taskList(appState.activeTasks)
             }
         }
     }
 
-    private var archiveSection: some View {
+    private var archiveContent: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Button {
-                    showsArchive.toggle()
-                } label: {
-                    HStack(spacing: 7) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 8, weight: .bold))
-                            .rotationEffect(.degrees(showsArchive ? 90 : 0))
-
-                        Text("Arşiv")
-                            .font(MeetingNotchTheme.sectionTitleFont)
-
-                        Text("\(appState.archivedTasks.count)")
-                            .font(MeetingNotchTheme.dataFont.monospacedDigit())
-                            .foregroundStyle(.tertiary)
-                    }
+            HStack {
+                Text("Arşivlenmiş görevler")
+                    .font(MeetingNotchTheme.sectionTitleFont)
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(
-                    showsArchive
-                        ? "Görev arşivini daralt"
-                        : "Görev arşivini genişlet"
-                )
 
-                Menu {
-                    Button("Arşivi temizle", systemImage: "trash", role: .destructive) {
-                        showsDeleteArchiveConfirmation = true
+                Spacer()
+
+                if !appState.archivedTasks.isEmpty {
+                    Menu {
+                        Button("Arşivi temizle", systemImage: "trash", role: .destructive) {
+                            showsDeleteArchiveConfirmation = true
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
                     }
-                } label: {
-                    Image(systemName: "ellipsis")
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .frame(width: 32, height: 32)
+                    .help("Arşiv seçenekleri")
+                    .accessibilityLabel("Arşiv seçenekleri")
                 }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .frame(width: 28, height: 28)
-                .help("Arşiv seçenekleri")
-                .accessibilityLabel("Arşiv seçenekleri")
             }
             .padding(.horizontal, 2)
 
-            if showsArchive {
-                taskList(
-                    appState.archivedTasks,
-                    primaryAction: onRestore
-                )
-                .transition(
-                    reduceMotion
-                        ? .opacity
-                        : .opacity.combined(with: .offset(y: -6))
-                )
+            if appState.archivedTasks.isEmpty {
+                emptyState(symbol: "archivebox", text: "Arşiv boş")
+            } else {
+                taskList(appState.archivedTasks)
             }
         }
     }
 
-    private func sectionHeader(title: String, count: Int) -> some View {
-        HStack {
-            Text(title)
-                .font(MeetingNotchTheme.sectionTitleFont)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text("\(count)")
-                .font(MeetingNotchTheme.dataFont.monospacedDigit())
+    private func emptyState(symbol: String, text: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.tertiary)
+                .frame(width: 18)
+
+            Text(text)
+                .font(MeetingNotchTheme.bodyFont)
+                .foregroundStyle(.secondary)
         }
-        .padding(.horizontal, 2)
+        .padding(.horizontal, 4)
+        .frame(minHeight: 46)
     }
 
-    private func taskList(
-        _ tasks: [TaskItem],
-        primaryAction: @escaping (TaskItem) -> Void
-    ) -> some View {
+    private func taskList(_ tasks: [TaskItem]) -> some View {
         LazyVStack(spacing: 0) {
             ForEach(Array(tasks.enumerated()), id: \.element.id) { index, task in
                 TaskRowView(
                     task: task,
                     onUpdate: onUpdate,
-                    onPrimaryAction: { primaryAction(task) },
+                    onChangeStatus: { onChangeStatus(task, $0) },
+                    onArchive: { onArchive(task) },
+                    onRestore: { onRestore(task) },
                     onDelete: { taskPendingDeletion = task }
                 )
 
                 if index < tasks.count - 1 {
                     Divider()
                         .overlay(MeetingNotchTheme.subtleHairline)
-                        .padding(.leading, 30)
+                        .padding(.leading, 38)
                 }
             }
         }
@@ -253,6 +236,10 @@ struct TasksView: View {
         )
     }
 
+    private var contentTransition: AnyTransition {
+        reduceMotion ? .opacity : .opacity.combined(with: .offset(y: -6))
+    }
+
     private func addTask() {
         guard let title = TaskItem.normalizedTitle(newTaskTitle) else { return }
         onAdd(title)
@@ -263,7 +250,9 @@ struct TasksView: View {
 private struct TaskRowView: View {
     let task: TaskItem
     let onUpdate: (TaskItem, String) -> Void
-    let onPrimaryAction: () -> Void
+    let onChangeStatus: (TaskStatus) -> Void
+    let onArchive: () -> Void
+    let onRestore: () -> Void
     let onDelete: () -> Void
 
     @State private var isEditing = false
@@ -273,28 +262,42 @@ private struct TaskRowView: View {
     init(
         task: TaskItem,
         onUpdate: @escaping (TaskItem, String) -> Void,
-        onPrimaryAction: @escaping () -> Void,
+        onChangeStatus: @escaping (TaskStatus) -> Void,
+        onArchive: @escaping () -> Void,
+        onRestore: @escaping () -> Void,
         onDelete: @escaping () -> Void
     ) {
         self.task = task
         self.onUpdate = onUpdate
-        self.onPrimaryAction = onPrimaryAction
+        self.onChangeStatus = onChangeStatus
+        self.onArchive = onArchive
+        self.onRestore = onRestore
         self.onDelete = onDelete
         _draftTitle = State(initialValue: task.title)
     }
 
     var body: some View {
-        HStack(spacing: 10) {
-            Button(action: onPrimaryAction) {
-                Image(systemName: task.isArchived ? "arrow.uturn.backward" : "circle")
-                    .font(.system(size: task.isArchived ? 10 : 13, weight: .semibold))
-                    .foregroundStyle(task.isArchived ? Color.secondary : MeetingNotchTheme.success)
-                    .frame(width: 28, height: 32)
+        HStack(spacing: 8) {
+            Menu {
+                ForEach(TaskStatus.allCases) { status in
+                    Button(status.title, systemImage: status.symbolName) {
+                        onChangeStatus(status)
+                    }
+                    .disabled(status == task.status)
+                }
+            } label: {
+                Image(systemName: task.status.symbolName)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(task.status.tint)
+                    .frame(width: 32, height: 32)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .help(task.isArchived ? "Aktife geri al" : "Tamamla ve arşivle")
-            .accessibilityLabel(task.isArchived ? "Görevi aktife geri al" : "Görevi tamamla")
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 32, height: 32)
+            .help("Durum: \(task.status.title)")
+            .accessibilityLabel("Görev durumu")
+            .accessibilityValue(task.status.title)
 
             if isEditing {
                 TextField("Görev başlığı", text: $draftTitle)
@@ -326,8 +329,8 @@ private struct TaskRowView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(task.title)
                             .font(MeetingNotchTheme.rowTitleFont)
-                            .foregroundStyle(task.isArchived ? .secondary : .primary)
-                            .strikethrough(task.isArchived)
+                            .foregroundStyle(task.status == .completed ? .secondary : .primary)
+                            .strikethrough(task.status == .completed)
                             .lineLimit(2)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -342,7 +345,7 @@ private struct TaskRowView: View {
                 .help("Düzenlemek için tıklayın")
             }
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 2)
         .padding(.vertical, 4)
         .frame(minHeight: 50)
         .background(
@@ -357,13 +360,19 @@ private struct TaskRowView: View {
             if !isEditing { draftTitle = newValue }
         }
         .contextMenu {
-            Button(
-                task.isArchived ? "Aktife geri al" : "Tamamla",
-                systemImage: task.isArchived ? "arrow.uturn.backward" : "checkmark",
-                action: onPrimaryAction
-            )
+            Menu("Durumu değiştir", systemImage: task.status.symbolName) {
+                ForEach(TaskStatus.allCases) { status in
+                    Button(status.title, systemImage: status.symbolName) {
+                        onChangeStatus(status)
+                    }
+                    .disabled(status == task.status)
+                }
+            }
 
-            if !task.isArchived {
+            if task.isArchived {
+                Button("Aktife geri al", systemImage: "arrow.uturn.backward", action: onRestore)
+            } else {
+                Button("Arşivle", systemImage: "archivebox", action: onArchive)
                 Button("Düzenle", systemImage: "pencil") {
                     isEditing = true
                 }
@@ -376,10 +385,10 @@ private struct TaskRowView: View {
     }
 
     private var metadataText: String {
-        if let completedAt = task.completedAt {
-            return "Tamamlandı \(completedAt.formatted(date: .abbreviated, time: .shortened))"
+        if let archivedAt = task.archivedAt {
+            return "\(task.status.title) · Arşivlendi \(archivedAt.formatted(date: .abbreviated, time: .shortened))"
         }
-        return "Eklendi \(task.createdAt.formatted(date: .abbreviated, time: .shortened))"
+        return "\(task.status.title) · Eklendi \(task.createdAt.formatted(date: .abbreviated, time: .shortened))"
     }
 
     private func commitEdit() {
@@ -392,5 +401,62 @@ private struct TaskRowView: View {
     private func cancelEdit() {
         draftTitle = task.title
         isEditing = false
+    }
+}
+
+private extension TaskStatus {
+    var symbolName: String {
+        switch self {
+        case .backlog: "tray"
+        case .todo: "circle"
+        case .inProgress: "circle.lefthalf.filled"
+        case .completed: "checkmark.circle.fill"
+        case .blocked: "exclamationmark.octagon.fill"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .backlog: .secondary
+        case .todo: .blue
+        case .inProgress: MeetingNotchTheme.accent
+        case .completed: MeetingNotchTheme.success
+        case .blocked: .red
+        }
+    }
+}
+
+private struct MeetingNotchCompactButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    let tint: Color
+    let isActive: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(isActive ? tint : Color.secondary)
+            .padding(.horizontal, 8)
+            .frame(height: 30)
+            .background(
+                isActive ? tint.opacity(0.14) : MeetingNotchTheme.surface,
+                in: RoundedRectangle(
+                    cornerRadius: MeetingNotchTheme.controlRadius,
+                    style: .continuous
+                )
+            )
+            .overlay {
+                RoundedRectangle(
+                    cornerRadius: MeetingNotchTheme.controlRadius,
+                    style: .continuous
+                )
+                .stroke(isActive ? tint.opacity(0.24) : MeetingNotchTheme.subtleHairline)
+            }
+            .contentShape(Rectangle())
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
+            .animation(
+                reduceMotion ? nil : .easeOut(duration: 0.12),
+                value: configuration.isPressed
+            )
     }
 }

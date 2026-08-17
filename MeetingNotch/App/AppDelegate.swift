@@ -111,7 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
 
     private lazy var notch: DynamicNotch<AnyView, AnyView, AnyView> = DynamicNotch(
-        hoverBehavior: [.keepVisible, .increaseShadow]
+        hoverBehavior: NotchShadowPolicy.hoverBehavior
     ) {
         AnyView(
             NotchPanelView(
@@ -151,8 +151,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onTogglePin: { [weak self] in self?.toggleNotchPin() },
                 onAddTask: { [weak self] title in self?.addTask(title: title) },
                 onUpdateTask: { [weak self] task, title in self?.updateTask(task, title: title) },
-                onCompleteTask: { [weak self] task in self?.setTask(task, completed: true) },
-                onRestoreTask: { [weak self] task in self?.setTask(task, completed: false) },
+                onChangeTaskStatus: { [weak self] task, status in
+                    self?.changeTaskStatus(task, to: status)
+                },
+                onArchiveTask: { [weak self] task in self?.archiveTask(task) },
+                onRestoreTask: { [weak self] task in self?.restoreTask(task) },
                 onDeleteTask: { [weak self] task in self?.deleteTask(task) },
                 onDeleteArchive: { [weak self] in self?.deleteTaskArchive() },
                 onRelaunchApplication: { [weak self] in self?.relaunchApplication() }
@@ -637,6 +640,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.appState.updateCalendarAccessState(state)
         }
 
+        meetingMonitor.onIntegrationSnapshotChange = { [weak self] snapshot in
+            self?.appState.updateCalendarIntegrationSnapshot(snapshot)
+        }
+
+        meetingMonitor.onRefreshStateChange = { [weak self] isRefreshing in
+            self?.appState.updateCalendarRefreshState(isRefreshing: isRefreshing)
+        }
+
+        meetingMonitor.onMeetingsChange = { [weak self] meetings in
+            self?.appState.updateUpcomingMeetings(meetings)
+        }
+
         meetingMonitor.onSnapshotChange = { [weak self] snapshot, shouldPresent in
             guard let self else { return }
             Task {
@@ -926,14 +941,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func requestCalendarAccess() {
+    func requestCalendarAccess() {
         Task {
             await meetingMonitor.requestAccess()
         }
     }
 
+    func openCalendarPrivacySettings() {
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars"
+        ) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    func openInternetAccountsSettings() {
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension"
+        ) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     private func openMeetingURL(_ url: URL) {
-        let meeting = appState.nextMeeting
+        let meeting = appState.upcomingMeeting(matching: url)
         Task { [weak self] in
             guard let self else { return }
             await self.meetingSessionCoordinator.recordJoinAction(
@@ -1130,10 +1159,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         persistTask(updated, operation: "update-task")
     }
 
-    private func setTask(_ task: TaskItem, completed: Bool) {
+    private func changeTaskStatus(_ task: TaskItem, to status: TaskStatus) {
         var updated = task
-        updated.completedAt = completed ? Date() : nil
-        persistTask(updated, operation: completed ? "archive-task" : "restore-task")
+        updated.setStatus(status)
+        persistTask(updated, operation: "change-task-status")
+    }
+
+    private func archiveTask(_ task: TaskItem) {
+        var updated = task
+        updated.archive()
+        persistTask(updated, operation: "archive-task")
+    }
+
+    private func restoreTask(_ task: TaskItem) {
+        var updated = task
+        updated.restore()
+        persistTask(updated, operation: "restore-task")
     }
 
     private func persistTask(_ task: TaskItem, operation: String) {

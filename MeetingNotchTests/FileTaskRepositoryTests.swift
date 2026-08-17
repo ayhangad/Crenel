@@ -49,7 +49,7 @@ final class FileTaskRepositoryTests: XCTestCase {
 
         let data = try Data(contentsOf: root.appending(path: "Tasks/tasks.json"))
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        XCTAssertEqual(json["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(json["schemaVersion"] as? Int, 2)
     }
 
     func testSaveUpdatesExistingTaskWithoutChangingItsPosition() async throws {
@@ -60,7 +60,7 @@ final class FileTaskRepositoryTests: XCTestCase {
 
         var completed = first
         completed.title = "İlk — güncel"
-        completed.completedAt = Date(timeIntervalSince1970: 3)
+        completed.setStatus(.completed, at: Date(timeIntervalSince1970: 3))
         try await repository.save(completed)
 
         let loaded = try await repository.loadAll()
@@ -177,7 +177,10 @@ final class FileTaskRepositoryTests: XCTestCase {
             for (index, task) in tasks.enumerated() {
                 group.addTask {
                     var completed = task
-                    completed.completedAt = Date(timeIntervalSince1970: TimeInterval(index + 1))
+                    completed.setStatus(
+                        .completed,
+                        at: Date(timeIntervalSince1970: TimeInterval(index + 1))
+                    )
                     try await self.repository.save(completed)
                 }
             }
@@ -187,5 +190,37 @@ final class FileTaskRepositoryTests: XCTestCase {
         let loaded = try await repository.loadAll()
         XCTAssertEqual(loaded.count, tasks.count)
         XCTAssertTrue(loaded.allSatisfy(\.isArchived))
+        XCTAssertTrue(loaded.allSatisfy { $0.status == .completed })
+    }
+
+    func testVersionOneCompletionDocumentMigratesToTaskStatusAndArchiveTimestamp() async throws {
+        try await repository.prepare()
+        let taskID = UUID()
+        let completedAt = Date(timeIntervalSince1970: 2_000)
+        let legacyDocument: [String: Any] = [
+            "schemaVersion": 1,
+            "tasks": [[
+                "id": taskID.uuidString,
+                "title": "Eski tamamlanmış görev",
+                "createdAt": 1_000.0,
+                "completedAt": completedAt.timeIntervalSinceReferenceDate
+            ]]
+        ]
+        let data = try JSONSerialization.data(withJSONObject: legacyDocument)
+        try data.write(to: root.appending(path: "Tasks/tasks.json"))
+
+        let loaded = try await repository.loadAll()
+
+        let task = try XCTUnwrap(loaded.first)
+        XCTAssertEqual(task.id, taskID)
+        XCTAssertEqual(task.status, .completed)
+        XCTAssertEqual(task.completedAt, completedAt)
+        XCTAssertEqual(task.archivedAt, completedAt)
+
+        let migratedData = try Data(contentsOf: root.appending(path: "Tasks/tasks.json"))
+        let migratedJSON = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: migratedData) as? [String: Any]
+        )
+        XCTAssertEqual(migratedJSON["schemaVersion"] as? Int, 2)
     }
 }

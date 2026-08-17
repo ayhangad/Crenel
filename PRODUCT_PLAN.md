@@ -579,6 +579,10 @@ kanalı değildir.
 
 ### 5.1 Aktif görevler
 
+- [x] Görev yaşam döngüsünü `backlog / todo / in progress / completed / blocked`
+  durumlarıyla modellemek; tamamlananı otomatik arşivlerken manuel arşivlemeyi ayrı tutmak
+  ve görev özetini durum ikonlarıyla göstermek.
+  — ✅ Tamamlandı: 2026-08-17 / task states, separate archive and status summary
 - [x] Yeni görev ekleme alanını oluşturmak.
 - [x] Boş veya yalnızca whitespace içeren görevleri engellemek.
 - [x] Her göreve kararlı benzersiz kimlik vermek.
@@ -614,6 +618,10 @@ kanalı değildir.
 
 ### 6.1 EventKit altyapısı
 
+- [x] Takvim bağlantı sağlığını kaynak türleri, okunabilir takvim/etkinlik/toplantı sayıları
+  ve son yenileme zamanı ile görünür yapmak; Google hesabı yok, izin reddi ve sorgu hatasını
+  ayrı düzeltme aksiyonlarına bağlamak.
+  — ✅ Tamamlandı: 2026-08-17 / calendar reliability and account diagnostics
 - [x] Tek ve uzun ömürlü EventKit store oluşturmak.
 - [x] Yaklaşan etkinlikler için sorgu zaman aralığını belirlemek.
 - [x] Takvim değişiklik bildirimlerini dinlemek.
@@ -849,7 +857,8 @@ kanalı değildir.
 - [ ] Konuşmacı adlarını kullanıcı tarafından düzenlenebilir yapmak.
 - [x] Segment timestamp'ine tıklayarak kayıtta ilgili noktaya gitmeyi uygulamak.
 - [x] Ses oynatma kontrollerini eklemek.
-- [ ] Uzun transkriptlerde performanslı kaydırmayı doğrulamak.
+- [x] Uzun transkriptlerde performanslı kaydırmayı doğrulamak.
+  — ✅ Tamamlandı: 2026-08-17 / 390 segment scroll regression and unclipped notch shadow
 
 ### 9.3 Dışa aktarma ve yönetim
 
@@ -1013,6 +1022,36 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 ## İlerleme günlüğü
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
+
+- 2026-08-17 — Toplantı detayındaki transkript satırları iç içe lazy stack'ten çıkarılıp
+  scroll yüzeyinin tek dış `LazyVStack`'ına doğrudan bağlandı. Uzun transkriptlerde yüzlerce
+  native text-selection köprüsü yerine segment context-menu ve tüm-transkript kopyalama
+  kullanılıyor; audio ilerleme yayınlarını yalnız player gözlemliyor ve tüm detail ağacı
+  saniyede dört kez yeniden değerlendirilmiyor. Ekran görüntüsündeki alt gölge kesilmesinin,
+  DynamicNotchKit'in 15 pt güvenli alanında hover gölgesini 20 pt'e büyütmesinden geldiği
+  doğrulandı; stabil 10 pt gölgeye dönüldü. 390 segment ve 64 scroll-wheel olaylı regresyon
+  0,24 saniyede geçti. Tam pakette 304 testten 301'i geçti, üç opt-in donanım testi beklendiği
+  gibi atlandı; Apple Development imzalı Debug build strict/deep codesign doğrulamasından geçti.
+
+- 2026-08-17 — EventKit takvim bağlantısı kaynak türü ve takvim sayısı, taranan etkinlik,
+  eşleşen çevrim içi toplantı, son yenileme ve canlı refresh durumuyla gözlemlenebilir hale
+  getirildi. Ayarlar izin verme, Takvim gizlilik paneli, macOS İnternet Hesapları ve sorguyu
+  tekrar deneme yollarını ayrı aksiyonlarla sunuyor; Google Calendar'ın sistem hesabından
+  okunduğu ve Gmail e-postalarına erişilmediği onboarding/README'de açıklandı. Google ve
+  Outlook redirect'leri, HTML/percent encoded ve şemasız Zoom/Meet/Teams linkleri HTTPS'e
+  normalize ediliyor; tekrar eden event'ler eleniyor, occurrence kimlikleri refresh'ler
+  arasında stabil ve sonraki üç toplantı notch'ta görünüyor. Burst refresh'ler coalesce
+  ediliyor. Tam pakette 301 testten 298'i geçti, üç opt-in donanım testi beklendiği gibi
+  atlandı; Apple Development imzalı Debug build strict/deep codesign doğrulamasından geçti.
+
+- 2026-08-17 — Görevler backlog, todo, in progress, completed ve blocked durumlarına
+  ayrıldı. Durum ile arşiv bağımsız modellendi; completed geçişi atomik olarak otomatik
+  arşivlerken diğer durumlar manuel arşivlenebiliyor ve tamamlanmış görev geri alındığında
+  todo'ya dönüyor. Eski completion timestamp verisi tasks şema v2'ye kayıpsız migrate
+  ediliyor. Görev başlığındaki toplam aktif/arşiv metni durum ikonları ve sayılarıyla
+  değiştirildi; arşiv alttaki açılır bölümden sağ üstteki kompakt düğmeyle açılan ayrı
+  görünüme taşındı. Tam pakette 289 testten 286'sı geçti, üç opt-in donanım testi beklendiği
+  gibi atlandı; imzalı Debug build strict/deep codesign doğrulamasından geçti.
 
 - 2026-08-11 — Fiziksel notch UI appearance regresyonu giderildi. DynamicNotchKit'in siyah
   yüzeyinde sistem açık teması miras alıp pasif sekme ve ikincil metni karartması engellendi;

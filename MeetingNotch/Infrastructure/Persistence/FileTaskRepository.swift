@@ -30,9 +30,9 @@ enum TaskRepositoryError: LocalizedError, Equatable {
 
 actor FileTaskRepository: TaskRepository {
     private struct StoreDocument: Codable {
-        static let currentSchemaVersion = 1
+        static let currentSchemaVersion = 2
 
-        let schemaVersion: Int
+        var schemaVersion: Int
         var tasks: [TaskItem]
 
         init(
@@ -81,7 +81,12 @@ actor FileTaskRepository: TaskRepository {
 
     func loadAll() throws -> [TaskItem] {
         try prepare()
-        return try loadDocument().tasks
+        var document = try loadDocument()
+        if document.schemaVersion < StoreDocument.currentSchemaVersion {
+            document.schemaVersion = StoreDocument.currentSchemaVersion
+            try write(document)
+        }
+        return document.tasks
     }
 
     func save(_ task: TaskItem) throws {
@@ -92,6 +97,7 @@ actor FileTaskRepository: TaskRepository {
         } else {
             document.tasks.append(task)
         }
+        document.schemaVersion = StoreDocument.currentSchemaVersion
         try validateUniqueIDs(document.tasks)
         try write(document)
     }
@@ -102,6 +108,7 @@ actor FileTaskRepository: TaskRepository {
         let originalCount = document.tasks.count
         document.tasks.removeAll { $0.id == id }
         guard document.tasks.count != originalCount else { return }
+        document.schemaVersion = StoreDocument.currentSchemaVersion
         try write(document)
     }
 
@@ -113,7 +120,7 @@ actor FileTaskRepository: TaskRepository {
         do {
             let data = try Data(contentsOf: storeURL)
             let document = try decoder.decode(StoreDocument.self, from: data)
-            guard document.schemaVersion == StoreDocument.currentSchemaVersion else {
+            guard (1...StoreDocument.currentSchemaVersion).contains(document.schemaVersion) else {
                 throw TaskRepositoryError.unsupportedSchema(document.schemaVersion)
             }
             try validateUniqueIDs(document.tasks)

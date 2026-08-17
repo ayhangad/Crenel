@@ -1,4 +1,11 @@
+import DynamicNotchKit
 import Foundation
+
+enum NotchShadowPolicy {
+    // DynamicNotchKit's window reserves 15 pt for the external shadow. Its optional
+    // hover effect grows the shadow radius to 20 pt and gets clipped at the panel edge.
+    static let hoverBehavior: DynamicNotchHoverBehavior = [.keepVisible]
+}
 
 enum NotchCompactStatus: Equatable {
     struct RecordingStatus: Equatable {

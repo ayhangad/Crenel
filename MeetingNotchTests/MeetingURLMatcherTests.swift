@@ -52,4 +52,42 @@ final class MeetingURLMatcherTests: XCTestCase {
 
         XCTAssertEqual(matches.map(\.host), ["zoom.us", "meet.google.com"])
     }
+
+    func testRecognizesSchemeLessLinksFromCalendarLocation() {
+        let match = matcher.firstMeetingURL(
+            explicitURL: nil,
+            location: "meet.google.com/abc-defg-hij",
+            notes: nil
+        )
+
+        XCTAssertEqual(match?.absoluteString, "https://meet.google.com/abc-defg-hij")
+    }
+
+    func testUnwrapsGoogleRedirectToSupportedMeeting() {
+        let redirect = URL(
+            string: "https://www.google.com/url?q=https%3A%2F%2Fmeet.google.com%2Fabc-defg-hij&source=calendar"
+        )!
+
+        XCTAssertEqual(
+            matcher.firstMeetingURL(explicitURL: redirect, location: nil, notes: nil)?.host,
+            "meet.google.com"
+        )
+    }
+
+    func testUnwrapsHTMLSafelinkAndRemovesDuplicateMeetingURLs() {
+        let text = """
+        Join https://nam01.safelinks.protection.outlook.com/?url=https%3A%2F%2Fteams.microsoft.com%2Fl%2Fmeetup-join%2Fabc&amp;data=tracking
+        Direct https://teams.microsoft.com/l/meetup-join/abc
+        """
+
+        let matches = matcher.meetingURLs(in: text)
+
+        XCTAssertEqual(matches.map(\.absoluteString), [
+            "https://teams.microsoft.com/l/meetup-join/abc"
+        ])
+    }
+
+    func testRecognizesZoomDotComMeetingHost() {
+        XCTAssertTrue(matcher.isSupported(URL(string: "https://acme.zoom.com/j/123")!))
+    }
 }

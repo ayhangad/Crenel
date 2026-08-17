@@ -17,11 +17,14 @@ final class AppState: ObservableObject {
     @Published private(set) var activeTaskCount = 0
     @Published private(set) var userFacingFailure: AppFailure?
     @Published private(set) var calendarAccessState: CalendarAccessState = .notDetermined
+    @Published private(set) var calendarIntegrationSnapshot: CalendarIntegrationSnapshot?
+    @Published private(set) var isCalendarRefreshing = false
     @Published private(set) var audioCapturePermissions = AudioCapturePermissionSnapshot(
         microphone: .notDetermined,
         systemAudio: .notDetermined
     )
     @Published private(set) var nextMeeting: Meeting?
+    @Published private(set) var upcomingMeetings: [Meeting] = []
     @Published private(set) var meetingReminderLevel: MeetingReminderLevel = .none
     @Published private(set) var secondsUntilMeeting: TimeInterval?
     @Published private(set) var recordingCaptureStatus = RecordingCaptureStatus.idle
@@ -273,6 +276,28 @@ final class AppState: ObservableObject {
         calendarAccessState = state
     }
 
+    func updateCalendarIntegrationSnapshot(_ snapshot: CalendarIntegrationSnapshot?) {
+        calendarIntegrationSnapshot = snapshot
+    }
+
+    func updateCalendarRefreshState(isRefreshing: Bool) {
+        isCalendarRefreshing = isRefreshing
+    }
+
+    func updateUpcomingMeetings(_ meetings: [Meeting]) {
+        upcomingMeetings = meetings.sorted { lhs, rhs in
+            if lhs.startDate == rhs.startDate {
+                return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
+            }
+            return lhs.startDate < rhs.startDate
+        }
+    }
+
+    func upcomingMeeting(matching url: URL) -> Meeting? {
+        upcomingMeetings.first { $0.meetingURL == url }
+            ?? (nextMeeting?.meetingURL == url ? nextMeeting : nil)
+    }
+
     func updateAudioCapturePermissions(_ permissions: AudioCapturePermissionSnapshot) {
         audioCapturePermissions = permissions
     }
@@ -341,7 +366,11 @@ final class AppState: ObservableObject {
     var archivedTasks: [TaskItem] {
         tasks
             .filter(\.isArchived)
-            .sorted { ($0.completedAt ?? .distantPast) > ($1.completedAt ?? .distantPast) }
+            .sorted { ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) }
+    }
+
+    func activeTaskCount(for status: TaskStatus) -> Int {
+        activeTasks.lazy.filter { $0.status == status }.count
     }
 
     var completedMeeting: StoredMeeting? {

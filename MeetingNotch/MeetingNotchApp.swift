@@ -58,7 +58,12 @@ struct MeetingNotchApp: App {
                 onRefreshPermissions: {
                     appDelegate.refreshAudioPermissions()
                     appDelegate.refreshAccessibilityPermission()
+                    appDelegate.refreshCalendar()
                 },
+                onRequestCalendarAccess: appDelegate.requestCalendarAccess,
+                onRefreshCalendar: appDelegate.refreshCalendar,
+                onOpenCalendarSettings: appDelegate.openCalendarPrivacySettings,
+                onOpenInternetAccounts: appDelegate.openInternetAccountsSettings,
                 onLoadGeneralSettings: appDelegate.loadGeneralSettings,
                 onSaveGeneralSettings: appDelegate.saveGeneralSettings,
                 onLoadMicrophoneSettings: appDelegate.loadMicrophoneSettings,

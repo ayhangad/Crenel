@@ -147,6 +147,11 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertLessThanOrEqual(constrained.maximumContentHeight + 150, 500)
     }
 
+    func testHoverShadowStaysInsideDynamicNotchWindowInset() {
+        XCTAssertTrue(NotchShadowPolicy.hoverBehavior.contains(.keepVisible))
+        XCTAssertFalse(NotchShadowPolicy.hoverBehavior.contains(.increaseShadow))
+    }
+
     func testOnlyCompletionResetsAfterTransientPresentation() {
         let completed = MeetingFlowState.completed(meetingID: UUID())
         let failed = MeetingFlowState.failed(.network("Bağlantı yok"))

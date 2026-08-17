@@ -38,6 +38,17 @@ enum TranscriptTextFormatter {
     }
 }
 
+enum TranscriptPresentationPolicy {
+    // SwiftUI's macOS text-selection bridge retains a native text view for each
+    // selectable row. Keeping it enabled on hundreds of rows makes scrolling grow
+    // progressively more expensive, even when the rows live in a LazyVStack.
+    static let inlineSelectionSegmentLimit = 80
+
+    static func allowsInlineTextSelection(segmentCount: Int) -> Bool {
+        segmentCount <= inlineSelectionSegmentLimit
+    }
+}
+
 struct MeetingDetailContent: Identifiable {
     let meeting: StoredMeeting
     let storedTranscription: StoredTranscription?
@@ -209,7 +220,9 @@ struct MeetingDetailView: View {
     let onRetry: (StoredMeeting) -> Void
     let onDelete: (StoredMeeting) -> Void
 
-    @StateObject private var player: MeetingAudioPlayer
+    // State keeps the controller alive without subscribing this entire detail tree to
+    // its 4 Hz playback updates. CompactAudioPlayer is the only observing view.
+    @State private var player: MeetingAudioPlayer
 
     init(
         content: MeetingDetailContent,
@@ -225,8 +238,8 @@ struct MeetingDetailView: View {
         self.onRevealAudio = onRevealAudio
         self.onRetry = onRetry
         self.onDelete = onDelete
-        _player = StateObject(
-            wrappedValue: MeetingAudioPlayer(
+        _player = State(
+            initialValue: MeetingAudioPlayer(
                 url: content.audioURL,
                 duration: content.meeting.duration
             )
@@ -234,19 +247,59 @@ struct MeetingDetailView: View {
     }
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
+        LazyVStack(alignment: .leading, spacing: 0) {
             CompactAudioPlayer(player: player)
+                .padding(.bottom, MeetingNotchTheme.sectionSpacing)
 
             if let storedTranscription = content.storedTranscription {
                 if let summary = storedTranscription.summary {
                     summarySection(summary)
+                        .padding(.bottom, MeetingNotchTheme.sectionSpacing)
                 }
-                transcriptSection(storedTranscription.transcript)
+
+                let transcript = storedTranscription.transcript
+                let allowsInlineTextSelection = TranscriptPresentationPolicy
+                    .allowsInlineTextSelection(segmentCount: transcript.segments.count)
+
+                sectionHeader("Transkript", symbol: "quote.bubble") {
+                    Text("\(transcript.segments.count) segment")
+                        .font(MeetingNotchTheme.dataFont)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.bottom, 6)
+
+                if transcript.segments.isEmpty {
+                    Text(transcript.text)
+                        .font(MeetingNotchTheme.bodyFont)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+                } else {
+                    // Rows stay direct children of the scroll view's outer LazyVStack.
+                    // A nested stack turns the whole transcript into one eager child.
+                    ForEach(transcript.segments) { segment in
+                        TranscriptSegmentRow(
+                            segment: segment,
+                            allowsInlineTextSelection: allowsInlineTextSelection,
+                            onSeek: { player.seek(to: segment.startTime) },
+                            onCopy: {
+                                onCopyText(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))
+                            }
+                        )
+                        .equatable()
+
+                        if segment.id != transcript.segments.last?.id {
+                            Divider()
+                                .overlay(MeetingNotchTheme.subtleHairline)
+                        }
+                    }
+                }
             } else {
                 processingState
             }
 
             utilityActions
+                .padding(.top, MeetingNotchTheme.sectionSpacing)
         }
     }
 
@@ -348,39 +401,6 @@ struct MeetingDetailView: View {
                 style: .continuous
             )
             .stroke(MeetingNotchTheme.subtleHairline, lineWidth: 1)
-        }
-    }
-
-    @ViewBuilder
-    private func transcriptSection(_ transcript: Transcript) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("Transkript", symbol: "quote.bubble") {
-                Text("\(transcript.segments.count) segment")
-                    .font(MeetingNotchTheme.dataFont)
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(.bottom, 6)
-
-            if transcript.segments.isEmpty {
-                Text(transcript.text)
-                    .font(MeetingNotchTheme.bodyFont)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 8)
-            } else {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(transcript.segments.enumerated()), id: \.element.id) { index, segment in
-                        TranscriptSegmentRow(segment: segment) {
-                            player.seek(to: segment.startTime)
-                        }
-
-                        if index < transcript.segments.count - 1 {
-                            Divider()
-                                .overlay(MeetingNotchTheme.subtleHairline)
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -547,9 +567,11 @@ private struct CompactAudioPlayer: View {
     }
 }
 
-private struct TranscriptSegmentRow: View {
+private struct TranscriptSegmentRow: View, Equatable {
     let segment: TranscriptSegment
+    let allowsInlineTextSelection: Bool
     let onSeek: () -> Void
+    let onCopy: () -> Void
 
     @State private var isHovering = false
 
@@ -579,11 +601,7 @@ private struct TranscriptSegmentRow: View {
                 }
             }
 
-            Text(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))
-                .font(MeetingNotchTheme.bodyFont)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
+            segmentText
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 10)
@@ -595,7 +613,29 @@ private struct TranscriptSegmentRow: View {
             )
         )
         .onHover { isHovering = $0 }
+        .contextMenu {
+            Button("Segmenti kopyala", action: onCopy)
+        }
         .accessibilityElement(children: .contain)
+    }
+
+    @ViewBuilder
+    private var segmentText: some View {
+        let text = Text(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))
+            .font(MeetingNotchTheme.bodyFont)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+
+        if allowsInlineTextSelection {
+            text.textSelection(.enabled)
+        } else {
+            text
+        }
+    }
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.segment == rhs.segment
+            && lhs.allowsInlineTextSelection == rhs.allowsInlineTextSelection
     }
 
     private var displaySpeakerName: String {

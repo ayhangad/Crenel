@@ -80,7 +80,7 @@ struct OnboardingView: View {
                     onboardingContent(
                         icon: "calendar.badge.clock",
                         title: "Yaklaşan toplantıları kaçırmayın",
-                        detail: "İsteğe bağlı takvim erişimi çevrim içi toplantıları bulup önceden notch üzerinde hatırlatır. Reddederseniz manuel kayıt aynen çalışır.",
+                        detail: "İsteğe bağlı takvim erişimi, bu Mac’e eklenmiş iCloud, Google ve Exchange takvimlerindeki çevrim içi toplantıları bulup önceden notch üzerinde hatırlatır. Gmail e-postaları okunmaz; reddederseniz manuel kayıt aynen çalışır.",
                         callout: calendarStatus
                     )
                 case .cloud:

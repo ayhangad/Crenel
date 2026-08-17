@@ -242,12 +242,31 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 - Transkripsiyon tamamlandığında yerel extractive özet servisi yalnızca transkriptte açıkça
   bulunan cümlelerden kısa özet, karar ve aksiyon adayları çıkarır. Ayrı bir uzak model veya
   ikinci API anahtarı kullanmaz; özetleme hatası transkriptin kaydedilmesini engellemez.
-- Görevler aktif ve arşiv durumlarını ayrı dosyalar arasında taşımak yerine tek sürümlü
-  `Tasks/tasks.json` belgesinde tutar. Completion timestamp ekleme/kaldırma tek actor içinde
-  tek atomik yazımdır. V1 görünüm sırası oluşturulma zamanıdır; manuel reordering yoktur.
+- Görevler `backlog`, `todo`, `inProgress`, `completed` ve `blocked` durumlarını; durumdan
+  bağımsız `archivedAt` zaman damgasını tek sürümlü `Tasks/tasks.json` belgesinde tutar.
+  `completed` geçişi aynı actor yazımında otomatik arşivler; manuel arşivleme mevcut durumu
+  değiştirmez. Tamamlanmış bir görevi aktife geri almak onu `todo` durumuna döndürür. Şema
+  v1'deki `completedAt` kayıtları `completed + archivedAt` olarak kayıpsız migrate edilir.
+  V1 görünüm sırası oluşturulma zamanıdır; manuel reordering yoktur.
 
 ## İzin yaşam döngüsü
 
+- Takvim entegrasyonu doğrudan Google/Gmail OAuth'u kullanmaz. EventKit, yalnız kullanıcının
+  macOS İnternet Hesapları'na ekleyip Takvim için etkinleştirdiği iCloud, Google, Exchange,
+  CalDAV ve yerel kaynakları okur; MeetingNotch Gmail gelen kutusuna veya e-posta içeriğine
+  erişmez. Ayarlar kaynak türü ve takvim sayısını gösterir fakat hesap adı/e-posta adresini
+  domain'e, loglara veya kalıcı dosyalara taşımaz.
+- Yetkili EventKit sorgusu son 1 saat ile sonraki 24 saati kapsar; okunabilir takvim,
+  taranan etkinlik, eşleşen çevrim içi toplantı ve son yenileme zamanını tek bağlantı sağlık
+  snapshot'ı olarak yayınlar. İzin reddi, sorgu hatası ve Google hesabının macOS'ta görünmemesi
+  farklı düzeltme aksiyonları üretir. Hızlı EventKit/timezone/poll tetikleri devam eden sorguya
+  ek bir takip yenilemesi olarak coalesce edilir; eski sorgu entegrasyon kapatıldıktan sonra
+  UI'a veri yayınlayamaz.
+- Calendar URL matcher desteklenen doğrudan HTTPS linklerine ek olarak şemasız linkleri,
+  HTML entity/percent encoding'i ve yalnız bilinen Google/Outlook redirect host'larındaki
+  iç içe toplantı URL'lerini normalize eder. Eşleşen occurrence kimliği deterministik UUID
+  üretir; yinelenen takvim kopyaları başlık/zaman/URL anahtarıyla tek toplantıya iner. En yakın
+  toplantı ana durum yüzeyinde, sonraki üç çakışan/arka arkaya toplantı ince listede gösterilir.
 - Mikrofon durumu AVFoundation sınırından okunur ve kayıt başlamadan doğrulanır. Sistem
   sesinin audio-only TCC izni için güvenilir bir preflight API bulunmadığından UI bu durumu
   `verificationRequired` olarak taşır; kesin karar Core Audio Process Tap hazırlanırken
@@ -332,7 +351,8 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 ## Sonuç ve görev yüzeyleri
 
 - `AppDelegate` repository işlemlerini koordine eder; notch view'ları doğrudan dosya
-  sistemine erişmez. `AppState`, aktif/arşiv görevlerini ve kompakt rozet sayısını yayınlar.
+  sistemine erişmez. `AppState`, aktif/arşiv görevlerini, durum başına aktif sayıları ve
+  kompakt rozet için toplam aktif sayıyı yayınlar.
 - Toplantı satırı ayrı pencere açmaz; `AppDelegate` repository'den normalize transcript,
   kalıcı Markdown ve birleşik audio URL'sini yükleyip `AppState` üzerindeki geçici detail
   içeriğine taşır. Geniş notch paneli sekmelerden toplantı detail drill-down'ına akışkan
@@ -341,15 +361,25 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   Markdown dosyası kaydetme, Finder, retry ve silme gibi seyrek/dış etki üreten işlemler tek
   taşma menüsünde toplanır ve coordinator closure'ları üzerinden yürür; notch view'ları dosya
   sistemine doğrudan erişmez.
-- Görevler yüzeyi iç içe kart kullanmaz; sabit ikon kolonu, divider tabanlı satırlar, sans
-  başlık ve mono tarih/sayaç rolleriyle toplantı listesiyle aynı optik grid'i paylaşır.
-  Tamamlama/geri alma satırın birincil kontrolüdür. Düzenleme context menu ile erişilebilir;
-  silme ve arşiv temizleme görünür satır ikonları yerine context/taşma menüsünden açılır ve
-  kalıcı işlemden önce onay ister.
-- AVPlayer tabanlı audio controller timestamp seek ve süre ilerlemesini yönetir. Segmentler
-  520 px'e kadar genişleyen detail panelindeki uzun transcript'te eager view üretmemek için
-  `ScrollView` içindeki
-  `LazyVStack` ile çizilir.
+- Görevler yüzeyi iç içe kart kullanmaz; sabit durum ikonu kolonu, divider tabanlı satırlar,
+  sans başlık ve mono tarih/sayaç rolleriyle toplantı listesiyle aynı optik grid'i paylaşır.
+  Üst satır toplam “aktif” metni yerine backlog/todo/in-progress/blocked ikonlarıyla durum
+  sayılarını gösterir. Satırdaki durum ikonu beş durum arasında seçim açar; `completed`
+  seçimi görevi otomatik arşive taşır. Manuel arşivleme context menu'de ayrı kalır. Arşiv
+  ana listenin altında açılmaz; sağ üstteki kompakt `archivebox` düğmesi aynı yüzeyde ayrı
+  arşiv görünümüne geçer. Geri alma, düzenleme, silme ve arşiv temizleme kalıcı katmana
+  coordinator closure'ları üzerinden ulaşır; destructive işlemler onay ister.
+- AVPlayer tabanlı audio controller timestamp seek ve süre ilerlemesini yönetir. İlerleme
+  yayınlarını yalnızca kompakt player gözlemler; saniyelik zaman güncellemeleri detail ağacını
+  ve transkript satırlarını yeniden değerlendirmez. Segmentler 520 px'e kadar genişleyen
+  detail panelinde `ScrollView`'un tek dış `LazyVStack`'ına doğrudan çocuk olarak eklenir;
+  transkripti tek eager alt ağaç yapan iç içe stack kullanılmaz. Kısa transkriptlerde satır içi
+  metin seçimi korunur; uzun transkriptlerde yüzlerce native seçim köprüsü oluşturmamak için
+  satır seçimi kapatılır ve segment bazlı context-menu kopyalama ile üstteki tüm-transkript
+  kopyalama aksiyonu kullanılabilir.
+- DynamicNotchKit'in 15 pt pencere içi güvenli alanı içinde kalmak için hover sırasında 20 pt'e
+  büyüyen gölge kullanılmaz; panel sabit 10 pt gölgeyle çizilir ve alt fade pencere sınırında
+  kesilmez.
 
 ## Transkripsiyon sınırı
 

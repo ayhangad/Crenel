@@ -23,7 +23,8 @@ struct NotchPanelView: View {
     let onTogglePin: () -> Void
     let onAddTask: (String) -> Void
     let onUpdateTask: (TaskItem, String) -> Void
-    let onCompleteTask: (TaskItem) -> Void
+    let onChangeTaskStatus: (TaskItem, TaskStatus) -> Void
+    let onArchiveTask: (TaskItem) -> Void
     let onRestoreTask: (TaskItem) -> Void
     let onDeleteTask: (TaskItem) -> Void
     let onDeleteArchive: () -> Void
@@ -50,7 +51,8 @@ struct NotchPanelView: View {
         onTogglePin: @escaping () -> Void = {},
         onAddTask: @escaping (String) -> Void = { _ in },
         onUpdateTask: @escaping (TaskItem, String) -> Void = { _, _ in },
-        onCompleteTask: @escaping (TaskItem) -> Void = { _ in },
+        onChangeTaskStatus: @escaping (TaskItem, TaskStatus) -> Void = { _, _ in },
+        onArchiveTask: @escaping (TaskItem) -> Void = { _ in },
         onRestoreTask: @escaping (TaskItem) -> Void = { _ in },
         onDeleteTask: @escaping (TaskItem) -> Void = { _ in },
         onDeleteArchive: @escaping () -> Void = {},
@@ -76,7 +78,8 @@ struct NotchPanelView: View {
         self.onTogglePin = onTogglePin
         self.onAddTask = onAddTask
         self.onUpdateTask = onUpdateTask
-        self.onCompleteTask = onCompleteTask
+        self.onChangeTaskStatus = onChangeTaskStatus
+        self.onArchiveTask = onArchiveTask
         self.onRestoreTask = onRestoreTask
         self.onDeleteTask = onDeleteTask
         self.onDeleteArchive = onDeleteArchive
@@ -161,7 +164,8 @@ struct NotchPanelView: View {
                             TasksView(
                                 onAdd: onAddTask,
                                 onUpdate: onUpdateTask,
-                                onComplete: onCompleteTask,
+                                onChangeStatus: onChangeTaskStatus,
+                                onArchive: onArchiveTask,
                                 onRestore: onRestoreTask,
                                 onDelete: onDeleteTask,
                                 onDeleteArchive: onDeleteArchive
@@ -519,6 +523,12 @@ private struct MeetingStatusView: View {
                         summary: recoverySummary,
                         onOpenRecovery: onOpenRecovery,
                         onDismiss: appState.dismissRecordingRecoverySummary
+                    )
+                }
+                if appState.upcomingMeetings.count > 1 {
+                    UpcomingMeetingsView(
+                        meetings: Array(appState.upcomingMeetings.prefix(3)),
+                        onOpen: onOpenMeetingURL
                     )
                 }
                 RecentMeetingsView(
@@ -1017,6 +1027,74 @@ private struct RecordingRecoveryNoticeView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(.orange.opacity(0.14), lineWidth: 1)
+        }
+    }
+}
+
+private struct UpcomingMeetingsView: View {
+    let meetings: [Meeting]
+    let onOpen: (URL) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Yaklaşan toplantılar")
+                    .font(MeetingNotchTheme.sectionTitleFont)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text(meetings.count, format: .number)
+                    .font(MeetingNotchTheme.dataFont.monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 2)
+
+            VStack(spacing: 0) {
+                ForEach(Array(meetings.enumerated()), id: \.element.id) { index, meeting in
+                    Button {
+                        if let url = meeting.meetingURL {
+                            onOpen(url)
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "video.fill")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(MeetingNotchTheme.accent)
+                                .frame(width: 18, height: 18)
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(meeting.title)
+                                    .font(MeetingNotchTheme.rowTitleFont)
+                                    .lineLimit(1)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                                Text(meeting.startDate.formatted(date: .abbreviated, time: .shortened).uppercased())
+                                    .font(MeetingNotchTheme.metadataFont.monospacedDigit())
+                                    .foregroundStyle(.tertiary)
+                                    .lineLimit(1)
+                            }
+
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 4)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(meeting.meetingURL == nil)
+                    .accessibilityLabel("\(meeting.title), \(meeting.startDate.formatted(date: .abbreviated, time: .shortened)), toplantıya katıl")
+
+                    if index < meetings.count - 1 {
+                        Divider()
+                            .overlay(MeetingNotchTheme.subtleHairline)
+                            .padding(.leading, 30)
+                    }
+                }
+            }
+            .padding(.horizontal, 2)
         }
     }
 }
