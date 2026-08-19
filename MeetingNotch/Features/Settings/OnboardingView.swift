@@ -27,49 +27,53 @@ struct OnboardingView: View {
             HStack(spacing: 8) {
                 ForEach(Step.allCases, id: \.rawValue) { item in
                     Capsule()
-                        .fill(item.rawValue <= step.rawValue ? Color.accentColor : Color.secondary.opacity(0.18))
+                        .fill(
+                            item.rawValue <= step.rawValue
+                                ? MeetingNotchTheme.primaryText
+                                : MeetingNotchTheme.elevatedSurface
+                        )
                         .frame(height: 4)
                 }
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Onboarding ilerlemesi")
             .accessibilityValue("\(step.rawValue + 1) / \(Step.allCases.count)")
-            .padding(.horizontal, 40)
-            .padding(.top, 26)
+            .padding(.horizontal, MeetingNotchTheme.MainPanel.horizontalPadding)
+            .padding(.top, MeetingNotchTheme.MainPanel.verticalPadding)
 
             Group {
                 switch step {
                 case .welcome:
                     onboardingContent(
-                        icon: "waveform.badge.mic",
+                        assetName: "FigmaVoice",
                         title: "Toplantılarınız, kaybolmadan",
                         detail: "MeetingNotch mikrofon ve sistem sesini birlikte kaydeder; konuşmacı ayrımlı transkript ve kısa sonuçları geçmişinizde tutar.",
                         callout: "Manuel kayıt her zaman menü çubuğundan ve notch panelinden erişilebilir."
                     )
                 case .microphone:
                     onboardingContent(
-                        icon: "mic.fill",
+                        assetName: "FigmaMicrophone",
                         title: "Sizin sesiniz için mikrofon",
                         detail: "Mikrofon izni, toplantıda söylediklerinizi kayda eklemek için gereklidir. MeetingNotch izni yalnızca siz kayıt başlattığınızda kullanır.",
                         status: appState.audioCapturePermissions.microphone
                     )
                 case .systemAudio:
                     onboardingContent(
-                        icon: "speaker.wave.2.fill",
+                        assetName: "FigmaVolume",
                         title: "Diğer katılımcılar için sistem sesi",
                         detail: "Sistem sesi izni, görüşmedeki diğer kişilerin sesini yakalar. macOS bu izni Gizlilik ve Güvenlik > Sistem Sesini Kaydetme bölümünde yönetir.",
                         status: appState.audioCapturePermissions.systemAudio
                     )
                 case .browserAudio:
                     onboardingContent(
-                        icon: "globe.badge.chevron.backward",
+                        assetName: "FigmaVideo",
                         title: "Google Meet sekmesini siz bağlarsınız",
                         detail: "Chrome uzantısı yalnız aktif meet.google.com görüşme sekmesinde, siz araç çubuğu düğmesine bastığınızda ses yakalar. Diğer sekmeler ve uygulamalar bu kaynağa dahil edilmez.",
                         callout: browserAudioStatusText
                     )
                 case .accessibility:
                     onboardingContent(
-                        icon: "accessibility",
+                        assetName: "FigmaWarning",
                         title: "Mute durumunu yalnız doğrulanmış kontrolden oku",
                         detail: "Accessibility izni, Zoom ve Google Meet’in görüşme kontrollerini yerel olarak okuyup toplantı mikrofonunun açık, kapalı veya bilinmiyor durumunu belirler. MeetingNotch konuşma içeriğini ya da pencere metnini saklamaz.",
                         callout: appState.accessibilityPermissionGranted
@@ -78,14 +82,14 @@ struct OnboardingView: View {
                     )
                 case .calendar:
                     onboardingContent(
-                        icon: "calendar.badge.clock",
+                        assetName: "FigmaRecentCheck",
                         title: "Yaklaşan toplantıları kaçırmayın",
                         detail: "İsteğe bağlı takvim erişimi, bu Mac’e eklenmiş iCloud, Google ve Exchange takvimlerindeki çevrim içi toplantıları bulup önceden notch üzerinde hatırlatır. Gmail e-postaları okunmaz; reddederseniz manuel kayıt aynen çalışır.",
                         callout: calendarStatus
                     )
                 case .cloud:
                     onboardingContent(
-                        icon: "lock.shield.fill",
+                        systemIcon: "lock.shield",
                         title: "Tek bulut servisi: ElevenLabs",
                         detail: "Kayıt tamamlandığında birleşik ses dosyası, konuşmacı ayrımlı transkript üretmek için yalnızca ElevenLabs Scribe v2’ye yüklenir. Canlı ses akışı veya ikinci bir yapay zekâ servisi kullanılmaz.",
                         callout: "Tek ElevenLabs API anahtarınız yalnızca macOS Keychain’de; toplantı dosyalarınız yerel Application Support klasöründe tutulur."
@@ -107,77 +111,104 @@ struct OnboardingView: View {
             HStack(spacing: 12) {
                 if step != .welcome {
                     Button("Geri") { move(to: step.rawValue - 1) }
-                        .controlSize(.large)
-                        .frame(minHeight: 40)
+                        .buttonStyle(MeetingNotchActionButtonStyle())
                 }
 
                 Spacer()
 
                 if step == .calendar {
                     Button("Şimdi Değil") { move(to: Step.cloud.rawValue) }
-                        .controlSize(.large)
-                        .frame(minHeight: 40)
+                        .buttonStyle(MeetingNotchActionButtonStyle())
                 }
 
                 Button(primaryButtonTitle) { performPrimaryAction() }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .frame(minHeight: 40)
+                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                     .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 40)
-            .padding(.bottom, 30)
+            .padding(.horizontal, MeetingNotchTheme.MainPanel.horizontalPadding)
+            .padding(.bottom, MeetingNotchTheme.MainPanel.verticalPadding)
         }
-        .frame(minWidth: 600, minHeight: 460)
-        .background(.background)
+        .frame(width: MeetingNotchTheme.panelWidth, height: 500)
+        .background(MeetingNotchTheme.panelBackground)
+        .foregroundStyle(MeetingNotchTheme.primaryText)
+        .environment(\.colorScheme, .dark)
+        .preferredColorScheme(.dark)
     }
 
     private func onboardingContent(
-        icon: String,
+        assetName: String? = nil,
+        systemIcon: String? = nil,
         title: String,
         detail: String,
         callout: String? = nil,
         status: AudioCapturePermissionStatus? = nil
     ) -> some View {
         VStack(spacing: 20) {
-            Image(systemName: icon)
-                .font(.system(size: 42, weight: .semibold))
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 76, height: 76)
-                .background(Color.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 22))
-                .accessibilityHidden(true)
+            Group {
+                if let assetName {
+                    Image(assetName)
+                        .resizable()
+                        .scaledToFit()
+                } else if let systemIcon {
+                    Image(systemName: systemIcon)
+                        .font(.system(size: 32, weight: .medium))
+                }
+            }
+            .foregroundStyle(MeetingNotchTheme.primaryText)
+            .frame(width: 40, height: 40)
+            .padding(18)
+            .background(
+                MeetingNotchTheme.surface,
+                in: RoundedRectangle(
+                    cornerRadius: MeetingNotchTheme.surfaceRadius,
+                    style: .continuous
+                )
+            )
+            .accessibilityHidden(true)
 
             VStack(spacing: 10) {
                 Text(title)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .font(.system(size: 28, weight: .medium))
                     .multilineTextAlignment(.center)
 
                 Text(detail)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
+                    .font(MeetingNotchTheme.MainPanel.bodyFont)
+                    .foregroundStyle(MeetingNotchTheme.secondaryText)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
                     .frame(maxWidth: 480)
             }
 
             if let status {
-                Label(permissionTitle(status), systemImage: permissionIcon(status))
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(permissionColor(status))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .background(permissionColor(status).opacity(0.1), in: Capsule())
+                MeetingNotchStatusBadge(
+                    title: permissionTitle(status),
+                    assetName: permissionAsset(status),
+                    tint: permissionColor(status)
+                )
             } else if let callout {
-                Label(callout, systemImage: "info.circle.fill")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(14)
+                HStack(alignment: .top, spacing: 10) {
+                    Image("FigmaWarning")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                        .foregroundStyle(MeetingNotchTheme.warning)
+                    Text(callout)
+                        .font(MeetingNotchTheme.MainPanel.bodyFont)
+                        .foregroundStyle(MeetingNotchTheme.secondaryText)
+                }
+                    .padding(16)
                     .frame(maxWidth: 480, alignment: .leading)
-                    .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                    .background(
+                        MeetingNotchTheme.surface,
+                        in: RoundedRectangle(
+                            cornerRadius: MeetingNotchTheme.surfaceRadius,
+                            style: .continuous
+                        )
+                    )
             }
         }
-        .padding(.horizontal, 34)
-        .padding(.top, 52)
+        .padding(.horizontal, MeetingNotchTheme.MainPanel.horizontalPadding)
+        .padding(.top, 40)
     }
 
     private var primaryButtonTitle: String {
@@ -263,15 +294,15 @@ struct OnboardingView: View {
         }
     }
 
-    private func permissionIcon(_ status: AudioCapturePermissionStatus) -> String {
+    private func permissionAsset(_ status: AudioCapturePermissionStatus) -> String {
         switch status {
-        case .authorized: "checkmark.circle.fill"
-        case .verificationRequired: "waveform.badge.magnifyingglass"
-        case .notDetermined, .denied, .restricted: "exclamationmark.circle.fill"
+        case .authorized: "FigmaRecentCheck"
+        case .verificationRequired: "FigmaVoice"
+        case .notDetermined, .denied, .restricted: "FigmaWarning"
         }
     }
 
     private func permissionColor(_ status: AudioCapturePermissionStatus) -> Color {
-        status == .authorized ? .green : .orange
+        status == .authorized ? MeetingNotchTheme.success : MeetingNotchTheme.warning
     }
 }

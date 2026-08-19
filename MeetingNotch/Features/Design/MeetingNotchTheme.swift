@@ -2,71 +2,81 @@ import SwiftUI
 
 enum MeetingNotchTheme {
     static let panelWidth: CGFloat = 600
-    static let detailPanelWidth: CGFloat = 520
+    static let detailPanelWidth: CGFloat = panelWidth
     static let panelMinimumWidth: CGFloat = 320
-    static let panelHorizontalPadding: CGFloat = 8
-    static let panelVerticalPadding: CGFloat = 10
-    static let sectionSpacing: CGFloat = 14
-    static let contentSpacing: CGFloat = 10
+    static let panelHorizontalPadding: CGFloat = 12
+    static let panelVerticalPadding: CGFloat = 20
+    static let sectionSpacing: CGFloat = 20
+    static let contentSpacing: CGFloat = 12
     static let itemSpacing: CGFloat = 10
-    static let surfaceRadius: CGFloat = 12
-    static let controlRadius: CGFloat = 9
-    static let controlHeight: CGFloat = 32
-    static let tabHeight: CGFloat = 34
-    static let tabBarPadding: CGFloat = 3
-    static let iconSize: CGFloat = 12
+    static let surfaceRadius: CGFloat = 22
+    static let controlRadius: CGFloat = 16
+    static let controlHeight: CGFloat = 40
+    static let tabHeight: CGFloat = 40
+    static let tabBarPadding: CGFloat = 4
+    static let iconSize: CGFloat = 20
 
-    // Legacy/detail surfaces remain semantic. The Figma main panel defines an explicitly
-    // dark canvas, so both physical-notch and floating presentations resolve to dark mode.
-    static let surface = Color.primary.opacity(0.065)
-    static let surfaceHover = Color.primary.opacity(0.105)
-    static let elevatedSurface = Color.primary.opacity(0.095)
-    static let hairline = Color.primary.opacity(0.14)
-    static let subtleHairline = Color.primary.opacity(0.09)
+    // The full application uses the same explicit dark palette as the four Figma panels.
+    static let panelBackground = MainPanel.panelBackground
+    static let surface = MainPanel.surface
+    static let surfaceHover = Color(
+        red: 28 / 255.0,
+        green: 28 / 255.0,
+        blue: 28 / 255.0
+    )
+    static let elevatedSurface = MainPanel.meterTrack
+    static let hairline = MainPanel.meterTrack
+    static let subtleHairline = MainPanel.meterTrack.opacity(0.8)
 
     static let inactiveTabForegroundOpacity = 0.68
     static let inactiveTabHoverForegroundOpacity = 0.88
     static let activeTabFillOpacity = 0.11
 
-    static let inactiveTabForeground = Color.primary.opacity(inactiveTabForegroundOpacity)
-    static let inactiveTabHoverForeground = Color.primary.opacity(inactiveTabHoverForegroundOpacity)
-    static let activeTabForeground = Color.primary
-    static let activeTabFill = Color.primary.opacity(activeTabFillOpacity)
-    static let tabTrackFill = Color.primary.opacity(0.055)
+    static let inactiveTabForeground = MainPanel.inactiveTabText
+    static let inactiveTabHoverForeground = MainPanel.primaryText
+    static let activeTabForeground = MainPanel.primaryText
+    static let activeTabFill = MainPanel.surface
+    static let tabTrackFill = MainPanel.panelBackground
 
-    static let accent = Color(red: 1.0, green: 0.45, blue: 0.12)
-    static let success = Color(red: 0.20, green: 0.82, blue: 0.45)
+    static let accent = MainPanel.cyan
+    static let cyan = MainPanel.cyan
+    static let success = MainPanel.success
+    static let warning = MainPanel.warning
+    static let danger = MainPanel.danger
+    static let primaryText = MainPanel.primaryText
+    static let secondaryText = MainPanel.secondaryText
 
     static var titleFont: Font {
-        .system(size: 14, weight: .semibold, design: .default)
+        MainPanel.sectionTitleFont
     }
 
     static var sectionTitleFont: Font {
-        .system(size: 11, weight: .semibold, design: .default)
+        MainPanel.rowTitleFont
     }
 
     static var rowTitleFont: Font {
-        .system(size: 13, weight: .medium, design: .default)
+        MainPanel.rowTitleFont
     }
 
     static var bodyFont: Font {
-        .system(size: 12, weight: .regular, design: .default)
+        MainPanel.bodyFont
     }
 
     static var metadataFont: Font {
-        .system(size: 10, weight: .medium, design: .monospaced)
+        MainPanel.smallFont.monospacedDigit()
     }
 
     static var dataFont: Font {
-        .system(size: 11, weight: .semibold, design: .monospaced)
+        MainPanel.smallMediumFont.monospacedDigit()
     }
 
     static var controlFont: Font {
-        .system(size: 12, weight: .semibold, design: .default)
+        MainPanel.smallMediumFont
     }
 
     enum MainPanel {
-        static let horizontalPadding: CGFloat = 20
+        static let horizontalPadding: CGFloat = 12
+        static let listRowHorizontalInset: CGFloat = 8
         static let verticalPadding: CGFloat = 20
         static let sectionSpacing: CGFloat = 20
         static let contentSpacing: CGFloat = 12
@@ -184,7 +194,7 @@ struct MeetingNotchIconButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: MeetingNotchTheme.iconSize, weight: .semibold))
+            .font(.system(size: MeetingNotchTheme.MainPanel.smallIconSize, weight: .semibold))
             .foregroundStyle(isActive ? tint : tint.opacity(0.82))
             .frame(
                 width: MeetingNotchTheme.controlHeight,
@@ -194,27 +204,117 @@ struct MeetingNotchIconButtonStyle: ButtonStyle {
             .background(
                 isActive
                     ? tint.opacity(0.14)
-                    : Color.primary.opacity(configuration.isPressed ? 0.09 : 0.045),
+                    : configuration.isPressed
+                        ? MeetingNotchTheme.surfaceHover
+                        : MeetingNotchTheme.surface,
                 in: RoundedRectangle(
                     cornerRadius: MeetingNotchTheme.controlRadius,
                     style: .continuous
                 )
             )
-            .overlay {
-                RoundedRectangle(
-                    cornerRadius: MeetingNotchTheme.controlRadius,
-                    style: .continuous
-                )
-                .stroke(
-                    isActive ? tint.opacity(0.24) : MeetingNotchTheme.subtleHairline,
-                    lineWidth: 1
-                )
-            }
             .opacity(isEnabled ? 1 : 0.38)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.12),
                 value: configuration.isPressed
+            )
+    }
+}
+
+struct MeetingNotchActionButtonStyle: ButtonStyle {
+    enum Kind {
+        case primary
+        case secondary
+        case danger
+    }
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+
+    var kind: Kind = .secondary
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(MeetingNotchTheme.controlFont)
+            .foregroundStyle(foreground)
+            .padding(.horizontal, 16)
+            .frame(minHeight: MeetingNotchTheme.controlHeight)
+            .contentShape(Rectangle())
+            .background(
+                background.opacity(configuration.isPressed ? 0.78 : 1),
+                in: RoundedRectangle(
+                    cornerRadius: MeetingNotchTheme.controlRadius,
+                    style: .continuous
+                )
+            )
+            .opacity(isEnabled ? 1 : 0.38)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
+            .animation(
+                reduceMotion ? nil : .easeOut(duration: 0.12),
+                value: configuration.isPressed
+            )
+    }
+
+    private var foreground: Color {
+        switch kind {
+        case .primary: .black
+        case .secondary: MeetingNotchTheme.primaryText
+        case .danger: MeetingNotchTheme.danger
+        }
+    }
+
+    private var background: Color {
+        switch kind {
+        case .primary: MeetingNotchTheme.primaryText
+        case .secondary: MeetingNotchTheme.surface
+        case .danger: MeetingNotchTheme.danger.opacity(0.12)
+        }
+    }
+}
+
+struct MeetingNotchStatusBadge: View {
+    let title: String
+    let assetName: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(assetName)
+                .resizable()
+                .scaledToFit()
+                .frame(
+                    width: MeetingNotchTheme.MainPanel.smallIconSize,
+                    height: MeetingNotchTheme.MainPanel.smallIconSize
+                )
+            Text(title)
+                .font(MeetingNotchTheme.MainPanel.smallMediumFont)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 12)
+        .frame(minHeight: 40)
+        .background(
+            tint.opacity(0.12),
+            in: RoundedRectangle(
+                cornerRadius: MeetingNotchTheme.controlRadius,
+                style: .continuous
+            )
+        )
+    }
+}
+
+struct MeetingNotchCard<Content: View>: View {
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                MeetingNotchTheme.surface,
+                in: RoundedRectangle(
+                    cornerRadius: MeetingNotchTheme.surfaceRadius,
+                    style: .continuous
+                )
             )
     }
 }

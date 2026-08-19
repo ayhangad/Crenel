@@ -1,4 +1,6 @@
 const captureButton = document.querySelector("#capture-button");
+const captureButtonIcon = document.querySelector("#capture-button-icon");
+const captureButtonLabel = document.querySelector("#capture-button-label");
 const status = document.querySelector("#status");
 const error = document.querySelector("#error");
 
@@ -8,7 +10,8 @@ function render(state) {
   isActive = state.active === true;
   document.body.dataset.state = isActive ? "active" : "idle";
   status.textContent = isActive ? "Meet sekmesi bağlı" : "Bağlantı kapalı";
-  captureButton.textContent = isActive ? "Bağlantıyı kes" : "Meet sekmesini bağla";
+  captureButtonLabel.textContent = isActive ? "Bağlantıyı kes" : "Meet sekmesini bağla";
+  captureButtonIcon.src = isActive ? "images/figma-stop.svg" : "images/figma-video.svg";
   captureButton.disabled = false;
   error.hidden = true;
 }

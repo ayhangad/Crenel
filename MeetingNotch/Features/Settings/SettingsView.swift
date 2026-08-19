@@ -117,210 +117,212 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        Form {
-            Section("Genel") {
-                Toggle("Login’de otomatik aç", isOn: $launchAtLogin)
-
-                Picker("Toplantıları sakla", selection: $retentionDays) {
-                    Text("Süresiz").tag(nil as Int?)
-                    Text("7 gün").tag(7 as Int?)
-                    Text("30 gün").tag(30 as Int?)
-                    Text("90 gün").tag(90 as Int?)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Ayarlar")
+                        .font(MeetingNotchTheme.titleFont)
+                    Text("Kayıt, izin, takvim ve veri tercihleri")
+                        .font(MeetingNotchTheme.bodyFont)
+                        .foregroundStyle(MeetingNotchTheme.secondaryText)
                 }
 
-            }
+                settingsSection(title: "Genel", assetName: "FigmaMore") {
+                    Toggle("Login’de otomatik aç", isOn: $launchAtLogin)
 
-            calendarSettingsSection
+                    settingsDivider
 
-            Section {
-                Picker("Kayıt mikrofonu", selection: $selectedMicrophoneID) {
-                    Text("Sistem varsayılanı")
-                        .tag(nil as String?)
-                    ForEach(availableMicrophones) { microphone in
-                        Text(microphone.isSystemDefault ? "\(microphone.name) — varsayılan" : microphone.name)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .help(microphone.name)
-                            .tag(microphone.id as String?)
-                    }
-                    if let selectedMicrophoneID,
-                       !availableMicrophones.contains(where: { $0.id == selectedMicrophoneID }) {
-                        Text("Seçili mikrofon bağlı değil")
-                            .tag(selectedMicrophoneID as String?)
+                    Picker("Toplantıları sakla", selection: $retentionDays) {
+                        Text("Süresiz").tag(nil as Int?)
+                        Text("7 gün").tag(7 as Int?)
+                        Text("30 gün").tag(30 as Int?)
+                        Text("90 gün").tag(90 as Int?)
                     }
                 }
-                .controlSize(.large)
-                .disabled(isLoadingMicrophones || availableMicrophones.isEmpty)
 
-                LabeledContent("Bağlı mikrofonlar") {
-                    Text(availableMicrophones.isEmpty ? "Bulunamadı" : "\(availableMicrophones.count)")
-                        .monospacedDigit()
-                        .foregroundStyle(availableMicrophones.isEmpty ? .red : .secondary)
-                }
+                calendarSettingsSection
 
-                settingsActionRow(
-                    message: microphoneSettingsMessage,
-                    isFailure: microphoneSettingsFailed,
-                    buttonTitle: "Mikrofonu Kaydet",
-                    isBusy: isSavingMicrophone,
-                    isDisabled: isLoadingMicrophones,
-                    action: saveMicrophoneSelection
-                )
-            } header: {
-                Text("Kayıt Kaynağı")
-            } footer: {
-                Text(microphoneFooterText)
-            }
-
-            Section {
-                PermissionRow(
-                    source: .microphone,
-                    title: "Mikrofon",
-                    detail: "Sizin konuşmanızı toplantı kaydına ekler.",
-                    status: appState.audioCapturePermissions.microphone,
-                    onRequestAccess: onRequestMicrophoneAccess,
-                    onOpenSystemSettings: onOpenSystemSettings
-                )
-
-                PermissionRow(
-                    source: .systemAudio,
-                    title: "Sistem sesi",
-                    detail: "Toplantıdaki diğer kişilerin sesini kaydeder.",
-                    status: appState.audioCapturePermissions.systemAudio,
-                    onRequestAccess: onRequestSystemAudioAccess,
-                    onOpenSystemSettings: onOpenSystemSettings,
-                    onRelaunchApplication: onRelaunchApplication
-                )
-
-                AccessibilityPermissionRow(
-                    isGranted: appState.accessibilityPermissionGranted,
-                    onRequestAccess: onRequestAccessibilityAccess,
-                    onOpenSystemSettings: onOpenAccessibilitySettings
-                )
-            } header: {
-                Text("Kayıt İzinleri")
-            } footer: {
-                Text("Mikrofon ve sistem sesi kayıt başlarken yeniden doğrulanır. Accessibility yalnız Zoom/Meet görüşme ve mute durumunu yerel okumak içindir; izin yoksa manuel kayıt gizlenmez ve mikrofon güvenli kapalı kalır.")
-            }
-
-            Section("Gizlilik Sınırı") {
-                LabeledContent("Toplantı mikrofonu") {
-                    Text("Her kayıtta kapalı başlar")
-                        .foregroundStyle(.secondary)
-                }
-                LabeledContent("Belirsiz mute durumu") {
-                    Text("Ses kayda alınmaz")
-                        .foregroundStyle(.secondary)
-                }
-                LabeledContent("Manuel kontrol") {
-                    Text("Notch veya ⌥⌘M")
-                        .font(.body.monospaced())
-                        .foregroundStyle(.secondary)
-                }
-                LabeledContent("Google Meet") {
-                    Text("Sekme izolasyonu yoksa fail-closed")
-                        .foregroundStyle(.secondary)
-                }
-                LabeledContent("Meet sekme bağlantısı") {
-                    Label(
-                        browserAudioStatusText,
-                        systemImage: browserAudioStatusSymbol
-                    )
-                    .foregroundStyle(browserAudioStatusColor)
-                }
-            }
-
-            Section {
-                LabeledContent("Model") {
-                    Text("ElevenLabs Scribe v2")
-                        .foregroundStyle(.secondary)
-                }
-
-                LabeledContent("Nerede çalışır?") {
-                    Text("Yalnız ElevenLabs bulutu")
-                        .foregroundStyle(.secondary)
-                }
-
-                LabeledContent("Ne zaman işlenir?") {
-                    Text("Kayıt durdurulduktan sonra")
-                        .foregroundStyle(.secondary)
-                }
-
-                Picker("Transkript dili", selection: $languageCode) {
-                    Text("Otomatik algıla").tag(nil as String?)
-                    Text("Türkçe").tag("tr" as String?)
-                    Text("İngilizce").tag("en" as String?)
-                }
-
-                SecureField(
-                    hasStoredAPIKey ? "Kayıtlı anahtarı değiştirmek için yazın" : "ElevenLabs API anahtarı",
-                    text: $apiKey
-                )
-                .textContentType(.password)
-
-                Link(
-                    "ElevenLabs’te API anahtarı oluştur",
-                    destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!
-                )
-
-                settingsActionRow(
-                    message: transcriptionSettingsMessage ?? (hasStoredAPIKey ? "API anahtarı Keychain’de kayıtlı" : nil),
-                    isFailure: transcriptionSettingsFailed,
-                    buttonTitle: "Doğrula ve Kaydet",
-                    isBusy: isSavingTranscriptionSettings,
-                    isDisabled: isLoadingTranscriptionSettings
-                        || (apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            && !hasStoredAPIKey),
-                    action: saveTranscriptionSettings
-                )
-
-                if hasStoredAPIKey {
-                    Button("Bağlantıyı Kaldır", role: .destructive) {
-                        deleteTranscriptionAPIKey()
-                    }
-                    .disabled(isSavingTranscriptionSettings)
-                }
-            } header: {
-                Text("Transkripsiyon")
-            } footer: {
-                Text("MeetingNotch canlı transkript üretmez ve ikinci bir uzak servis kullanmaz. Kaydı durdurduğunuzda mikrofon ve sistem sesi tek M4A dosyasında güvenceye alınır, ardından konuşmacı ayrımı ve zaman damgaları için ElevenLabs Scribe v2’ye yüklenir. Tek anahtar önce doğrulanır ve yalnızca bu Mac’in Keychain’inde tutulur. Ağ ya da servis hatasında ses kaydı silinmez; tekrar deneyebilirsiniz.")
-            }
-
-            Section {
-                Button("Veri Klasörünü Finder’da Aç", systemImage: "folder") {
-                    onOpenDataDirectory()
-                }
-                .controlSize(.large)
-
-                Button("Onboarding’i Yeniden Göster", systemImage: "sparkles") {
-                    resetOnboarding()
-                }
-                .controlSize(.large)
-
-                Button(
-                    "Tüm Verileri Sil…",
-                    systemImage: "trash",
-                    role: .destructive
+                settingsSection(
+                    title: "Kayıt Kaynağı",
+                    assetName: "FigmaMicrophone",
+                    footer: microphoneFooterText
                 ) {
-                    showsDeleteAllDataConfirmation = true
-                }
-                .controlSize(.large)
-                .disabled(appState.requiresTerminationConfirmation || isDeletingAllData)
+                    Picker("Kayıt mikrofonu", selection: $selectedMicrophoneID) {
+                        Text("Sistem varsayılanı").tag(nil as String?)
+                        ForEach(availableMicrophones) { microphone in
+                            Text(microphone.isSystemDefault ? "\(microphone.name) — varsayılan" : microphone.name)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .help(microphone.name)
+                                .tag(microphone.id as String?)
+                        }
+                        if let selectedMicrophoneID,
+                           !availableMicrophones.contains(where: { $0.id == selectedMicrophoneID }) {
+                            Text("Seçili mikrofon bağlı değil")
+                                .tag(selectedMicrophoneID as String?)
+                        }
+                    }
+                    .controlSize(.large)
+                    .disabled(isLoadingMicrophones || availableMicrophones.isEmpty)
 
-                LabeledContent("Sürüm") {
-                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")
-                        .foregroundStyle(.secondary)
+                    settingsDivider
+
+                    LabeledContent("Bağlı mikrofonlar") {
+                        Text(availableMicrophones.isEmpty ? "Bulunamadı" : "\(availableMicrophones.count)")
+                            .monospacedDigit()
+                            .foregroundStyle(
+                                availableMicrophones.isEmpty
+                                    ? MeetingNotchTheme.danger
+                                    : MeetingNotchTheme.secondaryText
+                            )
+                    }
+
+                    settingsActionRow(
+                        message: microphoneSettingsMessage,
+                        isFailure: microphoneSettingsFailed,
+                        buttonTitle: "Mikrofonu Kaydet",
+                        isBusy: isSavingMicrophone,
+                        isDisabled: isLoadingMicrophones,
+                        action: saveMicrophoneSelection
+                    )
                 }
-            } header: {
-                Text("Veri ve Uygulama")
-            } footer: {
-                if appState.requiresTerminationConfirmation {
-                    Text("Kayıt veya işleme sürerken tüm veriler silinemez.")
+
+                settingsSection(
+                    title: "Kayıt İzinleri",
+                    assetName: "FigmaVolume",
+                    footer: "Mikrofon ve sistem sesi kayıt başlarken yeniden doğrulanır. Accessibility yalnız Zoom/Meet görüşme ve mute durumunu yerel okumak içindir; izin yoksa manuel kayıt gizlenmez ve mikrofon güvenli kapalı kalır."
+                ) {
+                    PermissionRow(
+                        source: .microphone,
+                        title: "Mikrofon",
+                        detail: "Sizin konuşmanızı toplantı kaydına ekler.",
+                        status: appState.audioCapturePermissions.microphone,
+                        onRequestAccess: onRequestMicrophoneAccess,
+                        onOpenSystemSettings: onOpenSystemSettings
+                    )
+                    settingsDivider
+                    PermissionRow(
+                        source: .systemAudio,
+                        title: "Sistem sesi",
+                        detail: "Toplantıdaki diğer kişilerin sesini kaydeder.",
+                        status: appState.audioCapturePermissions.systemAudio,
+                        onRequestAccess: onRequestSystemAudioAccess,
+                        onOpenSystemSettings: onOpenSystemSettings,
+                        onRelaunchApplication: onRelaunchApplication
+                    )
+                    settingsDivider
+                    AccessibilityPermissionRow(
+                        isGranted: appState.accessibilityPermissionGranted,
+                        onRequestAccess: onRequestAccessibilityAccess,
+                        onOpenSystemSettings: onOpenAccessibilitySettings
+                    )
+                }
+
+                settingsSection(title: "Gizlilik Sınırı", assetName: "FigmaMicrophoneOff") {
+                    settingValue("Toplantı mikrofonu", "Her kayıtta kapalı başlar")
+                    settingsDivider
+                    settingValue("Belirsiz mute durumu", "Ses kayda alınmaz")
+                    settingsDivider
+                    settingValue("Manuel kontrol", "Notch veya ⌥⌘M", monospaced: true)
+                    settingsDivider
+                    settingValue("Google Meet", "Sekme izolasyonu yoksa fail-closed")
+                    settingsDivider
+                    HStack(spacing: 12) {
+                        Text("Meet sekme bağlantısı")
+                        Spacer()
+                        Label(browserAudioStatusText, systemImage: browserAudioStatusSymbol)
+                            .foregroundStyle(browserAudioStatusColor)
+                    }
+                }
+
+                settingsSection(
+                    title: "Transkripsiyon",
+                    assetName: "FigmaVoice",
+                    footer: "MeetingNotch canlı transkript üretmez ve ikinci bir uzak servis kullanmaz. Kayıt durduktan sonra güvenceye alınan tek M4A dosyası konuşmacı ayrımı ve zaman damgaları için ElevenLabs Scribe v2’ye yüklenir. Anahtar yalnızca bu Mac’in Keychain’inde tutulur."
+                ) {
+                    settingValue("Model", "ElevenLabs Scribe v2")
+                    settingsDivider
+                    settingValue("Nerede çalışır?", "Yalnız ElevenLabs bulutu")
+                    settingsDivider
+                    settingValue("Ne zaman işlenir?", "Kayıt durdurulduktan sonra")
+                    settingsDivider
+                    Picker("Transkript dili", selection: $languageCode) {
+                        Text("Otomatik algıla").tag(nil as String?)
+                        Text("Türkçe").tag("tr" as String?)
+                        Text("İngilizce").tag("en" as String?)
+                    }
+                    SecureField(
+                        hasStoredAPIKey ? "Kayıtlı anahtarı değiştirmek için yazın" : "ElevenLabs API anahtarı",
+                        text: $apiKey
+                    )
+                    .textContentType(.password)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 12)
+                    .frame(height: 40)
+                    .background(
+                        MeetingNotchTheme.elevatedSurface,
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+                    Link(
+                        "ElevenLabs’te API anahtarı oluştur",
+                        destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!
+                    )
+                    .foregroundStyle(MeetingNotchTheme.cyan)
+                    settingsActionRow(
+                        message: transcriptionSettingsMessage ?? (hasStoredAPIKey ? "API anahtarı Keychain’de kayıtlı" : nil),
+                        isFailure: transcriptionSettingsFailed,
+                        buttonTitle: "Doğrula ve Kaydet",
+                        isBusy: isSavingTranscriptionSettings,
+                        isDisabled: isLoadingTranscriptionSettings
+                            || (apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                && !hasStoredAPIKey),
+                        action: saveTranscriptionSettings
+                    )
+                    if hasStoredAPIKey {
+                        Button("Bağlantıyı Kaldır", role: .destructive) {
+                            deleteTranscriptionAPIKey()
+                        }
+                        .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
+                        .disabled(isSavingTranscriptionSettings)
+                    }
+                }
+
+                settingsSection(
+                    title: "Veri ve Uygulama",
+                    assetName: "FigmaArchive",
+                    footer: appState.requiresTerminationConfirmation
+                        ? "Kayıt veya işleme sürerken tüm veriler silinemez."
+                        : nil
+                ) {
+                    HStack(spacing: 10) {
+                        Button("Veri Klasörünü Aç", action: onOpenDataDirectory)
+                            .buttonStyle(MeetingNotchActionButtonStyle())
+                        Button("Onboarding’i Göster", action: resetOnboarding)
+                            .buttonStyle(MeetingNotchActionButtonStyle())
+                        Button("Tüm Verileri Sil…", role: .destructive) {
+                            showsDeleteAllDataConfirmation = true
+                        }
+                        .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
+                        .disabled(appState.requiresTerminationConfirmation || isDeletingAllData)
+                    }
+                    settingsDivider
+                    settingValue(
+                        "Sürüm",
+                        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—",
+                        monospaced: true
+                    )
                 }
             }
+            .padding(MeetingNotchTheme.MainPanel.horizontalPadding)
         }
-        .formStyle(.grouped)
-        .frame(width: 600, height: 760)
+        .scrollIndicators(.hidden)
+        .frame(width: MeetingNotchTheme.panelWidth, height: 760)
+        .background(MeetingNotchTheme.panelBackground)
+        .foregroundStyle(MeetingNotchTheme.primaryText)
+        .font(MeetingNotchTheme.bodyFont)
+        .tint(MeetingNotchTheme.cyan)
+        .environment(\.colorScheme, .dark)
+        .preferredColorScheme(.dark)
         .onAppear {
             onRefreshPermissions()
             Task {
@@ -368,11 +370,81 @@ struct SettingsView: View {
 
     private var browserAudioStatusColor: Color {
         switch appState.browserAudioConnectionStatus {
-        case .unavailable: .red
-        case .waitingForMeetTab: .secondary
-        case .tabConnected: .green
-        case .recording: .red
+        case .unavailable: MeetingNotchTheme.danger
+        case .waitingForMeetTab: MeetingNotchTheme.secondaryText
+        case .tabConnected: MeetingNotchTheme.success
+        case .recording: MeetingNotchTheme.danger
         }
+    }
+
+    private func settingsSection<Content: View>(
+        title: String,
+        assetName: String,
+        footer: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: MeetingNotchTheme.contentSpacing) {
+            HStack(spacing: MeetingNotchTheme.itemSpacing) {
+                Image(assetName)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(
+                        width: MeetingNotchTheme.MainPanel.iconSize,
+                        height: MeetingNotchTheme.MainPanel.iconSize
+                    )
+                    .foregroundStyle(MeetingNotchTheme.primaryText)
+                Text(title)
+                    .font(MeetingNotchTheme.titleFont)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                content()
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                MeetingNotchTheme.surface,
+                in: RoundedRectangle(
+                    cornerRadius: MeetingNotchTheme.surfaceRadius,
+                    style: .continuous
+                )
+            )
+
+            if let footer {
+                Text(footer)
+                    .font(MeetingNotchTheme.MainPanel.smallFont)
+                    .foregroundStyle(MeetingNotchTheme.secondaryText)
+                    .lineSpacing(2)
+                    .padding(.horizontal, 4)
+            }
+        }
+    }
+
+    private var settingsDivider: some View {
+        Rectangle()
+            .fill(MeetingNotchTheme.hairline)
+            .frame(height: 1)
+    }
+
+    private func settingValue(
+        _ title: String,
+        _ value: String,
+        monospaced: Bool = false
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+            Spacer(minLength: 16)
+            Text(value)
+                .font(
+                    monospaced
+                        ? MeetingNotchTheme.bodyFont.monospaced()
+                        : MeetingNotchTheme.bodyFont
+                )
+                .foregroundStyle(MeetingNotchTheme.secondaryText)
+                .multilineTextAlignment(.trailing)
+        }
+        .frame(minHeight: 28)
     }
 
     @ViewBuilder
@@ -386,12 +458,18 @@ struct SettingsView: View {
     ) -> some View {
         HStack(spacing: 12) {
             if let message {
-                Label(
-                    message,
-                    systemImage: isFailure ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+                HStack(spacing: 8) {
+                    Image(isFailure ? "FigmaWarning" : "FigmaRecentCheck")
+                        .renderingMode(.template)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 16, height: 16)
+                    Text(message)
+                        .font(MeetingNotchTheme.MainPanel.smallFont)
+                }
+                .foregroundStyle(
+                    isFailure ? MeetingNotchTheme.danger : MeetingNotchTheme.secondaryText
                 )
-                .font(.caption)
-                .foregroundStyle(isFailure ? .red : .secondary)
             }
 
             Spacer()
@@ -403,7 +481,7 @@ struct SettingsView: View {
             }
 
             Button(buttonTitle, action: action)
-                .controlSize(.large)
+                .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                 .disabled(isDisabled || isBusy)
         }
         .frame(minHeight: 40)
@@ -539,8 +617,14 @@ struct SettingsView: View {
     }
 
     private var calendarSettingsSection: some View {
-        Section {
+        settingsSection(
+            title: "Takvim Bağlantısı",
+            assetName: "FigmaRecentCheck",
+            footer: "Google toplantıları Gmail okunarak değil, bu Mac’e eklenmiş takvim hesabından alınır. Zoom, Google Meet ve Microsoft Teams bağlantıları etkinlik alanlarında eşleştirilir."
+        ) {
             Toggle("Takvim toplantılarını göster", isOn: $isCalendarEnabled)
+
+            settingsDivider
 
             Picker("Toplantı hatırlatması", selection: $reminderLeadTime) {
                 Text("5 dakika ve 1 dakika önce").tag(TimeInterval(5 * 60))
@@ -548,6 +632,8 @@ struct SettingsView: View {
                 Text("15 dakika ve 1 dakika önce").tag(TimeInterval(15 * 60))
             }
             .disabled(!isCalendarEnabled)
+
+            settingsDivider
 
             LabeledContent("Bağlantı") {
                 Label(calendarStatusTitle, systemImage: calendarStatusSymbol)
@@ -565,9 +651,9 @@ struct SettingsView: View {
                 Button("Hesapları Aç", systemImage: "person.crop.circle.badge.plus") {
                     onOpenInternetAccounts()
                 }
+                .buttonStyle(MeetingNotchActionButtonStyle())
                 .disabled(!isCalendarEnabled)
             }
-            .controlSize(.large)
 
             settingsActionRow(
                 message: generalSettingsMessage,
@@ -577,10 +663,6 @@ struct SettingsView: View {
                 isDisabled: isLoadingGeneralSettings,
                 action: saveGeneralSettings
             )
-        } header: {
-            Text("Takvim Bağlantısı")
-        } footer: {
-            Text("Google toplantıları Gmail gelen kutusu okunarak değil, bu Mac’e eklenmiş Google Calendar hesabından alınır. Etkinliğin URL, konum veya not alanındaki Zoom, Google Meet ve Microsoft Teams bağlantıları eşleştirilir; e-posta içeriği MeetingNotch’a verilmez.")
         }
     }
 
@@ -609,12 +691,12 @@ struct SettingsView: View {
     }
 
     private var calendarStatusColor: Color {
-        guard isCalendarEnabled else { return .secondary }
+        guard isCalendarEnabled else { return MeetingNotchTheme.secondaryText }
         return switch appState.calendarAccessState {
-        case .authorized: .green
-        case .requesting, .notDetermined: .secondary
-        case .denied, .restricted: .orange
-        case .failed: .red
+        case .authorized: MeetingNotchTheme.success
+        case .requesting, .notDetermined: MeetingNotchTheme.secondaryText
+        case .denied, .restricted: MeetingNotchTheme.warning
+        case .failed: MeetingNotchTheme.danger
         }
     }
 
@@ -625,24 +707,29 @@ struct SettingsView: View {
             Button("Şimdi Yenile", systemImage: "arrow.clockwise") {
                 onRefreshCalendar()
             }
+            .buttonStyle(MeetingNotchActionButtonStyle())
             .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
         case .denied, .restricted:
             Button("Takvim İznini Aç", systemImage: "gearshape") {
                 onOpenCalendarSettings()
             }
+            .buttonStyle(MeetingNotchActionButtonStyle())
             .disabled(!isCalendarEnabled)
         case .requesting:
             Button("İzin Bekleniyor…", systemImage: "clock") {}
+                .buttonStyle(MeetingNotchActionButtonStyle())
                 .disabled(true)
         case .failed:
             Button("Tekrar Dene", systemImage: "arrow.clockwise") {
                 onRefreshCalendar()
             }
+            .buttonStyle(MeetingNotchActionButtonStyle())
             .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
         case .notDetermined:
             Button("Takvime İzin Ver", systemImage: "calendar.badge.plus") {
                 onRequestCalendarAccess()
             }
+            .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
             .disabled(!isCalendarEnabled)
         }
     }
@@ -661,36 +748,43 @@ private struct CalendarIntegrationDetails: View {
     var body: some View {
         LabeledContent("Hesap kaynakları") {
             Text(sourceDescription)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MeetingNotchTheme.secondaryText)
                 .multilineTextAlignment(.trailing)
         }
 
         LabeledContent("Okunabilir içerik") {
             Text(readableContentDescription)
                 .font(.body.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MeetingNotchTheme.secondaryText)
         }
 
         LabeledContent("Çevrim içi toplantı") {
             Text(snapshot.matchedMeetingCount, format: .number)
                 .font(.body.monospacedDigit())
-                .foregroundStyle(snapshot.matchedMeetingCount == 0 ? Color.gray : Color.green)
+                .foregroundStyle(
+                    snapshot.matchedMeetingCount == 0
+                        ? MeetingNotchTheme.secondaryText
+                        : MeetingNotchTheme.success
+                )
         }
 
         LabeledContent("Son yenileme") {
             Text(snapshot.refreshedAt, style: .relative)
                 .font(.body.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .foregroundStyle(MeetingNotchTheme.secondaryText)
         }
 
         if !snapshot.hasGoogleAccount {
-            Label {
+            HStack(alignment: .top, spacing: 8) {
+                Image("FigmaWarning")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
                 Text("Google Calendar görünmüyor. Google hesabını macOS İnternet Hesapları’na ekleyip Takvim’i açın.")
-            } icon: {
-                Image(systemName: "exclamationmark.triangle.fill")
             }
-            .font(.caption)
-            .foregroundStyle(.orange)
+            .font(MeetingNotchTheme.MainPanel.smallFont)
+            .foregroundStyle(MeetingNotchTheme.warning)
         }
     }
 
@@ -717,52 +811,64 @@ private struct PermissionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: statusIcon)
-                .font(.system(size: 17, weight: .semibold))
+            Image(source == .microphone ? "FigmaMicrophone" : "FigmaVolume")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
                 .foregroundStyle(statusColor)
-                .frame(width: 28, height: 28)
-                .background(statusColor.opacity(0.12), in: Circle())
+                .frame(width: 20, height: 20)
+                .padding(10)
+                .background(
+                    statusColor.opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                )
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.body.weight(.medium))
+                    .font(MeetingNotchTheme.rowTitleFont)
                 Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(MeetingNotchTheme.MainPanel.smallFont)
+                    .foregroundStyle(MeetingNotchTheme.secondaryText)
             }
 
             Spacer(minLength: 16)
 
             if status == .authorized {
-                Label("Hazır", systemImage: "checkmark")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.green)
+                MeetingNotchStatusBadge(
+                    title: "Hazır",
+                    assetName: "FigmaRecentCheck",
+                    tint: MeetingNotchTheme.success
+                )
             } else if status == .verificationRequired {
                 HStack(spacing: 8) {
-                    Label("Doğrulama gerekli", systemImage: "waveform.badge.magnifyingglass")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.orange)
+                    MeetingNotchStatusBadge(
+                        title: "Doğrulama gerekli",
+                        assetName: "FigmaWarning",
+                        tint: MeetingNotchTheme.warning
+                    )
                     Button("İzin Ver", action: onRequestAccess)
-                        .controlSize(.large)
+                        .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                 }
             } else if source == .systemAudio, status.requiresSystemSettings {
                 HStack(spacing: 6) {
                     Button("Tekrar İste", action: onRequestAccess)
+                        .buttonStyle(MeetingNotchActionButtonStyle())
                     Button("Ayarları Aç") { onOpenSystemSettings(source) }
+                        .buttonStyle(MeetingNotchActionButtonStyle())
                     Button(action: onRelaunchApplication) {
                         Image(systemName: "arrow.triangle.2.circlepath")
                     }
+                    .buttonStyle(MeetingNotchIconButtonStyle())
                     .help("MeetingNotch’u yeniden başlat")
                     .accessibilityLabel("MeetingNotch’u yeniden başlat")
                 }
-                .controlSize(.large)
             } else {
                 Button(actionTitle) {
                     status.requiresSystemSettings
                         ? onOpenSystemSettings(source)
                         : onRequestAccess()
                 }
-                .controlSize(.large)
+                .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
             }
         }
         .padding(.vertical, 4)
@@ -785,20 +891,11 @@ private struct PermissionRow: View {
         }
     }
 
-    private var statusIcon: String {
-        switch status {
-        case .authorized: "checkmark"
-        case .verificationRequired: "waveform"
-        case .notDetermined: "questionmark"
-        case .denied, .restricted: "exclamationmark"
-        }
-    }
-
     private var statusColor: Color {
         switch status {
-        case .authorized: .green
-        case .verificationRequired, .notDetermined: .orange
-        case .denied, .restricted: .red
+        case .authorized: MeetingNotchTheme.success
+        case .verificationRequired, .notDetermined: MeetingNotchTheme.warning
+        case .denied, .restricted: MeetingNotchTheme.danger
         }
     }
 }
@@ -810,36 +907,45 @@ private struct AccessibilityPermissionRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: isGranted ? "checkmark" : "exclamationmark")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(isGranted ? .green : .orange)
-                .frame(width: 28, height: 28)
+            Image(isGranted ? "FigmaRecentCheck" : "FigmaWarning")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(
+                    isGranted ? MeetingNotchTheme.success : MeetingNotchTheme.warning
+                )
+                .frame(width: 20, height: 20)
+                .padding(10)
                 .background(
-                    (isGranted ? Color.green : Color.orange).opacity(0.12),
-                    in: Circle()
+                    (isGranted ? MeetingNotchTheme.success : MeetingNotchTheme.warning)
+                        .opacity(0.12),
+                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
                 )
 
             VStack(alignment: .leading, spacing: 3) {
                 Text("Accessibility")
-                    .font(.body.weight(.medium))
+                    .font(MeetingNotchTheme.rowTitleFont)
                 Text("Zoom/Meet call controls ve mute durumunu yerel okur; UI metni saklanmaz.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(MeetingNotchTheme.MainPanel.smallFont)
+                    .foregroundStyle(MeetingNotchTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 16)
 
             if isGranted {
-                Label("Hazır", systemImage: "checkmark")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.green)
+                MeetingNotchStatusBadge(
+                    title: "Hazır",
+                    assetName: "FigmaRecentCheck",
+                    tint: MeetingNotchTheme.success
+                )
             } else {
                 HStack(spacing: 8) {
                     Button("İzin Ver", action: onRequestAccess)
+                        .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                     Button("Ayarları Aç", action: onOpenSystemSettings)
+                        .buttonStyle(MeetingNotchActionButtonStyle())
                 }
-                .controlSize(.large)
             }
         }
         .padding(.vertical, 4)

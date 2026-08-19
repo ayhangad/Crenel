@@ -37,12 +37,23 @@ test("manifest has a stable allowlistable id and only required capture permissio
 
 test("popup provides prominent disclosure before the user starts audio capture", () => {
   const popup = fs.readFileSync(new URL("../popup.html", import.meta.url), "utf8");
+  const popupStyles = fs.readFileSync(new URL("../popup.css", import.meta.url), "utf8");
   assert.match(popup, /Yalnız o anda açık olan/);
   assert.match(popup, /Diğer sekmeler okunmaz veya\s+kaydedilmez/);
   assert.match(popup, /ElevenLabs Scribe v2/);
   assert.match(popup, /işlenmesini onaylarsınız/);
   assert.match(popup, /id="capture-button"/);
   assert.doesNotMatch(popup, /<script(?![^>]*\bsrc=)/);
+  assert.match(popupStyles, /--surface:\s*#121212/);
+  assert.match(popupStyles, /--danger:\s*#fe4b4b/);
+  assert.match(popupStyles, /--cyan:\s*#14d4ff/);
+  assert.match(popupStyles, /border-radius:\s*22px/);
+  for (const assetName of ["figma-stop", "figma-video", "figma-voice", "figma-warning"]) {
+    assert.equal(
+      fs.existsSync(new URL(`../images/${assetName}.svg`, import.meta.url)),
+      true,
+    );
+  }
 });
 
 test("only canonical Google Meet call URLs are allowed", () => {

@@ -109,10 +109,10 @@ final class MeetingDetailPresentationTests: XCTestCase {
             )
         }
         .scrollIndicators(.hidden)
-        .frame(width: 520, height: 600)
+        .frame(width: 600, height: 600)
 
         let hostingView = NSHostingView(rootView: rootView)
-        hostingView.frame = CGRect(x: 0, y: 0, width: 520, height: 600)
+        hostingView.frame = CGRect(x: 0, y: 0, width: 600, height: 600)
         hostingView.layoutSubtreeIfNeeded()
         RunLoop.current.run(until: Date().addingTimeInterval(0.05))
 

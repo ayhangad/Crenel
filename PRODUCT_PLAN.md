@@ -127,9 +127,10 @@ olarak modellenir. Her snapshot `confidence`, `evidence`, `clientID`, `processID
 
 ### Minimal/techy UI yönü
 
-- Ana toplantı/görev paneli ekran alanı uygunsa 600 px, uzun transkript taşıyan notch içi
-  detay en fazla 520 px olur; ana panelde dış padding ve bölüm aralığı 20 px, içerik aralığı
-  12 px, satır aralığı 4 px ve corner radius hiyerarşisi 24/22/16 px olur. Kompaktlık
+- Ana toplantı/görev paneli ve uzun transkript taşıyan notch içi detay ekran alanı uygunsa
+  sabit 600 px olur; ana panelde dış yatay padding 12 px, bölüm aralığı 20 px, içerik aralığı
+  12 px, satır aralığı 4 px ve corner radius hiyerarşisi 24/22/16 px olur. Hover yüzeyli
+  toplantı/görev satırlarının iç yatay padding'i 8 px olur. Kompaktlık
   içerik alanını daraltmak değil,
   gereksiz yüzey/padding kaybını azaltmaktır.
 - Ana panelin görsel ikonları 20 px grid'e oturur; tıklama hedefleri macOS için genişletilir.
@@ -237,8 +238,8 @@ unmute aralıkları anlaşılırdır; toplantı dışı uygulama sesi process-sc
   veya preview matrisiyle doğrulamak.
   — ✅ Tamamlandı: 2026-08-11 / six-state preview and accessibility contract matrix
 
-- [x] Ana paneli 424 px, toplantı detayını ekran uygunsa 520 px genişliğe akışkan taşıyan
-  layout'u; 8 px yatay dış padding ve 12–14 px dikey bölüm ritmiyle uygulamak.
+- [x] Ana panel ve toplantı detayını ekran uygunsa değişmeyen 600 px genişlikte taşıyan
+  layout'u; 12 px yatay dış padding ve 20 px dikey bölüm ritmiyle uygulamak.
   — ✅ Tamamlandı: 2026-07-29 / precision UI polish
 - [x] Notch içindeki başlıkları sans, metadata/süre/sayaçları mono rollerine ayırmak;
   recent ve detail satırlarında optik ikon-metin hizasını düzeltmek.
@@ -253,9 +254,15 @@ unmute aralıkları anlaşılırdır; toplantı dışı uygulama sesi process-sc
 - [x] Ana panel içeriğini 600 px üst sınıra kadar doğal yüksekliğinde göstermek; yalnızca
   içerik bu sınırı aştığında kaydırmayı etkinleştirmek.
   — ✅ Tamamlandı: 2026-08-19 / fit-content panel yüksekliği
+- [x] Uzun meeting detail içeriğinde üst başlığın güvenli alanda kalmasını ve son
+  “Diğer işlemler” satırının scroll ile bütünüyle görünmesini sağlamak.
+  — ✅ Tamamlandı: 2026-08-19 / host viewport + detail scroll sonu payı
+- [x] Tüm notch ekranlarını sabit 600 px genişlikte tutmak; panel yatay padding'ini 12 px'e
+  indirip hover yüzeyli toplantı/görev satırlarına 8 px iç yatay padding vermek.
+  — ✅ Tamamlandı: 2026-08-19 / sabit genişlik ve liste hover padding'i
 
-**D çıkış kriteri:** Tüm ana durumlar aynı token setini kullanır; ana panel ekran uygunsa
-600 px, detail en fazla 520 px genişlikte taşmadan çalışır; 20 px görsel ikonlar kullanılırken
+**D çıkış kriteri:** Tüm ana durumlar aynı token setini kullanır; ana panel ve detail ekran
+uygunsa sabit 600 px genişlikte taşmadan çalışır; 20 px görsel ikonlar kullanılırken
 kontroller klavye ve VoiceOver ile kullanılabilir kalır.
 
 #### E — Çalışan V1 ve release hardening
@@ -477,15 +484,17 @@ kanalı değildir.
 
 ### 2.4 Minimal/techy görsel sistem dönüşümü
 
-- [x] Ortak UI token setini tanımlamak: yüzey, hairline, durum renkleri, 11–14 pt type
-  scale, 8/10/12 px spacing, 10–12 px radius ve 28–32 px control target.
+- [x] Ortak Figma UI token setini tanımlamak: siyah tuval, `#121212` yüzey, durum renkleri,
+  12–20 pt type scale, 20/12/10/4 px spacing, 24/22/16 px radius ve en az 40 px control
+  target.
 - [x] 42 px ikon ağırlıklı sekme/pin kontrollerini daha küçük glyph ve yoğun macOS
   kontrollerine dönüştürmek.
 - [x] İç içe kartları, dekoratif büyük gölgeleri ve yinelenen başlıkları kaldırmak.
 - [ ] Kompakt notch'a meeting detection confidence ve mic gate durumunu eklemek.
-- [x] Geniş paneli 404–424 px, toplantı detayını 480–520 px hedef genişlikte toplantı yaşam
+- [x] Geniş paneli ve toplantı detayını sabit 600 px hedef genişlikte toplantı yaşam
   döngüsü merkezli ve ekran alanına göre akışkan yenilemek.
-- [ ] Ayarlar, onboarding ve meeting detail yüzeylerini aynı token setine taşımak.
+- [x] Ayarlar, onboarding, meeting detail, görev alt durumları, Chrome popup ve kalan
+  compact/notch durum yüzeylerini aynı Figma token ve ikon sistemine taşımak.
 
 ### Faz 2 çıkış kriterleri
 

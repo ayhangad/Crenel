@@ -128,23 +128,40 @@ final class NotchPresentationTests: XCTestCase {
     }
 
     func testPanelUsesPreferredSizeOnLargeScreenAndStaysWithinSmallScreen() {
+        let physicalViewport = NotchHostViewport(
+            screenFrameSize: CGSize(width: 1_440, height: 900),
+            topInset: 30,
+            hasPhysicalNotch: true
+        )
+        XCTAssertEqual(physicalViewport.availableSize, CGSize(width: 660, height: 405))
+
         XCTAssertEqual(
-            NotchPanelLayout(availableSize: CGSize(width: 1_440, height: 900)),
-            NotchPanelLayout(width: 600, maximumContentHeight: 600)
+            NotchPanelLayout(availableSize: physicalViewport.availableSize),
+            NotchPanelLayout(width: 600, maximumContentHeight: 305)
         )
         XCTAssertEqual(
             NotchPanelLayout(
-                availableSize: CGSize(width: 1_440, height: 900),
-                preferredWidth: 520
+                availableSize: physicalViewport.availableSize,
+                preferredWidth: NotchPanelLayout.preferredDetailWidth
             ),
-            NotchPanelLayout(width: 520, maximumContentHeight: 600)
+            NotchPanelLayout(width: 600, maximumContentHeight: 305)
         )
 
-        let constrained = NotchPanelLayout(availableSize: CGSize(width: 360, height: 500))
+        let floatingViewport = NotchHostViewport(
+            screenFrameSize: CGSize(width: 1_440, height: 900),
+            topInset: 24,
+            hasPhysicalNotch: false
+        )
+        XCTAssertEqual(floatingViewport.availableSize, CGSize(width: 650, height: 356))
+
+        let constrained = NotchPanelLayout(availableSize: CGSize(width: 328, height: 250))
         XCTAssertEqual(constrained.width, 328)
-        XCTAssertEqual(constrained.maximumContentHeight, 350)
-        XCTAssertLessThanOrEqual(constrained.width + 32, 360)
-        XCTAssertLessThanOrEqual(constrained.maximumContentHeight + 150, 500)
+        XCTAssertEqual(constrained.maximumContentHeight, 150)
+        XCTAssertLessThanOrEqual(constrained.width, 328)
+        XCTAssertLessThanOrEqual(
+            constrained.maximumContentHeight + NotchPanelLayout.fixedVerticalSpace,
+            250
+        )
     }
 
     @MainActor
@@ -164,6 +181,17 @@ final class NotchPresentationTests: XCTestCase {
 
         XCTAssertEqual(shortContent.fittingSize.height, 48, accuracy: 0.5)
         XCTAssertEqual(longContent.fittingSize.height, 120, accuracy: 0.5)
+
+        let detailContent = NSHostingView(
+            rootView: NotchPanelScrollableContent(
+                maximumHeight: 120,
+                bottomContentInset: 20
+            ) {
+                Color.clear.frame(height: 48)
+            }
+            .frame(width: 300)
+        )
+        XCTAssertEqual(detailContent.fittingSize.height, 68, accuracy: 0.5)
     }
 
     func testHoverShadowStaysInsideDynamicNotchWindowInset() {
@@ -231,7 +259,10 @@ final class NotchPresentationTests: XCTestCase {
 
     func testFigmaMainPanelTokensMatchTheSourceFrame() {
         XCTAssertEqual(MeetingNotchTheme.panelWidth, 600)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.horizontalPadding, 20)
+        XCTAssertEqual(MeetingNotchTheme.detailPanelWidth, 600)
+        XCTAssertEqual(NotchPanelLayout.preferredDetailWidth, 600)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.horizontalPadding, 12)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.listRowHorizontalInset, 8)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.verticalPadding, 20)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.sectionSpacing, 20)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.contentSpacing, 12)
@@ -252,10 +283,165 @@ final class NotchPresentationTests: XCTestCase {
             MeetingNotchTheme.inactiveTabForegroundOpacity
         )
         XCTAssertGreaterThanOrEqual(MeetingNotchTheme.activeTabFillOpacity, 0.10)
-        XCTAssertEqual(
-            MeetingNotchTheme.surfaceRadius,
-            MeetingNotchTheme.controlRadius + MeetingNotchTheme.tabBarPadding
+        XCTAssertGreaterThan(MeetingNotchTheme.surfaceRadius, MeetingNotchTheme.controlRadius)
+        XCTAssertGreaterThanOrEqual(
+            MeetingNotchTheme.surfaceRadius - MeetingNotchTheme.controlRadius,
+            MeetingNotchTheme.tabBarPadding
         )
+    }
+
+    func testEveryApplicationSurfaceUsesTheFigmaGeometrySystem() {
+        XCTAssertEqual(
+            MeetingNotchTheme.panelHorizontalPadding,
+            MeetingNotchTheme.MainPanel.horizontalPadding
+        )
+        XCTAssertEqual(
+            MeetingNotchTheme.panelVerticalPadding,
+            MeetingNotchTheme.MainPanel.verticalPadding
+        )
+        XCTAssertEqual(MeetingNotchTheme.sectionSpacing, MeetingNotchTheme.MainPanel.sectionSpacing)
+        XCTAssertEqual(MeetingNotchTheme.contentSpacing, MeetingNotchTheme.MainPanel.contentSpacing)
+        XCTAssertEqual(MeetingNotchTheme.itemSpacing, MeetingNotchTheme.MainPanel.itemSpacing)
+        XCTAssertEqual(MeetingNotchTheme.surfaceRadius, MeetingNotchTheme.MainPanel.surfaceRadius)
+        XCTAssertEqual(MeetingNotchTheme.controlRadius, MeetingNotchTheme.MainPanel.capsuleRadius)
+        XCTAssertEqual(MeetingNotchTheme.iconSize, MeetingNotchTheme.MainPanel.iconSize)
+        XCTAssertGreaterThanOrEqual(MeetingNotchTheme.controlHeight, 40)
+    }
+
+    @MainActor
+    func testRedesignedAuxiliarySurfacesAndFigmaIconsRender() throws {
+        let requiredAssets = [
+            "FigmaArchive", "FigmaArrowUp", "FigmaMicrophone", "FigmaMicrophoneOff",
+            "FigmaMore", "FigmaPin", "FigmaRecentCheck", "FigmaRecord", "FigmaStop",
+            "FigmaTaskBacklog", "FigmaTaskBlocked", "FigmaTaskCompleted",
+            "FigmaTaskProgress", "FigmaTaskTodo", "FigmaTasks", "FigmaVideo",
+            "FigmaVoice", "FigmaVolume", "FigmaWarning"
+        ]
+        for assetName in requiredAssets {
+            XCTAssertNotNil(NSImage(named: assetName), "\(assetName) asset'i yüklenemedi")
+        }
+
+        let settingsState = AppState()
+        let onboardingState = AppState()
+        let compactState = AppState(initialFlow: .completed(meetingID: UUID()))
+        let detailState = AppState()
+        detailState.updateNotchPanelPresentation(
+            availableSize: CGSize(width: 660, height: 405),
+            hasPhysicalNotch: true
+        )
+        let detailMeeting = StoredMeeting(
+            id: UUID(),
+            title: "Ürün tasarım değerlendirmesi",
+            startedAt: Date().addingTimeInterval(-2_400),
+            endedAt: Date(),
+            sourceMeeting: nil,
+            audioFileName: "ui-audit.m4a",
+            processingStatus: .completed
+        )
+        detailState.presentMeetingDetail(
+            MeetingDetailContent(
+                meeting: detailMeeting,
+                storedTranscription: StoredTranscription(
+                    transcript: Transcript(
+                        text: "",
+                        languageCode: "tr",
+                        segments: [
+                            TranscriptSegment(
+                                speakerID: "speaker_0",
+                                speakerName: "Ayhan",
+                                startTime: 12,
+                                endTime: 24,
+                                text: "Tüm yüzeyler ortak Figma token sistemini kullanacak."
+                            ),
+                            TranscriptSegment(
+                                speakerID: "speaker_1",
+                                speakerName: "Deniz",
+                                startTime: 28,
+                                endTime: 42,
+                                text: "Kompakt durumlar ve ayarlar da aynı ikon diline taşınacak."
+                            )
+                        ]
+                    ),
+                    summary: MeetingSummary(
+                        overview: "MeetingNotch arayüzü tek ve tutarlı bir koyu tasarım sisteminde birleştirildi.",
+                        decisions: ["20 piksel ikon ızgarası kullanılacak."],
+                        actionItems: [ActionItem(title: "Görsel regresyon matrisini çalıştır.")]
+                    )
+                ),
+                markdown: "# Ürün tasarım değerlendirmesi",
+                audioURL: URL(fileURLWithPath: "/tmp/ui-audit.m4a")
+            )
+        )
+
+        let cases: [(name: String, view: AnyView, size: CGSize)] = [
+            (
+                "settings",
+                AnyView(SettingsView().environmentObject(settingsState)),
+                CGSize(width: 600, height: 760)
+            ),
+            (
+                "onboarding",
+                AnyView(
+                    OnboardingView(
+                        onRequestMicrophoneAccess: {},
+                        onRequestSystemAudioAccess: {},
+                        onRequestAccessibilityAccess: {},
+                        onRequestCalendarAccess: {},
+                        onComplete: {}
+                    )
+                    .environmentObject(onboardingState)
+                ),
+                CGSize(width: 600, height: 500)
+            ),
+            (
+                "compact",
+                AnyView(
+                    HStack(spacing: 24) {
+                        CompactLeadingView()
+                        CompactTrailingView()
+                    }
+                    .padding(12)
+                    .background(Color.black)
+                    .environmentObject(compactState)
+                ),
+                CGSize(width: 240, height: 48)
+            ),
+            (
+                "detail",
+                AnyView(NotchPanelView().environmentObject(detailState)),
+                CGSize(width: 600, height: 405)
+            )
+        ]
+
+        for item in cases {
+            let hostingView = NSHostingView(rootView: item.view)
+            hostingView.appearance = NSAppearance(named: .aqua)
+            hostingView.frame = CGRect(origin: .zero, size: item.size)
+            hostingView.layoutSubtreeIfNeeded()
+
+            guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+                return XCTFail("\(item.name) bitmap'i üretilemedi")
+            }
+            hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+            XCTAssertGreaterThan(bitmap.pixelsWide, 0)
+            XCTAssertGreaterThan(bitmap.pixelsHigh, 0)
+
+            if FileManager.default.fileExists(atPath: "/tmp/MeetingNotchExportUIAudit") {
+                guard let png = bitmap.representation(using: .png, properties: [:]) else {
+                    return XCTFail("\(item.name) PNG verisi üretilemedi")
+                }
+                let projectRoot = URL(fileURLWithPath: #filePath)
+                    .deletingLastPathComponent()
+                    .deletingLastPathComponent()
+                let outputURL = projectRoot
+                    .appendingPathComponent("artifacts/ui-audit/figma-\(item.name).png")
+                try FileManager.default.createDirectory(
+                    at: outputURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try png.write(to: outputURL, options: .atomic)
+            }
+        }
     }
 
     @MainActor

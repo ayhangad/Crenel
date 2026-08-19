@@ -59,6 +59,10 @@ readonly runtime_files=(
   images/icon-32.png
   images/icon-48.png
   images/icon-128.png
+  images/figma-stop.svg
+  images/figma-video.svg
+  images/figma-voice.svg
+  images/figma-warning.svg
 )
 
 (

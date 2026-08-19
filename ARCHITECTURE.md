@@ -170,18 +170,19 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   ilerleme göstergesiyle taşır; daha düşük öncelikli toplantı veya görev bilgisi işleme
   durumunu örtemez. Başarı ve hata paneli otomatik açılır; etkileşim yoksa 8 saniye sonra
   kompakt duruma döner, başarı akışı boşta durumuna sıfırlanırken hata kurtarma için korunur.
-- Geniş panel aktif ekranın görünür alanına göre toplantı/görev kökünde en fazla 600 piksel,
-  uzun transkript taşıyan notch içi detail drill-down'ında en fazla 520 piksel genişlik
-  kullanır. İçerik alanı 600 piksele kadar doğal yüksekliğinde kalır; yalnız bu üst sınırı
+- Geniş panel aktif ekranın görünür alanı elverdiğinde toplantı/görev kökü ve uzun transkript
+  taşıyan notch içi detail drill-down'ında değişmeyen 600 piksel genişlik kullanır. İçerik
+  alanı 600 piksele kadar doğal yüksekliğinde kalır; yalnız bu üst sınırı
   aştığında kaydırılır. Daha küçük ekranlarda görünür alan sınırı aynı davranışın üst
   yüksekliği olur. Sekmeler ok tuşları ve Komut-1/Komut-2 ile değiştirilebilir.
 - DynamicNotchKit açılma, kapanma ve kompakt/geniş dönüşümleri uygulamanın hareket profiliyle
   yapılandırılır. macOS Reduce Motion değişikliği canlı izlenir ve etkin olduğunda hem panel
   içi hem pencere geçişleri algılanabilir hareket üretmeyecek kadar kısaltılır.
-- 2026-08-19 Figma yönü kök panelde 600, detail'da en fazla 520 piksel akışkan genişlik;
-  20 piksel dış padding, 20/12/10/4 piksel bölüm-içerik-satır ritmi, 24/22/16 piksel radius
-  hiyerarşisi ve 12–20 pt SF Pro Display type scale kullanır. Satır ikonları 20 piksel grid'e
-  oturur; görünen kontrol kompakt kalsa da genişletilmiş content shape erişilebilirliği korur.
+- 2026-08-19 Figma yönü kök panel ve detail'da sabit 600 piksel genişlik; 12 piksel dış yatay
+  padding, hover yüzeyli liste satırlarında 8 piksel iç yatay padding, 20/12/10/4 piksel
+  bölüm-içerik-satır ritmi, 24/22/16 piksel radius hiyerarşisi ve 12–20 pt SF Pro Display type
+  scale kullanır. Satır ikonları 20 piksel grid'e oturur; görünen kontrol kompakt kalsa da
+  genişletilmiş content shape erişilebilirliği korur.
 - Ana panel saf siyah zemin, `#121212` yüzey ve yalnız durum rengi vurgusuyla çalışır;
   danger `#FE4B4B`, warning `#FEC84B`, cyan `#14D4FF`, success `#14FF2B` kullanılır.
   Kayıt kartının mikrofon gate bölümü `#261E0B` ile ayrılır. Kompakt görünüm session durumu,
@@ -190,6 +191,18 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   floating expanded ve compact içerik koyu `ColorScheme` kullanır. Sekme layout'u seçili
   durum animasyonunda yeniden ölçülmez; iki sekme her frame'de görünür kalır, yalnız renk ve
   yüzey durumu değişir.
+- Aynı Figma sistemi yalnız ana panelle sınırlı değildir: meeting detail, kayıt yaşam döngüsü
+  ve hata/kurtarma yüzeyleri, compact notch, görev arşivi/düzenleyicisi, onboarding, Ayarlar
+  ve Chrome uzantısı popup'ı siyah tuval, `#121212` kart, 20/12/10 piksel boşluk,
+  22/16 piksel radius ve 12–20 pt SF Pro ölçeğini paylaşır. Ayarlar 600×760 kaydırılabilir,
+  onboarding 600×500 adımlı yüzeydir; notch içeriği ise 600 piksel üst sınıra kadar doğal
+  yüksekliğinde kalır.
+- Figma'dan dışa aktarılan 19 SVG ikon asset catalog'da `Figma*` adlarıyla tutulur ve aynı
+  export'lardan gerekli dört ikon Chrome popup paketine de eklenir. Uygulama içi görünür
+  durum/aksiyon ikonlarında bu set tercih edilir; Finder, kaydet, sistem ayarı ve native menü
+  komutları gibi Figma karşılığı bulunmayan platform işlemleri macOS SF Symbols kullanır.
+  Etkileşimli kontroller en az 40 piksel hedef, basışta 0.96 ölçek ve Reduce Motion uyumlu
+  kısa geçiş kullanır.
 
 ## Veri yaklaşımı
 
@@ -373,8 +386,8 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   coordinator closure'ları üzerinden ulaşır; destructive işlemler onay ister.
 - AVPlayer tabanlı audio controller timestamp seek ve süre ilerlemesini yönetir. İlerleme
   yayınlarını yalnızca kompakt player gözlemler; saniyelik zaman güncellemeleri detail ağacını
-  ve transkript satırlarını yeniden değerlendirmez. Segmentler 520 px'e kadar genişleyen
-  detail panelinde `ScrollView`'un tek dış `LazyVStack`'ına doğrudan çocuk olarak eklenir;
+  ve transkript satırlarını yeniden değerlendirmez. Segmentler sabit 600 px detail panelinde
+  `ScrollView`'un tek dış `LazyVStack`'ına doğrudan çocuk olarak eklenir;
   transkripti tek eager alt ağaç yapan iç içe stack kullanılmaz. Kısa transkriptlerde satır içi
   metin seçimi korunur; uzun transkriptlerde yüzlerce native seçim köprüsü oluşturmamak için
   satır seçimi kapatılır ve segment bazlı context-menu kopyalama ile üstteki tüm-transkript
@@ -382,6 +395,12 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 - DynamicNotchKit'in 15 pt pencere içi güvenli alanı içinde kalmak için hover sırasında 20 pt'e
   büyüyen gölge kullanılmaz; panel sabit 10 pt gölgeyle çizilir ve alt fade pencere sınırında
   kesilmez.
+- DynamicNotchKit 1.1.0 geniş panel host penceresini hedef ekranın yarı genişlik ve yarı
+  yüksekliğinde oluşturur. `NotchHostViewport` fiziksel notch veya floating chrome inset'lerini
+  bu host ölçüsünden çıkarır; `NotchPanelLayout` toolbar, bölüm aralığı ve dış padding'i ayrıca
+  rezerve ettikten sonra scroll viewport'unu en fazla 600 pt ile sınırlar. Böylece kısa içerik
+  doğal yüksekliğinde kalır, uzun detail içeriği başlığı maskelenmeden kayar ve son işlem satırı
+  20 pt scroll sonu payıyla bütünüyle görünür.
 
 ## Transkripsiyon sınırı
 

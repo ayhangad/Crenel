@@ -66,7 +66,10 @@ struct TasksView: View {
             } label: {
                 if showsArchive {
                     HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
+                        Image("FigmaTasks")
+                            .resizable()
+                            .renderingMode(.template)
+                            .frame(width: 16, height: 16)
                         Text("Görevler")
                     }
                 } else {
@@ -287,6 +290,7 @@ private struct TaskRowView: View {
             minHeight: MeetingNotchTheme.MainPanel.rowHeight,
             alignment: .top
         )
+        .padding(.horizontal, MeetingNotchTheme.MainPanel.listRowHorizontalInset)
         .background(
             isHovering ? MeetingNotchTheme.MainPanel.surface : .clear,
             in: RoundedRectangle(
@@ -332,13 +336,21 @@ private struct TaskRowView: View {
                 .onSubmit(commitEdit)
 
             Button(action: cancelEdit) {
-                Image(systemName: "xmark")
+                Image("FigmaStop")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
             }
             .buttonStyle(MeetingNotchIconButtonStyle())
             .accessibilityLabel("Düzenlemeyi iptal et")
 
             Button(action: commitEdit) {
-                Image(systemName: "checkmark")
+                Image("FigmaRecentCheck")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
             }
             .buttonStyle(
                 MeetingNotchIconButtonStyle(

@@ -78,9 +78,12 @@ struct NotchStatusResolver {
 
 struct NotchPanelLayout: Equatable {
     static let preferredWidth: CGFloat = 600
-    static let preferredDetailWidth: CGFloat = 520
+    static let preferredDetailWidth: CGFloat = preferredWidth
     static let minimumWidth: CGFloat = 320
     static let preferredContentHeight: CGFloat = 600
+    // Header, header/content gap and the panel's vertical padding remain outside the
+    // scroll view. Reserve their tallest (detail) footprint before capping the viewport.
+    static let fixedVerticalSpace: CGFloat = 100
 
     let width: CGFloat
     let maximumContentHeight: CGFloat
@@ -94,10 +97,48 @@ struct NotchPanelLayout: Equatable {
         availableSize: CGSize,
         preferredWidth: CGFloat = Self.preferredWidth
     ) {
-        let availableWidth = max(0, availableSize.width - 32)
-        let availableContentHeight = max(0, availableSize.height - 150)
+        let availableWidth = max(0, availableSize.width)
+        let availableContentHeight = max(
+            0,
+            availableSize.height - Self.fixedVerticalSpace
+        )
         width = min(preferredWidth, availableWidth)
         maximumContentHeight = min(Self.preferredContentHeight, availableContentHeight)
+    }
+}
+
+struct NotchHostViewport: Equatable {
+    // DynamicNotchKit 1.1.0 creates a borderless host window at half of the target
+    // screen's width and height. These insets mirror the library's expanded chrome so
+    // our fixed-size content never becomes taller than that host window.
+    static let windowScale: CGFloat = 0.5
+    static let physicalHorizontalInset: CGFloat = 60
+    static let physicalBottomInset: CGFloat = 15
+    static let floatingHorizontalInset: CGFloat = 70
+    static let floatingContainerInset: CGFloat = 70
+
+    let availableSize: CGSize
+
+    init(
+        screenFrameSize: CGSize,
+        topInset: CGFloat,
+        hasPhysicalNotch: Bool
+    ) {
+        let hostSize = CGSize(
+            width: screenFrameSize.width * Self.windowScale,
+            height: screenFrameSize.height * Self.windowScale
+        )
+        let horizontalInset = hasPhysicalNotch
+            ? Self.physicalHorizontalInset
+            : Self.floatingHorizontalInset
+        let verticalInset = max(0, topInset) + (hasPhysicalNotch
+            ? Self.physicalBottomInset
+            : Self.floatingContainerInset)
+
+        availableSize = CGSize(
+            width: max(0, hostSize.width - horizontalInset),
+            height: max(0, hostSize.height - verticalInset)
+        )
     }
 }
 

@@ -807,8 +807,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let window = NSWindow(contentViewController: hostingController)
         window.title = "MeetingNotch’a Hoş Geldiniz"
         window.styleMask = [.titled, .closable, .fullSizeContentView]
-        window.setContentSize(NSSize(width: 640, height: 500))
-        window.minSize = NSSize(width: 600, height: 460)
+        window.setContentSize(NSSize(width: 600, height: 500))
+        window.minSize = NSSize(width: 600, height: 500)
         window.isReleasedWhenClosed = false
         window.center()
 
@@ -922,9 +922,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateNotchPanelPresentation(for screen: NSScreen) {
+        let hasPhysicalNotch = notchScreenResolver.hasPhysicalNotch(screen)
+        let topInset = hasPhysicalNotch
+            ? screen.safeAreaInsets.top
+            : screen.frame.maxY - screen.visibleFrame.maxY
+        let viewport = NotchHostViewport(
+            screenFrameSize: screen.frame.size,
+            topInset: topInset,
+            hasPhysicalNotch: hasPhysicalNotch
+        )
         appState.updateNotchPanelPresentation(
-            availableSize: screen.visibleFrame.size,
-            hasPhysicalNotch: notchScreenResolver.hasPhysicalNotch(screen)
+            availableSize: viewport.availableSize,
+            hasPhysicalNotch: hasPhysicalNotch
         )
     }
 

@@ -142,7 +142,7 @@ struct MeetingDetailToolbar: View {
 
                 Text(detailLine)
                     .font(MeetingNotchTheme.metadataFont)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MeetingNotchTheme.secondaryText)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -193,11 +193,14 @@ struct MeetingDetailToolbar: View {
     @ViewBuilder
     private func copyLabel(_ label: String, format: CopyFormat) -> some View {
         if copiedFormat == format {
-            Image(systemName: "checkmark")
-                .contentTransition(.symbolEffect(.replace))
+            Image("FigmaRecentCheck")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 16, height: 16)
         } else {
             Text(label)
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(MeetingNotchTheme.MainPanel.smallMediumFont.monospaced())
         }
     }
 
@@ -261,12 +264,12 @@ struct MeetingDetailView: View {
                 let allowsInlineTextSelection = TranscriptPresentationPolicy
                     .allowsInlineTextSelection(segmentCount: transcript.segments.count)
 
-                sectionHeader("Transkript", symbol: "quote.bubble") {
+                sectionHeader("Transkript", assetName: "FigmaVoice") {
                     Text("\(transcript.segments.count) segment")
                         .font(MeetingNotchTheme.dataFont)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(MeetingNotchTheme.secondaryText)
                 }
-                .padding(.bottom, 6)
+                .padding(.bottom, MeetingNotchTheme.contentSpacing)
 
                 if transcript.segments.isEmpty {
                     Text(transcript.text)
@@ -288,10 +291,6 @@ struct MeetingDetailView: View {
                         )
                         .equatable()
 
-                        if segment.id != transcript.segments.last?.id {
-                            Divider()
-                                .overlay(MeetingNotchTheme.subtleHairline)
-                        }
                     }
                 }
             } else {
@@ -346,13 +345,13 @@ struct MeetingDetailView: View {
             .help("Ses, dışa aktarma ve toplantı işlemleri")
         }
         .font(MeetingNotchTheme.controlFont)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(MeetingNotchTheme.secondaryText)
         .padding(.horizontal, 2)
     }
 
     private func summarySection(_ summary: MeetingSummary) -> some View {
         VStack(alignment: .leading, spacing: MeetingNotchTheme.contentSpacing) {
-            sectionHeader("Notlar", symbol: "sparkles") {
+            sectionHeader("Notlar", assetName: "FigmaTasks") {
                 Button {
                     onCopyText(MeetingMarkdownFormatter.notes(summary))
                 } label: {
@@ -361,6 +360,7 @@ struct MeetingDetailView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
+                .foregroundStyle(MeetingNotchTheme.secondaryText)
                 .help("Notları kopyala")
                 .accessibilityLabel("Toplantı notlarını kopyala")
             }
@@ -371,7 +371,11 @@ struct MeetingDetailView: View {
                     : summary.overview
             )
             .font(MeetingNotchTheme.bodyFont)
-            .foregroundStyle(summary.overview.isEmpty ? .secondary : .primary)
+            .foregroundStyle(
+                summary.overview.isEmpty
+                    ? MeetingNotchTheme.secondaryText
+                    : MeetingNotchTheme.primaryText
+            )
             .textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)
 
@@ -395,21 +399,17 @@ struct MeetingDetailView: View {
                 style: .continuous
             )
         )
-        .overlay {
-            RoundedRectangle(
-                cornerRadius: MeetingNotchTheme.surfaceRadius,
-                style: .continuous
-            )
-            .stroke(MeetingNotchTheme.subtleHairline, lineWidth: 1)
-        }
     }
 
     private var processingState: some View {
         HStack(spacing: 10) {
-            Image(systemName: processingIcon)
-                .font(.system(size: 13, weight: .semibold))
+            Image(processingAsset)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
                 .foregroundStyle(processingColor)
-                .frame(width: 30, height: 30)
+                .frame(width: 20, height: 20)
+                .padding(10)
                 .background(
                     processingColor.opacity(0.12),
                     in: RoundedRectangle(
@@ -423,7 +423,7 @@ struct MeetingDetailView: View {
                     .font(MeetingNotchTheme.titleFont)
                 Text(processingDetail)
                     .font(MeetingNotchTheme.bodyFont)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(MeetingNotchTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -441,32 +441,35 @@ struct MeetingDetailView: View {
 
     private func sectionHeader<Accessory: View>(
         _ title: String,
-        symbol: String,
+        assetName: String,
         @ViewBuilder accessory: () -> Accessory
     ) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: symbol)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(MeetingNotchTheme.accent)
+        HStack(spacing: MeetingNotchTheme.itemSpacing) {
+            Image(assetName)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 20, height: 20)
+                .foregroundStyle(MeetingNotchTheme.primaryText)
             Text(title)
-                .font(MeetingNotchTheme.sectionTitleFont)
-                .foregroundStyle(.secondary)
+                .font(MeetingNotchTheme.titleFont)
+                .foregroundStyle(MeetingNotchTheme.primaryText)
             Spacer()
             accessory()
         }
     }
 
-    private var processingIcon: String {
+    private var processingAsset: String {
         switch content.meeting.processingStatus {
-        case .failed: "exclamationmark.triangle"
-        case .recorded: "clock"
-        case .processing: "waveform.badge.magnifyingglass"
-        case .completed: "text.badge.xmark"
+        case .failed, .completed: "FigmaWarning"
+        case .recorded, .processing: "FigmaVoice"
         }
     }
 
     private var processingColor: Color {
-        content.meeting.processingStatus == .failed ? .orange : MeetingNotchTheme.accent
+        content.meeting.processingStatus == .failed
+            ? MeetingNotchTheme.danger
+            : MeetingNotchTheme.cyan
     }
 
     private var processingTitle: String {
@@ -495,7 +498,7 @@ private struct CompactSummaryList: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(MeetingNotchTheme.sectionTitleFont)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(MeetingNotchTheme.secondaryText)
 
             ForEach(Array(values.enumerated()), id: \.offset) { _, value in
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
@@ -530,8 +533,8 @@ private struct CompactAudioPlayer: View {
 
             Text(TranscriptTextFormatter.timestamp(player.currentTime))
                 .font(MeetingNotchTheme.dataFont)
-                .foregroundStyle(.secondary)
-                .frame(width: 36, alignment: .trailing)
+                .foregroundStyle(MeetingNotchTheme.secondaryText)
+                .frame(width: 44, alignment: .trailing)
 
             Slider(
                 value: Binding(
@@ -546,10 +549,10 @@ private struct CompactAudioPlayer: View {
 
             Text(TranscriptTextFormatter.timestamp(player.duration))
                 .font(MeetingNotchTheme.dataFont)
-                .foregroundStyle(.tertiary)
-                .frame(width: 36, alignment: .leading)
+                .foregroundStyle(MeetingNotchTheme.secondaryText)
+                .frame(width: 44, alignment: .leading)
         }
-        .padding(8)
+        .padding(16)
         .background(
             MeetingNotchTheme.surface,
             in: RoundedRectangle(
@@ -557,13 +560,6 @@ private struct CompactAudioPlayer: View {
                 style: .continuous
             )
         )
-        .overlay {
-            RoundedRectangle(
-                cornerRadius: MeetingNotchTheme.surfaceRadius,
-                style: .continuous
-            )
-            .stroke(MeetingNotchTheme.subtleHairline, lineWidth: 1)
-        }
     }
 }
 
@@ -578,15 +574,15 @@ private struct TranscriptSegmentRow: View, Equatable {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
-                Text(displaySpeakerName.uppercased())
-                    .font(MeetingNotchTheme.sectionTitleFont)
-                    .foregroundStyle(MeetingNotchTheme.accent)
+                Text(displaySpeakerName)
+                    .font(MeetingNotchTheme.rowTitleFont)
+                    .foregroundStyle(MeetingNotchTheme.cyan)
                     .lineLimit(1)
 
                 Button(action: onSeek) {
                     Text(TranscriptTextFormatter.timestamp(segment.startTime))
                         .font(MeetingNotchTheme.dataFont)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(MeetingNotchTheme.secondaryText)
                 }
                 .buttonStyle(.borderless)
                 .help("Bu noktadan oynat")
@@ -595,23 +591,24 @@ private struct TranscriptSegmentRow: View, Equatable {
 
                 if isHovering {
                     Image(systemName: "play")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.tertiary)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(MeetingNotchTheme.secondaryText)
                         .transition(.opacity)
                 }
             }
 
             segmentText
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(
-            isHovering ? MeetingNotchTheme.surfaceHover : .clear,
+            isHovering ? MeetingNotchTheme.surfaceHover : MeetingNotchTheme.surface,
             in: RoundedRectangle(
                 cornerRadius: MeetingNotchTheme.controlRadius,
                 style: .continuous
             )
         )
+        .padding(.bottom, MeetingNotchTheme.MainPanel.rowSpacing)
         .onHover { isHovering = $0 }
         .contextMenu {
             Button("Segmenti kopyala", action: onCopy)
@@ -681,7 +678,7 @@ private struct TranscriptSegmentRow: View, Equatable {
             transcript: transcript,
             summary: MeetingSummary(
                 overview: "Toplantı sonuçları ayrı pencere açmadan notch içinde tüketilecek.",
-                decisions: ["Detay paneli 520 px genişliğe çıkarıldı."],
+                decisions: ["Detay paneli tüm notch ekranlarıyla aynı 600 px genişlikte tutuldu."],
                 actionItems: [ActionItem(title: "Koyu ve açık görünüm matrisini doğrula.")]
             )
         ),
