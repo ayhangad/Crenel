@@ -127,15 +127,17 @@ olarak modellenir. Her snapshot `confidence`, `evidence`, `clientID`, `processID
 
 ### Minimal/techy UI yönü
 
-- Ana toplantı/görev paneli 404–424 px, uzun transkript taşıyan notch içi detay 480–520 px
-  aralığında akışkan büyür; yatay dış padding 8 px, dikey dış padding 10 px, bölüm aralığı
-  12–14 px ve corner radius 10–12 px olur. Kompaktlık içerik alanını daraltmak değil,
+- Ana toplantı/görev paneli ekran alanı uygunsa 600 px, uzun transkript taşıyan notch içi
+  detay en fazla 520 px olur; ana panelde dış padding ve bölüm aralığı 20 px, içerik aralığı
+  12 px, satır aralığı 4 px ve corner radius hiyerarşisi 24/22/16 px olur. Kompaktlık
+  içerik alanını daraltmak değil,
   gereksiz yüzey/padding kaybını azaltmaktır.
-- Görsel ikonlar çoğunlukla 11–13 pt olur; tıklama hedefleri macOS için 28–32 px korunur.
+- Ana panelin görsel ikonları 20 px grid'e oturur; tıklama hedefleri macOS için genişletilir.
   Küçük görünmek, küçük veya erişilemez hit target anlamına gelmez.
 - Nötr siyah/gri yüzey, tek hairline border ve yalnızca durum renginde vurgu kullanılır.
   Dekoratif gradient, büyük gölge ve iç içe kartlar kaldırılır.
-- Başlıklar 13–14 pt semibold, ikincil metin 11–12 pt, süre/sayaçlar monospaced digit olur.
+- Bölüm başlıkları 20 pt medium, satır başlıkları 14 pt medium, ikincil metin 14 pt regular,
+  kompakt kayıt/görev sayaçları 12 pt olur; süre ve sayaçlar monospaced digit kullanır.
 - Kompakt notch yalnızca durum glyph'i, canlı süre ve mikrofon gate durumunu taşır.
 - Geniş panelin ilk satırı toplantı yaşam döngüsüdür: istemci + güven durumu, kayıt süresi,
   meeting mic `Açık/Kapalı/Bilinmiyor`; ana aksiyon tek ve nettir.
@@ -244,9 +246,16 @@ unmute aralıkları anlaşılırdır; toplantı dışı uygulama sesi process-sc
 - [x] Görevler sekmesini aynı yüzey/type token'larıyla yeniden tasarlamak; satır içi kalıcı
   silme ikonlarını kaldırıp destructive aksiyonları context menu + onaya taşımak.
   — ✅ Tamamlandı: 2026-07-29 / precision UI polish
+- [x] Figma `18:2785` içindeki Meetings, boş toplantı, aktif kayıt ve Tasks frame'lerini;
+  600 px ana panel, SF Pro Display rolleri, özgün durum renkleri, 20/12/10/4 px spacing
+  ritmi, 20 px ikon grid'i ve 24/22/16 px radius hiyerarşisiyle SwiftUI'a taşımak.
+  — ✅ Tamamlandı: 2026-08-19 / Figma ana panel uygulaması
+- [x] Ana panel içeriğini 600 px üst sınıra kadar doğal yüksekliğinde göstermek; yalnızca
+  içerik bu sınırı aştığında kaydırmayı etkinleştirmek.
+  — ✅ Tamamlandı: 2026-08-19 / fit-content panel yüksekliği
 
-**D çıkış kriteri:** Tüm ana durumlar aynı token setini kullanır; ana panel 404–424 px,
-detail 480–520 px aralığında ekran alanına göre taşmadan çalışır; görsel ikonlar küçülürken
+**D çıkış kriteri:** Tüm ana durumlar aynı token setini kullanır; ana panel ekran uygunsa
+600 px, detail en fazla 520 px genişlikte taşmadan çalışır; 20 px görsel ikonlar kullanılırken
 kontroller klavye ve VoiceOver ile kullanılabilir kalır.
 
 #### E — Çalışan V1 ve release hardening
@@ -1023,6 +1032,12 @@ Bu bölümdeki maddeler v1 tamamlanmasını engellemez ve v1 görevlerinin aras�
 
 Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şekilde eklenir.
 
+- 2026-08-19 — Ana paneldeki 200 px yapay içerik tabanı kaldırıldı. Meetings, Tasks ve
+  detail içerikleri 600 px'e kadar doğal yüksekliğinde kalıyor; aktif ekran daha kısaysa
+  onun güvenli sınırı, içerik uzunsa ScrollView kullanılıyor. Kısa ve uzun içerik ölçülerini
+  doğrulayan regresyon testi eklendi; tam pakette 307 testten 304'ü geçti, üç opt-in donanım
+  testi beklendiği gibi atlandı ve Apple Development imzalı Debug build tamamlandı.
+
 - 2026-08-17 — Toplantı detayındaki transkript satırları iç içe lazy stack'ten çıkarılıp
   scroll yüzeyinin tek dış `LazyVStack`'ına doğrudan bağlandı. Uzun transkriptlerde yüzlerce
   native text-selection köprüsü yerine segment context-menu ve tüm-transkript kopyalama
@@ -1043,6 +1058,14 @@ Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şe
   arasında stabil ve sonraki üç toplantı notch'ta görünüyor. Burst refresh'ler coalesce
   ediliyor. Tam pakette 301 testten 298'i geçti, üç opt-in donanım testi beklendiği gibi
   atlandı; Apple Development imzalı Debug build strict/deep codesign doğrulamasından geçti.
+
+- 2026-08-19 — Figma `18:2785` içindeki dört ana panel frame'i SwiftUI'a taşındı. Ana panel
+  600 px'e çıktı; 20/12/10/4 px spacing ritmi, 24/22/16 px radius hiyerarşisi, 12–20 pt
+  SF Pro rolleri ve tasarımdaki 19 özgün SVG ikon asset catalog'a eklendi. Yaklaşan/boş
+  toplantı, aktif kayıt ve görev görünümleri işlevleri korunarak yeniden kuruldu; koyu panel
+  fiziksel notch ve floating sunumda aynı görsel sonucu üretir hale getirildi. Dört durum
+  Figma frame yüksekliklerinde offscreen bitmap smoke testiyle render edildi; tam pakette
+  306 testten 303'ü geçti, üç opt-in donanım testi beklendiği gibi atlandı.
 
 - 2026-08-17 — Görevler backlog, todo, in progress, completed ve blocked durumlarına
   ayrıldı. Durum ile arşiv bağımsız modellendi; completed geçişi atomik olarak otomatik

@@ -130,7 +130,7 @@ final class NotchPresentationTests: XCTestCase {
     func testPanelUsesPreferredSizeOnLargeScreenAndStaysWithinSmallScreen() {
         XCTAssertEqual(
             NotchPanelLayout(availableSize: CGSize(width: 1_440, height: 900)),
-            NotchPanelLayout(width: 424, maximumContentHeight: 600)
+            NotchPanelLayout(width: 600, maximumContentHeight: 600)
         )
         XCTAssertEqual(
             NotchPanelLayout(
@@ -145,6 +145,25 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(constrained.maximumContentHeight, 350)
         XCTAssertLessThanOrEqual(constrained.width + 32, 360)
         XCTAssertLessThanOrEqual(constrained.maximumContentHeight + 150, 500)
+    }
+
+    @MainActor
+    func testPanelScrollAreaFitsShortContentAndCapsLongContent() {
+        let shortContent = NSHostingView(
+            rootView: NotchPanelScrollableContent(maximumHeight: 120) {
+                Color.clear.frame(height: 48)
+            }
+            .frame(width: 300)
+        )
+        let longContent = NSHostingView(
+            rootView: NotchPanelScrollableContent(maximumHeight: 120) {
+                Color.clear.frame(height: 240)
+            }
+            .frame(width: 300)
+        )
+
+        XCTAssertEqual(shortContent.fittingSize.height, 48, accuracy: 0.5)
+        XCTAssertEqual(longContent.fittingSize.height, 120, accuracy: 0.5)
     }
 
     func testHoverShadowStaysInsideDynamicNotchWindowInset() {
@@ -186,7 +205,7 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(Set(matrix.map(\.name)).count, matrix.count)
     }
 
-    func testPhysicalNotchForcesDarkAppearanceWhileFloatingPanelInheritsSystem() {
+    func testFigmaPanelUsesDarkAppearanceInPhysicalAndFloatingPresentations() {
         XCTAssertEqual(
             MeetingNotchPanelAppearance.colorScheme(
                 inherited: .light,
@@ -206,8 +225,24 @@ final class NotchPresentationTests: XCTestCase {
                 inherited: .light,
                 hasPhysicalNotch: false
             ),
-            .light
+            .dark
         )
+    }
+
+    func testFigmaMainPanelTokensMatchTheSourceFrame() {
+        XCTAssertEqual(MeetingNotchTheme.panelWidth, 600)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.horizontalPadding, 20)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.verticalPadding, 20)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.sectionSpacing, 20)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.contentSpacing, 12)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.rowSpacing, 4)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.itemSpacing, 10)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.panelRadius, 24)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.surfaceRadius, 22)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.capsuleRadius, 16)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.tabHeight, 32)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.rowHeight, 58)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.iconSize, 20)
     }
 
     func testInactiveTabsKeepReadableVisualWeight() {
@@ -268,6 +303,135 @@ final class NotchPresentationTests: XCTestCase {
                 withIntermediateDirectories: true
             )
             try png.write(to: outputURL, options: .atomic)
+        }
+    }
+
+    @MainActor
+    func testFigmaMainPanelStatesRender() throws {
+        let now = Date()
+        let upcomingState = AppState()
+        upcomingState.updateNotchPanelPresentation(
+            availableSize: CGSize(width: 1_440, height: 900),
+            hasPhysicalNotch: true
+        )
+        upcomingState.updateUpcomingMeetings([
+            Meeting(
+                title: "Ürün haftalık toplantısı",
+                startDate: now.addingTimeInterval(420),
+                endDate: now.addingTimeInterval(2_220),
+                meetingURL: URL(string: "https://meet.google.com/abc-defg-hij")
+            ),
+            Meeting(
+                title: "Tasarım değerlendirmesi",
+                startDate: now.addingTimeInterval(4_200),
+                endDate: now.addingTimeInterval(6_000)
+            )
+        ])
+        let recentTitles = [
+            "Yol haritası planlama",
+            "Mobil ekip senkronizasyonu",
+            "Müşteri görüşmesi",
+            "Sprint değerlendirmesi"
+        ]
+        var recentMeetings: [StoredMeeting] = []
+        for index in recentTitles.indices {
+            let startedAt = now.addingTimeInterval(TimeInterval(-7_200 * (index + 1)))
+            let endedAt = startedAt.addingTimeInterval(1_840)
+            let status: StoredMeeting.ProcessingStatus = index == 3 ? .processing : .completed
+            recentMeetings.append(
+                StoredMeeting(
+                    id: UUID(),
+                    title: recentTitles[index],
+                    startedAt: startedAt,
+                    endedAt: endedAt,
+                    sourceMeeting: nil,
+                    audioFileName: "audit-\(index).m4a",
+                    processingStatus: status
+                )
+            )
+        }
+        upcomingState.replaceStoredMeetings(recentMeetings)
+
+        let emptyState = AppState()
+        emptyState.updateNotchPanelPresentation(
+            availableSize: CGSize(width: 1_440, height: 900),
+            hasPhysicalNotch: true
+        )
+
+        let recordingStartedAt = now.addingTimeInterval(-83)
+        let recordingState = AppState(initialFlow: .recording(startedAt: recordingStartedAt))
+        recordingState.updateNotchPanelPresentation(
+            availableSize: CGSize(width: 1_440, height: 900),
+            hasPhysicalNotch: true
+        )
+        recordingState.updateMeetingMicrophoneGate(
+            MeetingMicrophoneGate(recordingStartedAt: recordingStartedAt)
+        )
+        recordingState.updateRecordingCaptureStatus(
+            RecordingCaptureStatus(
+                microphone: AudioSourceStatus(connectionState: .ready, level: 0.72),
+                systemAudio: AudioSourceStatus(connectionState: .ready, level: 0.46)
+            )
+        )
+
+        let tasksState = AppState()
+        tasksState.selectedTab = .tasks
+        tasksState.updateNotchPanelPresentation(
+            availableSize: CGSize(width: 1_440, height: 900),
+            hasPhysicalNotch: true
+        )
+        tasksState.replaceTasks([
+            TaskItem(title: "Araştırma notlarını toparla", createdAt: now, status: .backlog),
+            TaskItem(title: "Toplantı gündemini paylaş", createdAt: now, status: .todo),
+            TaskItem(title: "Kayıt akışını gözden geçir", createdAt: now, status: .inProgress),
+            TaskItem(title: "Erişilebilirlik kontrolünü tamamla", createdAt: now, status: .blocked)
+        ])
+
+        let cases: [(name: String, state: AppState, height: CGFloat)] = [
+            ("meetings", upcomingState, 482),
+            ("empty", emptyState, 650),
+            ("recording", recordingState, 304),
+            ("tasks", tasksState, 550)
+        ]
+
+        for item in cases {
+            let rootView = ZStack(alignment: .top) {
+                Color.black
+                NotchPanelView()
+                    .environmentObject(item.state)
+            }
+            .frame(width: MeetingNotchTheme.panelWidth, height: item.height, alignment: .top)
+
+            let hostingView = NSHostingView(rootView: rootView)
+            hostingView.appearance = NSAppearance(named: .aqua)
+            hostingView.frame = CGRect(
+                origin: .zero,
+                size: CGSize(width: MeetingNotchTheme.panelWidth, height: item.height)
+            )
+            hostingView.layoutSubtreeIfNeeded()
+
+            guard let bitmap = hostingView.bitmapImageRepForCachingDisplay(in: hostingView.bounds) else {
+                return XCTFail("\(item.name) panel bitmap'i üretilemedi")
+            }
+            hostingView.cacheDisplay(in: hostingView.bounds, to: bitmap)
+            XCTAssertGreaterThan(bitmap.pixelsWide, 0)
+            XCTAssertGreaterThan(bitmap.pixelsHigh, 0)
+
+            if FileManager.default.fileExists(atPath: "/tmp/MeetingNotchExportUIAudit") {
+                guard let png = bitmap.representation(using: .png, properties: [:]) else {
+                    return XCTFail("\(item.name) panel PNG verisi üretilemedi")
+                }
+                let projectRoot = URL(fileURLWithPath: #filePath)
+                    .deletingLastPathComponent()
+                    .deletingLastPathComponent()
+                let outputURL = projectRoot
+                    .appendingPathComponent("artifacts/ui-audit/figma-\(item.name).png")
+                try FileManager.default.createDirectory(
+                    at: outputURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try png.write(to: outputURL, options: .atomic)
+            }
         }
     }
 

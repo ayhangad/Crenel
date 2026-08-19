@@ -77,11 +77,10 @@ struct NotchStatusResolver {
 }
 
 struct NotchPanelLayout: Equatable {
-    static let preferredWidth: CGFloat = 424
+    static let preferredWidth: CGFloat = 600
     static let preferredDetailWidth: CGFloat = 520
     static let minimumWidth: CGFloat = 320
     static let preferredContentHeight: CGFloat = 600
-    static let minimumContentHeight: CGFloat = 200
 
     let width: CGFloat
     let maximumContentHeight: CGFloat

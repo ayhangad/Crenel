@@ -170,24 +170,26 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   ilerleme göstergesiyle taşır; daha düşük öncelikli toplantı veya görev bilgisi işleme
   durumunu örtemez. Başarı ve hata paneli otomatik açılır; etkileşim yoksa 8 saniye sonra
   kompakt duruma döner, başarı akışı boşta durumuna sıfırlanırken hata kurtarma için korunur.
-- Geniş panel aktif ekranın görünür alanına göre toplantı/görev kökünde en fazla 424 piksel,
-  uzun transkript taşıyan notch içi detail drill-down'ında en fazla 520 piksel genişlik ve
-  600 piksel içerik yüksekliği kullanır; daha küçük alanlarda içerik kaydırılır. Sekmeler
-  ok tuşları ve Komut-1/Komut-2 ile değiştirilebilir.
+- Geniş panel aktif ekranın görünür alanına göre toplantı/görev kökünde en fazla 600 piksel,
+  uzun transkript taşıyan notch içi detail drill-down'ında en fazla 520 piksel genişlik
+  kullanır. İçerik alanı 600 piksele kadar doğal yüksekliğinde kalır; yalnız bu üst sınırı
+  aştığında kaydırılır. Daha küçük ekranlarda görünür alan sınırı aynı davranışın üst
+  yüksekliği olur. Sekmeler ok tuşları ve Komut-1/Komut-2 ile değiştirilebilir.
 - DynamicNotchKit açılma, kapanma ve kompakt/geniş dönüşümleri uygulamanın hareket profiliyle
   yapılandırılır. macOS Reduce Motion değişikliği canlı izlenir ve etkin olduğunda hem panel
   içi hem pencere geçişleri algılanabilir hareket üretmeyecek kadar kısaltılır.
-- 2026-07-29 görsel yönü kök panelde 404–424, detail'da 480–520 piksel akışkan genişlik;
-  8 piksel yatay / 10 piksel dikey dış padding, 12–14 piksel bölüm aralığı, 10–12 piksel
-  radius ve 11–14 pt type scale kullanır. Başlıklar sans, metadata/süre/sayaçlar mono olur.
-  İkon glyph'leri 11–13 pt olur; erişilebilir macOS hit target'ları 28–32 piksel korunur.
-- Yüzeyler nötr koyu/açık zemin, tek hairline ve yalnız durum rengi vurgusuyla çalışır.
-  Büyük dekoratif gölgeler ve iç içe kartlar kullanılmaz. Kompakt görünüm session durumu,
+- 2026-08-19 Figma yönü kök panelde 600, detail'da en fazla 520 piksel akışkan genişlik;
+  20 piksel dış padding, 20/12/10/4 piksel bölüm-içerik-satır ritmi, 24/22/16 piksel radius
+  hiyerarşisi ve 12–20 pt SF Pro Display type scale kullanır. Satır ikonları 20 piksel grid'e
+  oturur; görünen kontrol kompakt kalsa da genişletilmiş content shape erişilebilirliği korur.
+- Ana panel saf siyah zemin, `#121212` yüzey ve yalnız durum rengi vurgusuyla çalışır;
+  danger `#FE4B4B`, warning `#FEC84B`, cyan `#14D4FF`, success `#14FF2B` kullanılır.
+  Kayıt kartının mikrofon gate bölümü `#261E0B` ile ayrılır. Kompakt görünüm session durumu,
   kayıt süresi ve meeting mic gate'ini tek bakışta taşır.
-- DynamicNotchKit fiziksel notch yüzeyini daima siyah çizdiği için bu ekrandaki expanded ve
-  compact içerik açık sistem temasında da koyu `ColorScheme` kullanır. Notch olmayan floating
-  panel sistem görünümünü miras almaya devam eder. Sekme layout'u seçili durum animasyonunda
-  yeniden ölçülmez; iki sekme her frame'de görünür kalır, yalnız renk ve yüzey durumu değişir.
+- Figma ana paneli açık sistem temasından bağımsız siyah tasarlandığı için fiziksel notch,
+  floating expanded ve compact içerik koyu `ColorScheme` kullanır. Sekme layout'u seçili
+  durum animasyonunda yeniden ölçülmez; iki sekme her frame'de görünür kalır, yalnız renk ve
+  yüzey durumu değişir.
 
 ## Veri yaklaşımı
 
