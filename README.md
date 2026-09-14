@@ -3,21 +3,34 @@
 MeetingNotch, macOS notch çevresinde Dynamic Island benzeri çalışan bir toplantı
 kayıt uygulamasıdır. Hedef V1, desteklenen istemcide toplantının başlangıç/bitişini
 yerel sinyallerle algılar; toplantı process sesini ve yalnız meeting mikrofonu açıkken
-kullanıcının sesini kaydeder. Kayıt tek uzak servis olan ElevenLabs Scribe v2 ile
-konuşmacı ayrımlı transkript, kısa özet ve aksiyon maddelerine dönüştürülür.
+kullanıcının sesini kaydeder. ElevenLabs Scribe v2 konuşmacı ayrımlı transkript üretir;
+OpenAI tüm transkriptten başlık, özet, kararlar ve kaynak gösteren görevler çıkarır.
+Kullanıcı her iki servisi kendi API anahtarlarıyla bağlar.
 
-2026-07-25 ürün odağının ayrıntıları ve mevcut uygulamadan geçiş sırası
-[`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) içindeki “V1 odak kararı” bölümündedir. Güncel build;
+Güncel kapsam [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) içindeki
+“2026-09-14 — Hibrit ürünleştirme” bölümündedir. Güncel build;
 gerçek meeting session detector, Zoom private process tap, fail-closed microphone gate ve
 görünür manuel fallback'i içerir. Google Meet/Chrome için kullanıcı gesture'ıyla yalnız
 aktif görüşme sekmesini alan MV3 extension, native messaging helper ve kullanıcıya özel
 uygulama IPC hattı bulunur; köprü bağlı değilse sistem sesi kaydı bilinçli olarak başlatılmaz.
+
+## Masaüstü çalışma alanı
+
+Uygulama ilk açıldığında notch çalışır. Notch’taki pencere düğmesi veya menü çubuğundaki
+**MeetingNotch’u Aç** ile masaüstünü açın. Uygulama çalışırken Finder’dan yeniden açmak da
+aynı pencereyi öne getirir. Pencere kapatıldığında notch ve varsa kayıt çalışmayı sürdürür.
+
+Sol menüden toplantı arşivini arayabilir, toplantı detayını açabilir ve görevleri yönetebilirsiniz.
+Ayarlar bu pencerenin içindedir: **Genel, Yapay zekâ, Takvim, Kayıt, Veri**.
+Genel ve takvim değişikliklerini ilgili Kaydet düğmesiyle kaydedin; servis anahtarları ayrı
+Doğrula/Bağla aksiyonuyla kaydedilir. Notch’taki bağlantı düğmeleri doğrudan ilgili kategoriye gider.
 
 ## Belgeler
 
 - [Ürün geliştirme planı](PRODUCT_PLAN.md)
 - [Mimari rehber](ARCHITECTURE.md)
 - [Ortak geliştirme kuralları](AGENTS.md)
+- [Hibrit sürüm kurulumu ve kabul kontrolleri](QA/HYBRID_SETUP.md)
 - [V1 release doğrulama runbook'u](QA/V1_RELEASE_RUNBOOK.md)
 - [İlk araştırma notları](project-overview.md)
 
@@ -53,8 +66,8 @@ sonrasında da açık tutar.
 
 ## Takvim ve Google toplantıları
 
-MeetingNotch Gmail gelen kutusunu okumaz ve ayrı bir Google OAuth hesabı istemez. Google
-Calendar toplantıları macOS'un yerel EventKit sınırından gelir:
+MeetingNotch Gmail gelen kutusunu okumaz. Varsayılan bağlantı, bu Mac’teki takvimleri
+EventKit ile okur. Google, iCloud ve Exchange hesapları için:
 
 1. Sistem Ayarları > İnternet Hesapları'nda Google hesabını ekleyip Takvim'i etkinleştirin.
 2. MeetingNotch > Ayarlar > Takvim Bağlantısı'nda entegrasyonu açıp ayarları kaydedin.
@@ -66,6 +79,14 @@ kaynağı görünmüyorsa `Hesapları Aç`; izin reddedilmişse `Takvim İznini 
 `Tekrar Dene` doğru Sistem Ayarları veya yenileme yoluna gider. Etkinliğin URL, konum ya da
 not alanında bulunan Zoom, Google Meet ve Microsoft Teams linkleri desteklenir; Google ve
 Outlook yönlendirme linkleri, HTML/percent encoding ve şemasız linkler normalize edilir.
+
+İzlenecek takvimleri Ayarlar’da seçip kaydedebilirsiniz. Bildirim iznini ayrıca açınca
+seçtiğiniz süre ve bir dakika önce macOS bildirimi gelir; bildirimin katıl/ertele
+aksiyonları vardır. Uygulama yaklaşan etkinlikleri yenilemek için çalışıyor olmalıdır.
+
+Doğrudan Google hesabı bağlantısı da uygulanmıştır. Bu seçenek yalnız yayıncının
+Google OAuth Desktop client kimliği build’e tanımlandığında görünür. Son kullanıcıdan
+Google geliştirici projesi oluşturması istenmez; yayıncı kurulumu [rehberdedir](QA/HYBRID_SETUP.md).
 
 ## Doğrulama
 
@@ -130,8 +151,8 @@ arşivlenmiş görevler tek belgede bulunduğu için durum geçişi tek atomik y
 manuel sıralama yerine kararlı oluşturulma sırası kullanılır.
 
 Hassas olmayan uygulama tercihleri sürümlü bir belge olarak UserDefaults'ta tutulur.
-Tek ElevenLabs API anahtarı tercih modelinin parçası değildir; generic-password öğesi
-olarak yalnızca macOS Keychain'de saklanır. Eski provider-scoped `elevenLabs` hesabı ilk
+ElevenLabs ve OpenAI anahtarları tercih modelinin parçası değildir; ayrı Keychain
+service’lerinde saklanır. Google OAuth tokenları da ayrı bir Keychain öğesindedir. Eski provider-scoped `elevenLabs` hesabı ilk
 erişimde save-first olarak tek `elevenlabs-api-key` hesabına kayıpsız migrate edilir.
 Keychain öğesi `ThisDeviceOnly` erişilebilirlik
 sınıfını kullanır ve Mac kilitliyken okunamaz. Anahtar değeri hata metinlerine eklenmez.
@@ -161,7 +182,8 @@ Production servisi,
 üzerinde `scribe_v2`, speaker diarization ve word timestamp kullanır. Dil Ayarlar'dan
 otomatik algılama, Türkçe veya İngilizce seçilebilir. API anahtarı ses yüklemeyen resmi
 `/v1/single-use-token/realtime_scribe` isteğiyle doğrulandıktan sonra yalnızca Keychain'e
-yazılır. UI'da ikinci provider, ikinci API anahtarı veya OpenAI seçeneği bulunmaz.
+yazılır. OpenAI, Ayarlar → Toplantı Notları bölümünden ayrı bağlanır; doğrulama küçük
+bir ücretli metin isteği gönderir. ChatGPT aboneliği API bakiyesi yerine geçmez.
 
 Finalize edilen toplantılar `ProcessingQueue/queue.json` dosyasına atomik olarak eklenir.
 Her toplantının idempotency anahtarı yeniden denemelerde korunur; aynı kayıt paralel iki
@@ -173,10 +195,13 @@ dosyasına atomik yazar. Sonuç güvenle yazıldıktan sonra ayrı mikrofon/sist
 silinir; dinleme ve export için birleşik M4A korunur. Multipart upload gövdesi istek sonunda
 silinir, force-quit artıkları sonraki uygulama açılışında temizlenir.
 
-Transkripsiyonun ardından ikinci bir bulut modeli çağrılmaz. Yerel extractive not servisi
-yalnızca transkriptte açıkça bulunan cümlelerden kısa özet, kararlar ve aksiyon maddeleri
-çıkarır; sorumlu veya tarih belirsizse alanı boş bırakır. Bu adım başarısız olsa bile
-transkript tamamlanmış sonuç olarak saklanır.
+Transkript önce diske yazılır, ardından OpenAI Responses API (`gpt-5-mini`) çağrılır.
+Uzun transkriptin bütün parçaları işlenir ve bölüm özetleri birleştirilir. Görevlerin kaynak
+segmenti ve konuşmacı kimliği yerelde doğrulanır; belirsiz sorumlu/tarih boş bırakılır.
+OpenAI anahtarı yoksa veya özet isteği başarısızsa transkript ve ses korunur; geçmişte
+“Özet bekliyor” görünür. Detaydaki özet düğmesi mevcut transkripti kullanır ve sesi
+ElevenLabs’e yeniden göndermez. Yenileme başarısızsa önceki özet de korunur.
+`store:false` kullanılır; bu, sağlayıcının tüm veri saklama politikalarını geçersiz kılmaz.
 
 ## Toplantı sonucu
 
@@ -188,3 +213,8 @@ denenebilir ve toplantı güçlü onay sonrasında bağlı dosyalarıyla silineb
 kısa özet, kararlar ve aksiyon maddeleri gösterilir. Tam sonuç `meeting.md` olarak toplantı
 klasöründe saklanır; Markdown panoya kopyalanabilir veya kullanıcının seçtiği konuma
 `.md` dosyası olarak kaydedilebilir.
+
+Konuşmacılar detay ekranından adlandırılabilir. Adlar transkripte, Markdown’a ve bağlı
+görevlere yansır. Aksiyonlar sorumlu, tarih ve kaynaktaki ses zamanıyla gösterilir;
+“Görevlere ekle” aynı aksiyonu ikinci kez oluşturmaz. AI çıktısı kullanıcı tarafından
+kontrol edilmelidir; kaynak bağlantısı doğrulama için sunulur.

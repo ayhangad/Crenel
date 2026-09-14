@@ -2,7 +2,7 @@ import XCTest
 @testable import MeetingNotch
 
 final class AudioProcessMonitorTests: XCTestCase {
-    func testMonitorPublishesInitialSnapshotAndOnlyIOChanges() async {
+    func testMonitorPublishesHeartbeatEvenWhenIOIsUnchanged() async {
         let idle = AudioProcessSnapshot(
             audioObjectID: 10,
             processID: 42,
@@ -32,7 +32,7 @@ final class AudioProcessMonitorTests: XCTestCase {
         await monitor.refresh()
 
         let updates = await recorder.updates()
-        XCTAssertEqual(updates, [[idle], [active]])
+        XCTAssertEqual(updates, [[idle], [idle], [active]])
         await monitor.stop()
     }
 

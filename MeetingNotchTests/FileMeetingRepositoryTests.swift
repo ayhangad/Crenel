@@ -193,6 +193,34 @@ final class FileMeetingRepositoryTests: XCTestCase {
         XCTAssertTrue(fileName.hasSuffix("_aaaaaaaa.m4a"))
     }
 
+    func testRenamingSpeakerPersistsAcrossReloadAndUpdatesActionOwnership() async throws {
+        let meeting = try await repository.saveCapture(try makeCapture(title: "İsimsiz Toplantı", startedAt: .now))
+        let segment = TranscriptSegment(speakerID: "speaker_0", startTime: 45, endTime: 50, text: "Teklifi ben göndereceğim.")
+        let transcript = Transcript(text: segment.text, languageCode: "tr", segments: [segment])
+        let summary = MeetingSummary(overview: "Teklif görüşüldü.", decisions: [], actionItems: [
+            ActionItem(title: "Teklifi gönder", speakerID: "speaker_0", sourceSegmentID: segment.id, sourceTime: 45)
+        ], suggestedTitle: "Teklif görüşmesi", model: "fixture")
+        _ = try await repository.saveTranscription(.init(transcript: transcript), summary: summary, for: meeting)
+        let metadataURL = root.appending(path: "Meetings/\(meeting.id.uuidString)/metadata.json")
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let metadata = try decoder.decode(StoredMeeting.self, from: Data(contentsOf: metadataURL))
+        XCTAssertFalse(metadata.summaryNeedsAttention ?? true)
+        let audioURL = await repository.audioFileURL(for: metadata)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: audioURL.path))
+        let loaded = try await repository.loadAll()
+        XCTAssertEqual(loaded.map(\.id), [meeting.id])
+        let renamed = try await repository.renameSpeaker(meetingID: meeting.id, speakerID: "speaker_0", name: "Ayşe")
+        XCTAssertEqual(renamed.title, "Teklif görüşmesi")
+        let restarted = FileMeetingRepository(rootURL: root)
+        let stored = try await restarted.loadTranscription(for: meeting.id)
+        XCTAssertEqual(stored?.transcript.segments.first?.speakerName, "Ayşe")
+        XCTAssertEqual(stored?.summary?.actionItems.first?.assignee, "Ayşe")
+        let markdown = try await restarted.loadMarkdown(for: meeting.id)
+        XCTAssertTrue(markdown?.contains("Ayşe") == true)
+        XCTAssertTrue(markdown?.contains("00:45") == true)
+    }
+
     private func makeCapture(title: String, startedAt: Date) throws -> RecordingCaptureResult {
         let id = UUID()
         let directory = root

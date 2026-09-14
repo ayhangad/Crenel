@@ -90,6 +90,8 @@ final class MeetingAudioPlayer: ObservableObject {
         }
     }
 
+    func pause() { player.pause(); isPlaying = false }
+
     func togglePlayback() {
         if isPlaying {
             player.pause()
@@ -223,6 +225,15 @@ struct MeetingDetailView: View {
     let onRetry: (StoredMeeting) -> Void
     let onDelete: (StoredMeeting) -> Void
 
+    let analysisActions: MeetingAnalysisActions
+    let isProcessing: Bool
+    let importedActionIDs: Set<UUID>
+    @State private var editingSpeakerID: String?
+    @State private var editingSpeakerName = ""
+    @State private var analysisMessage: String?
+    @State private var savingSpeaker = false
+    @State private var importingActions = Set<UUID>()
+
     // State keeps the controller alive without subscribing this entire detail tree to
     // its 4 Hz playback updates. CompactAudioPlayer is the only observing view.
     @State private var player: MeetingAudioPlayer
@@ -233,7 +244,10 @@ struct MeetingDetailView: View {
         onExportMarkdown: @escaping (String) -> Void,
         onRevealAudio: @escaping (URL) -> Void,
         onRetry: @escaping (StoredMeeting) -> Void,
-        onDelete: @escaping (StoredMeeting) -> Void
+        onDelete: @escaping (StoredMeeting) -> Void,
+        analysisActions: MeetingAnalysisActions = MeetingAnalysisActions(),
+        isProcessing: Bool = false,
+        importedActionIDs: Set<UUID> = []
     ) {
         self.content = content
         self.onCopyText = onCopyText
@@ -241,6 +255,9 @@ struct MeetingDetailView: View {
         self.onRevealAudio = onRevealAudio
         self.onRetry = onRetry
         self.onDelete = onDelete
+        self.analysisActions = analysisActions
+        self.isProcessing = isProcessing
+        self.importedActionIDs = importedActionIDs
         _player = State(
             initialValue: MeetingAudioPlayer(
                 url: content.audioURL,
@@ -255,6 +272,8 @@ struct MeetingDetailView: View {
                 .padding(.bottom, MeetingNotchTheme.sectionSpacing)
 
             if let storedTranscription = content.storedTranscription {
+                analysisControls(storedTranscription)
+                    .padding(.bottom, MeetingNotchTheme.sectionSpacing)
                 if let summary = storedTranscription.summary {
                     summarySection(summary)
                         .padding(.bottom, MeetingNotchTheme.sectionSpacing)
@@ -299,6 +318,69 @@ struct MeetingDetailView: View {
 
             utilityActions
                 .padding(.top, MeetingNotchTheme.sectionSpacing)
+        }
+        .onDisappear { player.pause() }
+        .onReceive(NotificationCenter.default.publisher(for: .desktopDidClose)) { _ in player.pause() }
+        .sheet(isPresented: Binding(get: { editingSpeakerID != nil }, set: { if !$0 { editingSpeakerID = nil } })) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Konuşmacıyı adlandır").font(.headline)
+                Text("Bu toplantının transkripti ve kişiye bağlı görevleri birlikte güncellenir.").font(.callout)
+                TextField("Ad", text: $editingSpeakerName).textFieldStyle(.roundedBorder)
+                HStack {
+                    Button("Vazgeç") { editingSpeakerID = nil }.disabled(savingSpeaker)
+                    Spacer()
+                    Button("Kaydet") {
+                        guard let speakerID = editingSpeakerID else { return }
+                        savingSpeaker = true
+                        Task {
+                            let result = await analysisActions.renameSpeaker(content.id, speakerID, editingSpeakerName)
+                            recordResult(result)
+                            savingSpeaker = false
+                            if case .succeeded = result { editingSpeakerID = nil }
+                        }
+                    }.disabled(savingSpeaker || isProcessing)
+                }
+                if let analysisMessage { Text(analysisMessage).font(.caption) }
+            }.padding(24).frame(width: 380)
+        }
+    }
+
+    private func analysisControls(_ stored: StoredTranscription) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Button(stored.summary?.model == nil ? "OpenAI ile özetle" : "Özeti yeniden oluştur") {
+                    onRetry(content.meeting)
+                }.disabled(isProcessing || savingSpeaker)
+                if isProcessing { ProgressView().controlSize(.small) }
+                Spacer()
+                Menu("Konuşmacılar") {
+                    ForEach(Array(Set(stored.transcript.segments.map(\.speakerID))).sorted(), id: \.self) { id in
+                        let name = stored.transcript.segments.first { $0.speakerID == id }?.speakerName
+                        Button(name ?? TranscriptTextFormatter.fallbackSpeakerName(id)) {
+                            editingSpeakerID = id
+                            editingSpeakerName = name ?? ""
+                            analysisMessage = nil
+                        }
+                    }
+                }.disabled(isProcessing)
+            }
+            Text("Özetleme, bu transkripti kendi OpenAI anahtarınızla OpenAI’ye gönderir; sesi yeniden yüklemez.")
+                .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
+            if let failure = stored.summaryFailure {
+                Text(failure).font(.callout).foregroundStyle(MeetingNotchTheme.warning)
+                DesktopSettingsLink(category: .ai) { Text("OpenAI bağlantısını aç") }
+            } else if stored.summary?.model == nil {
+                Text("OpenAI ile toplantının tamamından özet, kararlar ve kişi bazlı görevler oluşturun.")
+                    .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
+            }
+            if let analysisMessage { Text(analysisMessage).font(.caption) }
+        }
+    }
+
+    private func recordResult(_ result: SettingsActionResult) {
+        switch result {
+        case .succeeded(let message): analysisMessage = message
+        case .failed(let message): analysisMessage = message
         }
     }
 
@@ -384,10 +466,32 @@ struct MeetingDetailView: View {
             }
 
             if !summary.actionItems.isEmpty {
-                CompactSummaryList(
-                    title: "Aksiyonlar",
-                    values: summary.actionItems.map(\.title)
-                )
+                Text("Yapılacaklar").font(MeetingNotchTheme.titleFont)
+                ForEach(summary.actionItems) { action in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(action.title).font(MeetingNotchTheme.bodyFont)
+                        Text(action.assignee ?? action.speakerID.map(TranscriptTextFormatter.fallbackSpeakerName) ?? "Sorumlu belirtilmedi")
+                            .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
+                        HStack {
+                            if let date = action.dueDate {
+                                Text(date, style: .date).font(.caption)
+                            }
+                            if let time = action.sourceTime {
+                                Button("Kaynak · " + TranscriptTextFormatter.timestamp(time)) { player.seek(to: time) }
+                                    .font(.caption)
+                            }
+                            Spacer()
+                            Button(importedActionIDs.contains(action.id) ? "Görevlerde" : "Görevlere ekle") {
+                                importingActions.insert(action.id)
+                                Task {
+                                    recordResult(await analysisActions.importAction(content.id, action))
+                                    importingActions.remove(action.id)
+                                }
+                            }.disabled(importedActionIDs.contains(action.id) || importingActions.contains(action.id) || isProcessing)
+                        }
+                    }.padding(.vertical, 6)
+                    Divider()
+                }
             }
         }
         .padding(.horizontal, MeetingNotchTheme.panelHorizontalPadding)

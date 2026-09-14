@@ -13,6 +13,9 @@ final class MeetingMonitor {
     private let refreshInterval: TimeInterval
     private let now: () -> Date
     private var isEnabled = true
+    private var selectedCalendarIDs: [String]?
+    private var connectionKind = CalendarConnectionKind.macOS
+    private var configurationVersion = 0
     private var reminderLeadTime: TimeInterval
     private var pollingTask: Task<Void, Never>?
     private var calendarChangeTask: Task<Void, Never>?
@@ -33,7 +36,10 @@ final class MeetingMonitor {
         self.now = now
     }
 
-    func configure(isEnabled: Bool, reminderLeadTime: TimeInterval) {
+    func configure(isEnabled: Bool, reminderLeadTime: TimeInterval, selectedCalendarIDs: [String]? = nil, connectionKind: CalendarConnectionKind = .macOS) {
+        self.connectionKind = connectionKind
+        configurationVersion += 1
+        self.selectedCalendarIDs = selectedCalendarIDs
         self.isEnabled = isEnabled
         self.reminderLeadTime = max(60, reminderLeadTime)
         if isEnabled {
@@ -75,7 +81,7 @@ final class MeetingMonitor {
             guard let self else { return }
             while !Task.isCancelled {
                 await self.refresh()
-                try? await Task.sleep(for: .seconds(self.refreshInterval))
+                try? await Task.sleep(for: .seconds(self.connectionKind == .google ? max(120, self.refreshInterval) : self.refreshInterval))
             }
         }
     }
@@ -120,8 +126,11 @@ final class MeetingMonitor {
             }
         }
 
+        let version = configurationVersion
+        await provider.selectSource(connectionKind)
+        await provider.selectCalendars(selectedCalendarIDs)
         let accessState = await provider.authorizationState()
-        guard isEnabled else { return }
+        guard isEnabled, version == configurationVersion else { return }
         onAccessStateChange?(accessState)
 
         guard accessState == .authorized else {
@@ -137,12 +146,13 @@ final class MeetingMonitor {
                 from: currentDate.addingTimeInterval(-60 * 60),
                 to: currentDate.addingTimeInterval(24 * 60 * 60)
             )
-            guard isEnabled else { return }
+            guard isEnabled, version == configurationVersion else { return }
             onIntegrationSnapshotChange?(CalendarIntegrationSnapshot(
                 sources: result.sources,
                 scannedEventCount: result.scannedEventCount,
                 matchedMeetingCount: result.meetings.count,
-                refreshedAt: currentDate
+                refreshedAt: currentDate,
+                calendars: result.calendars
             ))
             onMeetingsChange?(result.meetings.filter { $0.endDate > currentDate })
             publish(.evaluate(
@@ -151,7 +161,9 @@ final class MeetingMonitor {
                 reminderLeadTime: reminderLeadTime
             ))
         } catch {
-            onAccessStateChange?(.failed("Yaklaşan toplantılar okunamadı."))
+            guard isEnabled, version == configurationVersion else { return }
+            onIntegrationSnapshotChange?(nil)
+            onAccessStateChange?(.failed((error as? GoogleCalendarError)?.errorDescription ?? "Yaklaşan toplantılar okunamadı."))
             onMeetingsChange?([])
             publish(MeetingReminderSnapshot(nextMeeting: nil, level: .none, secondsUntilStart: nil))
         }

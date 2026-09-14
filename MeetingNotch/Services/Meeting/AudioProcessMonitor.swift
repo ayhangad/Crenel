@@ -185,10 +185,9 @@ actor CoreAudioProcessMonitor: AudioProcessMonitoring {
     }
 
     func refresh() async {
-        guard let snapshots = try? reader.readSnapshots(),
-              snapshots != latestSnapshots else {
-            return
-        }
+        // Refresh call controls even when HAL IO flags do not change (mute is not IO).
+        // A read failure must invalidate stale open-microphone evidence.
+        let snapshots = (try? reader.readSnapshots()) ?? []
         latestSnapshots = snapshots
         await updateHandler?(snapshots)
     }

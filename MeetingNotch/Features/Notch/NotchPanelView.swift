@@ -29,6 +29,7 @@ struct NotchPanelView: View {
     let onDeleteTask: (TaskItem) -> Void
     let onDeleteArchive: () -> Void
     let onRelaunchApplication: () -> Void
+    let analysisActions: MeetingAnalysisActions
 
     init(
         onRequestCalendarAccess: @escaping () -> Void = {},
@@ -56,8 +57,10 @@ struct NotchPanelView: View {
         onRestoreTask: @escaping (TaskItem) -> Void = { _ in },
         onDeleteTask: @escaping (TaskItem) -> Void = { _ in },
         onDeleteArchive: @escaping () -> Void = {},
-        onRelaunchApplication: @escaping () -> Void = {}
+        onRelaunchApplication: @escaping () -> Void = {},
+        analysisActions: MeetingAnalysisActions = MeetingAnalysisActions()
     ) {
+        self.analysisActions = analysisActions
         self.onRequestCalendarAccess = onRequestCalendarAccess
         self.onOpenMeetingURL = onOpenMeetingURL
         self.onStartRecording = onStartRecording
@@ -116,6 +119,16 @@ struct NotchPanelView: View {
 
                     Spacer(minLength: 20)
 
+                    Button {
+                        NotificationCenter.default.post(name: .openDesktopWorkspace, object: nil)
+                    } label: {
+                        Image(systemName: "macwindow").font(.system(size: 18))
+                    }
+                    .buttonStyle(FigmaHeaderIconButtonStyle(tint: MeetingNotchTheme.MainPanel.primaryText))
+                    .help("Masaüstü çalışma alanını aç")
+                    .accessibilityLabel("Masaüstü çalışma alanını aç")
+                    .padding(.trailing, 8)
+
                     Button(action: onTogglePin) {
                         Image("FigmaPin")
                             .resizable()
@@ -153,7 +166,10 @@ struct NotchPanelView: View {
                             },
                             onRevealAudio: onRevealAudio,
                             onRetry: onRetryStoredMeeting,
-                            onDelete: onDeleteStoredMeeting
+                            onDelete: onDeleteStoredMeeting,
+                            analysisActions: analysisActions,
+                            isProcessing: appState.processingJobs.contains { $0.meetingID == detail.id && $0.state != .failed },
+                            importedActionIDs: Set(appState.tasks.filter { $0.sourceMeetingID == detail.id }.compactMap(\.sourceActionID))
                         )
                         .id(detail.id)
                         .transition(panelContentTransition)
@@ -590,7 +606,7 @@ private struct MeetingStatusView: View {
 
     private var todayHeader: some View {
         HStack(spacing: 8) {
-            Text("Bugün")
+            Text("Yaklaşan")
                 .font(MeetingNotchTheme.MainPanel.sectionTitleFont)
                 .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
                 .lineLimit(1)
@@ -621,7 +637,20 @@ private struct MeetingStatusView: View {
         switch appState.meetingFlow {
         case .idle, .upcomingMeeting:
             if scheduledMeetings.isEmpty {
-                FigmaEmptyMeetingRow(onStartRecording: onStartRecording)
+                VStack(alignment: .leading, spacing: 10) {
+                    FigmaEmptyMeetingRow(
+                        message: CalendarEmptyPresentation.message(enabled: appState.isCalendarEnabled,
+                            access: appState.calendarAccessState, snapshot: appState.calendarIntegrationSnapshot),
+                        onStartRecording: onStartRecording
+                    )
+                    HStack {
+                        DesktopSettingsLink(category: .calendar) { Label("Takvim bağlantısı ve bildirimler", systemImage: "calendar.badge.plus") }
+                        if appState.calendarAccessState == .notDetermined && appState.isCalendarEnabled {
+                            Button("Takvime izin ver", action: onRequestCalendarAccess)
+                        }
+                    }
+                    .font(MeetingNotchTheme.bodyFont)
+                }
             } else {
                 UpcomingMeetingsView(
                     meetings: scheduledMeetings,
@@ -1313,11 +1342,12 @@ private struct RecordingRecoveryNoticeView: View {
 }
 
 private struct FigmaEmptyMeetingRow: View {
+    var message = "Yaklaşan çevrim içi toplantı yok"
     let onStartRecording: () -> Void
 
     var body: some View {
         HStack(spacing: 4) {
-            Text("Bugün toplantı yok")
+            Text(message)
                 .font(MeetingNotchTheme.MainPanel.rowTitleFont)
                 .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
                 .padding(.horizontal, 12)
@@ -1497,8 +1527,8 @@ private struct RecentMeetingsView: View {
                             meeting: meeting,
                             detail: detail(for: meeting),
                             duration: duration(for: meeting),
-                            statusSymbol: statusSymbol(for: meeting.processingStatus),
-                            statusText: statusText(for: meeting.processingStatus),
+                            statusSymbol: meeting.summaryNeedsAttention == true ? "FigmaWarning" : statusSymbol(for: meeting.processingStatus),
+                            statusText: meeting.summaryNeedsAttention == true ? "Transkript hazır, özet bekliyor" : statusText(for: meeting.processingStatus),
                             onOpen: { onOpen(meeting) },
                             onRetry: meeting.processingStatus == .failed
                                 ? { onRetry(meeting) }
@@ -1512,7 +1542,8 @@ private struct RecentMeetingsView: View {
     }
 
     private func detail(for meeting: StoredMeeting) -> String {
-        meeting.startedAt.formatted(date: .abbreviated, time: .shortened)
+        let date = meeting.startedAt.formatted(date: .abbreviated, time: .shortened)
+        return meeting.summaryNeedsAttention == true ? "Özet bekliyor · \(date)" : date
     }
 
     private func duration(for meeting: StoredMeeting) -> String {

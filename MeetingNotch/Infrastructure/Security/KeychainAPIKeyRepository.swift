@@ -115,6 +115,7 @@ private enum KeychainDataStoreError: Error {
 
 actor KeychainAPIKeyRepository: APIKeyRepository {
     static let defaultService = "gad.MeetingNotch.transcription-api-keys"
+    static let openAIService = "gad.MeetingNotch.openai-api-key"
     static let account = "elevenlabs-api-key"
     static let legacyElevenLabsAccount = "elevenLabs"
 

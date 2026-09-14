@@ -13,10 +13,21 @@ protocol MeetingRepository: MeetingRetentionRepository {
         summary: MeetingSummary?,
         for meeting: StoredMeeting
     ) async throws -> StoredMeeting
+    func saveAnalysis(_ transcription: StoredTranscription, for meeting: StoredMeeting) async throws -> StoredMeeting
+    func renameSpeaker(meetingID: UUID, speakerID: String, name: String) async throws -> StoredMeeting
     func loadTranscription(for meetingID: UUID) async throws -> StoredTranscription?
     func loadMarkdown(for meetingID: UUID) async throws -> String?
     func audioFileURL(for meeting: StoredMeeting) async -> URL
     func recoveryDirectoryURL() async -> URL
+}
+
+extension MeetingRepository {
+    func saveAnalysis(_ transcription: StoredTranscription, for meeting: StoredMeeting) async throws -> StoredMeeting {
+        try await saveTranscription(TranscriptionResult(transcript: transcription.transcript), summary: transcription.summary, for: meeting)
+    }
+    func renameSpeaker(meetingID: UUID, speakerID: String, name: String) async throws -> StoredMeeting {
+        throw MeetingRepositoryError.meetingNotFound
+    }
 }
 
 enum MeetingRepositoryError: LocalizedError, Equatable {
@@ -189,42 +200,50 @@ actor FileMeetingRepository: MeetingRepository {
         summary: MeetingSummary?,
         for meeting: StoredMeeting
     ) throws -> StoredMeeting {
+        try writeAnalysis(StoredTranscription(transcript: result.transcript, summary: summary), for: meeting)
+    }
+
+    func saveAnalysis(_ transcription: StoredTranscription, for meeting: StoredMeeting) async throws -> StoredMeeting {
+        try writeAnalysis(transcription, for: meeting)
+    }
+
+    private func writeAnalysis(_ transcription: StoredTranscription, for meeting: StoredMeeting) throws -> StoredMeeting {
         try prepare()
-        let directory = layout.meetings.appending(
-            path: meeting.id.uuidString,
-            directoryHint: .isDirectory
-        )
-        guard fileManager.fileExists(atPath: directory.path) else {
-            throw MeetingRepositoryError.meetingNotFound
+        let directory = layout.meetings.appending(path: meeting.id.uuidString, directoryHint: .isDirectory)
+        guard fileManager.fileExists(atPath: directory.path) else { throw MeetingRepositoryError.meetingNotFound }
+        var updated = try decoder.decode(StoredMeeting.self, from: Data(contentsOf: directory.appending(path: "metadata.json")))
+        if updated.title == "İsimsiz Toplantı", let title = transcription.summary?.suggestedTitle,
+           !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            updated.title = title
         }
-
-        let stored = StoredTranscription(
-            transcript: result.transcript,
-            summary: summary
-        )
-        try encoder.encode(stored).write(
-            to: directory.appending(path: "transcript.json"),
-            options: .atomic
-        )
-        let markdown = MeetingMarkdownFormatter.markdown(
-            meeting: meeting,
-            transcription: stored
-        )
-        try Data(markdown.utf8).write(
-            to: directory.appending(path: "meeting.md"),
-            options: .atomic
-        )
-
-        var updated = meeting
         updated.processingStatus = .completed
-        try encoder.encode(updated).write(
-            to: directory.appending(path: "metadata.json"),
-            options: .atomic
-        )
-
+        updated.summaryNeedsAttention = transcription.summaryFailure != nil || transcription.summary == nil
+        try encoder.encode(transcription).write(to: directory.appending(path: "transcript.json"), options: .atomic)
+        let markdown = MeetingMarkdownFormatter.markdown(meeting: updated, transcription: transcription)
+        try Data(markdown.utf8).write(to: directory.appending(path: "meeting.md"), options: .atomic)
+        try encoder.encode(updated).write(to: directory.appending(path: "metadata.json"), options: .atomic)
         removeRawTrack(named: meeting.microphoneFileName, from: directory)
         removeRawTrack(named: meeting.systemAudioFileName, from: directory)
         return updated
+    }
+
+    func renameSpeaker(meetingID: UUID, speakerID: String, name: String) async throws -> StoredMeeting {
+        guard let meeting = try loadAll().first(where: { $0.id == meetingID }),
+              let stored = try loadTranscription(for: meetingID) else { throw MeetingRepositoryError.meetingNotFound }
+        let trimmed = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
+        var transcript = stored.transcript
+        for index in transcript.segments.indices where transcript.segments[index].speakerID == speakerID {
+            transcript.segments[index].speakerName = trimmed.isEmpty ? nil : trimmed
+        }
+        var summary = stored.summary
+        if summary != nil {
+            for index in summary!.actionItems.indices where summary!.actionItems[index].speakerID == speakerID {
+                summary!.actionItems[index].assignee = trimmed.isEmpty ? nil : trimmed
+            }
+        }
+        var updated = StoredTranscription(completedAt: stored.completedAt, transcript: transcript, summary: summary)
+        updated.summaryFailure = stored.summaryFailure
+        return try writeAnalysis(updated, for: meeting)
     }
 
     func loadTranscription(for meetingID: UUID) throws -> StoredTranscription? {

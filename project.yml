@@ -18,6 +18,8 @@ settings:
   base:
     MACOSX_DEPLOYMENT_TARGET: 14.4
     SWIFT_VERSION: 5.0
+    MEETINGNOTCH_GOOGLE_CLIENT_ID: ""
+    MEETINGNOTCH_GOOGLE_CLIENT_SECRET: ""
   configs:
     Debug:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
@@ -59,6 +61,8 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSUIElement: true
+        GoogleOAuthClientID: $(MEETINGNOTCH_GOOGLE_CLIENT_ID)
+        GoogleOAuthClientSecret: $(MEETINGNOTCH_GOOGLE_CLIENT_SECRET)
         NSMicrophoneUsageDescription: MeetingNotch toplantılarda sesinizi kaydetmek için mikrofon erişimi kullanır.
         NSAudioCaptureUsageDescription: MeetingNotch toplantının sistem sesini kaydetmek için ses yakalama erişimi kullanır.
         NSCalendarsUsageDescription: MeetingNotch yaklaşan çevrim içi toplantıları göstermek için takvim erişimi kullanır.

@@ -90,9 +90,9 @@ struct OnboardingView: View {
                 case .cloud:
                     onboardingContent(
                         systemIcon: "lock.shield",
-                        title: "Tek bulut servisi: ElevenLabs",
-                        detail: "Kayıt tamamlandığında birleşik ses dosyası, konuşmacı ayrımlı transkript üretmek için yalnızca ElevenLabs Scribe v2’ye yüklenir. Canlı ses akışı veya ikinci bir yapay zekâ servisi kullanılmaz.",
-                        callout: "Tek ElevenLabs API anahtarınız yalnızca macOS Keychain’de; toplantı dosyalarınız yerel Application Support klasöründe tutulur."
+                        title: "Ses ElevenLabs’te, notlar OpenAI’de",
+                        detail: "Kayıt tamamlandığında ses, konuşmacı ayrımlı transkript için ElevenLabs Scribe v2’ye yüklenir. OpenAI anahtarınızı bağladığınızda transkript metni, özet ve kişi bazlı görevler için OpenAI’ye gönderilir.",
+                        callout: "ElevenLabs ve OpenAI anahtarlarınızı Ayarlar’dan bağlayın. Anahtarlar Keychain’de, kayıtlar bu Mac’te tutulur. Bildirimleri de Ayarlar’dan etkinleştirebilirsiniz."
                     )
                 }
             }

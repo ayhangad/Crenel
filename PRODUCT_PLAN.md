@@ -22,6 +22,46 @@ uygun görevi seçmeli ve çalışmanın durumunu yine bu dosyada güncellemelid
 - Plan sıralıdır. Bir fazın çıkış kriterleri tamamlanmadan ona bağımlı sonraki faz
   tamamlanmış sayılmaz.
 
+## 2026-09-14 — Masaüstü çalışma alanı
+
+Notch varsayılan açılış olarak kalır. Kullanıcı istediğinde ayrıca tek bir masaüstü
+penceresi açar; toplantılar, görevler ve kategorili ayarlar aynı veri katmanını kullanır.
+Pencereyi kapatmak uygulamayı veya kaydı sonlandırmaz.
+
+- [x] Masaüstü pencere yaşam döngüsü, menü/yeniden açma ve ayar yönlendirmesi.
+- [x] Aranabilir toplantı arşivi, detay, yaklaşan toplantılar ve görev çalışma alanı.
+- [x] Kategorili ve kompakt ayarlar, görsel doğrulama ve regresyon testleri.
+
+Doğrulama: 330 XCTest, 3 fiziksel ses testi opt-in nedeniyle atlandı, 0 hata.
+Arama ve kapalı başlangıç/pencere yaşam döngüsü test edildi. Toplantı/görev yüzeyleri ve
+beş ayar kategorisi sentetik verilerle render edilip incelendi; minimum pencere
+genişliğinde yatay taşma testi geçti.
+
+## 2026-09-14 — Hibrit ürünleştirme (güncel öncelik)
+
+Kullanıcı araştırma önerisini uygulamayı onayladı. Bu bölüm eski tek-API/tek-key ve
+extractive-only kararlarının yerine geçer; tarihsel checklist'ler geçmiş kanıtı korur.
+ElevenLabs Scribe v2 ses/transkript/diarization için kalır. OpenAI, kullanıcının ayrı
+Keychain anahtarı ve açık bağlantı aksiyonuyla metinden özet, karar ve kaynaklı görev üretir.
+Eski kayıtlar korunur; özet tekrarında ses yeniden yüklenmez. Kişi eşleştirmesi kullanıcı
+kontrolündedir; kanıtsız kişi/tarih atanmaz. OpenAI-only yol, karşılaştırmalı ses testi
+sonrasına bırakılır. 41:57, 52:24, 56:43 kayıtlar kullanıcı tarafından gerçek kullanımda
+bildirildi; fiziksel uzun kayıt kapsamı sıfırdan başlamıyor.
+
+- [x] Takvim durumları, bağlantı rehberi, takvim seçimi ve macOS bildirim/katıl/ertele akışını tamamlamak.
+- [x] Toplantı/mute arayüzünü ses süreçlerinden bağımsız yenilemek; kayıp sinyali fail-closed yapmak.
+- [x] OpenAI Keychain bağlantısı, şemalı/kaynak doğrulamalı özet servisi ve kalıcı transkript checkpoint'i eklemek.
+- [x] Kişi eşleştirme, kaynaklı/sorumlulu/tarihli görev aktarımı ve eski toplantıyı yeniden özetleme eklemek.
+- [x] Hybrid onboarding, hata/kota açıklamaları, migration/regresyon testleri ve build doğrulamasını tamamlamak.
+- [x] Doğrudan Google OAuth kodu: PKCE/state, loopback, token yenileme, sayfalama ve takvim seçimi; sentetik testlerle doğrulandı.
+- [ ] Google publisher client ID, consent/verification ve gerçek hesap kabulünü tamamlamak.
+- [ ] Gerçek Zoom/Meet uçtan uca ses ve API kalite testleri, Store yayını, Developer ID/notarization ve temiz hesap kabulünü tamamlamak.
+
+Doğrulama: 327 XCTest, 3 fiziksel ses testi opt-in nedeniyle atlandı, 0 hata;
+Chrome köprüsü 6/6 test ve paket doğrulaması başarılı. Apple Development imzalı Debug
+build başarılı; sentetik Ayarlar ve toplantı detay render’ları incelendi. Gerçek API
+çağrısı/kayıt kalite testi yapılmadı. Kurulum ve kalan fiziksel kabul: `QA/HYBRID_SETUP.md`.
+
 ## Ürün özeti
 
 MeetingNotch, macOS notch çevresinde Dynamic Island benzeri çalışan hafif bir toplantı
@@ -30,10 +70,10 @@ toplantının başladığını/bittiğini kullanıcıya görünür biçimde bild
 ait sesi kaydeder ve kaydı konuşmacı ayrımlı transkript ile kısa özete dönüştürür. Kullanıcı
 geçmiş toplantılarına erişebilir ve notch içinden basit bir görev listesi yönetebilir.
 
-V1'in tek uzak bağımlılığı ElevenLabs Scribe v2'dir. Kullanıcı yalnızca kendi ElevenLabs
-API anahtarını girer; provider seçmez, başka bir bulut hesabı bağlamaz ve ikinci bir API
-anahtarı yönetmez. EventKit, Core Audio, AVFoundation ve gerektiğinde macOS Accessibility
-yerel işletim sistemi sınırlarıdır; uzak entegrasyon sayılmaz ve servis hesabı gerektirmez.
+Güncel sürüm ses için ElevenLabs Scribe v2, toplantı analizi için OpenAI kullanır.
+Anahtarlar kullanıcıya aittir ve ayrı Keychain öğelerinde tutulur. Takvim varsayılan
+olarak EventKit üzerinden bağlanır; yayıncı yapılandırmasıyla doğrudan Google OAuth
+da desteklenir. Core Audio, AVFoundation ve Accessibility yerel macOS sınırlarıdır.
 
 ## V1 tamamlanma tanımı
 

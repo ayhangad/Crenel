@@ -2,6 +2,8 @@ import Foundation
 
 @MainActor
 final class AppState: ObservableObject {
+    @Published var isCalendarEnabled = true
+    @Published var calendarConnection = CalendarConnectionKind.macOS
     enum PanelTab: String, CaseIterable, Identifiable {
         case meetings = "Toplantılar"
         case tasks = "Görevler"

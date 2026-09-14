@@ -10,6 +10,8 @@ struct GeneralSettingsSnapshot: Equatable, Sendable {
     var isCalendarEnabled: Bool
     var launchAtLogin: Bool
     var meetingRetentionPolicy: MeetingRetentionPolicy
+    var selectedCalendarIDs: [String]? = nil
+    var calendarConnection: CalendarConnectionKind? = nil
 
     static let `default` = GeneralSettingsSnapshot(
         reminderLeadTime: 10 * 60,
@@ -91,6 +93,8 @@ struct AppPreferences: Codable, Equatable, Sendable {
     var selectedMicrophoneID: String?
     var transcription: TranscriptionSettings
     var meetingRetentionPolicy: MeetingRetentionPolicy
+    var selectedCalendarIDs: [String]? = nil
+    var calendarConnection: CalendarConnectionKind? = nil
     var hasCompletedOnboarding: Bool
 
     init(
@@ -120,11 +124,15 @@ struct AppPreferences: Codable, Equatable, Sendable {
         // V1 öncesi belgelerde transkripsiyon ayarları bu anahtar altında tutuluyordu.
         case provider
         case meetingRetentionPolicy
+        case calendarConnection
+        case selectedCalendarIDs
         case hasCompletedOnboarding
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        calendarConnection = try container.decodeIfPresent(CalendarConnectionKind.self, forKey: .calendarConnection)
+        selectedCalendarIDs = try container.decodeIfPresent([String].self, forKey: .selectedCalendarIDs)
         reminderLeadTime = try container.decode(TimeInterval.self, forKey: .reminderLeadTime)
         isCalendarEnabled = try container.decode(Bool.self, forKey: .isCalendarEnabled)
         launchAtLogin = try container.decode(Bool.self, forKey: .launchAtLogin)
@@ -151,6 +159,8 @@ struct AppPreferences: Codable, Equatable, Sendable {
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(calendarConnection, forKey: .calendarConnection)
+        try container.encodeIfPresent(selectedCalendarIDs, forKey: .selectedCalendarIDs)
         try container.encode(reminderLeadTime, forKey: .reminderLeadTime)
         try container.encode(isCalendarEnabled, forKey: .isCalendarEnabled)
         try container.encode(launchAtLogin, forKey: .launchAtLogin)

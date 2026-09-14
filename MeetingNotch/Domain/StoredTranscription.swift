@@ -7,6 +7,7 @@ struct StoredTranscription: Codable, Equatable, Sendable {
     let completedAt: Date
     let transcript: Transcript
     let summary: MeetingSummary?
+    var summaryFailure: String? = nil
 
     init(
         schemaVersion: Int = Self.currentSchemaVersion,

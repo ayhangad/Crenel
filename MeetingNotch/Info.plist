@@ -20,6 +20,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>GoogleOAuthClientID</key>
+	<string>$(MEETINGNOTCH_GOOGLE_CLIENT_ID)</string>
+	<key>GoogleOAuthClientSecret</key>
+	<string>$(MEETINGNOTCH_GOOGLE_CLIENT_SECRET)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSUIElement</key>

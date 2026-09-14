@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let appState = AppState()
 
     private var reminderPresentationTask: Task<Void, Never>?
+    private var editingMeetingIDs = Set<UUID>()
     private var recordingTask: Task<Void, Never>?
     private var terminationCleanupTask: Task<Void, Never>?
     private var retentionCleanupTask: Task<Void, Never>?
@@ -30,6 +31,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var workspaceSessionDidBecomeObservation: AnyCancellable?
     private var activeNotchScreen: NSScreen?
     private var onboardingWindowController: NSWindowController?
+    let meetingNotifications = MeetingNotificationService()
+    private var notificationLeadTime: TimeInterval = 600
+    private var calendarEnabled = true
     private let notchScreenResolver = NotchScreenResolver()
     private let audioPermissionService = AudioCapturePermissionService()
     private let microphoneDeviceService = MicrophoneDeviceService()
@@ -38,12 +42,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let browserAudioBroker = BrowserAudioStreamBroker()
     private lazy var browserAudioIPCServer = BrowserAudioIPCServer(broker: browserAudioBroker)
     private let launchAtLoginService: any LaunchAtLoginServicing = LaunchAtLoginService()
-    private lazy var meetingMonitor = MeetingMonitor(provider: EventKitMeetingProvider())
+    private let googleCalendar = GoogleCalendarProvider()
+    private lazy var calendarRouter = CalendarProviderRouter(google: googleCalendar)
+    private lazy var meetingMonitor = MeetingMonitor(provider: calendarRouter)
     private lazy var meetingSessionCoordinator = MeetingSessionCoordinator()
     private lazy var meetingRepository: any MeetingRepository = FileMeetingRepository()
     private let taskRepository: any TaskRepository = FileTaskRepository()
     private let appSettingsRepository: any AppSettingsRepository = UserDefaultsAppSettingsRepository()
     private let apiKeyRepository: any APIKeyRepository = KeychainAPIKeyRepository()
+    private let openAIKeys: any APIKeyRepository = KeychainAPIKeyRepository(service: KeychainAPIKeyRepository.openAIService)
     private let processingQueue = ProcessingQueue()
     private lazy var transcriptionWorker = TranscriptionProcessingWorker(
         queue: processingQueue,
@@ -52,6 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         transcriptionService: ElevenLabsTranscriptionService(
             apiKeyRepository: apiKeyRepository
         ),
+        summaryService: OpenAIMeetingSummaryService(keys: openAIKeys),
         onEvent: { [weak self] event in
             await self?.handleTranscriptionProcessingEvent(event)
         }
@@ -158,7 +166,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onRestoreTask: { [weak self] task in self?.restoreTask(task) },
                 onDeleteTask: { [weak self] task in self?.deleteTask(task) },
                 onDeleteArchive: { [weak self] in self?.deleteTaskArchive() },
-                onRelaunchApplication: { [weak self] in self?.relaunchApplication() }
+                onRelaunchApplication: { [weak self] in self?.relaunchApplication() },
+                analysisActions: self.meetingAnalysisActions
             )
                 .environmentObject(self.appState)
         )
@@ -174,13 +183,85 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
+    private var desktopController: DesktopWindowController?
+    private var desktopOpenObserver: NSObjectProtocol?
+    private var desktopSettingsObserver: NSObjectProtocol?
+
+    func showDesktop(section: DesktopSection? = nil, category: SettingsCategory? = nil) {
+        if desktopController == nil {
+            desktopController = DesktopWindowController(delegate: self)
+        }
+        desktopController?.present(section: section, category: category)
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showDesktop()
+        return false
+    }
+
+    func desktopSettings(category: SettingsCategory = .general) -> some View {
+            SettingsView(
+                onRequestMicrophoneAccess: self.requestMicrophoneAccess,
+                onRequestSystemAudioAccess: self.requestSystemAudioAccess,
+                onRequestAccessibilityAccess: self.requestAccessibilityAccess,
+                onOpenAccessibilitySettings: self.openAccessibilitySettings,
+                onOpenSystemSettings: self.openSystemSettings,
+                onRelaunchApplication: self.relaunchApplication,
+                onRefreshPermissions: {
+                    self.refreshAudioPermissions()
+                    self.refreshAccessibilityPermission()
+                    self.refreshCalendar()
+                },
+                onRequestCalendarAccess: self.requestCalendarAccess,
+                onRefreshCalendar: self.refreshCalendar,
+                onOpenCalendarSettings: self.openCalendarPrivacySettings,
+                onOpenInternetAccounts: self.openInternetAccountsSettings,
+                onLoadGeneralSettings: self.loadGeneralSettings,
+                onSaveGeneralSettings: self.saveGeneralSettings,
+                onLoadMicrophoneSettings: self.loadMicrophoneSettings,
+                onSaveMicrophoneSelection: self.saveMicrophoneSelection,
+                onOpenDataDirectory: self.openDataDirectory,
+                onDeleteAllData: self.deleteAllData,
+                onResetOnboarding: self.resetOnboarding,
+                onLoadTranscriptionSettings: self.loadTranscriptionSettings,
+                onSaveTranscriptionSettings: self.saveTranscriptionSettings,
+                onDeleteTranscriptionAPIKey: self.deleteTranscriptionAPIKey,
+                openAISettings: self.openAISettingsActions,
+                notificationService: self.meetingNotifications,
+                googleCalendarActions: self.googleCalendarActions,
+                initialCategory: category
+            )
+            .environmentObject(self.appState)
+    }
+
+    func loadDesktopMeeting(_ meeting: StoredMeeting) async throws -> MeetingDetailContent {
+        let transcript = try await meetingRepository.loadTranscription(for: meeting.id)
+        let markdown = try await meetingRepository.loadMarkdown(for: meeting.id)
+        let audio = await meetingRepository.audioFileURL(for: meeting)
+        return MeetingDetailContent(meeting: meeting, storedTranscription: transcript,
+            markdown: markdown, audioURL: audio)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // XCTest must not start real calendar/account/audio services or drain user queues.
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
+              NSClassFromString("XCTestCase") == nil else { return }
+        desktopSettingsObserver = NotificationCenter.default.addObserver(
+            forName: .openDesktopSettings, object: nil, queue: .main
+        ) { [weak self] notification in
+            let category = (notification.userInfo?["category"] as? String).flatMap(SettingsCategory.init(rawValue:))
+            Task { @MainActor in self?.showDesktop(section: .settings, category: category) }
+        }
+        desktopOpenObserver = NotificationCenter.default.addObserver(
+            forName: .openDesktopWorkspace, object: nil, queue: .main
+        ) { [weak self] _ in Task { @MainActor in self?.showDesktop() } }
         MultipartFormFileBuilder.removeStaleUploadBodies()
         configureBrowserAudioBridge()
         configureMeetingSessionCoordinator()
         microphoneGateHotKey.start { [weak self] in
             self?.toggleMeetingMicrophoneGate()
         }
+        meetingNotifications.onOpenMeeting = { [weak self] url in self?.openMeetingURL(url) }
         configureMeetingMonitor()
         configureNotchInteraction()
         configureWorkspacePowerEvents()
@@ -458,7 +539,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             reminderLeadTime: preferences.reminderLeadTime,
             isCalendarEnabled: preferences.isCalendarEnabled,
             launchAtLogin: launchAtLoginService.isConfigured,
-            meetingRetentionPolicy: preferences.meetingRetentionPolicy
+            meetingRetentionPolicy: preferences.meetingRetentionPolicy,
+            selectedCalendarIDs: preferences.selectedCalendarIDs,
+            calendarConnection: preferences.calendarConnection
         )
     }
 
@@ -500,6 +583,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             var preferences = (try? await appSettingsRepository.load()) ?? .default
             preferences.reminderLeadTime = snapshot.reminderLeadTime
             preferences.isCalendarEnabled = snapshot.isCalendarEnabled
+            preferences.selectedCalendarIDs = snapshot.selectedCalendarIDs
+            preferences.calendarConnection = snapshot.calendarConnection
             preferences.launchAtLogin = snapshot.launchAtLogin
             preferences.meetingRetentionPolicy = snapshot.meetingRetentionPolicy
             try await appSettingsRepository.save(preferences)
@@ -554,7 +639,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         meetingMonitor.stop()
         appState.dismissMeetingDetail()
 
+        meetingNotifications.update(meetings: [], leadTime: notificationLeadTime, enabled: false)
         var keychainDeletionFailed = false
+        do { try await googleCalendar.disconnect() }
+        catch { keychainDeletionFailed = true }
+        do { try await openAIKeys.deleteAPIKey() }
+        catch { keychainDeletionFailed = true }
         do {
             try await apiKeyRepository.deleteAPIKey()
         } catch {
@@ -625,6 +715,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    var googleCalendarActions: GoogleCalendarSettingsActions {
+        GoogleCalendarSettingsActions(configured: GoogleCalendarConfiguration.bundled.isConfigured,
+            connected: { [weak self] in await self?.googleCalendar.authorizationState() == .authorized },
+            connect: { [weak self] in
+                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
+                do {
+                    _ = try await self.googleCalendar.requestAccess()
+                    var preferences = try await self.appSettingsRepository.load()
+                    preferences.calendarConnection = .google
+                    preferences.isCalendarEnabled = true
+                    preferences.selectedCalendarIDs = nil
+                    try await self.appSettingsRepository.save(preferences)
+                    self.applyRuntimePreferences(preferences)
+                    return .succeeded(message: "Google Calendar bağlandı. Takvimleriniz yenileniyor.")
+                } catch { return .failed(message: (error as? GoogleCalendarError)?.errorDescription ?? "Google bağlantısı tamamlanamadı.") }
+            },
+            disconnect: { [weak self] in
+                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
+                do {
+                    try await self.googleCalendar.disconnect()
+                    var preferences = try await self.appSettingsRepository.load()
+                    preferences.calendarConnection = .macOS
+                    preferences.selectedCalendarIDs = nil
+                    try await self.appSettingsRepository.save(preferences)
+                    self.applyRuntimePreferences(preferences)
+                    return .succeeded(message: "Google bağlantısı bu Mac’ten kaldırıldı. Sistem takvimlerine dönüldü.")
+                } catch { return .failed(message: "Google bağlantısı kaldırılamadı.") }
+            }
+        )
+    }
+
+    var openAISettingsActions: OpenAISettingsActions {
+        OpenAISettingsActions(
+            hasKey: { [weak self] in (try? await self?.openAIKeys.apiKey()) != nil },
+            save: { [weak self] key in
+                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
+                do {
+                    try await OpenAIMeetingSummaryService(keys: self.openAIKeys).validate(apiKey: key)
+                    try await self.openAIKeys.saveAPIKey(key)
+                    return .succeeded(message: "OpenAI bağlandı. Yeni toplantılar otomatik özetlenecek.")
+                } catch {
+                    return .failed(message: (error as? MeetingAnalysisError)?.errorDescription ?? "Anahtar Keychain’e kaydedilemedi.")
+                }
+            },
+            disconnect: { [weak self] in
+                do {
+                    try await self?.openAIKeys.deleteAPIKey()
+                    return .succeeded(message: "OpenAI bağlantısı kaldırıldı. Kayıtlarınız korundu.")
+                } catch { return .failed(message: "Anahtar kaldırılamadı.") }
+            }
+        )
+    }
+
     func deleteTranscriptionAPIKey() async -> SettingsActionResult {
         do {
             try await apiKeyRepository.deleteAPIKey()
@@ -649,7 +792,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         meetingMonitor.onMeetingsChange = { [weak self] meetings in
-            self?.appState.updateUpcomingMeetings(meetings)
+            guard let self else { return }
+            self.appState.updateUpcomingMeetings(meetings)
+            self.meetingNotifications.update(meetings: meetings, leadTime: self.notificationLeadTime, enabled: self.calendarEnabled)
         }
 
         meetingMonitor.onSnapshotChange = { [weak self] snapshot, shouldPresent in
@@ -780,10 +925,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func applyRuntimePreferences(_ preferences: AppPreferences) {
+        calendarEnabled = preferences.isCalendarEnabled
+        notificationLeadTime = preferences.reminderLeadTime
+        appState.isCalendarEnabled = preferences.isCalendarEnabled
+        appState.calendarConnection = preferences.calendarConnection ?? .macOS
         appState.updateSelectedMicrophoneID(preferences.selectedMicrophoneID)
         meetingMonitor.configure(
             isEnabled: preferences.isCalendarEnabled,
-            reminderLeadTime: preferences.reminderLeadTime
+            reminderLeadTime: preferences.reminderLeadTime,
+            selectedCalendarIDs: preferences.selectedCalendarIDs,
+            connectionKind: preferences.calendarConnection ?? .macOS
         )
     }
 
@@ -970,7 +1121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(url)
     }
 
-    private func openMeetingURL(_ url: URL) {
+    func openMeetingURL(_ url: URL) {
         let meeting = appState.upcomingMeeting(matching: url)
         Task { [weak self] in
             guard let self else { return }
@@ -983,7 +1134,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func beginRecording() {
-        let sourceMeeting = appState.nextMeeting
+        let sourceMeeting = RecordingMeetingContext.resolve(
+            meetings: appState.upcomingMeetings,
+            session: appState.meetingSessionDetection?.session,
+            now: Date()
+        )
         applyMeetingLifecycleDecision(
             meetingLifecyclePolicy.dismissRecordingOffer()
         )
@@ -1063,7 +1218,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func stopRecordingFlow() {
+    func stopRecordingFlow() {
         prepareRecordingStopUI()
         guard appState.stopRecording() else { return }
         finalizeRecordingAfterStopRequest()
@@ -1156,31 +1311,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func addTask(title: String) {
+    func addTask(title: String) {
         guard let title = TaskItem.normalizedTitle(title) else { return }
         persistTask(TaskItem(title: title), operation: "add-task")
     }
 
-    private func updateTask(_ task: TaskItem, title: String) {
+    func updateTask(_ task: TaskItem, title: String) {
         guard let title = TaskItem.normalizedTitle(title) else { return }
         var updated = task
         updated.title = title
         persistTask(updated, operation: "update-task")
     }
 
-    private func changeTaskStatus(_ task: TaskItem, to status: TaskStatus) {
+    func changeTaskStatus(_ task: TaskItem, to status: TaskStatus) {
         var updated = task
         updated.setStatus(status)
         persistTask(updated, operation: "change-task-status")
     }
 
-    private func archiveTask(_ task: TaskItem) {
+    func archiveTask(_ task: TaskItem) {
         var updated = task
         updated.archive()
         persistTask(updated, operation: "archive-task")
     }
 
-    private func restoreTask(_ task: TaskItem) {
+    func restoreTask(_ task: TaskItem) {
         var updated = task
         updated.restore()
         persistTask(updated, operation: "restore-task")
@@ -1198,7 +1353,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func deleteTask(_ task: TaskItem) {
+    func deleteTask(_ task: TaskItem) {
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -1210,7 +1365,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func deleteTaskArchive() {
+    func deleteTaskArchive() {
         let archived = appState.archivedTasks
         guard !archived.isEmpty else { return }
         Task { [weak self] in
@@ -1267,6 +1422,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    var meetingAnalysisActions: MeetingAnalysisActions {
+        MeetingAnalysisActions(
+            renameSpeaker: { [weak self] meetingID, speakerID, name in
+                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
+                guard !self.editingMeetingIDs.contains(meetingID),
+                      !self.appState.processingJobs.contains(where: { $0.meetingID == meetingID }) else {
+                    return .failed(message: "İşleme bitince konuşmacıyı düzenleyebilirsiniz.")
+                }
+                self.editingMeetingIDs.insert(meetingID)
+                defer { self.editingMeetingIDs.remove(meetingID) }
+                do {
+                    let meeting = try await self.meetingRepository.renameSpeaker(meetingID: meetingID, speakerID: speakerID, name: name)
+                    for var task in try await self.taskRepository.loadAll() where task.sourceMeetingID == meetingID && task.sourceSpeakerID == speakerID {
+                        task.assignee = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : String(name.prefix(100))
+                        try await self.taskRepository.save(task)
+                    }
+                    self.loadTasks()
+                    if self.appState.presentedMeetingDetail?.id == meetingID { self.openStoredMeeting(meeting) }
+                    return .succeeded(message: "Konuşmacı güncellendi.")
+                } catch { return .failed(message: "Konuşmacı kaydedilemedi. Tekrar deneyin.") }
+            },
+            importAction: { [weak self] meetingID, action in
+                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
+                do {
+                    // Validate the source against persisted content, not a stale view snapshot.
+                    guard let stored = try await self.meetingRepository.loadTranscription(for: meetingID),
+                          let current = stored.summary?.actionItems.first(where: { $0.id == action.id }) else {
+                        return .failed(message: "Görevin kaynağı değişti. Toplantıyı yeniden açın.")
+                    }
+                    _ = try await self.taskRepository.importAction(current, meetingID: meetingID)
+                    self.loadTasks()
+                    return .succeeded(message: "Görev listenize eklendi.")
+                } catch { return .failed(message: "Görev kaydedilemedi. Tekrar deneyin.") }
+            }
+        )
+    }
+
     private func openStoredMeeting(_ meeting: StoredMeeting) {
         Task { [weak self] in
             guard let self else { return }
@@ -1300,13 +1492,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func copyToPasteboard(_ text: String) {
+    func copyToPasteboard(_ text: String) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
     }
 
-    private func exportMarkdown(_ markdown: String, for meeting: StoredMeeting) {
+    func exportMarkdown(_ markdown: String, for meeting: StoredMeeting) {
         let panel = NSSavePanel()
         panel.title = "Toplantıyı Markdown Olarak Kaydet"
         panel.nameFieldStringValue = URL(fileURLWithPath: meeting.audioFileName)
@@ -1336,7 +1528,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func deleteStoredMeeting(_ meeting: StoredMeeting) {
+    func deleteStoredMeeting(_ meeting: StoredMeeting) {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "Toplantı silinsin mi?"
@@ -1391,13 +1583,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func retryProcessing(_ meeting: StoredMeeting) {
+    func retryProcessing(_ meeting: StoredMeeting) {
+        guard !editingMeetingIDs.contains(meeting.id) else { return }
         Task { [weak self] in
             guard let self else { return }
             do {
-                guard let job = try await self.processingQueue.retry(meetingID: meeting.id) else {
-                    return
-                }
+                let jobs = try await self.processingQueue.allJobs()
+                if jobs.contains(where: { $0.meetingID == meeting.id && $0.state != .failed }) { return }
+                let job: ProcessingJob
+                if let retried = try await self.processingQueue.retry(meetingID: meeting.id) { job = retried }
+                else { job = try await self.processingQueue.enqueue(meetingID: meeting.id) }
                 self.appState.upsertProcessingJob(job)
                 self.startProcessingQueue()
             } catch {

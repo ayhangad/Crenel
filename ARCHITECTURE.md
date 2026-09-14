@@ -5,6 +5,38 @@ Bu belge ürün vizyonunu uygulama yapısına dönüştüren yaşayan mimari reh
 `project-overview.md` dosyasıdır. Teknik detaylar ürün deneyimi gerektirdiğinde
 değiştirilebilir.
 
+## Masaüstü ve notch birlikte çalışma sözleşmesi
+
+Açılışta yalnız notch başlatılır; masaüstü pencere otomatik restore edilmez.
+`DesktopWindowController` kullanıcı aksiyonuyla tek, yeniden kullanılabilir NSWindow
+oluşturur. Masaüstü açıkken activation policy regular, kapatıldığında accessory olur;
+pencere kapanması kayıt veya worker’ları durdurmaz. Menü, notch düğmesi ve uygulamanın
+tekrar açılması aynı pencereye yönlenir. Ayarlar bağımsız Settings scene’i yerine
+masaüstünde kategorili sunulur; bağlamsal bağlantılar ilgili kategoriye gider.
+
+Masaüstü ve notch aynı AppState/repository/action katmanını kullanır. Masaüstünün toplantı
+seçimi ve detay yükleme durumu ayrıdır; geç kalan async sonuçlar yeni seçimi değiştiremez.
+Ses oynatma detaydan ayrılınca veya masaüstü kapanınca duraklar, ses kaydı devam eder.
+
+## 2026-09-14 hibrit mimari kararı
+
+Bu bölüm aşağıdaki eski tek servis/extractive-only sözleşmelerini günceller.
+Ses yalnız ElevenLabs'e, özet için konuşmacı/zaman/segment kimlikli metin yalnız OpenAI'ye
+gönderilir. OpenAI key ayrı Keychain service'inde tutulur; eski ElevenLabs key değişmez.
+Transkript özetten ÖNCE kalıcılaştırılır; retry mevcut transkripti kullanır. OpenAI
+bağlantısı yoksa transkript kullanılabilir kalır, detayda özet bağlantı durumu açıklanır.
+AI çıktıları JSON şeması ve yerel segment/konuşmacı/tarih doğrulamasından geçer. Transkript
+metni talimat olarak yürütülmez; modelin araç erişimi yoktur. Kullanıcı kişi eşleştirmeleri
+kalıcıdır. Görev aktarımı deterministik kaynak kimliğiyle yinelenmez.
+Meeting UI polling ses IO değişikliklerinden bağımsızdır; okunamayan/kaybolan süreç
+sinyali önceki açık mikrofon gate'ini koruyamaz. Takvim bağlantısı ile boş gün farklı UI
+durumlarıdır. Yerel bildirimler yalnız kullanıcı izin aksiyonundan sonra zamanlanır.
+Takvim router’ı EventKit veya Google Calendar REST sağlayıcısını seçer. Google PKCE
+Desktop OAuth bağlantısı yayıncı client kimliğiyle yapılandırılır; refresh token ayrı
+Keychain service’inde saklanır. Kalender seçimleri ve bağlantı tercihi AppPreferences’ta
+kalıcıdır. Yeni isteğe bağlı model alanları eski JSON belgelerini migration gerektirmeden
+okur. Kayıt tamamlandı durumu ile `summaryNeedsAttention` birbirinden ayrıdır.
+
 ## Proje üretimi
 
 - Xcode projesinin tek yapılandırma kaynağı `project.yml` dosyasıdır.

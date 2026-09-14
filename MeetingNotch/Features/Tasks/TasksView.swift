@@ -375,6 +375,10 @@ private struct TaskRowView: View {
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
+                if task.assignee != nil || task.dueDate != nil {
+                    Text([task.assignee, task.dueDate.map { "Son tarih: " + $0.formatted(date: .abbreviated, time: .omitted) }].compactMap { $0 }.joined(separator: " · "))
+                        .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
+                }
                 Text(metadataText)
                     .font(MeetingNotchTheme.MainPanel.bodyFont.monospacedDigit())
                     .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)

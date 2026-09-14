@@ -31,6 +31,12 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
     private(set) var status: TaskStatus
     private(set) var completedAt: Date?
     private(set) var archivedAt: Date?
+    var assignee: String?
+    var dueDate: Date?
+    var sourceMeetingID: UUID?
+    var sourceActionID: UUID?
+    var sourceTime: TimeInterval?
+    var sourceSpeakerID: String?
 
     init(
         id: UUID = UUID(),
@@ -38,9 +44,21 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
         createdAt: Date = Date(),
         status: TaskStatus = .backlog,
         completedAt: Date? = nil,
-        archivedAt: Date? = nil
+        archivedAt: Date? = nil,
+        assignee: String? = nil,
+        dueDate: Date? = nil,
+        sourceMeetingID: UUID? = nil,
+        sourceActionID: UUID? = nil,
+        sourceTime: TimeInterval? = nil,
+        sourceSpeakerID: String? = nil
     ) {
         self.id = id
+        self.assignee = assignee
+        self.dueDate = dueDate
+        self.sourceMeetingID = sourceMeetingID
+        self.sourceActionID = sourceActionID
+        self.sourceTime = sourceTime
+        self.sourceSpeakerID = sourceSpeakerID
         self.title = title
         self.createdAt = createdAt
         self.status = completedAt == nil ? status : .completed
@@ -88,6 +106,7 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
         case createdAt
         case status
         case completedAt
+        case assignee, dueDate, sourceMeetingID, sourceActionID, sourceTime, sourceSpeakerID
         case archivedAt
     }
 
@@ -97,6 +116,12 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
         title = try container.decode(String.self, forKey: .title)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
 
+        assignee = try container.decodeIfPresent(String.self, forKey: .assignee)
+        dueDate = try container.decodeIfPresent(Date.self, forKey: .dueDate)
+        sourceMeetingID = try container.decodeIfPresent(UUID.self, forKey: .sourceMeetingID)
+        sourceActionID = try container.decodeIfPresent(UUID.self, forKey: .sourceActionID)
+        sourceTime = try container.decodeIfPresent(TimeInterval.self, forKey: .sourceTime)
+        sourceSpeakerID = try container.decodeIfPresent(String.self, forKey: .sourceSpeakerID)
         let legacyCompletedAt = try container.decodeIfPresent(Date.self, forKey: .completedAt)
         status = try container.decodeIfPresent(TaskStatus.self, forKey: .status)
             ?? (legacyCompletedAt == nil ? .backlog : .completed)

@@ -12,7 +12,7 @@ struct StoredMeeting: Identifiable, Codable, Equatable, Sendable {
 
     let schemaVersion: Int
     let id: UUID
-    let title: String
+    var title: String
     let startedAt: Date
     let endedAt: Date
     let sourceMeeting: Meeting?
@@ -20,6 +20,7 @@ struct StoredMeeting: Identifiable, Codable, Equatable, Sendable {
     let microphoneFileName: String?
     let systemAudioFileName: String?
     var processingStatus: ProcessingStatus
+    var summaryNeedsAttention: Bool? = nil
 
     init(
         schemaVersion: Int = Self.currentSchemaVersion,

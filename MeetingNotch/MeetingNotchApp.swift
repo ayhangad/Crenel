@@ -14,6 +14,10 @@ struct MeetingNotchApp: App {
     var body: some Scene {
         MenuBarExtra("MeetingNotch", systemImage: "waveform.badge.mic") {
             Button("MeetingNotch'u Aç", systemImage: "macbook") {
+                appDelegate.showDesktop()
+            }
+
+            Button("Notch’u Göster", systemImage: "rectangle.topthird.inset.filled") {
                 appDelegate.showMeetingNotch()
             }
 
@@ -33,9 +37,7 @@ struct MeetingNotchApp: App {
 
             Divider()
 
-            SettingsLink {
-                Label("Ayarlar…", systemImage: "gearshape")
-            }
+            Button("Ayarlar…", systemImage: "gearshape") { appDelegate.showDesktop(section: .settings) }
             .keyboardShortcut(",")
 
             Divider()
@@ -46,36 +48,16 @@ struct MeetingNotchApp: App {
             .keyboardShortcut("q")
         }
         .menuBarExtraStyle(.menu)
-
-        Settings {
-            SettingsView(
-                onRequestMicrophoneAccess: appDelegate.requestMicrophoneAccess,
-                onRequestSystemAudioAccess: appDelegate.requestSystemAudioAccess,
-                onRequestAccessibilityAccess: appDelegate.requestAccessibilityAccess,
-                onOpenAccessibilitySettings: appDelegate.openAccessibilitySettings,
-                onOpenSystemSettings: appDelegate.openSystemSettings,
-                onRelaunchApplication: appDelegate.relaunchApplication,
-                onRefreshPermissions: {
-                    appDelegate.refreshAudioPermissions()
-                    appDelegate.refreshAccessibilityPermission()
-                    appDelegate.refreshCalendar()
-                },
-                onRequestCalendarAccess: appDelegate.requestCalendarAccess,
-                onRefreshCalendar: appDelegate.refreshCalendar,
-                onOpenCalendarSettings: appDelegate.openCalendarPrivacySettings,
-                onOpenInternetAccounts: appDelegate.openInternetAccountsSettings,
-                onLoadGeneralSettings: appDelegate.loadGeneralSettings,
-                onSaveGeneralSettings: appDelegate.saveGeneralSettings,
-                onLoadMicrophoneSettings: appDelegate.loadMicrophoneSettings,
-                onSaveMicrophoneSelection: appDelegate.saveMicrophoneSelection,
-                onOpenDataDirectory: appDelegate.openDataDirectory,
-                onDeleteAllData: appDelegate.deleteAllData,
-                onResetOnboarding: appDelegate.resetOnboarding,
-                onLoadTranscriptionSettings: appDelegate.loadTranscriptionSettings,
-                onSaveTranscriptionSettings: appDelegate.saveTranscriptionSettings,
-                onDeleteTranscriptionAPIKey: appDelegate.deleteTranscriptionAPIKey
-            )
-            .environmentObject(appDelegate.appState)
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("Ayarlar…") { appDelegate.showDesktop(section: .settings) }
+                    .keyboardShortcut(",")
+            }
+            CommandGroup(after: .appSettings) {
+                Button("MeetingNotch’u Aç") { appDelegate.showDesktop() }
+                    .keyboardShortcut("0", modifiers: .command)
+            }
         }
+
     }
 }

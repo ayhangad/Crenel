@@ -81,6 +81,12 @@ enum MeetingMarkdownFormatter {
            !assignee.isEmpty {
             details.append("Sorumlu: \(assignee)")
         }
+        if action.assignee == nil, let speakerID = action.speakerID {
+            details.append("Sorumlu: \(TranscriptTextFormatter.fallbackSpeakerName(speakerID))")
+        }
+        if let time = action.sourceTime {
+            details.append("Kaynak: \(TranscriptTextFormatter.timestamp(time))")
+        }
         if let dueDate = action.dueDate {
             details.append("Tarih: \(dueDate.formatted(date: .abbreviated, time: .omitted))")
         }

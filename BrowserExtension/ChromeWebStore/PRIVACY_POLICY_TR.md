@@ -1,6 +1,6 @@
 # MeetingNotch for Google Meet — Gizlilik Politikası
 
-Son güncelleme: 11 Ağustos 2026
+Son güncelleme: 14 Eylül 2026
 
 Bu politika, MeetingNotch for Google Meet Chrome uzantısının verileri nasıl işlediğini
 açıklar. Yayın öncesinde geliştirici adı, iletişim adresi ve bu belgenin herkese açık HTTPS
@@ -33,6 +33,10 @@ kaydına ekleyebilir. Kayıt bittikten sonra birleşik ses, kullanıcının kend
 konuşmacı ayrımlı transkript üretmek amacıyla ElevenLabs Scribe v2'ye gönderilebilir. Bu
 işlem uzantının değil, kullanıcı kontrolündeki MeetingNotch uygulamasının kayıt ve işleme
 akışıdır; uygulama onboarding'i ve uzantı popup'ı bu sınırı yakalama başlamadan açıklar.
+OpenAI bağlantısı açıksa yerel uygulama transkript metnini, konuşmacı adlarını ve zaman
+bilgilerini özet, karar ve görev oluşturmak için kullanıcının OpenAI API anahtarıyla
+OpenAI’ye gönderir. Uzantı bu servislerle doğrudan iletişim kurmaz. API anahtarları
+yalnız yerel uygulamanın macOS Keychain alanında saklanır.
 
 ## Paylaşım ve yasak kullanımlar
 

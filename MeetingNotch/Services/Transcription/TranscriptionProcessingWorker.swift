@@ -59,43 +59,41 @@ actor TranscriptionProcessingWorker {
                     .first(where: { $0.id == job.meetingID }) else {
                     throw TranscriptionServiceError.invalidFile(.missing)
                 }
-                let preferences = (try? await settingsRepository.load()) ?? .default
-                let audioURL = await meetingRepository.audioFileURL(for: meeting)
-                let request = TranscriptionRequest(
-                    audioFileURL: audioURL,
-                    languageCode: preferences.transcription.languageCode,
-                    requestsDiarization: true,
-                    idempotencyKey: job.idempotencyKey
-                )
-                let eventHandler = onEvent
-                let result = try await retryPolicy.execute { _ in
-                    try await transcriptionService.transcribe(request) { progress in
-                        Task {
-                            await eventHandler(.uploadProgress(
-                                meetingID: job.meetingID,
-                                progress: progress
-                            ))
+                let existing = try await meetingRepository.loadTranscription(for: meeting.id)
+                let result: TranscriptionResult
+                if let existing {
+                    result = TranscriptionResult(transcript: existing.transcript)
+                } else {
+                    let preferences = (try? await settingsRepository.load()) ?? .default
+                    let audioURL = await meetingRepository.audioFileURL(for: meeting)
+                    let request = TranscriptionRequest(audioFileURL: audioURL,
+                        languageCode: preferences.transcription.languageCode,
+                        requestsDiarization: true, idempotencyKey: job.idempotencyKey)
+                    let eventHandler = onEvent
+                    result = try await retryPolicy.execute { _ in
+                        try await transcriptionService.transcribe(request) { progress in
+                            Task { await eventHandler(.uploadProgress(meetingID: job.meetingID, progress: progress)) }
                         }
                     }
+                    try Task.checkCancellation()
+                    // Durable checkpoint before any second provider request.
+                    _ = try await meetingRepository.saveTranscription(result, summary: nil, for: meeting)
                 }
-                try Task.checkCancellation()
                 await onEvent(.transcribing(meetingID: job.meetingID))
                 await onEvent(.summarizing(meetingID: job.meetingID))
-                let summary: MeetingSummary?
+                var stored: StoredTranscription
                 do {
-                    summary = try await summaryService.generate(from: result.transcript)
+                    let summary = try await summaryService.generate(from: result.transcript, meeting: meeting)
+                    stored = StoredTranscription(transcript: result.transcript, summary: summary)
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
-                    // Transcription is the durable primary result. Notes are optional and must
-                    // never turn a successful speech-to-text operation into a failed meeting.
-                    summary = nil
+                    stored = StoredTranscription(transcript: result.transcript, summary: existing?.summary)
+                    stored.summaryFailure = (error as? MeetingAnalysisError)?.errorDescription
+                        ?? "Özet oluşturulamadı. Transkript korundu; özeti tekrar deneyebilirsiniz."
                 }
-                let updatedMeeting = try await meetingRepository.saveTranscription(
-                    result,
-                    summary: summary,
-                    for: meeting
-                )
+                try Task.checkCancellation()
+                let updatedMeeting = try await meetingRepository.saveAnalysis(stored, for: meeting)
                 try await queue.complete(meetingID: job.meetingID)
                 await onEvent(.completed(updatedMeeting))
             } catch is CancellationError {

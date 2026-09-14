@@ -38,10 +38,16 @@ struct CalendarSourceSummary: Equatable, Identifiable, Sendable {
     var id: CalendarAccountKind { kind }
 }
 
+struct CalendarChoice: Equatable, Identifiable, Sendable {
+    let id: String
+    let title: String
+}
+
 struct CalendarMeetingQueryResult: Equatable, Sendable {
     let meetings: [Meeting]
     let sources: [CalendarSourceSummary]
     let scannedEventCount: Int
+    var calendars: [CalendarChoice] = []
 
     var readableCalendarCount: Int {
         sources.reduce(0) { $0 + $1.calendarCount }
@@ -53,6 +59,7 @@ struct CalendarIntegrationSnapshot: Equatable, Sendable {
     let scannedEventCount: Int
     let matchedMeetingCount: Int
     let refreshedAt: Date
+    var calendars: [CalendarChoice] = []
 
     var readableCalendarCount: Int {
         sources.reduce(0) { $0 + $1.calendarCount }
@@ -121,5 +128,20 @@ struct MeetingReminderSnapshot: Equatable, Sendable {
             level: level,
             secondsUntilStart: seconds
         )
+    }
+}
+
+enum CalendarEmptyPresentation {
+    static func message(enabled: Bool, access: CalendarAccessState, snapshot: CalendarIntegrationSnapshot?) -> String {
+        guard enabled else { return "Takvim bağlantısı kapalı" }
+        switch access {
+        case .notDetermined: return "Toplantılarınız için takviminizi bağlayın"
+        case .requesting: return "Takvim izni bekleniyor"
+        case .denied, .restricted: return "Takvim erişimine izin verin"
+        case .failed: return "Takvim yenilenemedi"
+        case .authorized:
+            guard let snapshot else { return "Takvimler okunuyor" }
+            return snapshot.readableCalendarCount == 0 ? "Bu Mac’te bağlı takvim bulunamadı" : "Yaklaşan çevrim içi toplantı yok"
+        }
     }
 }

@@ -2,6 +2,13 @@ import Foundation
 
 protocol MeetingSummaryGenerating: Sendable {
     func generate(from transcript: Transcript) async throws -> MeetingSummary
+    func generate(from transcript: Transcript, meeting: StoredMeeting) async throws -> MeetingSummary
+}
+
+extension MeetingSummaryGenerating {
+    func generate(from transcript: Transcript, meeting: StoredMeeting) async throws -> MeetingSummary {
+        try await generate(from: transcript)
+    }
 }
 
 /// Produces conservative, extractive notes without sending the transcript to another service.

@@ -2,14 +2,24 @@ import EventKit
 import Foundation
 
 protocol CalendarMeetingProviding: Sendable {
+    func selectSource(_ kind: CalendarConnectionKind) async
+    func selectCalendars(_ ids: [String]?) async
     func authorizationState() async -> CalendarAccessState
     func requestAccess() async throws -> Bool
     func query(from startDate: Date, to endDate: Date) async throws -> CalendarMeetingQueryResult
 }
 
+extension CalendarMeetingProviding {
+    func selectSource(_ kind: CalendarConnectionKind) async {}
+    func selectCalendars(_ ids: [String]?) async {}
+}
+
 actor EventKitMeetingProvider: CalendarMeetingProviding {
     private let eventStore: EKEventStore
     private let urlMatcher: MeetingURLMatcher
+    private var selectedCalendarIDs: [String]?
+
+    func selectCalendars(_ ids: [String]?) async { selectedCalendarIDs = ids }
 
     init(
         eventStore: EKEventStore = EKEventStore(),
@@ -47,13 +57,14 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
         to endDate: Date
     ) -> CalendarMeetingQueryResult {
         eventStore.refreshSourcesIfNecessary()
-        let calendars = eventStore.calendars(for: .event)
+        let allCalendars = eventStore.calendars(for: .event)
+        let calendars = allCalendars.filter { selectedCalendarIDs?.contains($0.calendarIdentifier) ?? true }
         let predicate = eventStore.predicateForEvents(
             withStart: startDate,
             end: endDate,
             calendars: calendars
         )
-        let events = eventStore.events(matching: predicate)
+        let events = calendars.isEmpty ? [] : eventStore.events(matching: predicate)
         let meetings = deduplicatedMeetings(
             events
                 .filter(isRelevantEvent)
@@ -62,8 +73,9 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
 
         return CalendarMeetingQueryResult(
             meetings: meetings,
-            sources: sourceSummaries(for: calendars),
-            scannedEventCount: events.count
+            sources: sourceSummaries(for: allCalendars),
+            scannedEventCount: events.count,
+            calendars: allCalendars.map { CalendarChoice(id: $0.calendarIdentifier, title: $0.title) }
         )
     }
 

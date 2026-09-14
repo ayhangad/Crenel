@@ -5,6 +5,20 @@ protocol TaskRepository: Sendable {
     func loadAll() async throws -> [TaskItem]
     func save(_ task: TaskItem) async throws
     func delete(id: UUID) async throws
+    func importAction(_ action: ActionItem, meetingID: UUID) async throws -> TaskItem
+}
+
+extension TaskRepository {
+    func importAction(_ action: ActionItem, meetingID: UUID) async throws -> TaskItem {
+        let id = MeetingStableIdentifier.uuid(for: "\(meetingID)|\(action.id)")
+        if let existing = try await loadAll().first(where: { $0.id == id }) { return existing }
+        let task = TaskItem(id: id, title: action.title, status: .todo,
+            assignee: action.assignee, dueDate: action.dueDate,
+            sourceMeetingID: meetingID, sourceActionID: action.id, sourceTime: action.sourceTime,
+            sourceSpeakerID: action.speakerID)
+        try await save(task)
+        return task
+    }
 }
 
 enum TaskRepositoryError: LocalizedError, Equatable {
@@ -100,6 +114,17 @@ actor FileTaskRepository: TaskRepository {
         document.schemaVersion = StoreDocument.currentSchemaVersion
         try validateUniqueIDs(document.tasks)
         try write(document)
+    }
+
+    func importAction(_ action: ActionItem, meetingID: UUID) async throws -> TaskItem {
+        let id = MeetingStableIdentifier.uuid(for: "\(meetingID)|\(action.id)")
+        if let existing = try loadAll().first(where: { $0.id == id }) { return existing }
+        let task = TaskItem(id: id, title: action.title, status: .todo,
+            assignee: action.assignee, dueDate: action.dueDate,
+            sourceMeetingID: meetingID, sourceActionID: action.id, sourceTime: action.sourceTime,
+            sourceSpeakerID: action.speakerID)
+        try save(task)
+        return task
     }
 
     func delete(id: UUID) throws {

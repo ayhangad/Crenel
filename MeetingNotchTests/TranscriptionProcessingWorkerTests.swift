@@ -233,6 +233,33 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         XCTAssertEqual(state.storedMeetings.first?.processingStatus, .completed)
     }
 
+    func testSummaryRetryUsesDurableTranscriptWithoutUploadingAudioAgain() async throws {
+        let repository = FileMeetingRepository(rootURL: root)
+        let meeting = try await repository.saveCapture(try makeCapture())
+        let queue = ProcessingQueue(repository: FileProcessingJobRepository(rootURL: root))
+        let settings = UserDefaultsAppSettingsRepository(defaults: defaults, storageKey: "preferences")
+        let original = WorkerStubTranscriptionService(mode: .success)
+        _ = try await queue.enqueue(meetingID: meeting.id)
+        let first = TranscriptionProcessingWorker(queue: queue, meetingRepository: repository,
+            settingsRepository: settings, transcriptionService: original, summaryService: FailingSummaryService())
+        await first.drain()
+        let failedSummary = try await repository.loadTranscription(for: meeting.id)
+        XCTAssertNotNil(failedSummary?.summaryFailure)
+        XCTAssertEqual(failedSummary?.transcript.text, "Merhaba")
+
+        let neverUpload = WorkerStubTranscriptionService(mode: .failure(.authentication))
+        _ = try await queue.enqueue(meetingID: meeting.id)
+        let second = TranscriptionProcessingWorker(queue: queue, meetingRepository: repository,
+            settingsRepository: settings, transcriptionService: neverUpload)
+        await second.drain()
+        let request = await neverUpload.lastRequest()
+        XCTAssertNil(request)
+        let recovered = try await repository.loadTranscription(for: meeting.id)
+        XCTAssertNil(recovered?.summaryFailure)
+        XCTAssertNotNil(recovered?.summary)
+        XCTAssertEqual(recovered?.transcript.segments.first?.id, failedSummary?.transcript.segments.first?.id)
+    }
+
     private func makeCapture() throws -> RecordingCaptureResult {
         let id = UUID()
         let directory = root
