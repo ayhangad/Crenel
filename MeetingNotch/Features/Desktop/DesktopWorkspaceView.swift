@@ -40,7 +40,7 @@ final class DesktopWindowController: NSWindowController, NSWindowDelegate {
     let navigation = DesktopNavigation()
 
     init(delegate: AppDelegate) {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1180, height: 780),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 680),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)
         super.init(window: window)
@@ -49,16 +49,19 @@ final class DesktopWindowController: NSWindowController, NSWindowDelegate {
         window.titleVisibility = .hidden
         window.toolbar = NSToolbar(identifier: "MeetingNotchWorkspace")
         window.toolbarStyle = .unified
-        window.minSize = NSSize(width: 1000, height: 620)
+        window.contentMinSize = NSSize(width: 960, height: 540)
         window.isReleasedWhenClosed = false
         window.isRestorable = false
         window.appearance = NSAppearance(named: .darkAqua)
-        window.contentView = NSHostingView(rootView:
+        let hostingView = NSHostingView(rootView:
             DesktopWorkspaceView(delegate: delegate, navigation: navigation)
                 .environmentObject(delegate.appState))
+        hostingView.sizingOptions = []
+        window.contentView = hostingView
+        window.setContentSize(NSSize(width: 1120, height: 680))
         window.delegate = self
         window.center()
-        window.setFrameAutosaveName("MeetingNotchWorkspace")
+
     }
 
     required init?(coder: NSCoder) { nil }
@@ -86,79 +89,115 @@ struct DesktopWorkspaceView: View {
     let delegate: AppDelegate
     @ObservedObject var navigation: DesktopNavigation
     @EnvironmentObject private var appState: AppState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Divider()
+            Rectangle().fill(MeetingNotchTheme.hairline).frame(width: 1)
             Group {
                 switch navigation.section {
-                case .meetings: DesktopMeetingsView(delegate: delegate, selection: $navigation.selectedMeeting)
+                case .meetings:
+                    DesktopMeetingsView(delegate: delegate, selection: $navigation.selectedMeeting)
                 case .tasks:
-                    ScrollView {
-                        TasksView(onAdd: delegate.addTask, onUpdate: delegate.updateTask,
-                            onChangeStatus: delegate.changeTaskStatus, onArchive: delegate.archiveTask,
-                            onRestore: delegate.restoreTask, onDelete: delegate.deleteTask,
-                            onDeleteArchive: delegate.deleteTaskArchive)
-                            .frame(maxWidth: 860).padding(32)
-                    }
-                case .settings: delegate.desktopSettings(category: navigation.settingsCategory).id(navigation.settingsCategory)
+                    VStack(alignment: .leading, spacing: 24) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Görevler").font(MeetingNotchTheme.pageTitleFont)
+                        }
+                        ScrollView {
+                            TasksView(onAdd: delegate.addTask, onUpdate: delegate.updateTask,
+                                onChangeStatus: delegate.changeTaskStatus, onArchive: delegate.archiveTask,
+                                onRestore: delegate.restoreTask, onDelete: delegate.deleteTask,
+                                onDeleteArchive: delegate.deleteTaskArchive)
+                                .padding(20)
+                                .background(MeetingNotchTheme.surface.opacity(0.4), in: RoundedRectangle(cornerRadius: 24))
+                        }
+                    }.padding(32).frame(maxWidth: 900, maxHeight: .infinity, alignment: .topLeading)
+                case .settings:
+                    delegate.desktopSettings(category: navigation.settingsCategory).id(navigation.settingsCategory)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color(nsColor: .windowBackgroundColor))
+            .background(MeetingNotchTheme.workspaceBackground)
+            .transition(.opacity)
         }
+        .foregroundStyle(MeetingNotchTheme.primaryText)
+        .environment(\.workspacePalette, true)
         .preferredColorScheme(.dark)
-        .tint(.cyan)
+        .tint(MeetingNotchTheme.cyan)
+        .animation(MeetingNotchMotion.navigation(reduceMotion: reduceMotion), value: navigation.section)
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 28) {
             HStack(spacing: 10) {
-                Image(systemName: "waveform").font(.title2).foregroundStyle(.cyan)
-                Text("MeetingNotch").font(.system(size: 16, weight: .semibold))
-            }.padding(.horizontal, 12).padding(.top, 16)
-            VStack(spacing: 6) {
+                Image("FigmaVoice").resizable().renderingMode(.template)
+                    .frame(width: 22, height: 22)
+                    .foregroundStyle(MeetingNotchTheme.cyan)
+                    .frame(width: 36, height: 36)
+                    .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityHidden(true)
+                Text("MeetingNotch").font(.system(size: 15, weight: .semibold))
+            }.padding(.horizontal, 4).padding(.top, 12)
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(DesktopSection.allCases) { section in
                     Button { navigation.section = section } label: {
                         HStack(spacing: 10) {
-                            Image(systemName: section.symbol).frame(width: 20)
+                            Image(systemName: section.symbol).font(.system(size: 17, weight: .regular))
+                                .foregroundStyle(navigation.section == section ? MeetingNotchTheme.cyan : MeetingNotchTheme.secondaryText)
+                                .frame(width: 20).accessibilityHidden(true)
                             Text(section.rawValue)
-                            Spacer()
+                            Spacer(minLength: 4)
                             if section == .tasks, appState.activeTaskCount > 0 {
-                                Text("\(appState.activeTaskCount)").monospacedDigit().foregroundStyle(.secondary)
+                                Text("\(appState.activeTaskCount)").font(MeetingNotchTheme.metadataFont)
+                                    .padding(.horizontal, 6).padding(.vertical, 2)
+                                    .background(Color.white.opacity(0.07), in: Capsule())
                             }
                         }
-                        .font(.system(size: 13, weight: navigation.section == section ? .semibold : .regular))
-                        .padding(.horizontal, 12).frame(height: 40)
-                        .background(navigation.section == section ? Color.white.opacity(0.09) : .clear,
-                            in: RoundedRectangle(cornerRadius: 8))
-                        .contentShape(Rectangle())
-                    }.buttonStyle(.plain)
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 12).frame(height: 44)
+                    }
+                    .buttonStyle(MeetingNotchRowButtonStyle(selected: navigation.section == section))
                     .accessibilityAddTraits(navigation.section == section ? .isSelected : [])
                 }
             }
             Spacer()
             if case .recording(let startedAt) = appState.meetingFlow {
-                VStack(alignment: .leading, spacing: 10) {
-                    Label("Kayıt sürüyor", systemImage: "record.circle.fill").foregroundStyle(.red)
-                    Text(startedAt, style: .timer).monospacedDigit()
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label("Kaydediliyor", systemImage: "record.circle")
+                            .foregroundStyle(MeetingNotchTheme.danger)
+                        Spacer(minLength: 0)
+                    }
+                    Text(startedAt, style: .timer).font(.system(size: 24, weight: .medium, design: .monospaced))
                     Button("Kaydı bitir", action: delegate.stopRecordingFlow)
-                }.font(.callout).padding(12)
+                        .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
+                }.font(MeetingNotchTheme.metadataFont).padding(12)
+                    .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 16))
             }
             VStack(alignment: .leading, spacing: 12) {
                 Button(action: delegate.showMeetingNotch) {
-                    Label("Notch’u göster", systemImage: "rectangle.topthird.inset.filled")
-                        .frame(maxWidth: .infinity, alignment: .leading).frame(height: 40)
-                }.buttonStyle(.plain)
-                HStack(spacing: 6) {
-                    Circle().fill(.green).frame(width: 6, height: 6)
-                    Text("Notch arka planda açık").font(.caption).foregroundStyle(.secondary)
-                }
-            }.padding(12)
+                    HStack(spacing: 8) {
+                        Image(systemName: "rectangle.topthird.inset.filled")
+                        Text("Notch’u göster")
+                        Spacer(minLength: 0)
+                        Image(systemName: "arrow.up.right").font(.system(size: 10))
+                    }.font(MeetingNotchTheme.controlFont).padding(.horizontal, 12).frame(height: 44)
+                }.buttonStyle(MeetingNotchRowButtonStyle())
+
+            }
         }
-        .padding(12).frame(width: 190)
-        .background(.ultraThinMaterial)
+        .padding(16).frame(width: 206)
+        .background(MeetingNotchTheme.sidebarBackground)
+    }
+}
+
+private struct WorkspaceStatusLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 7) {
+            configuration.icon.font(.system(size: 5)).foregroundStyle(MeetingNotchTheme.success)
+            configuration.title
+        }
     }
 }
 
@@ -174,6 +213,7 @@ private struct DesktopMeetingsView: View {
     let delegate: AppDelegate
     @EnvironmentObject private var appState: AppState
     @State private var query = ""
+    @FocusState private var searchFocused: Bool
     @Binding var selection: UUID?
     @State private var detail: MeetingDetailContent?
     @State private var loadError = false
@@ -189,19 +229,23 @@ private struct DesktopMeetingsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Toplantılar").font(.system(size: 24, weight: .bold))
+                        Text("Toplantılar").font(MeetingNotchTheme.pageTitleFont)
                         Text("\(appState.storedMeetings.count) kayıt").font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button(action: delegate.startManualRecording) { Image(systemName: "record.circle").foregroundStyle(.red) }
-                        .help("Yeni kayıt başlat").controlSize(.large)
+                    Button(action: delegate.startManualRecording) { Image(systemName: "plus") }
+                        .buttonStyle(MeetingNotchIconButtonStyle(tint: MeetingNotchTheme.primaryText))
+                        .help("Yeni kayıt başlat").accessibilityLabel("Yeni kayıt başlat")
                         .disabled(appState.requiresTerminationConfirmation)
                 }
                 HStack {
                     Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                     TextField("Toplantılarda ara", text: $query).textFieldStyle(.plain)
-                    if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain) }
-                }.padding(9).background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                        .focused($searchFocused).accessibilityLabel("Toplantılarda ara")
+                    if !query.isEmpty { Button { query = ""; searchFocused = true } label: { Image(systemName: "xmark.circle.fill").frame(width: 40, height: 40) }.buttonStyle(.plain).help("Aramayı temizle").accessibilityLabel("Aramayı temizle") }
+                }.padding(.leading, 12).padding(.trailing, query.isEmpty ? 12 : 0).frame(height: 44)
+                    .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(searchFocused ? MeetingNotchTheme.cyan : MeetingNotchTheme.hairline, lineWidth: 1))
                 if !appState.upcomingMeetings.isEmpty && query.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("YAKLAŞAN").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
@@ -213,16 +257,17 @@ private struct DesktopMeetingsView: View {
                                 }
                                 Spacer(minLength: 4)
                                 if let url = meeting.meetingURL {
-                                    Button("Katıl") { delegate.openMeetingURL(url) }.controlSize(.small)
+                                    Button("Katıl") { delegate.openMeetingURL(url) }.buttonStyle(MeetingNotchActionButtonStyle())
                                 }
-                            }.padding(10).background(Color.cyan.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+                            }.padding(12).background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 16))
                         }
                     }
                 }
                 if filtered.isEmpty {
-                    ContentUnavailableView(query.isEmpty ? "Henüz kayıt yok" : "Sonuç bulunamadı",
-                        systemImage: query.isEmpty ? "waveform" : "magnifyingglass",
-                        description: Text(query.isEmpty ? "İlk toplantınız kaydedildiğinde burada görünecek." : "Başka bir toplantı adı deneyin."))
+                    MeetingNotchEmptyState(symbol: query.isEmpty ? "waveform" : "magnifyingglass",
+                        title: query.isEmpty ? "Henüz kayıt yok" : "Sonuç bulunamadı",
+                        detail: query.isEmpty ? "İlk toplantınız kaydedildiğinde burada görünecek." : "Başka bir toplantı adı deneyin.", compact: true)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List(selection: $selection) {
                         ForEach(filtered) { meeting in
@@ -240,7 +285,12 @@ private struct DesktopMeetingsView: View {
                                 } else if meeting.summaryNeedsAttention == true {
                                     Text("Özet bekliyor").font(.caption).foregroundStyle(.orange)
                                 }
-                            }.padding(.vertical, 8).tag(meeting.id)
+                            }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                                .background(selection == meeting.id ? Color.white.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 12))
+                                .tag(meeting.id)
+                                .listRowInsets(EdgeInsets(top: 3, leading: 0, bottom: 3, trailing: 0))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
                                 .contextMenu {
                                     if meeting.processingStatus == .failed {
                                         Button("İşlemeyi tekrar dene") { delegate.retryProcessing(meeting) }
@@ -250,8 +300,8 @@ private struct DesktopMeetingsView: View {
                         }
                     }.listStyle(.plain).scrollContentBackground(.hidden)
                 }
-            }.padding(20).frame(width: 280)
-            Divider()
+            }.padding(20).frame(width: 294).background(MeetingNotchTheme.sidebarBackground.opacity(0.45))
+            Rectangle().fill(MeetingNotchTheme.hairline).frame(width: 1)
             detailPane.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .task(id: requestID) { await loadSelection() }
@@ -283,18 +333,18 @@ private struct DesktopMeetingsView: View {
             }
         } else if selection != nil {
             if loadError {
-                ContentUnavailableView {
-                    Label("Toplantı açılamadı", systemImage: "exclamationmark.triangle")
-                } description: { Text("Dosyalar okunamadı. Kaydı tekrar açmayı deneyin.") }
-                actions: { Button("Tekrar dene") { revision += 1 } }
+                VStack(spacing: 4) {
+                    MeetingNotchEmptyState(symbol: "exclamationmark.circle", title: "Toplantı açılamadı",
+                        detail: "Dosyalar okunamadı. Kaydı tekrar açmayı deneyin.")
+                    Button("Tekrar dene") { revision += 1 }.buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
+                }
             } else { ProgressView("Toplantı açılıyor…") }
         } else {
-            ContentUnavailableView {
-                Label("Toplantılarınız, tek bir yerde", systemImage: "waveform")
-            } description: {
-                Text("Özeti okuyun, konuşmacıları düzenleyin ve\ngörevleri takip edin. Başlamak için bir toplantı seçin.")
-            } actions: {
-                Button("Yeni kayıt", action: delegate.startManualRecording)
+            VStack(spacing: 4) {
+                MeetingNotchEmptyState(symbol: "waveform", title: "Bir toplantı seçin", detail: "")
+                Button(action: delegate.startManualRecording) {
+                    Label("Yeni kayıt başlat", systemImage: "plus")
+                }.buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                     .disabled(appState.requiresTerminationConfirmation)
             }
         }
@@ -307,6 +357,6 @@ private struct DesktopMeetingsView: View {
             let loaded = try await delegate.loadDesktopMeeting(meeting)
             guard !Task.isCancelled, selection == meeting.id else { return }
             detail = loaded
-        } catch { if !Task.isCancelled { loadError = true; detail = nil } }
+        } catch { if !Task.isCancelled, selection == meeting.id { loadError = true; detail = nil } }
     }
 }

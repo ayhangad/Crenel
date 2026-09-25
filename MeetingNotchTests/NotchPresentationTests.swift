@@ -271,7 +271,7 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(MeetingNotchTheme.MainPanel.panelRadius, 24)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.surfaceRadius, 22)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.capsuleRadius, 16)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.tabHeight, 32)
+        XCTAssertGreaterThanOrEqual(MeetingNotchTheme.MainPanel.tabHeight, 40)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.rowHeight, 58)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.iconSize, 20)
     }
@@ -656,5 +656,186 @@ final class NotchPresentationTests: XCTestCase {
             endDate: startDate.addingTimeInterval(1_800),
             externalIdentifier: "planlama"
         )
+    }
+}
+
+// Synthetic fixtures exercise layout only. No microphone, calendar account or remote API is used.
+extension NotchPresentationTests {
+    @MainActor
+    func testCompleteNotchLifecycleAtStandardAndConstrainedWidths() throws {
+        let now = Date()
+        let upcoming = Meeting(title: "Ürün stratejisi ve tasarım kararları için haftalık değerlendirme",
+            startDate: now.addingTimeInterval(420), endDate: now.addingTimeInterval(2220),
+            meetingURL: URL(string: "https://meet.google.com/abc-defg-hij"))
+        let flows: [(String, MeetingFlowState)] = [
+            ("idle", .idle), ("upcoming", .upcomingMeeting(upcoming)),
+            ("preparing", .preparingRecording), ("recording", .recording(startedAt: now.addingTimeInterval(-3783))),
+            ("finalizing", .finalizingAudio), ("uploading", .uploading(progress: 0.42)),
+            ("transcribing", .transcribing), ("summarizing", .summarizing),
+            ("completed", .completed(meetingID: UUID())), ("cancelled", .cancelled),
+            ("network-error", .failed(.network("Bağlantı kurulamadı. Ses kaydı bu Mac’te korunuyor.")))
+        ]
+        for (name, flow) in flows {
+            for width: CGFloat in [600, 360] {
+                let state = AppState(initialFlow: flow)
+                state.updateNotchPanelPresentation(availableSize: CGSize(width: width, height: 640), hasPhysicalNotch: width == 600)
+                if case .upcomingMeeting = flow {
+                    state.updateUpcomingMeetings([upcoming])
+                    state.updateCalendarAccessState(.authorized)
+                }
+                if flow.isRecording {
+                    state.updateMeetingMicrophoneGate(MeetingMicrophoneGate(recordingStartedAt: now.addingTimeInterval(-3783)))
+                }
+                try auditRender(AnyView(NotchPanelView().environmentObject(state)),
+                    name: "notch-\(name)-\(Int(width))", size: CGSize(width: width, height: 640))
+            }
+            let compact = AppState(initialFlow: flow)
+            try auditRender(AnyView(HStack(spacing: 24) { CompactLeadingView(); CompactTrailingView() }
+                .padding(12).background(.black).environmentObject(compact)),
+                name: "compact-\(name)", size: CGSize(width: 300, height: 48))
+        }
+        for mic in [MeetingMicrophoneState.open, .closed, .unknown] {
+            let state = AppState(initialFlow: .recording(startedAt: now.addingTimeInterval(-83)))
+            var gate = MeetingMicrophoneGate(recordingStartedAt: now.addingTimeInterval(-83))
+            gate.observeClientState(mic, confidence: .confirmed, at: now)
+            state.updateMeetingMicrophoneGate(gate)
+            state.updateRecordingCaptureStatus(RecordingCaptureStatus(
+                microphone: AudioSourceStatus(connectionState: .ready, level: 0.6),
+                systemAudio: AudioSourceStatus(connectionState: .ready, level: 0.4)))
+            try auditRender(AnyView(NotchPanelView().environmentObject(state)),
+                name: "gate-\(mic.rawValue)", size: CGSize(width: 600, height: 480))
+        }
+        let prompts: [(String, MeetingLifecyclePrompt)] = [
+            ("offer", .recordingOffer(sessionID: UUID(), clientID: .zoom)),
+            ("uncertain-end", .endConfirmation(sessionID: UUID(), clientID: .googleMeetChrome)),
+            ("auto-stop", .autoStop(sessionID: UUID(), clientID: .zoom, deadline: now.addingTimeInterval(5)))
+        ]
+        for (name, prompt) in prompts {
+            let state = AppState(initialFlow: name == "offer" ? .idle : .recording(startedAt: now))
+            state.presentMeetingLifecyclePrompt(prompt)
+            try auditRender(AnyView(NotchPanelView().environmentObject(state)),
+                name: "prompt-\(name)", size: CGSize(width: 600, height: 640))
+        }
+    }
+
+    @MainActor
+    func testEveryOnboardingStepAndLightSystemAppearanceRenders() throws {
+        for step in OnboardingView.Step.allCases {
+            let state = AppState()
+            let view = OnboardingView(onRequestMicrophoneAccess: {}, onRequestSystemAudioAccess: {},
+                onRequestAccessibilityAccess: {}, onRequestCalendarAccess: {}, onComplete: {}, initialStep: step)
+                .environmentObject(state)
+            try auditRender(AnyView(view), name: "onboarding-\(step.rawValue)", size: CGSize(width: 600, height: 500))
+        }
+        let state = AppState(initialFlow: .uploading(progress: 0.72))
+        try auditRender(AnyView(NotchPanelView().environmentObject(state)
+            .environment(\.colorScheme, .light)), name: "light-system-appearance", size: CGSize(width: 600, height: 420))
+    }
+
+    @MainActor
+    func testTaskArchivePermissionAndMeetingDetailVariantsRender() throws {
+        for archived in [false, true] {
+            for populated in [false, true] {
+                let state = AppState()
+                if populated {
+                    state.replaceTasks([
+                        TaskItem(title: "Müşteri görüşmesindeki tasarım kararlarını ve takip adımlarını ekip ile paylaş", status: .todo, assignee: "Deniz", dueDate: Date()),
+                        TaskItem(title: "İzin ve mikrofon senaryolarını doğrula", status: .inProgress),
+                        TaskItem(title: "Görsel kontrol matrisi tamamlandı", status: .completed)
+                    ])
+                }
+                let view = TasksView(onAdd: { _ in }, onUpdate: { _, _ in }, onChangeStatus: { _, _ in },
+                    onArchive: { _ in }, onRestore: { _ in }, onDelete: { _ in }, onDeleteArchive: {},
+                    initiallyShowsArchive: archived).environmentObject(state)
+                try auditRender(AnyView(ScrollView { view.padding(12) }.background(.black)),
+                    name: "tasks-\(archived ? "archive" : "active")-\(populated ? "populated" : "empty")", size: CGSize(width: 600, height: 500))
+            }
+        }
+        for status in [AudioCapturePermissionStatus.authorized, .denied, .verificationRequired, .restricted] {
+            let state = AppState()
+            state.updateAudioCapturePermissions(AudioCapturePermissionSnapshot(microphone: status, systemAudio: status))
+            state.updateAccessibilityPermission(granted: status == .authorized)
+            try auditRender(AnyView(SettingsView(initialCategory: .recording).environmentObject(state)),
+                name: "permissions-\(status.rawValue)", size: CGSize(width: 600, height: 1100))
+        }
+        for status in [StoredMeeting.ProcessingStatus.recorded, .processing, .failed, .completed] {
+            let meeting = StoredMeeting(id: UUID(), title: "Ürün stratejisi ve sonraki adımlar", startedAt: Date().addingTimeInterval(-3800),
+                endedAt: Date(), sourceMeeting: nil, audioFileName: "fixture.m4a", processingStatus: status)
+            let transcript = Transcript(text: "", languageCode: "tr", segments: [
+                TranscriptSegment(speakerID: "speaker_0", speakerName: "Deniz", startTime: 12, endTime: 22,
+                    text: "Yeni tasarımda kullanıcı kayıt durumunu ve mikrofon gizliliğini tek bakışta anlayabilmeli."),
+                TranscriptSegment(speakerID: "speaker_1", speakerName: "Ayşe", startTime: 25, endTime: 37,
+                    text: "Toplantı sonunda görevleri sorumluları ve kaynaklarıyla birlikte kontrol edeceğiz.")
+            ])
+            let content = MeetingDetailContent(meeting: meeting,
+                storedTranscription: status == .completed ? StoredTranscription(transcript: transcript,
+                    summary: MeetingSummary(overview: "Kayıt deneyimi ve görev takibi birlikte değerlendirildi.",
+                        decisions: ["Tüm ekranlarda ortak bir tasarım dili kullanılacak."],
+                        actionItems: (1...9).map { ActionItem(title: "\($0). arayüz adımını gerçek toplantıda değerlendir.", assignee: "Deniz", sourceTime: 12) })) : nil,
+                markdown: "# Toplantı notları", audioURL: URL(fileURLWithPath: "/tmp/ui-audit.m4a"))
+            try auditRender(AnyView(VStack(spacing: 20) {
+                MeetingDetailToolbar(content: content, onBack: {}, onCopyText: { _ in })
+                ScrollView {
+                    MeetingDetailView(content: content, onCopyText: { _ in }, onExportMarkdown: { _ in },
+                        onRevealAudio: { _ in }, onRetry: { _ in }, onDelete: { _ in })
+                }
+            }.padding(20).background(MeetingNotchTheme.workspaceBackground)),
+                name: "detail-\(status.rawValue)", size: CGSize(width: 680, height: 1050))
+        }
+    }
+
+    @MainActor
+    func testTabChangesKeepScrollContainerAndHideIndicators() throws {
+        let state = AppState()
+        let host = NSHostingView(rootView: NotchPanelView().environmentObject(state))
+        host.sizingOptions = []
+        host.frame = NSRect(x: 0, y: 0, width: 600, height: 500)
+        let container = NSView(frame: host.frame)
+        container.addSubview(host)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = container
+        defer { window.contentView = nil }
+        func scrollViews(_ view: NSView) -> [NSScrollView] {
+            (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap(scrollViews)
+        }
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        let original = try XCTUnwrap(scrollViews(host).first)
+        for tab in [AppState.PanelTab.tasks, .meetings, .tasks, .meetings] {
+            state.selectedTab = tab
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+            host.layoutSubtreeIfNeeded()
+            let current = try XCTUnwrap(scrollViews(host).first)
+            XCTAssertTrue(original === current, "Tab changes must preserve the scroll container")
+            XCTAssertTrue(current.verticalScroller?.isHidden != false || current.verticalScroller?.alphaValue == 0)
+            XCTAssertFalse(current.hasHorizontalScroller)
+        }
+    }
+
+    @MainActor
+    private func auditRender(_ view: AnyView, name: String, size: CGSize) throws {
+        let host = NSHostingView(rootView: view)
+        // The audit owns the viewport; prevent hosting-view ideal sizing from resizing the window.
+        host.sizingOptions = []
+        host.appearance = NSAppearance(named: .darkAqua)
+        host.frame = CGRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        let container = NSView(frame: host.frame)
+        container.addSubview(host)
+        host.autoresizingMask = [.width, .height]
+        window.contentView = container
+        defer { window.contentView = nil }
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        host.layoutSubtreeIfNeeded()
+        XCTAssertLessThanOrEqual(host.fittingSize.width, size.width + 1, "\(name): horizontal overflow")
+        let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        if FileManager.default.fileExists(atPath: "/tmp/MeetingNotchExportUIAudit") {
+            let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            let path = root.appending(path: "artifacts/ui-audit/matrix/\(name).png")
+            try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: path)
+        }
     }
 }

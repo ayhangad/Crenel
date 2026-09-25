@@ -22,6 +22,45 @@ uygun görevi seçmeli ve çalışmanın durumunu yine bu dosyada güncellemelid
 - Plan sıralıdır. Bir fazın çıkış kriterleri tamamlanmadan ona bağımlı sonraki faz
   tamamlanmış sayılmaz.
 
+## 2026-09-25 — Koyu tema parlaklık düzeltmesi
+
+- [x] Nötr yüzeyleri koyulaştırmak: arka plan #171717, sidebar #131313, kart #202020.
+
+Doğrulama: 3 masaüstü testi ve imzalı Debug build başarılı; güncel ayar görseli incelendi.
+
+## 2026-09-25 — Nötr renk düzeltmesi
+
+- [x] Son turda eklenen mavi alt tonları kaldırmak; açık koyu yüzeyleri nötr griye ve ana eylemleri nötr renge çevirmek.
+
+Doğrulama: 3 masaüstü testi geçti; imzalı Debug build başarılı. Ayar görselinde nötr yüzeyler kontrol edildi.
+
+## 2026-09-25 — UX sadeleştirme ve yerleşim düzeltmeleri
+
+- [x] Gereksiz açıklamaları kaldırmak; masaüstü paletini, ayar yapısını ve kompakt aksiyon listesini yenilemek.
+- [x] Notch sekme/scroll titremesini ve masaüstü açılış/minimum boyutunu düzeltip doğrulamak.
+
+Doğrulama: 333 test (3 opt-in atlandı), 0 hata; son 25 görsel UI testi ve yeni
+sekme/scroll regresyon testi ayrıca geçti. Gerçek NSWindow 1120×680 açılış ve
+960×540 küçültme doğrulandı. İmzalı Debug build başarılı. Fiziksel notch hareket
+akıcılığı henüz canlı toplantıda doğrulanmadı. Ayrıntılar: `QA/UI_POLISH_AUDIT.md`.
+
+## 2026-09-25 — Arayüz ve etkileşim kalitesi
+
+Notch’un kompakt/geniş tüm yaşam döngüsü durumları, masaüstü çalışma alanı,
+toplantı detayı, görevler, ayarlar ve onboarding birlikte gözden geçirilir.
+Mevcut siyah/nötr tasarım dili; tutarlı yüzey, tipografi, ikon, klavye odağı,
+hover/basış geri bildirimi ve Reduce Motion uyumlu geçişlerle geliştirilir.
+
+- [x] Ekran/durum envanteri ve görsel incelemeyi tamamlamak.
+- [x] Ortak tasarım sistemi, notch ve masaüstü ekranlarındaki iyileştirmeleri uygulamak.
+- [x] Görsel durum matrisi, erişilebilirlik ve build/test doğrulamasını tamamlamak.
+
+Doğrulama: 333 test, 3 opt-in fiziksel ses testi atlandı, 0 hata. Son görsel
+düzeltmelerden sonra 25 UI testi tekrar geçti; development imzalı Debug build başarılı.
+59 ek durum görseli ve önce/sonra galerisi üretildi. Erişilebilirlik kontrolü kod/test
+seviyesindedir; fiziksel VoiceOver, yeni build ile gerçek toplantı ve hareket akıcılığı
+kapsamı ayrı kalır. Ayrıntılar: `QA/UI_POLISH_AUDIT.md`.
+
 ## 2026-09-14 — Masaüstü çalışma alanı
 
 Notch varsayılan açılış olarak kalır. Kullanıcı istediğinde ayrıca tek bir masaüstü

@@ -7,8 +7,6 @@ struct MeetingNotificationSettingsView: View {
             Label("Toplantı Bildirimleri", systemImage: "bell.badge")
                 .font(.system(size: 15, weight: .semibold))
             Text(service.status).font(MeetingNotchTheme.bodyFont)
-            Text("Seçili takvimlerdeki toplantılar için macOS bildirimi alın; bildirimden katılın veya 5 dakika erteleyin. Odak ve sistem bildirim tercihleri geçerlidir.")
-                .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
             HStack {
                 Button("Bildirimlere izin ver") { Task { await service.requestAccess() } }
                 Button("Bildirim ayarları") {
@@ -18,8 +16,9 @@ struct MeetingNotificationSettingsView: View {
                 }
             }
         }
-        .padding(16)
-        .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 12))
+        .padding(20)
+        .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: MeetingNotchTheme.surfaceRadius))
+        .buttonStyle(MeetingNotchActionButtonStyle())
         .task { await service.refreshStatus() }
     }
 }

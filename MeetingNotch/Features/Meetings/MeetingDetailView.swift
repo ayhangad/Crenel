@@ -105,6 +105,12 @@ final class MeetingAudioPlayer: ObservableObject {
         }
     }
 
+    func play(from seconds: TimeInterval) {
+        seek(to: seconds)
+        player.play()
+        isPlaying = true
+    }
+
     func seek(to seconds: TimeInterval) {
         let clamped = min(max(seconds, 0), duration)
         currentTime = clamped
@@ -121,7 +127,9 @@ struct MeetingDetailToolbar: View {
     let onBack: () -> Void
     let onCopyText: (String) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var copiedFormat: CopyFormat?
+    @State private var copyRevision = 0
 
     private enum CopyFormat {
         case text
@@ -141,6 +149,7 @@ struct MeetingDetailToolbar: View {
                 Text(content.meeting.title)
                     .font(MeetingNotchTheme.titleFont)
                     .lineLimit(1)
+                    .help(content.meeting.title)
 
                 Text(detailLine)
                     .font(MeetingNotchTheme.metadataFont)
@@ -184,12 +193,18 @@ struct MeetingDetailToolbar: View {
             .help("Toplantıyı Markdown olarak kopyala")
             .accessibilityLabel("Toplantıyı Markdown olarak kopyala")
         }
+        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: copiedFormat)
+        .task(id: copyRevision) {
+            guard copiedFormat != nil else { return }
+            do { try await Task.sleep(for: .seconds(1.6)) } catch { return }
+            copiedFormat = nil
+        }
     }
 
     private var detailLine: String {
         let date = content.meeting.startedAt.formatted(date: .abbreviated, time: .shortened)
         let duration = TranscriptTextFormatter.timestamp(content.meeting.duration)
-        return "\(date.uppercased())  /  \(duration)"
+        return "\(date) · \(duration)"
     }
 
     @ViewBuilder
@@ -209,11 +224,7 @@ struct MeetingDetailToolbar: View {
     private func copy(_ value: String, format: CopyFormat) {
         onCopyText(value)
         copiedFormat = format
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.2))
-            guard copiedFormat == format else { return }
-            copiedFormat = nil
-        }
+        copyRevision += 1
     }
 }
 
@@ -232,7 +243,12 @@ struct MeetingDetailView: View {
     @State private var editingSpeakerName = ""
     @State private var analysisMessage: String?
     @State private var savingSpeaker = false
+    @State private var analysisFailed = false
+    @State private var copiedNotes = false
+    @State private var notesCopyRevision = 0
+    @FocusState private var speakerFieldFocused: Bool
     @State private var importingActions = Set<UUID>()
+    @State private var showsAllActions = false
 
     // State keeps the controller alive without subscribing this entire detail tree to
     // its 4 Hz playback updates. CompactAudioPlayer is the only observing view.
@@ -272,19 +288,20 @@ struct MeetingDetailView: View {
                 .padding(.bottom, MeetingNotchTheme.sectionSpacing)
 
             if let storedTranscription = content.storedTranscription {
-                analysisControls(storedTranscription)
-                    .padding(.bottom, MeetingNotchTheme.sectionSpacing)
                 if let summary = storedTranscription.summary {
                     summarySection(summary)
                         .padding(.bottom, MeetingNotchTheme.sectionSpacing)
                 }
+
+                analysisControls(storedTranscription)
+                    .padding(.bottom, MeetingNotchTheme.sectionSpacing)
 
                 let transcript = storedTranscription.transcript
                 let allowsInlineTextSelection = TranscriptPresentationPolicy
                     .allowsInlineTextSelection(segmentCount: transcript.segments.count)
 
                 sectionHeader("Transkript", assetName: "FigmaVoice") {
-                    Text("\(transcript.segments.count) segment")
+                    Text("\(transcript.segments.count) bölüm")
                         .font(MeetingNotchTheme.dataFont)
                         .foregroundStyle(MeetingNotchTheme.secondaryText)
                 }
@@ -303,7 +320,7 @@ struct MeetingDetailView: View {
                         TranscriptSegmentRow(
                             segment: segment,
                             allowsInlineTextSelection: allowsInlineTextSelection,
-                            onSeek: { player.seek(to: segment.startTime) },
+                            onSeek: { player.play(from: segment.startTime) },
                             onCopy: {
                                 onCopyText(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))
                             }
@@ -323,11 +340,13 @@ struct MeetingDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: .desktopDidClose)) { _ in player.pause() }
         .sheet(isPresented: Binding(get: { editingSpeakerID != nil }, set: { if !$0 { editingSpeakerID = nil } })) {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Konuşmacıyı adlandır").font(.headline)
-                Text("Bu toplantının transkripti ve kişiye bağlı görevleri birlikte güncellenir.").font(.callout)
-                TextField("Ad", text: $editingSpeakerName).textFieldStyle(.roundedBorder)
+                Label("Konuşmacıyı adlandır", systemImage: "person.crop.circle")
+                    .font(MeetingNotchTheme.titleFont)
+                TextField("Ad", text: $editingSpeakerName)
+                    .focused($speakerFieldFocused).meetingFieldSurface(focused: speakerFieldFocused).accessibilityLabel("Konuşmacının adı")
                 HStack {
                     Button("Vazgeç") { editingSpeakerID = nil }.disabled(savingSpeaker)
+                        .keyboardShortcut(.cancelAction)
                     Spacer()
                     Button("Kaydet") {
                         guard let speakerID = editingSpeakerID else { return }
@@ -338,19 +357,32 @@ struct MeetingDetailView: View {
                             savingSpeaker = false
                             if case .succeeded = result { editingSpeakerID = nil }
                         }
-                    }.disabled(savingSpeaker || isProcessing)
+                    }.buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(savingSpeaker || isProcessing || editingSpeakerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                if let analysisMessage { Text(analysisMessage).font(.caption) }
-            }.padding(24).frame(width: 380)
+                if savingSpeaker { ProgressView("Kaydediliyor…").controlSize(.small) }
+                if let analysisMessage { MeetingNotchFeedback(message: analysisMessage, isFailure: analysisFailed) }
+            }.padding(28).frame(width: 420)
+                .buttonStyle(MeetingNotchActionButtonStyle())
+                .background(MeetingNotchTheme.workspaceBackground)
+                .preferredColorScheme(.dark)
+                .onAppear { speakerFieldFocused = true }
+        }
+        .task(id: notesCopyRevision) {
+            guard copiedNotes else { return }
+            do { try await Task.sleep(for: .seconds(1.6)) } catch { return }
+            copiedNotes = false
         }
     }
 
     private func analysisControls(_ stored: StoredTranscription) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Button(stored.summary?.model == nil ? "OpenAI ile özetle" : "Özeti yeniden oluştur") {
+                Button(stored.summary?.model == nil ? "Özet oluştur" : "Özeti yenile") {
                     onRetry(content.meeting)
-                }.disabled(isProcessing || savingSpeaker)
+                }.buttonStyle(MeetingNotchActionButtonStyle())
+                    .disabled(isProcessing || savingSpeaker)
                 if isProcessing { ProgressView().controlSize(.small) }
                 Spacer()
                 Menu("Konuşmacılar") {
@@ -362,25 +394,23 @@ struct MeetingDetailView: View {
                             analysisMessage = nil
                         }
                     }
-                }.disabled(isProcessing)
+                }.menuStyle(.borderlessButton)
+                    .frame(minHeight: 40).padding(.horizontal, 12)
+                    .meetingControlFeedback(radius: 12)
+                    .disabled(isProcessing)
             }
-            Text("Özetleme, bu transkripti kendi OpenAI anahtarınızla OpenAI’ye gönderir; sesi yeniden yüklemez.")
-                .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
             if let failure = stored.summaryFailure {
-                Text(failure).font(.callout).foregroundStyle(MeetingNotchTheme.warning)
+                MeetingNotchFeedback(message: failure, isFailure: true)
                 DesktopSettingsLink(category: .ai) { Text("OpenAI bağlantısını aç") }
-            } else if stored.summary?.model == nil {
-                Text("OpenAI ile toplantının tamamından özet, kararlar ve kişi bazlı görevler oluşturun.")
-                    .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
             }
-            if let analysisMessage { Text(analysisMessage).font(.caption) }
+            if let analysisMessage { MeetingNotchFeedback(message: analysisMessage, isFailure: analysisFailed) }
         }
     }
 
     private func recordResult(_ result: SettingsActionResult) {
         switch result {
-        case .succeeded(let message): analysisMessage = message
-        case .failed(let message): analysisMessage = message
+        case .succeeded(let message): analysisMessage = message ?? "Kaydedildi."; analysisFailed = false
+        case .failed(let message): analysisMessage = message; analysisFailed = true
         }
     }
 
@@ -423,6 +453,8 @@ struct MeetingDetailView: View {
                 Label("Diğer işlemler", systemImage: "ellipsis")
             }
             .menuStyle(.borderlessButton)
+            .frame(minHeight: 40).padding(.horizontal, 12)
+            .meetingControlFeedback(radius: 12)
             .fixedSize()
             .help("Ses, dışa aktarma ve toplantı işlemleri")
         }
@@ -436,14 +468,13 @@ struct MeetingDetailView: View {
             sectionHeader("Notlar", assetName: "FigmaTasks") {
                 Button {
                     onCopyText(MeetingMarkdownFormatter.notes(summary))
+                    copiedNotes = true
+                    notesCopyRevision += 1
                 } label: {
-                    Image(systemName: "doc.on.doc")
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
+                    Image(systemName: copiedNotes ? "checkmark" : "doc.on.doc")
                 }
-                .buttonStyle(.borderless)
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
-                .help("Notları kopyala")
+                .buttonStyle(MeetingNotchIconButtonStyle(tint: copiedNotes ? MeetingNotchTheme.success : MeetingNotchTheme.secondaryText, isActive: copiedNotes))
+                .help(copiedNotes ? "Notlar kopyalandı" : "Notları kopyala")
                 .accessibilityLabel("Toplantı notlarını kopyala")
             }
 
@@ -459,6 +490,7 @@ struct MeetingDetailView: View {
                     : MeetingNotchTheme.primaryText
             )
             .textSelection(.enabled)
+            .lineSpacing(4)
             .fixedSize(horizontal: false, vertical: true)
 
             if !summary.decisions.isEmpty {
@@ -467,30 +499,46 @@ struct MeetingDetailView: View {
 
             if !summary.actionItems.isEmpty {
                 Text("Yapılacaklar").font(MeetingNotchTheme.titleFont)
-                ForEach(summary.actionItems) { action in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(action.title).font(MeetingNotchTheme.bodyFont)
-                        Text(action.assignee ?? action.speakerID.map(TranscriptTextFormatter.fallbackSpeakerName) ?? "Sorumlu belirtilmedi")
-                            .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
-                        HStack {
-                            if let date = action.dueDate {
-                                Text(date, style: .date).font(.caption)
-                            }
-                            if let time = action.sourceTime {
-                                Button("Kaynak · " + TranscriptTextFormatter.timestamp(time)) { player.seek(to: time) }
-                                    .font(.caption)
-                            }
-                            Spacer()
-                            Button(importedActionIDs.contains(action.id) ? "Görevlerde" : "Görevlere ekle") {
+                VStack(spacing: 0) {
+                    ForEach(Array(summary.actionItems.prefix(showsAllActions ? summary.actionItems.count : 6))) { action in
+                        HStack(alignment: .top, spacing: 10) {
+                            Button {
                                 importingActions.insert(action.id)
                                 Task {
                                     recordResult(await analysisActions.importAction(content.id, action))
                                     importingActions.remove(action.id)
                                 }
-                            }.disabled(importedActionIDs.contains(action.id) || importingActions.contains(action.id) || isProcessing)
+                            } label: {
+                                Image(systemName: importedActionIDs.contains(action.id) ? "checkmark.circle.fill" : "plus.circle")
+                            }
+                            .buttonStyle(MeetingNotchIconButtonStyle(tint: importedActionIDs.contains(action.id) ? MeetingNotchTheme.success : MeetingNotchTheme.secondaryText))
+                            .help(importedActionIDs.contains(action.id) ? "Görevlerde" : "Görevlere ekle")
+                            .accessibilityLabel(importedActionIDs.contains(action.id) ? "Görevlerde" : "Görevlere ekle: " + action.title)
+                            .disabled(importedActionIDs.contains(action.id) || importingActions.contains(action.id) || isProcessing)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(action.title).font(MeetingNotchTheme.bodyFont).fixedSize(horizontal: false, vertical: true)
+                                HStack(spacing: 8) {
+                                    if let assignee = action.assignee { Text(assignee) }
+                                    if let date = action.dueDate { Text(date, style: .date) }
+                                }.font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
+                            }.frame(maxWidth: .infinity, alignment: .leading).padding(.vertical, 8)
+                            if let time = action.sourceTime {
+                                Button(TranscriptTextFormatter.timestamp(time)) { player.play(from: time) }
+                                    .buttonStyle(MeetingNotchActionButtonStyle())
+                                    .help("Kaynağı dinle")
+                            }
                         }
-                    }.padding(.vertical, 6)
-                    Divider()
+                        Divider().opacity(0.4)
+                    }
+                    if summary.actionItems.count > 6 {
+                        Button {
+                            showsAllActions.toggle()
+                        } label: {
+                            Label(showsAllActions ? "Daha az göster" : "Diğer \(summary.actionItems.count - 6) madde",
+                                  systemImage: showsAllActions ? "chevron.up" : "chevron.down")
+                                .frame(maxWidth: .infinity)
+                        }.buttonStyle(MeetingNotchActionButtonStyle()).padding(.top, 8)
+                    }
                 }
             }
         }
@@ -620,12 +668,16 @@ private struct CompactSummaryList: View {
 
 private struct CompactAudioPlayer: View {
     @ObservedObject var player: MeetingAudioPlayer
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var scrubbing = false
+    @State private var scrubTime: TimeInterval = 0
 
     var body: some View {
         HStack(spacing: 8) {
             Button(action: player.togglePlayback) {
                 Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                    .contentTransition(.symbolEffect(.replace))
+                    .contentTransition(reduceMotion ? .identity : .symbolEffect(.replace))
+                    .offset(x: player.isPlaying ? 0 : 1)
             }
             .buttonStyle(
                 MeetingNotchIconButtonStyle(
@@ -635,17 +687,21 @@ private struct CompactAudioPlayer: View {
             )
             .accessibilityLabel(player.isPlaying ? "Sesi duraklat" : "Sesi oynat")
 
-            Text(TranscriptTextFormatter.timestamp(player.currentTime))
+            Text(TranscriptTextFormatter.timestamp(scrubbing ? scrubTime : player.currentTime))
                 .font(MeetingNotchTheme.dataFont)
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
-                .frame(width: 44, alignment: .trailing)
+                .frame(width: player.duration >= 3600 ? 62 : 44, alignment: .trailing)
 
             Slider(
                 value: Binding(
-                    get: { player.currentTime },
-                    set: { player.seek(to: $0) }
+                    get: { scrubbing ? scrubTime : player.currentTime },
+                    set: { scrubTime = $0; if !scrubbing { player.seek(to: $0) } }
                 ),
-                in: 0...player.duration
+                in: 0...player.duration,
+                onEditingChanged: { editing in
+                    if editing { scrubTime = player.currentTime; scrubbing = true }
+                    else { player.seek(to: scrubTime); scrubbing = false }
+                }
             )
             .controlSize(.mini)
             .tint(MeetingNotchTheme.accent)
@@ -654,7 +710,7 @@ private struct CompactAudioPlayer: View {
             Text(TranscriptTextFormatter.timestamp(player.duration))
                 .font(MeetingNotchTheme.dataFont)
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
-                .frame(width: 44, alignment: .leading)
+                .frame(width: player.duration >= 3600 ? 62 : 44, alignment: .leading)
         }
         .padding(16)
         .background(
@@ -674,6 +730,7 @@ private struct TranscriptSegmentRow: View, Equatable {
     let onCopy: () -> Void
 
     @State private var isHovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
@@ -688,17 +745,15 @@ private struct TranscriptSegmentRow: View, Equatable {
                         .font(MeetingNotchTheme.dataFont)
                         .foregroundStyle(MeetingNotchTheme.secondaryText)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(MeetingNotchActionButtonStyle())
                 .help("Bu noktadan oynat")
+                .accessibilityLabel("\(TranscriptTextFormatter.timestamp(segment.startTime)) konumundan oynat")
 
                 Spacer()
 
-                if isHovering {
-                    Image(systemName: "play")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(MeetingNotchTheme.secondaryText)
-                        .transition(.opacity)
-                }
+                Button(action: onCopy) { Image(systemName: "doc.on.doc") }
+                    .buttonStyle(MeetingNotchIconButtonStyle(tint: MeetingNotchTheme.secondaryText))
+                    .help("Bu bölümü kopyala").accessibilityLabel("Konuşma bölümünü kopyala")
             }
 
             segmentText
@@ -714,6 +769,7 @@ private struct TranscriptSegmentRow: View, Equatable {
         )
         .padding(.bottom, MeetingNotchTheme.MainPanel.rowSpacing)
         .onHover { isHovering = $0 }
+        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: isHovering)
         .contextMenu {
             Button("Segmenti kopyala", action: onCopy)
         }
@@ -724,6 +780,7 @@ private struct TranscriptSegmentRow: View, Equatable {
     private var segmentText: some View {
         let text = Text(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))
             .font(MeetingNotchTheme.bodyFont)
+            .lineSpacing(4)
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
 

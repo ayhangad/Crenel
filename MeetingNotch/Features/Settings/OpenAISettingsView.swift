@@ -9,24 +9,36 @@ struct OpenAISettingsActions {
 struct OpenAISettingsView: View {
     let actions: OpenAISettingsActions
     @State private var key = ""
+    @FocusState private var keyFocused: Bool
     @State private var connected = false
+    @State private var loading = true
     @State private var busy = false
     @State private var message: String?
+    @State private var failed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Toplantı Notları · OpenAI", systemImage: "text.badge.checkmark")
+            Label("OpenAI", systemImage: "text.badge.checkmark")
                 .font(.system(size: 15, weight: .semibold))
-            Text("Transkriptten özet, kararlar ve kişi bazlı görevler oluşturur. Kullanım kendi OpenAI hesabınızdan ücretlenir.")
+            Text("Özet ve görevler · Kullanım hesabınızdan ücretlenir.")
                 .font(MeetingNotchTheme.bodyFont)
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
-            LabeledContent("Bağlantı", value: connected ? "Anahtar kayıtlı" : "Anahtar gerekli")
-            SecureField(connected ? "Yeni OpenAI API anahtarı" : "OpenAI API anahtarı", text: $key)
-                .textFieldStyle(.roundedBorder)
-            Text("Bağla işlemi, toplantı verisi içermeyen küçük bir ücretli model isteğiyle erişimi doğrular. Anahtar yalnız Keychain’de saklanır.")
-                .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
             HStack {
-                Button(connected ? "Doğrula ve Güncelle" : "Doğrula ve Bağla") {
+                Text("Bağlantı").foregroundStyle(MeetingNotchTheme.secondaryText)
+                Spacer()
+                Label(loading ? "Kontrol ediliyor…" : connected ? "Bağlı" : "Anahtar gerekli", systemImage: loading ? "clock" : connected ? "checkmark.circle" : "key")
+                    .foregroundStyle(connected ? MeetingNotchTheme.success : MeetingNotchTheme.secondaryText)
+            }.font(MeetingNotchTheme.controlFont)
+            SecureField(connected ? "Yeni OpenAI API anahtarı" : "OpenAI API anahtarı", text: $key)
+                .textContentType(.password)
+                .focused($keyFocused)
+                .meetingFieldSurface(focused: keyFocused)
+                .accessibilityLabel("OpenAI API anahtarı")
+            Text("Bağlantı testi küçük bir ücretli istek gönderir.")
+                .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button(connected ? "Güncelle" : "Bağlan") {
                     busy = true
                     let candidate = key.trimmingCharacters(in: .whitespacesAndNewlines)
                     Task {
@@ -34,7 +46,7 @@ struct OpenAISettingsView: View {
                         key = ""
                         await finish(result)
                     }
-                }.disabled(busy || key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }.buttonStyle(MeetingNotchActionButtonStyle(kind: .primary)).disabled(loading || busy || key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 if connected {
                     Button("Bağlantıyı kaldır", role: .destructive) {
                         busy = true
@@ -43,19 +55,19 @@ struct OpenAISettingsView: View {
                 }
                 if busy { ProgressView().controlSize(.small) }
             }
-            if let message { Text(message).font(.callout).textSelection(.enabled) }
-            Text("Model: \(OpenAIMeetingSummaryService.model). Eski toplantıları detay ekranından yeniden özetleyebilirsiniz; ses yeniden yüklenmez.")
-                .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
+            if let message { MeetingNotchFeedback(message: message, isFailure: failed) }
+
         }
-        .padding(16)
-        .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-        .task { connected = await actions.hasKey() }
+        .padding(20)
+        .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: MeetingNotchTheme.surfaceRadius))
+        .buttonStyle(MeetingNotchActionButtonStyle())
+        .task { connected = await actions.hasKey(); loading = false }
     }
 
     private func finish(_ result: SettingsActionResult) async {
         switch result {
-        case .succeeded(let text): message = text
-        case .failed(let text): message = text
+        case .succeeded(let text): message = text ?? "Bağlantı güncellendi."; failed = false
+        case .failed(let text): message = text; failed = true
         }
         connected = await actions.hasKey()
         busy = false

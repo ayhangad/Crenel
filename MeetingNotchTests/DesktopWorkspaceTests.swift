@@ -20,8 +20,14 @@ final class DesktopWorkspaceTests: XCTestCase {
         XCTAssertFalse(controller.navigation.isVisible)
         XCTAssertEqual(controller.navigation.section, .meetings)
         XCTAssertFalse(delegate.applicationShouldTerminateAfterLastWindowClosed(NSApplication.shared))
-        XCTAssertGreaterThanOrEqual(controller.window?.minSize.width ?? 0, 1000)
-        XCTAssertGreaterThanOrEqual(controller.window?.minSize.height ?? 0, 620)
+        XCTAssertEqual(controller.window?.contentMinSize.width, 960)
+        XCTAssertEqual(controller.window?.contentMinSize.height, 540)
+        guard let window = controller.window else { return XCTFail("Window missing") }
+        XCTAssertEqual(window.contentView?.frame.size, NSSize(width: 1120, height: 680))
+        window.setContentSize(NSSize(width: 960, height: 540))
+        window.contentView?.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        XCTAssertEqual(window.contentView?.frame.size, NSSize(width: 960, height: 540))
     }
 
     @MainActor
@@ -38,19 +44,21 @@ final class DesktopWorkspaceTests: XCTestCase {
         ])
         let navigation = DesktopNavigation()
         try render(AnyView(DesktopWorkspaceView(delegate: delegate, navigation: navigation)
-            .environmentObject(delegate.appState)), name: "meetings", size: CGSize(width: 1180, height: 740))
+            .environmentObject(delegate.appState)), name: "meetings", size: CGSize(width: 960, height: 540))
         navigation.section = .tasks
         try render(AnyView(DesktopWorkspaceView(delegate: delegate, navigation: navigation)
-            .environmentObject(delegate.appState)), name: "tasks", size: CGSize(width: 1180, height: 740))
+            .environmentObject(delegate.appState)), name: "tasks", size: CGSize(width: 960, height: 540))
         for category in SettingsCategory.allCases {
             try render(AnyView(SettingsView(initialCategory: category).environmentObject(AppState())),
-                name: "settings-\(category.id)", size: CGSize(width: 786, height: 580))
+                name: "settings-\(category.id)", size: CGSize(width: 754, height: 500))
         }
     }
 
     @MainActor
     private func render(_ view: AnyView, name: String, size: CGSize) throws {
         let host = NSHostingView(rootView: view)
+        // The audit owns the viewport; prevent hosting-view ideal sizing from resizing the window.
+        host.sizingOptions = []
         host.appearance = NSAppearance(named: .darkAqua)
         host.frame = CGRect(origin: .zero, size: size)
         let window = NSWindow(contentRect: CGRect(origin: .zero, size: size), styleMask: [.borderless], backing: .buffered, defer: false)

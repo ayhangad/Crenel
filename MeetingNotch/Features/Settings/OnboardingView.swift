@@ -12,7 +12,7 @@ struct OnboardingView: View {
 
     @State private var step = Step.welcome
 
-    private enum Step: Int, CaseIterable {
+    enum Step: Int, CaseIterable {
         case welcome
         case microphone
         case systemAudio
@@ -22,8 +22,32 @@ struct OnboardingView: View {
         case cloud
     }
 
+    init(
+        onRequestMicrophoneAccess: @escaping () -> Void,
+        onRequestSystemAudioAccess: @escaping () -> Void,
+        onRequestAccessibilityAccess: @escaping () -> Void,
+        onRequestCalendarAccess: @escaping () -> Void,
+        onComplete: @escaping () -> Void,
+        initialStep: Step = .welcome
+    ) {
+        self.onRequestMicrophoneAccess = onRequestMicrophoneAccess
+        self.onRequestSystemAudioAccess = onRequestSystemAudioAccess
+        self.onRequestAccessibilityAccess = onRequestAccessibilityAccess
+        self.onRequestCalendarAccess = onRequestCalendarAccess
+        self.onComplete = onComplete
+        _step = State(initialValue: initialStep)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
+            HStack {
+                Text("MEETINGNOTCH").tracking(1.6)
+                Spacer()
+                Text("\(step.rawValue + 1) / \(Step.allCases.count)").monospacedDigit()
+            }
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(MeetingNotchTheme.secondaryText)
+            .padding(.horizontal, 28).padding(.top, 24)
             HStack(spacing: 8) {
                 ForEach(Step.allCases, id: \.rawValue) { item in
                     Capsule()
@@ -38,61 +62,62 @@ struct OnboardingView: View {
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Onboarding ilerlemesi")
             .accessibilityValue("\(step.rawValue + 1) / \(Step.allCases.count)")
-            .padding(.horizontal, MeetingNotchTheme.MainPanel.horizontalPadding)
+            .padding(.horizontal, 28)
             .padding(.top, MeetingNotchTheme.MainPanel.verticalPadding)
 
+            ScrollView {
             Group {
                 switch step {
                 case .welcome:
                     onboardingContent(
                         assetName: "FigmaVoice",
                         title: "Toplantılarınız, kaybolmadan",
-                        detail: "MeetingNotch mikrofon ve sistem sesini birlikte kaydeder; konuşmacı ayrımlı transkript ve kısa sonuçları geçmişinizde tutar.",
-                        callout: "Manuel kayıt her zaman menü çubuğundan ve notch panelinden erişilebilir."
+                        detail: "Toplantılarınızı kaydedin. Notlar ve görevler tek yerde kalsın.",
+                        callout: "Kaydı notch üzerinden başlatabilirsiniz."
                     )
                 case .microphone:
                     onboardingContent(
                         assetName: "FigmaMicrophone",
                         title: "Sizin sesiniz için mikrofon",
-                        detail: "Mikrofon izni, toplantıda söylediklerinizi kayda eklemek için gereklidir. MeetingNotch izni yalnızca siz kayıt başlattığınızda kullanır.",
+                        detail: "Sesinizi kayda eklemek için mikrofon erişimi gerekir.",
                         status: appState.audioCapturePermissions.microphone
                     )
                 case .systemAudio:
                     onboardingContent(
                         assetName: "FigmaVolume",
                         title: "Diğer katılımcılar için sistem sesi",
-                        detail: "Sistem sesi izni, görüşmedeki diğer kişilerin sesini yakalar. macOS bu izni Gizlilik ve Güvenlik > Sistem Sesini Kaydetme bölümünde yönetir.",
+                        detail: "Diğer katılımcıları kaydetmek için sistem sesi erişimi gerekir.",
                         status: appState.audioCapturePermissions.systemAudio
                     )
                 case .browserAudio:
                     onboardingContent(
                         assetName: "FigmaVideo",
-                        title: "Google Meet sekmesini siz bağlarsınız",
-                        detail: "Chrome uzantısı yalnız aktif meet.google.com görüşme sekmesinde, siz araç çubuğu düğmesine bastığınızda ses yakalar. Diğer sekmeler ve uygulamalar bu kaynağa dahil edilmez.",
+                        title: "Google Meet’i bağlayın",
+                        detail: "Chrome uzantısından görüşme sekmesini bağlayın. Yalnız bağladığınız sekmenin sesi kaydedilir.",
                         callout: browserAudioStatusText
                     )
                 case .accessibility:
                     onboardingContent(
-                        assetName: "FigmaWarning",
-                        title: "Mute durumunu yalnız doğrulanmış kontrolden oku",
-                        detail: "Accessibility izni, Zoom ve Google Meet’in görüşme kontrollerini yerel olarak okuyup toplantı mikrofonunun açık, kapalı veya bilinmiyor durumunu belirler. MeetingNotch konuşma içeriğini ya da pencere metnini saklamaz.",
+                        systemIcon: "switch.2",
+                        title: "Toplantı mikrofonunu takip edin",
+                        detail: "Zoom ve Meet mikrofonunuzun durumunu takip etmek için erişilebilirlik izni gerekir.",
                         callout: appState.accessibilityPermissionGranted
-                            ? "Accessibility hazır. Her yeni kayıt yine güvenli olarak kapalı başlar."
-                            : "İzin verilmezse kayıt kullanılabilir kalır; mikrofon gate’i bilinmiyor durumunda kayda kapalıdır ve ⌥⌘M ile görünür biçimde açılabilir."
+                            ? "Erişim hazır. Her yeni kayıtta mikrofon güvenli olarak kapalı başlar."
+                            : "İzin olmadan mikrofon kayda kapalı kalır. İsterseniz notch üzerinden veya ⌥⌘M ile açabilirsiniz."
                     )
                 case .calendar:
                     onboardingContent(
                         assetName: "FigmaRecentCheck",
                         title: "Yaklaşan toplantıları kaçırmayın",
-                        detail: "İsteğe bağlı takvim erişimi, bu Mac’e eklenmiş iCloud, Google ve Exchange takvimlerindeki çevrim içi toplantıları bulup önceden notch üzerinde hatırlatır. Gmail e-postaları okunmaz; reddederseniz manuel kayıt aynen çalışır.",
+                        detail: "Toplantılarınızı notch’ta görün ve hatırlatma alın. Takvim bağlantısı isteğe bağlıdır.",
                         callout: calendarStatus
                     )
                 case .cloud:
                     onboardingContent(
                         systemIcon: "lock.shield",
-                        title: "Ses ElevenLabs’te, notlar OpenAI’de",
+                        title: "Sesinizden, toplantı notlarına",
                         detail: "Kayıt tamamlandığında ses, konuşmacı ayrımlı transkript için ElevenLabs Scribe v2’ye yüklenir. OpenAI anahtarınızı bağladığınızda transkript metni, özet ve kişi bazlı görevler için OpenAI’ye gönderilir.",
-                        callout: "ElevenLabs ve OpenAI anahtarlarınızı Ayarlar’dan bağlayın. Anahtarlar Keychain’de, kayıtlar bu Mac’te tutulur. Bildirimleri de Ayarlar’dan etkinleştirebilirsiniz."
+                        callout: "API anahtarlarınızı Ayarlar’dan bağlayın."
                     )
                 }
             }
@@ -101,13 +126,18 @@ struct OnboardingView: View {
                 reduceMotion
                     ? .opacity
                     : .asymmetric(
-                        insertion: .opacity.combined(with: .move(edge: .trailing)),
+                        insertion: .opacity.combined(with: .offset(x: 12)),
                         removal: .opacity.combined(with: .offset(x: -12))
                     )
             )
 
-            Spacer(minLength: 12)
+            .padding(.bottom, 24)
+            }
+            .scrollIndicators(.hidden)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
+            Rectangle().fill(MeetingNotchTheme.hairline).frame(height: 1)
+                .padding(.horizontal, 28)
             HStack(spacing: 12) {
                 if step != .welcome {
                     Button("Geri") { move(to: step.rawValue - 1) }
@@ -125,8 +155,8 @@ struct OnboardingView: View {
                     .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                     .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, MeetingNotchTheme.MainPanel.horizontalPadding)
-            .padding(.bottom, MeetingNotchTheme.MainPanel.verticalPadding)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 20)
         }
         .frame(width: MeetingNotchTheme.panelWidth, height: 500)
         .background(MeetingNotchTheme.panelBackground)
@@ -156,7 +186,7 @@ struct OnboardingView: View {
             }
             .foregroundStyle(MeetingNotchTheme.primaryText)
             .frame(width: 40, height: 40)
-            .padding(18)
+            .padding(16)
             .background(
                 MeetingNotchTheme.surface,
                 in: RoundedRectangle(
@@ -187,11 +217,10 @@ struct OnboardingView: View {
                 )
             } else if let callout {
                 HStack(alignment: .top, spacing: 10) {
-                    Image("FigmaWarning")
-                        .resizable()
-                        .scaledToFit()
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 18, weight: .regular))
                         .frame(width: 20, height: 20)
-                        .foregroundStyle(MeetingNotchTheme.warning)
+                        .foregroundStyle(MeetingNotchTheme.secondaryText)
                     Text(callout)
                         .font(MeetingNotchTheme.MainPanel.bodyFont)
                         .foregroundStyle(MeetingNotchTheme.secondaryText)
@@ -207,16 +236,20 @@ struct OnboardingView: View {
                     )
             }
         }
-        .padding(.horizontal, MeetingNotchTheme.MainPanel.horizontalPadding)
-        .padding(.top, 40)
+        .padding(.horizontal, 28)
+        .padding(.top, 28)
     }
 
     private var primaryButtonTitle: String {
         switch step {
         case .welcome:
             "Başlayalım"
-        case .microphone, .systemAudio, .accessibility:
-            "İzin Ver ve Devam Et"
+        case .microphone:
+            appState.audioCapturePermissions.microphone == .authorized ? "Devam et" : "İzin ver ve devam et"
+        case .systemAudio:
+            appState.audioCapturePermissions.systemAudio == .authorized ? "Devam et" : "İzin ver ve devam et"
+        case .accessibility:
+            appState.accessibilityPermissionGranted ? "Devam et" : "İzin ver ve devam et"
         case .browserAudio:
             "Devam Et"
         case .calendar:
@@ -231,15 +264,15 @@ struct OnboardingView: View {
         case .welcome:
             move(to: Step.microphone.rawValue)
         case .microphone:
-            onRequestMicrophoneAccess()
+            if appState.audioCapturePermissions.microphone != .authorized { onRequestMicrophoneAccess() }
             move(to: Step.systemAudio.rawValue)
         case .systemAudio:
-            onRequestSystemAudioAccess()
+            if appState.audioCapturePermissions.systemAudio != .authorized { onRequestSystemAudioAccess() }
             move(to: Step.browserAudio.rawValue)
         case .browserAudio:
             move(to: Step.accessibility.rawValue)
         case .accessibility:
-            onRequestAccessibilityAccess()
+            if !appState.accessibilityPermissionGranted { onRequestAccessibilityAccess() }
             move(to: Step.calendar.rawValue)
         case .calendar:
             onRequestCalendarAccess()
@@ -251,7 +284,7 @@ struct OnboardingView: View {
 
     private func move(to rawValue: Int) {
         guard let next = Step(rawValue: rawValue) else { return }
-        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.22)) {
+        withAnimation(MeetingNotchMotion.navigation(reduceMotion: reduceMotion)) {
             step = next
         }
     }

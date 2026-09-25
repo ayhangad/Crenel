@@ -4,6 +4,7 @@ struct TasksView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var newTaskTitle = ""
+    @FocusState private var newTaskFocused: Bool
     @State private var showsArchive = false
     @State private var taskPendingDeletion: TaskItem?
     @State private var showsDeleteArchiveConfirmation = false
@@ -15,6 +16,26 @@ struct TasksView: View {
     let onRestore: (TaskItem) -> Void
     let onDelete: (TaskItem) -> Void
     let onDeleteArchive: () -> Void
+
+    init(
+        onAdd: @escaping (String) -> Void,
+        onUpdate: @escaping (TaskItem, String) -> Void,
+        onChangeStatus: @escaping (TaskItem, TaskStatus) -> Void,
+        onArchive: @escaping (TaskItem) -> Void,
+        onRestore: @escaping (TaskItem) -> Void,
+        onDelete: @escaping (TaskItem) -> Void,
+        onDeleteArchive: @escaping () -> Void,
+        initiallyShowsArchive: Bool = false
+    ) {
+        self.onAdd = onAdd
+        self.onUpdate = onUpdate
+        self.onChangeStatus = onChangeStatus
+        self.onArchive = onArchive
+        self.onRestore = onRestore
+        self.onDelete = onDelete
+        self.onDeleteArchive = onDeleteArchive
+        _showsArchive = State(initialValue: initiallyShowsArchive)
+    }
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.MainPanel.contentSpacing) {
@@ -58,7 +79,11 @@ struct TasksView: View {
             Spacer(minLength: 8)
 
             if !showsArchive {
-                statusSummary
+                ViewThatFits(in: .horizontal) {
+                    statusSummary
+                    Text("\(appState.activeTasks.count)").font(MeetingNotchTheme.metadataFont)
+                        .foregroundStyle(MeetingNotchTheme.secondaryText)
+                }
             }
 
             Button {
@@ -91,7 +116,7 @@ struct TasksView: View {
 
     private var statusSummary: some View {
         HStack(spacing: 8) {
-            ForEach(TaskStatus.allCases) { status in
+            ForEach(TaskStatus.allCases.filter { $0 != .completed && statusCount(for: $0) > 0 }) { status in
                 let count = statusCount(for: status)
                 HStack(spacing: 0) {
                     Text("\(count)")
@@ -116,7 +141,8 @@ struct TasksView: View {
                 .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
                 .textFieldStyle(.plain)
                 .padding(.leading, 8)
-                .frame(height: 36)
+                .frame(height: 40)
+                .focused($newTaskFocused)
                 .onSubmit(addTask)
                 .accessibilityLabel("Yeni görev başlığı")
 
@@ -127,17 +153,20 @@ struct TasksView: View {
             }
             .buttonStyle(FigmaTaskSubmitButtonStyle())
             .disabled(!canAdd)
-            .accessibilityLabel("Görevi backlog'a ekle")
+            .accessibilityLabel("Yeni görev ekle")
         }
         .padding(4)
-        .frame(minHeight: 44)
+        .frame(minHeight: 48)
         .background(
             MeetingNotchTheme.MainPanel.surface,
             in: RoundedRectangle(
-                cornerRadius: MeetingNotchTheme.MainPanel.surfaceRadius,
+                cornerRadius: 24,
                 style: .continuous
             )
         )
+        .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(
+            newTaskFocused ? MeetingNotchTheme.cyan : MeetingNotchTheme.hairline, lineWidth: newTaskFocused ? 2 : 1))
+        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: newTaskFocused)
     }
 
     @ViewBuilder
@@ -170,7 +199,8 @@ struct TasksView: View {
                     }
                     .menuStyle(.borderlessButton)
                     .menuIndicator(.hidden)
-                    .frame(width: 20, height: 20)
+                    .frame(width: 40, height: 40)
+                    .meetingControlFeedback(radius: 12)
                     .accessibilityLabel("Arşiv seçenekleri")
                 }
             }
@@ -240,6 +270,7 @@ struct TasksView: View {
         guard let title = TaskItem.normalizedTitle(newTaskTitle) else { return }
         onAdd(title)
         newTaskTitle = ""
+        newTaskFocused = true
     }
 }
 
@@ -251,6 +282,8 @@ private struct TaskRowView: View {
     let onRestore: () -> Void
     let onDelete: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var editorFocused: Bool
     @State private var isEditing = false
     @State private var isHovering = false
     @State private var draftTitle: String
@@ -273,7 +306,7 @@ private struct TaskRowView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: MeetingNotchTheme.MainPanel.itemSpacing) {
+        HStack(alignment: .center, spacing: 8) {
             statusMenu
 
             if isEditing {
@@ -299,6 +332,8 @@ private struct TaskRowView: View {
             )
         )
         .onHover { isHovering = $0 }
+        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: isHovering)
+        .onChange(of: isEditing) { _, editing in editorFocused = editing }
         .onChange(of: task.title) { _, newValue in
             if !isEditing { draftTitle = newValue }
         }
@@ -315,13 +350,15 @@ private struct TaskRowView: View {
             }
         } label: {
             Image(task.status.figmaAssetName)
-                .resizable()
+                .resizable().renderingMode(.template).foregroundStyle(task.status.tint)
                 .frame(width: 20, height: 20)
-                .contentShape(Rectangle().inset(by: -6))
+                .frame(width: 40, height: 40)
+                .contentShape(Rectangle())
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .frame(width: 20, height: 20)
+        .frame(width: 40, height: 40)
+        .meetingControlFeedback(radius: 12)
         .help("Durum: \(task.status.title)")
         .accessibilityLabel("Görev durumu")
         .accessibilityValue(task.status.title)
@@ -332,7 +369,9 @@ private struct TaskRowView: View {
             TextField("Görev başlığı", text: $draftTitle)
                 .font(MeetingNotchTheme.MainPanel.rowTitleFont)
                 .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
-                .textFieldStyle(.plain)
+                .focused($editorFocused)
+                .meetingFieldSurface(focused: editorFocused)
+                .onExitCommand(perform: cancelEdit)
                 .onSubmit(commitEdit)
 
             Button(action: cancelEdit) {
@@ -372,7 +411,8 @@ private struct TaskRowView: View {
                 Text(task.title)
                     .font(MeetingNotchTheme.MainPanel.rowTitleFont)
                     .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if task.assignee != nil || task.dueDate != nil {
@@ -380,7 +420,7 @@ private struct TaskRowView: View {
                         .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
                 }
                 Text(metadataText)
-                    .font(MeetingNotchTheme.MainPanel.bodyFont.monospacedDigit())
+                    .font(MeetingNotchTheme.metadataFont)
                     .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
                     .lineLimit(1)
             }
@@ -399,7 +439,8 @@ private struct TaskRowView: View {
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
-        .frame(width: 20, height: 20)
+        .frame(width: 40, height: 40)
+        .meetingControlFeedback(radius: 12)
         .accessibilityLabel("Görev seçenekleri")
     }
 
@@ -446,6 +487,15 @@ private struct TaskRowView: View {
 }
 
 private extension TaskStatus {
+    var tint: Color {
+        switch self {
+        case .backlog, .todo: MeetingNotchTheme.secondaryText
+        case .inProgress: MeetingNotchTheme.cyan
+        case .completed: MeetingNotchTheme.success
+        case .blocked: MeetingNotchTheme.warning
+        }
+    }
+
     var symbolName: String {
         switch self {
         case .backlog: "tray"
@@ -480,8 +530,8 @@ private struct FigmaTaskArchiveButtonStyle: ButtonStyle {
                     ? MeetingNotchTheme.MainPanel.primaryText
                     : MeetingNotchTheme.MainPanel.counterText
             )
-            .padding(.horizontal, 4)
-            .frame(height: 22)
+            .padding(.horizontal, 10)
+            .frame(minWidth: 40, minHeight: 40)
             .background(
                 MeetingNotchTheme.MainPanel.surface,
                 in: RoundedRectangle(
@@ -490,6 +540,7 @@ private struct FigmaTaskArchiveButtonStyle: ButtonStyle {
                 )
             )
             .contentShape(Rectangle())
+            .meetingControlFeedback(radius: 12)
             .opacity(configuration.isPressed ? 0.72 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(
@@ -506,13 +557,13 @@ private struct FigmaTaskSubmitButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .opacity(isEnabled ? (configuration.isPressed ? 0.78 : 1) : 0.38)
-            .frame(width: 36, height: 36)
+            .frame(width: 40, height: 40)
             .background(
                 MeetingNotchTheme.MainPanel.primaryText,
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
             )
             .contentShape(Rectangle())
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.94 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.12),
                 value: configuration.isPressed

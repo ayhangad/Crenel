@@ -12,6 +12,7 @@ struct GoogleCalendarSettingsView: View {
     @State private var connected = false
     @State private var busy = false
     @State private var message: String?
+    @State private var failed = false
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Label("Google Calendar", systemImage: "calendar")
@@ -34,15 +35,16 @@ struct GoogleCalendarSettingsView: View {
                     if busy { ProgressView().controlSize(.small) }
                 }
             }
-            if let message { Text(message).font(.caption) }
-        }.padding(16)
-            .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-            .task { connected = await actions.connected() }
+            if let message { MeetingNotchFeedback(message: message, isFailure: failed) }
+        }.padding(20)
+            .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: MeetingNotchTheme.surfaceRadius))
+            .buttonStyle(MeetingNotchActionButtonStyle())
+        .task { connected = await actions.connected() }
     }
     private func finish(_ result: SettingsActionResult) async {
         switch result {
-        case .succeeded(let text): message = text
-        case .failed(let text): message = text
+        case .succeeded(let text): message = text ?? "Bağlantı güncellendi."; failed = false
+        case .failed(let text): message = text; failed = true
         }
         connected = await actions.connected()
         busy = false

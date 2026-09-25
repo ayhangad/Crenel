@@ -18,6 +18,55 @@ Masaüstü ve notch aynı AppState/repository/action katmanını kullanır. Masa
 seçimi ve detay yükleme durumu ayrıdır; geç kalan async sonuçlar yeni seçimi değiştiremez.
 Ses oynatma detaydan ayrılınca veya masaüstü kapanınca duraklar, ses kaydı devam eder.
 
+## UX sadeleştirmesi — 25 Eylül 2026, ikinci tur
+
+Bu bölüm önceki UI turundaki ilgili kararların yerini alır. Masaüstü arka planı
+nötr #171717, sidebar #131313 ve ortak kart yüzeyi #202020'dir.
+Parlaklık kullanıcı isteğiyle koyulaştırılmıştır; ilk siyaha yakın temaya küçük bir yumuşatma uygulanır.
+Notch'un MainPanel siyah paleti korunur. Masaüstü ana eylemleri environment üzerinden
+nötr gri 0.82 kullanır; ana metin tam beyaz yerine 0.90 gridir.
+Kullanıcı düzeltmesi: yüzeylere mavi alt ton eklenmez.
+
+DesktopWindowController 1120×680 içerik boyutuyla açılır, 960×540'a küçültülebilir.
+NSHostingView.sizingOptions boş bırakılır: SwiftUI ideal/minimum içerik ölçüsü pencereyi
+kilitlemez. Eski autosave boyutu yüklenmez; aynı oturumda pencere yeniden kullanılır.
+
+Notch sekme seçiminde tüm içerik animasyona alınmaz. ScrollView kimliği korunur,
+sekmeye bağlı root id kaldırılmıştır. İçerik transaction'ı layout animasyonunu kapatır;
+seçim kapsülünün animasyonu başlıkta kalır. Göstergeler gizlidir.
+
+Toplantı aksiyonları tek kompakt liste halinde ilk altı satırla gösterilir. Kalanlar
+kullanıcı eylemiyle açılır/kapanır; kaynak oynatma ve göreve aktarma satır içindedir.
+Ayar servisleri uyarlanabilir sütunlara yerleşir; izinler tek satır durum/eylemdir.
+Sürekli yardım paragrafları kaldırılır. Ücret, izin, sesin kayda dahil edilmesi ve geri
+alınamaz silme bilgileri korunur; ikincil kullanım açıklamaları tooltip'e taşınır.
+
+## 2026-09-25 arayüz ve hareket sözleşmesi
+
+Ortak yüzeyler, tipografi, durum renkleri, düğmeler, satırlar, boş durumlar ve geri
+bildirimler `MeetingNotchTheme` katmanından gelir. İkincil metin RGB 163/255,
+başarı rengi RGB 95/216/151; workspace/sidebar yüzeyleri sırasıyla 0.035/0.055 gri.
+Özel düğme ve sekmeler en az 40 pt, metin alanları en az 44 pt yüksekliğindedir.
+Hover, klavye odağı, disabled ve basış geri bildirimi ortak modifier'lardadır.
+Alan odağı çağıran view'ın FocusState değeriyle açıkça bağlanır.
+
+`MeetingNotchMotion` etkileşim (0.14 sn) ve gezinme (0.24 sn, zıplamasız) geçişlerini
+merkezileştirir. Yeni hareketler Reduce Motion durumunda kapanır. Notch sekmesi
+seçim kapsülü eşleşen geometriyle, kompakt mikrofon durumu opacity ile geçiş yapar.
+Ses seviyesi animasyonu yalnız seviye değişimine bağlıdır; tüm panel sürekli animasyon almaz.
+
+600 pt notch yanında 360 pt dar görünüm doğrulanır; 440 pt altında sekmeler ikonla,
+kayıt içerikleri dikey yerleşimle sunulur. Aksiyonlar ViewThatFits ile alt satıra geçer.
+Masaüstü minimum genişlikte test edilir; ayarlar ve onboarding uzun içeriklerini kaydırır.
+İzin açıklamaları ile aksiyonlar ayrı satırdır. Transkript LazyVStack olarak kalır;
+oynatıcı zamanı yalnız oynatıcı alt görünümünü günceller. Zaman/kaynak düğmesi sesi
+seçilen andan oynatır. Slider sürüklemesi yerel önizleme, bırakıldığında seek uygular;
+klavye değişiklikleri doğrudan seek yapar. Kopyalama bildirimi tekrarlanan tıklamalarda
+iptal edilebilir bir task ile sıfırlanır.
+
+Sentetik ekran matrisi `NotchPresentationTests` ve `DesktopWorkspaceTests` içindedir.
+İnceleme kapsamı ve sınırları: `QA/UI_POLISH_AUDIT.md`.
+
 ## 2026-09-14 hibrit mimari kararı
 
 Bu bölüm aşağıdaki eski tek servis/extractive-only sözleşmelerini günceller.
