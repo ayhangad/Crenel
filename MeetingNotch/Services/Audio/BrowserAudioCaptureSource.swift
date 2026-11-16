@@ -33,7 +33,7 @@ final class BrowserAudioCaptureSource: AudioCaptureSource {
 
     func start() async throws {
         guard writer != nil else {
-            throw RecordingCaptureError.sourceFailed(.systemAudio, "Tarayıcı ses yazıcısı hazırlanmadı.")
+            throw RecordingCaptureError.sourceFailed(.systemAudio, "Browser audio writer isn’t ready.")
         }
         do {
             let sessionID = try broker.attachConsumer(
@@ -64,7 +64,7 @@ final class BrowserAudioCaptureSource: AudioCaptureSource {
             broker.detachConsumer(sessionID: sessionID)
         }
         guard let outputURL = state.1, let writer = state.2 else {
-            throw RecordingCaptureError.sourceFailed(.systemAudio, "Tarayıcı ses kaydı hazırlanmadı.")
+            throw RecordingCaptureError.sourceFailed(.systemAudio, "Browser audio recording isn’t ready.")
         }
         let firstSampleTime = try await writer.finish()
         guard state.3, let firstSampleTime else {
@@ -104,11 +104,11 @@ final class BrowserAudioCaptureSource: AudioCaptureSource {
             pcmFormat: format,
             frameCapacity: AVAudioFrameCount(chunk.frameCount)
         ) else {
-            throw RecordingCaptureError.sourceFailed(.systemAudio, "Tarayıcı PCM formatı geçersiz.")
+            throw RecordingCaptureError.sourceFailed(.systemAudio, "Invalid browser PCM format.")
         }
         buffer.frameLength = AVAudioFrameCount(chunk.frameCount)
         guard let destination = buffer.mutableAudioBufferList.pointee.mBuffers.mData else {
-            throw RecordingCaptureError.sourceFailed(.systemAudio, "Tarayıcı PCM buffer'ı ayrılamadı.")
+            throw RecordingCaptureError.sourceFailed(.systemAudio, "Couldn’t allocate the browser PCM buffer.")
         }
         chunk.pcmS16LE.copyBytes(
             to: destination.assumingMemoryBound(to: UInt8.self),
@@ -118,7 +118,7 @@ final class BrowserAudioCaptureSource: AudioCaptureSource {
         let presentationTime = CMClockGetTime(CMClockGetHostTimeClock())
         let activeWriter = try lock.withBrowserCaptureLock { () throws -> SampleBufferAudioWriter in
             guard let activeWriter = self.writer else {
-                throw RecordingCaptureError.sourceFailed(.systemAudio, "Tarayıcı kayıt tüketicisi kapalı.")
+                throw RecordingCaptureError.sourceFailed(.systemAudio, "Browser recording consumer is closed.")
             }
             hasReceivedAudio = true
             lastSampleTime = presentationTime.seconds

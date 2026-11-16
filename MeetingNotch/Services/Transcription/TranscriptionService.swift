@@ -93,25 +93,25 @@ enum TranscriptionServiceError: Error, Equatable, Sendable {
         switch self {
         case .authentication:
             .provider(
-                "API anahtarını ve Speech-to-Text yetkisini Ayarlar'dan kontrol edin.",
+                "Check your API key and Speech-to-Text access in Settings.",
                 credentialsInvalid: true
             )
         case .rateLimited:
-            .provider("ElevenLabs istek sınırına ulaştı. Bir süre sonra tekrar deneyin.")
+            .provider("ElevenLabs rate limit reached. Try again in a while.")
         case .timeout:
-            .network("Transkripsiyon isteği zaman aşımına uğradı. Tekrar deneyin.")
+            .network("The transcription request timed out. Try again.")
         case .networkUnavailable:
-            .network("İnternet bağlantısını kontrol edip tekrar deneyin.")
+            .network("Check your internet connection and try again.")
         case .providerUnavailable:
-            .provider("Transkripsiyon servisine şu anda ulaşılamıyor. Tekrar deneyin.")
+            .provider("Can’t reach the transcription service right now. Try again.")
         case .invalidResponse:
-            .decoding("ElevenLabs yanıtı beklenen biçimde değildi. Tekrar deneyin.")
+            .decoding("ElevenLabs returned an unexpected response. Try again.")
         case .invalidFile:
-            .fileSystem("Ses dosyası transkripsiyon yüklemesine uygun değil.")
+            .fileSystem("This audio file can’t be uploaded for transcription.")
         case .unsupportedFeature:
-            .provider("ElevenLabs istenen transkripsiyon özelliğini desteklemiyor.", credentialsInvalid: false)
+            .provider("ElevenLabs doesn’t support the requested transcription feature.", credentialsInvalid: false)
         case .cancelled:
-            .provider("Transkripsiyon işlemi iptal edildi.", credentialsInvalid: false)
+            .provider("Transcription was cancelled.", credentialsInvalid: false)
         }
     }
 }

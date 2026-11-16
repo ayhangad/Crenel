@@ -2,7 +2,7 @@ import SwiftUI
 
 struct OpenAISettingsActions {
     var hasKey: () async -> Bool = { false }
-    var save: (String) async -> SettingsActionResult = { _ in .failed(message: "Bağlantı kullanılamıyor.") }
+    var save: (String) async -> SettingsActionResult = { _ in .failed(message: "Connection unavailable.") }
     var disconnect: () async -> SettingsActionResult = { .succeeded() }
 }
 
@@ -20,25 +20,25 @@ struct OpenAISettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Label("OpenAI", systemImage: "text.badge.checkmark")
                 .font(.system(size: 15, weight: .semibold))
-            Text("Özet ve görevler · Kullanım hesabınızdan ücretlenir.")
+            Text("Summaries and tasks · Billed to your account.")
                 .font(MeetingNotchTheme.bodyFont)
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
             HStack {
-                Text("Bağlantı").foregroundStyle(MeetingNotchTheme.secondaryText)
+                Text("Connection").foregroundStyle(MeetingNotchTheme.secondaryText)
                 Spacer()
-                Label(loading ? "Kontrol ediliyor…" : connected ? "Bağlı" : "Anahtar gerekli", systemImage: loading ? "clock" : connected ? "checkmark.circle" : "key")
+                Label(loading ? "Checking…" : connected ? "Connected" : "Key required", systemImage: loading ? "clock" : connected ? "checkmark.circle" : "key")
                     .foregroundStyle(connected ? MeetingNotchTheme.success : MeetingNotchTheme.secondaryText)
             }.font(MeetingNotchTheme.controlFont)
-            SecureField(connected ? "Yeni OpenAI API anahtarı" : "OpenAI API anahtarı", text: $key)
+            SecureField(connected ? "New OpenAI API key" : "OpenAI API key", text: $key)
                 .textContentType(.password)
                 .focused($keyFocused)
                 .meetingFieldSurface(focused: keyFocused)
-                .accessibilityLabel("OpenAI API anahtarı")
-            Text("Bağlantı testi küçük bir ücretli istek gönderir.")
+                .accessibilityLabel("OpenAI API key")
+            Text("Testing the connection sends a small paid request.")
                 .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button(connected ? "Güncelle" : "Bağlan") {
+                Button(connected ? "Update" : "Connect") {
                     busy = true
                     let candidate = key.trimmingCharacters(in: .whitespacesAndNewlines)
                     Task {
@@ -48,7 +48,7 @@ struct OpenAISettingsView: View {
                     }
                 }.buttonStyle(MeetingNotchActionButtonStyle(kind: .primary)).disabled(loading || busy || key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 if connected {
-                    Button("Bağlantıyı kaldır", role: .destructive) {
+                    Button("Remove connection", role: .destructive) {
                         busy = true
                         Task { await finish(actions.disconnect()) }
                     }.disabled(busy)
@@ -66,7 +66,7 @@ struct OpenAISettingsView: View {
 
     private func finish(_ result: SettingsActionResult) async {
         switch result {
-        case .succeeded(let text): message = text ?? "Bağlantı güncellendi."; failed = false
+        case .succeeded(let text): message = text ?? "Connection updated."; failed = false
         case .failed(let text): message = text; failed = true
         }
         connected = await actions.hasKey()

@@ -5,7 +5,7 @@ import Foundation
 import UserNotifications
 
 /// Everything Crenel needs from macOS, set up in one place. Onboarding shows every
-/// capability on one screen; "Enable all" walks through them in order. When Calendar or
+/// capability on one screen; "Turn on all" walks through them in order. When Calendar or
 /// Reminders access arrives the features connect themselves — no per-module setup.
 enum SetupCapability: String, CaseIterable, Identifiable, Sendable {
     case calendar
@@ -20,25 +20,25 @@ enum SetupCapability: String, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .calendar: "Takvim"
-        case .reminders: "Hatırlatıcılar"
-        case .microphone: "Mikrofon"
-        case .notifications: "Bildirimler"
-        case .systemAudio: "Sistem sesi"
-        case .accessibility: "Erişilebilirlik"
-        case .inputMonitoring: "Girdi izleme"
+        case .calendar: "Calendar"
+        case .reminders: "Reminders"
+        case .microphone: "Microphone"
+        case .notifications: "Notifications"
+        case .systemAudio: "System audio"
+        case .accessibility: "Accessibility"
+        case .inputMonitoring: "Input monitoring"
         }
     }
 
     var detail: String {
         switch self {
-        case .calendar: "Sıradaki etkinlik ve kalan süre notch’ta"
-        case .reminders: "Görevler iPhone ve Watch ile eşitlenir"
-        case .microphone: "Dikte ve toplantıda sizin sesiniz"
-        case .notifications: "Toplantı başlamadan haber verir"
-        case .systemAudio: "Toplantıda diğer katılımcıların sesi"
-        case .accessibility: "İmlece yazma, Zoom/Meet mikrofon takibi"
-        case .inputMonitoring: "Fn’ye basılı tutup dikte"
+        case .calendar: "Next event and time left, in the notch"
+        case .reminders: "Tasks sync with iPhone and Watch"
+        case .microphone: "Your voice for dictation and meetings"
+        case .notifications: "A heads-up before meetings start"
+        case .systemAudio: "Other participants’ audio in meetings"
+        case .accessibility: "Typing at the cursor, Zoom/Meet mic tracking"
+        case .inputMonitoring: "Hold Fn to dictate"
         }
     }
 

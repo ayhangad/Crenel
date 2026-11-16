@@ -692,3 +692,11 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   mute/unmute ve hang-up geçişlerini, güvenli system-audio kapsamını, canary phrase
   sızıntısını ve Google Meet için toplantı dışı sekme canary-audio izolasyonunu birlikte
   doğrular.
+
+## Dil
+
+Geliştirme dili İngilizce (`project.yml` → `developmentLanguage: en`); arayüz metinleri kodda
+İngilizce yazılır. Türkçe ve diğer diller String Catalog çevirisi olarak eklenecek. Tarih ve
+sayı biçimleri arayüz diliyle eşleşsin diye `AppLanguage.locale` kullanır. Kullanıcı girdisini
+tanıyan kod (görev ayrıştırıcı, dikte komutları, özet kalıpları) Türkçe ve İngilizce ifadeleri
+tanımaya devam eder; LLM özetleri dökümün dilinde yazılır.

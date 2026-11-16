@@ -32,13 +32,13 @@ enum AudioSourceConnectionState: Equatable, Sendable {
         case .preparing, .ready:
             nil
         case .recovered(let deviceName):
-            "Mikrofon bağlantısı değişti; \(deviceName) ile kayıt sürüyor."
+            "Microphone changed. Recording continues with \(deviceName)."
         case .disconnected(let deviceName):
-            "\(deviceName) bağlantısı kesildi. Mikrofonu yeniden bağlayın veya kaydı durdurun."
+            "\(deviceName) disconnected. Reconnect the microphone or stop recording."
         case .pipelineRecovered:
-            "Sistem sesi akışı yeniden kuruldu."
+            "System audio stream restored."
         case .pipelineStalled:
-            "Sistem sesi akışı koptu. Kayıt dosyasını korumak için kayıt durduruluyor."
+            "System audio stream dropped. Stopping to protect the recording."
         }
     }
 
@@ -97,27 +97,27 @@ enum RecordingCaptureError: LocalizedError, Equatable, Sendable {
     var errorDescription: String? {
         switch self {
         case .alreadyRecording:
-            "Zaten devam eden bir kayıt var."
+            "A recording is already in progress."
         case .microphonePermissionDenied:
-            "Mikrofon izni verilmedi. Sistem Ayarları'ndan erişimi açın."
+            "Microphone access is off. Turn it on in System Settings."
         case .systemAudioPermissionDenied:
-            "Sistem sesi izni verilmedi. Sistem Ayarları'nda Sistem Sesini Kaydetme erişimini açın."
+            "System audio access is off. Turn on System Audio Recording in System Settings."
         case .noMicrophone:
-            "Kullanılabilir bir mikrofon bulunamadı."
+            "No microphone available."
         case .noDisplay:
-            "Sistem sesini yakalamak için kullanılabilir ekran bulunamadı."
+            "No display available to capture system audio."
         case .insufficientDiskSpace:
-            "Kayıt için yeterli boş disk alanı yok."
+            "Not enough free disk space to record."
         case .diskSpaceBecameLow:
-            "Boş disk alanı kritik seviyeye düştü. Kayıt dosyasını korumak için kayıt durduruluyor."
+            "Disk space is critically low. Stopping to protect the recording."
         case .meetingProcessUnavailable:
-            "Toplantı ses süreci güvenli biçimde doğrulanamadı. Toplantı istemcisi açıkken tekrar deneyin."
+            "Couldn’t safely verify the meeting audio process. Try again with the meeting app open."
         case .browserMeetingAudioIsolationUnavailable:
-            "Google Meet sekmesinin sesi diğer tarayıcı seslerinden güvenli biçimde ayrılamadı. Sistem sesi kaydı başlatılmadı."
+            "Couldn’t safely separate Google Meet tab audio from other browser audio. System audio recording didn’t start."
         case .sourceDidNotProduceAudio(let source):
-            "\(source.displayName) ses verisi üretmedi."
+            "\(source.displayName) produced no audio."
         case .sourceFailed(let source, let message):
-            "\(source.displayName) başlatılamadı: \(message)"
+            "\(source.displayName) couldn’t start: \(message)"
         }
     }
 }
@@ -125,8 +125,8 @@ enum RecordingCaptureError: LocalizedError, Equatable, Sendable {
 extension AudioSourceKind {
     var displayName: String {
         switch self {
-        case .microphone: "Mikrofon"
-        case .systemAudio: "Sistem sesi"
+        case .microphone: "Microphone"
+        case .systemAudio: "System audio"
         }
     }
 }

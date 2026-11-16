@@ -29,7 +29,7 @@ final class DesignProposalTests: XCTestCase {
         quiet.events = [
             ProposalEvent(title: "Edda Dev. Sync", start: date(hour: 18, minute: 0, day: 1), end: date(hour: 18, minute: 30, day: 1), venue: .online("Google Meet")),
             ProposalEvent(title: "BB Dev. Sync", start: date(hour: 18, minute: 30, day: 1), end: date(hour: 19, minute: 0, day: 1), venue: .online("Zoom")),
-            ProposalEvent(title: "Selin ile 1:1", start: date(hour: 10, minute: 0, day: 2), end: date(hour: 10, minute: 30, day: 2))
+            ProposalEvent(title: "1:1 with Selin", start: date(hour: 10, minute: 0, day: 2), end: date(hour: 10, minute: 30, day: 2))
         ]
         try export(scene(quiet), name: "today-quiet")
 
@@ -40,12 +40,12 @@ final class DesignProposalTests: XCTestCase {
 
         let typing = ProposalNotchModel.sample(now: now, isOpen: true)
         typing.tab = .tasks
-        typing.staticInput = "Tasarım dosyalarını gönder yarın 10:00 !!"
+        typing.staticInput = "Send design files tomorrow 10:00 !!"
         try export(scene(typing), name: "tasks-typing")
 
         let completing = ProposalNotchModel.sample(now: now, isOpen: true)
         completing.tab = .tasks
-        completing.staticInput = "Fat"
+        completing.staticInput = "Pay"
         try export(scene(completing), name: "tasks-completion")
 
         let states: [ProposalCompact] = [

@@ -4,12 +4,12 @@ struct MeetingNotificationSettingsView: View {
     @ObservedObject var service: MeetingNotificationService
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Toplantı Bildirimleri", systemImage: "bell.badge")
+            Label("Meeting notifications", systemImage: "bell.badge")
                 .font(.system(size: 15, weight: .semibold))
             Text(service.status).font(MeetingNotchTheme.bodyFont)
             HStack {
-                Button("Bildirimlere izin ver") { Task { await service.requestAccess() } }
-                Button("Bildirim ayarları") {
+                Button("Allow notifications") { Task { await service.requestAccess() } }
+                Button("Notification settings") {
                     if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
                         NSWorkspace.shared.open(url)
                     }

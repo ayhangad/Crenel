@@ -21,14 +21,14 @@ enum APIKeyRepositoryError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .emptyAPIKey:
-            "API anahtarı boş olamaz."
+            "API key can’t be empty."
         case .invalidStoredValue:
-            "Keychain'deki API anahtarı okunabilir metin biçiminde değil."
+            "The API key in Keychain isn’t readable text."
         case .keychainFailure(let operation, let status):
             if let status {
-                "Keychain işlemi başarısız oldu (\(operation.rawValue), durum: \(status))."
+                "Keychain operation failed (\(operation.rawValue), status: \(status))."
             } else {
-                "Keychain işlemi başarısız oldu (\(operation.rawValue))."
+                "Keychain operation failed (\(operation.rawValue))."
             }
         }
     }

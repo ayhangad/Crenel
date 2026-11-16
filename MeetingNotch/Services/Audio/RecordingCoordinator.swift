@@ -110,7 +110,7 @@ final class RecordingCoordinator {
 
     func stop() async throws -> RecordingCaptureResult {
         guard let session, let microphone, let systemAudio, let directory = sessionDirectory else {
-            throw RecordingCaptureError.sourceFailed(.systemAudio, "Devam eden kayıt yok.")
+            throw RecordingCaptureError.sourceFailed(.systemAudio, "No recording in progress.")
         }
         stopStorageSafetyMonitoring()
 

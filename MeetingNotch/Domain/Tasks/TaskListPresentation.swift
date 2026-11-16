@@ -14,13 +14,13 @@ struct TaskListPresentation: Equatable, Sendable {
 
         var title: String {
             switch self {
-            case .inProgress: "Devam ediyor"
-            case .blocked: "Bloke"
-            case .overdue: "Gecikmiş"
-            case .today: "Bugün"
-            case .upcoming: "Yaklaşan"
-            case .someday: "Tarihsiz"
-            case .completedToday: "Bugün tamamlananlar"
+            case .inProgress: "In progress"
+            case .blocked: "Blocked"
+            case .overdue: "Overdue"
+            case .today: "Today"
+            case .upcoming: "Upcoming"
+            case .someday: "No date"
+            case .completedToday: "Done today"
             }
         }
     }
@@ -138,7 +138,7 @@ struct TaskListPresentation: Equatable, Sendable {
     }
 }
 
-/// Short Turkish labels for a task's due date: "Bugün", "Yarın 09:00", "Cum 20 Kas".
+/// Short labels for a task's due date: "Today", "Tomorrow 09:00", "Fri 20 Nov".
 enum TaskDueFormatter {
     static func label(for task: TaskItem, now: Date, calendar: Calendar = .current) -> String? {
         guard let due = task.dueDate else { return nil }
@@ -152,14 +152,14 @@ enum TaskDueFormatter {
         let dayOffset = calendar.dateComponents([.day], from: startOfToday, to: startOfDue).day ?? 0
 
         switch dayOffset {
-        case 0: return "Bugün" + time
-        case 1: return "Yarın" + time
-        case -1: return "Dün" + time
+        case 0: return "Today" + time
+        case 1: return "Tomorrow" + time
+        case -1: return "Yesterday" + time
         default:
             let formatter = DateFormatter()
             formatter.calendar = calendar
             formatter.timeZone = calendar.timeZone
-            formatter.locale = Locale(identifier: "tr_TR")
+            formatter.locale = AppLanguage.locale
             let sameYear = calendar.component(.year, from: due) == calendar.component(.year, from: now)
             if (2...6).contains(dayOffset) {
                 formatter.dateFormat = "EEE d MMM"

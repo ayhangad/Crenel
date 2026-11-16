@@ -55,7 +55,7 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource, MeetingMicrop
         defer { session.commitConfiguration() }
 
         guard session.canAddInput(input), session.canAddOutput(output) else {
-            throw RecordingCaptureError.sourceFailed(.microphone, "Ses oturumu oluşturulamadı.")
+            throw RecordingCaptureError.sourceFailed(.microphone, "Couldn’t create the audio session.")
         }
 
         session.addInput(input)
@@ -81,7 +81,7 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource, MeetingMicrop
         }
 
         guard session.isRunning else {
-            throw RecordingCaptureError.sourceFailed(.microphone, "Mikrofon akışı başlamadı.")
+            throw RecordingCaptureError.sourceFailed(.microphone, "Microphone stream didn’t start.")
         }
     }
 
@@ -89,7 +89,7 @@ final class MicrophoneCaptureSource: NSObject, AudioCaptureSource, MeetingMicrop
         stopObservingDeviceChanges()
         await stopSession()
         guard let writer, let outputURL else {
-            throw RecordingCaptureError.sourceFailed(.microphone, "Kayıt hazırlanmamış.")
+            throw RecordingCaptureError.sourceFailed(.microphone, "Recording isn’t ready.")
         }
         defer { reset() }
         guard let firstSampleTime = try await writer.finish() else {

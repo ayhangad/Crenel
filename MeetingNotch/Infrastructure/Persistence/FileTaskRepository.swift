@@ -26,14 +26,14 @@ enum TaskRepositoryError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .duplicateTaskID:
-            "Görev verileri aynı kimliğe sahip birden fazla kayıt içeriyor."
+            "Task data contains more than one record with the same ID."
         case .unsupportedSchema(let version):
-            "Görev verisi sürümü desteklenmiyor: \(version)."
+            "Unsupported task data version: \(version)."
         case .corruptStore(let recoveryURL):
             if let recoveryURL {
-                "Görev verisi okunamadı ve kurtarma alanına taşındı: \(recoveryURL.lastPathComponent)."
+                "Couldn't read task data. It was moved to recovery: \(recoveryURL.lastPathComponent)."
             } else {
-                "Görev verisi okunamadı; özgün dosya silinmeden korundu."
+                "Couldn't read task data. The original file was kept."
             }
         }
     }

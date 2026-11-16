@@ -248,7 +248,7 @@ private struct NotchPanelHeader: View {
                 }
             }
             .accessibilityElement(children: .contain)
-            .accessibilityLabel("Panel sekmeleri")
+            .accessibilityLabel("Panel tabs")
 
             Spacer(minLength: Crenel.Space.s)
 
@@ -258,8 +258,8 @@ private struct NotchPanelHeader: View {
                 CrenelIcon(.window, size: 15)
             }
             .buttonStyle(CrenelIconButtonStyle())
-            .help("Masaüstü çalışma alanını aç")
-            .accessibilityLabel("Masaüstü çalışma alanını aç")
+            .help("Open in window")
+            .accessibilityLabel("Open in window")
 
             Button(action: onTogglePin) {
                 CrenelIcon(.pin, size: 15)
@@ -267,9 +267,9 @@ private struct NotchPanelHeader: View {
             }
             .buttonStyle(CrenelIconButtonStyle(tint: appState.isNotchPinned ? Crenel.Palette.focus : Crenel.Palette.textSecondary, isActive: appState.isNotchPinned))
             .animation(Crenel.Motion.bouncy, value: appState.isNotchPinned)
-            .help(appState.isNotchPinned ? "Paneli serbest bırak" : "Paneli açık tut")
-            .accessibilityLabel(appState.isNotchPinned ? "Panel sabitlemesini kaldır" : "Paneli açık tut")
-            .accessibilityValue(appState.isNotchPinned ? "Açık tutuluyor" : "Serbest")
+            .help(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
+            .accessibilityLabel(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
+            .accessibilityValue(appState.isNotchPinned ? "Pinned" : "Not pinned")
         }
     }
 }
@@ -371,7 +371,7 @@ private struct MeetingStatusView: View {
             }
         }
         .alert(cancelConfirmationTitle, isPresented: $showsCancelConfirmation) {
-            Button("Vazgeç", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
             Button(cancelConfirmationButtonTitle, role: .destructive) {
                 onCancelFlow()
             }
@@ -407,14 +407,14 @@ private struct MeetingStatusView: View {
 
     private var sectionTitle: String {
         switch appState.meetingFlow {
-        case .idle, .upcomingMeeting: "Yaklaşan"
-        case .preparingRecording: "Kayıt hazırlığı"
-        case .recording: "Canlı kayıt"
-        case .finalizingAudio: "Kayıt tamamlanıyor"
-        case .uploading, .transcribing, .summarizing: "Toplantı işleniyor"
-        case .completed: "Toplantı hazır"
-        case .failed: "İşlem tamamlanamadı"
-        case .cancelled: "İşlem durduruldu"
+        case .idle, .upcomingMeeting: "Upcoming"
+        case .preparingRecording: "Preparing"
+        case .recording: "Recording"
+        case .finalizingAudio: "Finishing"
+        case .uploading, .transcribing, .summarizing: "Processing"
+        case .completed: "Ready"
+        case .failed: "Couldn’t finish"
+        case .cancelled: "Stopped"
         }
     }
 
@@ -443,7 +443,7 @@ private struct MeetingStatusView: View {
                     text: googleMeetBridgeStatusText,
                     isCritical: appState.browserAudioConnectionStatus == .unavailable
                 )
-                .accessibilityLabel("Google Meet ses bağlantısı: \(googleMeetBridgeStatusText)")
+                .accessibilityLabel("Google Meet audio: \(googleMeetBridgeStatusText)")
             }
 
             if let prompt = appState.meetingLifecyclePrompt {
@@ -479,7 +479,7 @@ private struct MeetingStatusView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
                             CrenelPulseDot(color: Crenel.Palette.record, size: 6)
-                            Text("Kaydediliyor").eyebrow(color: Crenel.Palette.record)
+                            Text("Recording").eyebrow(color: Crenel.Palette.record)
                         }
                         TimelineView(.periodic(from: .now, by: 1)) { context in
                             Text(CrenelCompactView.elapsed(context.date.timeIntervalSince(startedAt)))
@@ -499,7 +499,7 @@ private struct MeetingStatusView: View {
                             tint: gate.state == .open ? Crenel.Palette.textPrimary : (gate.state == .unknown ? Crenel.Palette.warning : Crenel.Palette.textTertiary),
                             fill: Crenel.Palette.layer2
                         ))
-                        .help("Toplantı mikrofonunu aç veya gizlilik için kapat (⌥⌘M)")
+                        .help("Turn meeting mic on, or off for privacy (⌥⌘M)")
                         .accessibilityLabel(NotchAccessibilityContract.microphoneGateLabel(gate.state))
                     }
 
@@ -510,17 +510,17 @@ private struct MeetingStatusView: View {
                     }
                     .buttonStyle(CrenelIconButtonStyle(diameter: 44, tint: Crenel.Palette.record, fill: Crenel.Palette.record.opacity(0.18)))
                     .contextMenu {
-                        Button("Kaydı sil", role: .destructive) { showsCancelConfirmation = true }
+                        Button("Delete recording", role: .destructive) { showsCancelConfirmation = true }
                     }
-                    .help("Kaydı durdur")
-                    .accessibilityLabel("Kaydı durdur")
+                    .help("Stop recording")
+                    .accessibilityLabel("Stop recording")
                 }
 
                 CaptureSourcesView(status: appState.recordingCaptureStatus)
 
                 if let gate = appState.meetingMicrophoneGate {
                     HStack(spacing: 6) {
-                        Text(gate.state == .open ? "Sesiniz kayda dahil ediliyor" : (gate.state == .unknown ? "Mikrofon durumu bilinmiyor; güvenli olarak kapalı" : "Sesiniz kayda dahil edilmiyor"))
+                        Text(gate.state == .open ? "Your voice is being recorded" : (gate.state == .unknown ? "Mic state unknown; kept off" : "Your voice isn’t being recorded"))
                         Spacer(minLength: 4)
                         CrenelKeyCap(label: "⌥⌘M")
                     }
@@ -600,7 +600,7 @@ private struct MeetingStatusView: View {
                 ProgressView(value: progress)
                     .progressViewStyle(.linear)
                     .tint(presentation.color)
-                    .accessibilityLabel("İşlem ilerlemesi")
+                    .accessibilityLabel("Progress")
             }
 
             if appState.meetingLifecyclePrompt == nil {
@@ -620,13 +620,13 @@ private struct MeetingStatusView: View {
     private var googleMeetBridgeStatusText: String {
         switch appState.browserAudioConnectionStatus {
         case .unavailable:
-            "Google Meet ses köprüsü kullanılamıyor; kayıt başlamaz."
+            "Google Meet audio bridge unavailable; recording won’t start."
         case .waitingForMeetTab:
-            "Görüşme sekmesinde Crenel Chrome uzantısına basın."
+            "Click the Crenel Chrome extension in the call tab."
         case .tabConnected:
-            "Google Meet sekmesi güvenli biçimde bağlı."
+            "Google Meet tab connected."
         case .recording:
-            "Google Meet sekme sesi kayıt hattına bağlı."
+            "Recording Google Meet tab audio."
         }
     }
 
@@ -650,11 +650,11 @@ private struct MeetingStatusView: View {
     ) -> String? {
         switch gate.events.last?.source {
         case .adapterUnavailable:
-            "Mikrofon durumu doğrulanamıyor. Ortam sesi güvenli olarak kayda kapatıldı."
+            "Can’t verify mic state. Your mic is kept out of the recording."
         case .processChanged:
-            "Toplantı süreci değişti. Yeni süreç doğrulanana kadar mikrofon kayda kapatıldı."
+            "Meeting app changed. Your mic is off until it’s verified."
         case .systemInterruption:
-            "Mac uykuya geçiyor. Mikrofon güvenli kapatıldı ve kayıt sonlandırılıyor."
+            "Mac is going to sleep. Mic is off and the recording is ending."
         default:
             nil
         }
@@ -682,7 +682,7 @@ private struct MeetingStatusView: View {
             ProgressView()
                 .controlSize(.mini)
                 .tint(MeetingNotchTheme.MainPanel.cyan)
-                .accessibilityLabel("İşleme devam ediyor")
+                .accessibilityLabel("Processing")
         default:
             EmptyView()
         }
@@ -707,7 +707,7 @@ private struct MeetingStatusView: View {
                     Button {
                         onOpenMeetingURL(url)
                     } label: {
-                        FigmaActionLabel("Katıl", assetName: "FigmaVideo")
+                        FigmaActionLabel("Join", assetName: "FigmaVideo")
                     }
                     .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
                 }
@@ -715,7 +715,7 @@ private struct MeetingStatusView: View {
                 Button {
                     onStartRecording()
                 } label: {
-                    FigmaActionLabel("Kaydı Başlat", assetName: "FigmaRecord")
+                    FigmaActionLabel("Start recording", assetName: "FigmaRecord")
                 }
                 .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
             }
@@ -726,20 +726,20 @@ private struct MeetingStatusView: View {
                     Button {
                         onOpenMeetingURL(url)
                     } label: {
-                        FigmaActionLabel("Katıl", assetName: "FigmaVideo")
+                        FigmaActionLabel("Join", assetName: "FigmaVideo")
                     }
                     .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
                 }
                 Button {
                     onStartRecording()
                 } label: {
-                    FigmaActionLabel("Kaydı Başlat", assetName: "FigmaRecord")
+                    FigmaActionLabel("Start recording", assetName: "FigmaRecord")
                 }
                 .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                 Button {
                     appState.dismissCurrentMeetingReminder()
                 } label: {
-                    Text("Geç")
+                    Text("Skip")
                 }
                 .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
             }
@@ -748,7 +748,7 @@ private struct MeetingStatusView: View {
             Button(role: .destructive) {
                 showsCancelConfirmation = true
             } label: {
-                FigmaActionLabel("İptal", assetName: "FigmaStop")
+                FigmaActionLabel("Cancel", assetName: "FigmaStop")
             }
             .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
 
@@ -760,14 +760,14 @@ private struct MeetingStatusView: View {
                 Button(role: .destructive) {
                     showsCancelConfirmation = true
                 } label: {
-                    FigmaActionLabel("Kaydı Sil", assetName: "FigmaArchive")
+                    FigmaActionLabel("Delete recording", assetName: "FigmaArchive")
                 }
                 .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
 
                 Button(role: .destructive) {
                     onStopRecording()
                 } label: {
-                    FigmaActionLabel("Kaydı Durdur", assetName: "FigmaStop")
+                    FigmaActionLabel("Stop recording", assetName: "FigmaStop")
                 }
                 .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
             }
@@ -779,12 +779,12 @@ private struct MeetingStatusView: View {
                     Button {
                         onRecoverFromFailure(failure)
                     } label: {
-                        FigmaActionLabel("Sistem Ayarları", assetName: "FigmaWarning")
+                        FigmaActionLabel("System Settings", assetName: "FigmaWarning")
                     }
                     .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
 
                     Button(action: onRelaunchApplication) {
-                        FigmaActionLabel("Yeniden Başlat", assetName: "FigmaVoice")
+                        FigmaActionLabel("Relaunch", assetName: "FigmaVoice")
                     }
                     .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                 }
@@ -803,18 +803,18 @@ private struct MeetingStatusView: View {
                     Button {
                         onOpenStoredMeeting(meeting)
                     } label: {
-                        FigmaActionLabel("Detayı Aç", assetName: "FigmaTasks")
+                        FigmaActionLabel("Open details", assetName: "FigmaTasks")
                     }
                     .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
                 }
-                Button("Tamam") {
+                Button("OK") {
                     appState.resetFlow()
                 }
                 .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
             }
 
         case .cancelled:
-            Button("Tamam") {
+            Button("OK") {
                 appState.resetFlow()
             }
             .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
@@ -825,44 +825,44 @@ private struct MeetingStatusView: View {
     private var calendarButtonTitle: String {
         switch appState.calendarAccessState {
         case .requesting:
-            "Takvim Bekleniyor…"
+            "Waiting for calendar…"
         case .denied, .restricted:
-            "Takvim İzni"
+            "Calendar access"
         case .failed:
-            "Tekrar Bağlan"
+            "Reconnect"
         default:
-            "Takvimi Bağla"
+            "Connect calendar"
         }
     }
 
     private var cancelConfirmationTitle: String {
         switch appState.meetingFlow.phase {
         case .recording:
-            "Kayıt silinsin mi?"
+            "Delete recording?"
         case .uploading, .transcribing, .summarizing:
-            "İşleme durdurulsun mu?"
+            "Stop processing?"
         default:
-            "Kayıt hazırlığı iptal edilsin mi?"
+            "Cancel recording setup?"
         }
     }
 
     private var cancelConfirmationButtonTitle: String {
         switch appState.meetingFlow.phase {
         case .uploading, .transcribing, .summarizing:
-            "İşlemeyi Durdur"
+            "Stop processing"
         default:
-            "Kaydı Sil"
+            "Delete recording"
         }
     }
 
     private var cancelConfirmationMessage: String {
         switch appState.meetingFlow.phase {
         case .uploading, .transcribing, .summarizing:
-            "Yerel ses kaydı korunur. Transkripsiyonu toplantı geçmişinden daha sonra tekrar deneyebilirsiniz."
+            "The local audio is kept. You can retry transcription later from History."
         case .recording:
-            "Bu kayıt henüz geçmişe kaydedilmedi. Mikrofon ve sistem sesi parçaları kalıcı olarak silinecek."
+            "This recording isn’t saved to History yet. Mic and system audio will be deleted permanently."
         default:
-            "Hazırlanan geçici kayıt dosyaları silinecek."
+            "Temporary recording files will be deleted."
         }
     }
 }
@@ -903,19 +903,19 @@ private struct MeetingLifecyclePromptView: View {
             switch prompt {
             case .recordingOffer:
                 MeetingNotchActionGroup {
-                    Button("Şimdi Değil", action: onDismiss)
+                    Button("Not now", action: onDismiss)
                         .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
                     Button(action: onStartRecording) {
-                        FigmaActionLabel("Kaydı Başlat", assetName: "FigmaRecord")
+                        FigmaActionLabel("Start recording", assetName: "FigmaRecord")
                     }
                     .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                 }
             case .endConfirmation, .autoStop:
                 MeetingNotchActionGroup {
-                    Button("Kayda Devam Et", action: onContinueRecording)
+                    Button("Keep recording", action: onContinueRecording)
                         .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
                     Button(role: .destructive, action: onConfirmEnd) {
-                        FigmaActionLabel("Şimdi Durdur", assetName: "FigmaStop")
+                        FigmaActionLabel("Stop now", assetName: "FigmaStop")
                     }
                     .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
                 }
@@ -936,22 +936,22 @@ private struct MeetingLifecyclePromptView: View {
     private var title: String {
         switch prompt {
         case .recordingOffer:
-            "Toplantı algılandı"
+            "Meeting detected"
         case .endConfirmation:
-            "Toplantı bitmiş olabilir"
+            "Meeting may have ended"
         case .autoStop:
-            "Toplantı bitti"
+            "Meeting ended"
         }
     }
 
     private var detail: String {
         switch prompt {
         case .recordingOffer(_, let clientID):
-            "\(clientName(clientID)) için kayıt başlatılsın mı?"
+            "Record this \(clientName(clientID))?"
         case .endConfirmation:
-            "Sinyaller kesin değil. Kaydı siz durdurabilirsiniz."
+            "Not sure it’s over. You can stop the recording yourself."
         case .autoStop:
-            "Kayıt geri sayım sonunda güvenli biçimde durdurulacak."
+            "Recording stops when the countdown ends."
         }
     }
 
@@ -973,9 +973,9 @@ private struct MeetingLifecyclePromptView: View {
 
     private func clientName(_ clientID: MeetingClientID?) -> String {
         switch clientID {
-        case .zoom: "Zoom"
-        case .googleMeetChrome: "Google Meet"
-        case .unsupported, nil: "Toplantı"
+        case .zoom: "Zoom call"
+        case .googleMeetChrome: "Google Meet call"
+        case .unsupported, nil: "meeting"
         }
     }
 }
@@ -986,10 +986,10 @@ private struct AutoStopCountdownView: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let seconds = max(0, Int(ceil(deadline.timeIntervalSince(context.date))))
-            Text("\(seconds) sn")
+            Text("\(seconds) s")
                 .font(MeetingNotchTheme.dataFont.monospacedDigit())
                 .foregroundStyle(MeetingNotchTheme.MainPanel.danger)
-                .accessibilityLabel("Kaydın durmasına \(seconds) saniye")
+                .accessibilityLabel("Recording stops in \(seconds) seconds")
         }
     }
 }
@@ -1040,10 +1040,10 @@ private struct RecordingRecoveryNoticeView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 if summary.recoveredCount > 0 {
-                    Text("\(summary.recoveredCount) kayıt kurtarıldı")
+                    Text("\(summary.recoveredCount) recordings recovered")
                 }
                 if summary.preservedCount > 0 {
-                    Text("\(summary.preservedCount) kayıt Recovery'de korundu")
+                    Text("\(summary.preservedCount) recordings kept in Recovery")
                 }
             }
             .font(MeetingNotchTheme.MainPanel.smallFont)
@@ -1058,13 +1058,13 @@ private struct RecordingRecoveryNoticeView: View {
                         .frame(width: 20, height: 20)
                 }
                 .buttonStyle(MeetingNotchIconButtonStyle())
-                .help("Recovery klasörünü göster")
+                .help("Show Recovery folder")
             }
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
             }
             .buttonStyle(MeetingNotchIconButtonStyle())
-            .accessibilityLabel("Kurtarma bildirimini kapat")
+            .accessibilityLabel("Dismiss recovery notice")
         }
         .padding(16)
         .background(
@@ -1095,7 +1095,7 @@ private struct FigmaWarningRow: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 16)
-        .accessibilityHint(isCritical ? "Kritik uyarı" : "Uyarı")
+        .accessibilityHint(isCritical ? "Critical warning" : "Warning")
     }
 }
 
@@ -1114,22 +1114,22 @@ private struct FigmaMeetingCountdownView: View {
                         : MeetingNotchTheme.MainPanel.secondaryText
                 )
                 .lineLimit(1)
-                .accessibilityLabel("Kalan süre \(Self.text(seconds: seconds, remaining: endDate.map { $0.timeIntervalSince(context.date) }))")
+                .accessibilityLabel("Time left \(Self.text(seconds: seconds, remaining: endDate.map { $0.timeIntervalSince(context.date) }))")
         }
     }
 
     private static func text(seconds: Int, remaining: TimeInterval?) -> String {
         guard seconds > 0 else {
-            guard let remaining, remaining > 0 else { return "Başladı" }
-            return "Sürüyor · \(NotchAgendaFormatter.durationText(remaining))"
+            guard let remaining, remaining > 0 else { return "Started" }
+            return "Now · \(NotchAgendaFormatter.durationText(remaining)) left"
         }
         let minutes = Int(ceil(Double(seconds) / 60))
-        guard minutes >= 60 else { return "\(minutes) dk kaldı" }
+        guard minutes >= 60 else { return "\(minutes) min left" }
         let hours = minutes / 60
         let remainingMinutes = minutes % 60
         return remainingMinutes == 0
-            ? "\(hours) sa kaldı"
-            : "\(hours) sa \(remainingMinutes) dk"
+            ? "\(hours) h left"
+            : "\(hours) h \(remainingMinutes) min"
     }
 }
 
@@ -1139,8 +1139,8 @@ private struct CaptureSourcesView: View {
 
     var body: some View {
         HStack(spacing: Crenel.Space.xl) {
-            source("Mikrofon", glyph: .mic, status: status.microphone)
-            source("Sistem sesi", glyph: .speaker, status: status.systemAudio)
+            source("Microphone", glyph: .mic, status: status.microphone)
+            source("System audio", glyph: .speaker, status: status.systemAudio)
         }
     }
 
@@ -1165,7 +1165,7 @@ private struct CaptureSourcesView: View {
         }
         .frame(maxWidth: .infinity, minHeight: 16)
         .accessibilityElement(children: .combine)
-        .help(status.connectionState.message ?? (status.isReady ? "Hazır" : "Hazırlanıyor"))
+        .help(status.connectionState.message ?? (status.isReady ? "Ready" : "Preparing"))
         .accessibilityLabel(accessibilityLabel(title: title, status: status))
     }
 
@@ -1181,7 +1181,7 @@ private struct CaptureSourcesView: View {
         if let message = status.connectionState.message {
             return "\(title): \(message)"
         }
-        return "\(title) \(status.isReady ? "hazır" : "hazırlanıyor")"
+        return "\(title) \(status.isReady ? "ready" : "preparing")"
     }
 }
 
@@ -1199,10 +1199,10 @@ private struct MeetingMicrophoneGateControl: View {
                     .frame(width: 20, height: 20)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Toplantı mikrofonu: \(title)")
+                    Text("Meeting mic: \(title)")
                         .font(MeetingNotchTheme.MainPanel.smallMediumFont)
                         .foregroundStyle(color)
-                    Text(gate.state == .open ? "Sesiniz kayda dahil ediliyor" : "Sesiniz kayda dahil edilmiyor")
+                    Text(gate.state == .open ? "Your voice is being recorded" : "Your voice isn’t being recorded")
                         .font(MeetingNotchTheme.MainPanel.smallFont)
                         .foregroundStyle(MeetingNotchTheme.secondaryText)
                 }
@@ -1216,15 +1216,15 @@ private struct MeetingMicrophoneGateControl: View {
             .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
         }
         .buttonStyle(FigmaGateButtonStyle())
-        .help("Mikrofon kaydını aç veya gizlilik için kapat (⌥⌘M)")
-        .accessibilityLabel("Toplantı mikrofonu \(title). Değiştirmek için Option Command M.")
+        .help("Turn mic recording on, or off for privacy (⌥⌘M)")
+        .accessibilityLabel("Meeting mic \(title). Press Option Command M to change.")
     }
 
     private var title: String {
         switch gate.state {
-        case .open: "Açık"
-        case .closed: "Kapalı"
-        case .unknown: "Bilinmiyor"
+        case .open: "On"
+        case .closed: "Off"
+        case .unknown: "Unknown"
         }
     }
 
@@ -1265,12 +1265,12 @@ private struct MeetingCountdownView: View {
                         ? MeetingNotchTheme.MainPanel.warning
                         : MeetingNotchTheme.MainPanel.danger
                 )
-                .accessibilityLabel("Toplantıya kalan süre \(Self.text(seconds: seconds))")
+                .accessibilityLabel("Meeting starts in \(Self.text(seconds: seconds))")
         }
     }
 
     private static func text(seconds: Int) -> String {
-        guard seconds > 0 else { return "Toplantı başladı" }
+        guard seconds > 0 else { return "Meeting started" }
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return String(format: "%02d:%02d", minutes, remainingSeconds)
@@ -1280,11 +1280,11 @@ private struct MeetingCountdownView: View {
 enum DictationStatusText {
     static func title(for state: DictationState) -> String {
         switch state {
-        case .idle: "Dikte hazır"
-        case .listening: "Dinleniyor"
-        case .transcribing: "Yazılıyor"
-        case .refining: "Düzenleniyor"
-        case .inserting: "Ekleniyor"
+        case .idle: "Dictation ready"
+        case .listening: "Listening"
+        case .transcribing: "Transcribing"
+        case .refining: "Refining"
+        case .inserting: "Inserting"
         case .inserted(let summary): summary.message
         case .failed(let failure): failure.message
         }
@@ -1292,11 +1292,11 @@ enum DictationStatusText {
 
     static func short(for failure: DictationFailure) -> String {
         switch failure {
-        case .noFocusedTextField: "Panoda"
-        case .speechAssetsDownloading, .speechAssetsMissing: "Model iniyor"
-        case .accessibilityPermissionMissing, .inputMonitoringPermissionMissing, .microphonePermissionDenied: "İzin gerekli"
-        case .tooShort, .noSpeechDetected: "Ses yok"
-        default: "Olmadı"
+        case .noFocusedTextField: "Copied"
+        case .speechAssetsDownloading, .speechAssetsMissing: "Downloading"
+        case .accessibilityPermissionMissing, .inputMonitoringPermissionMissing, .microphonePermissionDenied: "Needs access"
+        case .tooShort, .noSpeechDetected: "No speech"
+        default: "Failed"
         }
     }
 }
@@ -1348,10 +1348,10 @@ private struct MeetingFlowPresentation {
     ) {
         switch state {
         case .idle:
-            let title = nextMeeting?.title ?? "Yaklaşan toplantı yok"
+            let title = nextMeeting?.title ?? "No upcoming meetings"
             let detail = nextMeeting.map {
-                "Sonraki toplantı: \($0.startDate.formatted(date: .abbreviated, time: .shortened))"
-            } ?? "Hazır olduğunuzda manuel kayıt başlatabilirsiniz."
+                "Next: \($0.startDate.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: AppLanguage.locale)))"
+            } ?? "Start a recording whenever you’re ready."
             self.init(
                 assetName: "FigmaRecord",
                 compactAssetName: "FigmaVoice",
@@ -1363,13 +1363,13 @@ private struct MeetingFlowPresentation {
             let detail: String
             switch reminderLevel {
             case .oneMinute:
-                detail = "Başlamasına 1 dakikadan az kaldı"
+                detail = "Starts in under a minute"
             case .tenMinutes:
-                detail = "Başlamasına 10 dakikadan az kaldı"
+                detail = "Starts in under 10 minutes"
             case .started:
-                detail = "Toplantı başladı"
+                detail = "Meeting started"
             case .none:
-                detail = meeting.startDate.formatted(date: .omitted, time: .shortened)
+                detail = meeting.startDate.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.locale))
             }
             self.init(
                 assetName: "FigmaVideo",
@@ -1383,32 +1383,32 @@ private struct MeetingFlowPresentation {
                 assetName: "FigmaMicrophone",
                 compactAssetName: "FigmaMicrophone",
                 color: MeetingNotchTheme.MainPanel.warning,
-                title: "Kayıt hazırlanıyor",
-                detail: "Ses kaynakları ve izinler kontrol ediliyor."
+                title: "Preparing recording",
+                detail: "Checking audio sources and permissions."
             )
         case .recording(let startedAt):
             self.init(
                 assetName: "FigmaRecord",
                 compactAssetName: "FigmaRecord",
                 color: MeetingNotchTheme.MainPanel.danger,
-                title: "Kayıt devam ediyor",
-                detail: "Başlangıç: \(startedAt.formatted(date: .omitted, time: .standard))"
+                title: "Recording",
+                detail: "Started at \(startedAt.formatted(Date.FormatStyle(date: .omitted, time: .standard, locale: AppLanguage.locale)))"
             )
         case .finalizingAudio:
             self.init(
                 assetName: "FigmaStop",
                 compactAssetName: "FigmaStop",
                 color: MeetingNotchTheme.MainPanel.cyan,
-                title: "Ses hazırlanıyor",
-                detail: "Kayıt güvenli biçimde sonlandırılıyor."
+                title: "Finishing audio",
+                detail: "Wrapping up the recording."
             )
         case .uploading(let progress):
             self.init(
                 assetName: "FigmaArrowUp",
                 compactAssetName: "FigmaArrowUp",
                 color: MeetingNotchTheme.MainPanel.cyan,
-                title: "Kayıt yükleniyor",
-                detail: "Transkripsiyon için ses dosyası gönderiliyor.",
+                title: "Uploading",
+                detail: "Sending audio for transcription.",
                 progress: progress
             )
         case .transcribing:
@@ -1416,32 +1416,32 @@ private struct MeetingFlowPresentation {
                 assetName: "FigmaVoice",
                 compactAssetName: "FigmaVoice",
                 color: MeetingNotchTheme.MainPanel.cyan,
-                title: "Transkript hazırlanıyor",
-                detail: "Konuşmacılar ve konuşmalar ayrıştırılıyor."
+                title: "Transcribing",
+                detail: "Separating speakers."
             )
         case .summarizing:
             self.init(
                 assetName: "FigmaTasks",
                 compactAssetName: "FigmaTasks",
                 color: MeetingNotchTheme.MainPanel.cyan,
-                title: "Özet hazırlanıyor",
-                detail: "Kararlar ve aksiyon maddeleri çıkarılıyor."
+                title: "Summarizing",
+                detail: "Pulling out decisions and action items."
             )
         case .completed:
             self.init(
                 assetName: "FigmaRecentCheck",
                 compactAssetName: "FigmaVoice",
                 color: MeetingNotchTheme.MainPanel.success,
-                title: "Kayıt tamamlandı",
-                detail: "Mikrofon ve sistem sesi yerel olarak kaydedildi."
+                title: "Recording saved",
+                detail: "Mic and system audio saved on this Mac."
             )
         case .cancelled:
             self.init(
                 assetName: "FigmaStop",
                 compactAssetName: "FigmaVoice",
                 color: MeetingNotchTheme.MainPanel.secondaryText,
-                title: "İşlem iptal edildi",
-                detail: "Yeni bir kayıt başlatabilirsiniz."
+                title: "Cancelled",
+                detail: "You can start a new recording."
             )
         case .failed(let failure):
             self.init(

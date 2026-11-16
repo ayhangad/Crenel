@@ -118,7 +118,8 @@ final class DictationCoordinator {
             .store(in: &cancellables)
     }
 
-    /// "görev ekle yarın faturayı öde" → title "faturayı öde", due tomorrow.
+    /// Parses spoken input in Turkish or English, e.g. "görev ekle yarın faturayı öde"
+    /// ("add task tomorrow pay the bill") → title "faturayı öde", due tomorrow.
     nonisolated static func taskParseResult(from text: String, now: Date = Date()) -> TaskInputParseResult {
         let parser = TaskInputParser()
         let suggestions = parser.suggestions(for: text, now: now)

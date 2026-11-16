@@ -42,18 +42,18 @@ struct DictationResultSummary: Equatable, Sendable {
         switch delivery {
         case .insertedViaAccessibility, .insertedViaPaste:
             if let appName, !appName.isEmpty {
-                return "\(appName) uygulamasına eklendi."
+                return "Added to \(appName)."
             }
-            return "Metin eklendi."
+            return "Text added."
         case .replacedSelection:
-            return "Seçili metin değiştirildi."
+            return "Selected text replaced."
         case .taskCreated:
-            return "Görev oluşturuldu."
+            return "Task created."
         }
     }
 }
 
-/// User-facing dictation failures. Messages are Turkish and safe to show directly.
+/// User-facing dictation failures. Messages are safe to show directly.
 enum DictationFailure: Error, Equatable, Sendable {
     case microphonePermissionDenied
     case microphoneUnavailable
@@ -73,33 +73,33 @@ enum DictationFailure: Error, Equatable, Sendable {
     var message: String {
         switch self {
         case .microphonePermissionDenied:
-            return "Mikrofon izni verilmedi. Sistem Ayarları > Gizlilik ve Güvenlik > Mikrofon bölümünden izin verin."
+            return "Microphone access is off. Turn it on in System Settings > Privacy & Security > Microphone."
         case .microphoneUnavailable:
-            return "Kullanılabilir mikrofon bulunamadı."
+            return "No microphone available."
         case .inputMonitoringPermissionMissing:
-            return "Dikte kısayolu için Girdi İzleme izni gerekli."
+            return "The dictation shortcut needs Input Monitoring access."
         case .accessibilityPermissionMissing:
-            return "Erişilebilirlik izni olmadığı için metin eklenemedi; metin panoya kopyalandı."
+            return "Couldn’t insert text without Accessibility access. Copied to clipboard."
         case .speechAssetsMissing:
-            return "Bu dil için cihaz üzerindeki konuşma modeli yüklü değil. İndirme başlatıldı."
+            return "The on-device speech model for this language isn’t installed. Download started."
         case .speechAssetsDownloading:
-            return "Konuşma modeli indiriliyor. İndirme bitince yeniden deneyin."
+            return "Downloading the speech model. Try again when it finishes."
         case .unsupportedLocale:
-            return "Seçilen dil cihaz üzerinde dikte için desteklenmiyor."
+            return "The selected language isn’t supported for on-device dictation."
         case .noFocusedTextField:
-            return "Odaklanmış bir metin alanı bulunamadı; metin panoya kopyalandı."
+            return "No focused text field. Copied to clipboard."
         case .secureTextField:
-            return "Güvenlik nedeniyle parola alanlarına dikte edilmez."
+            return "Dictation into password fields is blocked for security."
         case .tooShort:
-            return "Kayıt çok kısaydı."
+            return "Recording was too short."
         case .noSpeechDetected:
-            return "Konuşma algılanmadı."
+            return "No speech detected."
         case .sessionTooLong:
-            return "Dikte süresi sınırına ulaşıldı."
+            return "Dictation time limit reached."
         case .transcriptionFailed:
-            return "Konuşma yazıya çevrilemedi."
+            return "Couldn’t transcribe speech."
         case .insertionFailed:
-            return "Metin eklenemedi; metin panoya kopyalandı."
+            return "Couldn’t insert text. Copied to clipboard."
         }
     }
 

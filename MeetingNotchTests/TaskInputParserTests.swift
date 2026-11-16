@@ -79,20 +79,20 @@ final class TaskInputParserTests: XCTestCase {
     // MARK: Relative days
 
     func testRelativeDaysEnglish() {
-        assertDue("Call mom today", date(2026, 11, 16), matched: "today", label: "Bugün")
-        assertDue("Call mom tomorrow", date(2026, 11, 17), matched: "tomorrow", label: "Yarın")
+        assertDue("Call mom today", date(2026, 11, 16), matched: "today", label: "Today")
+        assertDue("Call mom tomorrow", date(2026, 11, 17), matched: "tomorrow", label: "Tomorrow")
         assertDue("Call mom the day after tomorrow", date(2026, 11, 18), matched: "the day after tomorrow")
-        assertDue("Pack tonight", date(2026, 11, 16, 20, 0), hasTime: true, label: "Bugün 20:00")
-        assertDue("Report in 3 days", date(2026, 11, 19), matched: "in 3 days", label: "Per 19 Kas")
-        assertDue("Report in two weeks", date(2026, 11, 30), label: "30 Kas")
+        assertDue("Pack tonight", date(2026, 11, 16, 20, 0), hasTime: true, label: "Today 20:00")
+        assertDue("Report in 3 days", date(2026, 11, 19), matched: "in 3 days", label: "Thu 19 Nov")
+        assertDue("Report in two weeks", date(2026, 11, 30), label: "30 Nov")
         assertDue("Report in a week", date(2026, 11, 23))
         assertDue("Plan next week", date(2026, 11, 23), matched: "next week")
-        assertDue("Hike this weekend", date(2026, 11, 21), matched: "this weekend", label: "Cmt 21 Kas")
+        assertDue("Hike this weekend", date(2026, 11, 21), matched: "this weekend", label: "Sat 21 Nov")
         assertDue("Ship by end of week", date(2026, 11, 20), matched: "by end of week")
         assertDue("Invoice by the end of the month", date(2026, 11, 30), matched: "by the end of the month")
-        assertDue("Budget next month", date(2026, 12, 1), label: "1 Ara")
+        assertDue("Budget next month", date(2026, 12, 1), label: "1 Dec")
         assertDue("Taxes end of year", date(2026, 12, 31))
-        assertDue("Ping in 2 hours", date(2026, 11, 16, 12, 0), hasTime: true, label: "Bugün 12:00")
+        assertDue("Ping in 2 hours", date(2026, 11, 16, 12, 0), hasTime: true, label: "Today 12:00")
     }
 
     func testRelativeDaysTurkish() {
@@ -118,18 +118,18 @@ final class TaskInputParserTests: XCTestCase {
     // MARK: Weekdays
 
     func testWeekdaysOnMonday() {
-        assertDue("Standup Monday", date(2026, 11, 23), label: "Pzt 23 Kas")
-        assertDue("Finish this until next Monday", date(2026, 11, 23), matched: "until next Monday", label: "Pzt 23 Kas")
-        assertDue("Demo on Friday", date(2026, 11, 20), matched: "on Friday", label: "Cum 20 Kas")
+        assertDue("Standup Monday", date(2026, 11, 23), label: "Mon 23 Nov")
+        assertDue("Finish this until next Monday", date(2026, 11, 23), matched: "until next Monday", label: "Mon 23 Nov")
+        assertDue("Demo on Friday", date(2026, 11, 20), matched: "on Friday", label: "Fri 20 Nov")
         assertDue("Demo this Friday", date(2026, 11, 20))
         assertDue("Demo next Friday", date(2026, 11, 27))
         assertDue("Demo on Fri", date(2026, 11, 20))
-        assertDue("Demo Monday at 3pm", date(2026, 11, 16, 15, 0), hasTime: true, label: "Bugün 15:00")
+        assertDue("Demo Monday at 3pm", date(2026, 11, 16, 15, 0), hasTime: true, label: "Today 15:00")
         assertDue("Demo Monday at 9am", date(2026, 11, 23, 9, 0), hasTime: true)
         assertDue("Rapor pazartesi", date(2026, 11, 23))
         assertDue("Rapor pazartesiye", date(2026, 11, 23), matched: "pazartesiye")
         assertDue("Rapor pazartesi günü", date(2026, 11, 23), matched: "pazartesi günü")
-        assertDue("Rapor salı", date(2026, 11, 17), label: "Yarın")
+        assertDue("Rapor salı", date(2026, 11, 17), label: "Tomorrow")
         assertDue("Rapor çarşamba", date(2026, 11, 18))
         assertDue("Rapor perşembe", date(2026, 11, 19))
         assertDue("Rapor cumaya kadar", date(2026, 11, 20), matched: "cumaya kadar")
@@ -167,12 +167,12 @@ final class TaskInputParserTests: XCTestCase {
         assertDue("Doğum günü 23/11", date(2026, 11, 23))
         assertDue("Birthday Nov 23", date(2026, 11, 23), matched: "Nov 23")
         assertDue("Birthday November 23rd", date(2026, 11, 23), matched: "November 23rd")
-        assertDue("Birthday 23 November 2027", date(2027, 11, 23), label: "23 Kas 2027")
+        assertDue("Birthday 23 November 2027", date(2027, 11, 23), label: "23 Nov 2027")
         assertDue("Birthday 11/23", date(2026, 11, 23))
         assertDue("Birthday 2027-03-05", date(2027, 3, 5))
         assertDue("Rapor 23 Kasım'a kadar", date(2026, 11, 23), matched: "23 Kasım'a kadar")
         assertDue("Rapor 23.11'e kadar", date(2026, 11, 23), matched: "23.11'e kadar")
-        assertDue("Rapor 5 Ocak", date(2027, 1, 5), label: "5 Oca 2027")
+        assertDue("Rapor 5 Ocak", date(2027, 1, 5), label: "5 Jan 2027")
         assertDue("Rapor 10 Kasım", date(2027, 11, 10))
         assertDue("Rapor 1 Aralık", date(2026, 12, 1))
         assertDue("Pay on the 25th", date(2026, 11, 25), matched: "on the 25th")
@@ -180,7 +180,7 @@ final class TaskInputParserTests: XCTestCase {
     }
 
     func testYears() {
-        assertDue("Finish thesis by 2027", date(2027, 12, 31), matched: "by 2027", label: "31 Ara 2027")
+        assertDue("Finish thesis by 2027", date(2027, 12, 31), matched: "by 2027", label: "31 Dec 2027")
         assertDue("Tezi 2027'ye kadar bitir", date(2027, 12, 31), matched: "2027'ye kadar")
         assertNoDue("2027 planı")
         assertNoDue("Plan for 2020")
@@ -189,11 +189,11 @@ final class TaskInputParserTests: XCTestCase {
     // MARK: Times
 
     func testTimesAlone() {
-        assertDue("Call 15:00", date(2026, 11, 16, 15, 0), hasTime: true, matched: "15:00", label: "Bugün 15:00")
+        assertDue("Call 15:00", date(2026, 11, 16, 15, 0), hasTime: true, matched: "15:00", label: "Today 15:00")
         assertDue("Call 15.00", date(2026, 11, 16, 15, 0), hasTime: true)
         assertDue("Call 3pm", date(2026, 11, 16, 15, 0), hasTime: true)
         assertDue("Call 3 pm", date(2026, 11, 16, 15, 0), hasTime: true, matched: "3 pm")
-        assertDue("Call at 9", date(2026, 11, 17, 9, 0), hasTime: true, matched: "at 9", label: "Yarın 09:00")
+        assertDue("Call at 9", date(2026, 11, 17, 9, 0), hasTime: true, matched: "at 9", label: "Tomorrow 09:00")
         assertDue("Call at noon", date(2026, 11, 16, 12, 0), hasTime: true)
         assertDue("Deploy before midnight", date(2026, 11, 16, 23, 59), hasTime: true)
         assertDue("Ara saat 3te", date(2026, 11, 16, 15, 0), hasTime: true, matched: "saat 3te")
@@ -207,16 +207,16 @@ final class TaskInputParserTests: XCTestCase {
     }
 
     func testDayAndTimeCombined() {
-        assertDue("Faturayı yarın 15te öde", date(2026, 11, 17, 15, 0), hasTime: true, matched: "yarın 15te", label: "Yarın 15:00")
+        assertDue("Faturayı yarın 15te öde", date(2026, 11, 17, 15, 0), hasTime: true, matched: "yarın 15te", label: "Tomorrow 15:00")
         assertDue("Call tomorrow at 3pm", date(2026, 11, 17, 15, 0), hasTime: true, matched: "tomorrow at 3pm")
         assertDue("Call at 3pm tomorrow", date(2026, 11, 17, 15, 0), hasTime: true, matched: "at 3pm tomorrow")
-        assertDue("Ara yarın saat 9", date(2026, 11, 17, 9, 0), hasTime: true, label: "Yarın 09:00")
+        assertDue("Ara yarın saat 9", date(2026, 11, 17, 9, 0), hasTime: true, label: "Tomorrow 09:00")
         assertDue("Ara yarın akşam", date(2026, 11, 17, 20, 0), hasTime: true, matched: "yarın akşam")
         assertDue("Ara bu akşam 7de", date(2026, 11, 16, 19, 0), hasTime: true, matched: "bu akşam 7de")
         assertDue("Ara bu sabah 7de", date(2026, 11, 16, 7, 0), hasTime: true)
         assertDue("Ara tomorrow morning", date(2026, 11, 17, 9, 0), hasTime: true)
         assertDue("Ara cuma 14:00'e kadar", date(2026, 11, 20, 14, 0), hasTime: true, matched: "cuma 14:00'e kadar")
-        assertDue("Ara 23.11 10:30", date(2026, 11, 23, 10, 30), hasTime: true, label: "Pzt 23 Kas 10:30")
+        assertDue("Ara 23.11 10:30", date(2026, 11, 23, 10, 30), hasTime: true, label: "Mon 23 Nov 10:30")
         assertDue("Ara tonight at 9", date(2026, 11, 16, 21, 0), hasTime: true)
     }
 
@@ -248,16 +248,16 @@ final class TaskInputParserTests: XCTestCase {
     }
 
     func testRecurrenceLabelsAndFirstOccurrence() {
-        XCTAssertEqual(recurrence("her pazartesi standup")?.label, "Her pazartesi")
+        XCTAssertEqual(recurrence("her pazartesi standup")?.label, "Every Monday")
         XCTAssertEqual(recurrence("her pazartesi standup")?.firstOccurrence, date(2026, 11, 16))
         XCTAssertEqual(recurrence("every friday review")?.firstOccurrence, date(2026, 11, 20))
-        XCTAssertEqual(recurrence("hafta içi her gün")?.label, "Her hafta içi")
-        XCTAssertEqual(recurrence("2 haftada bir")?.label, "2 haftada bir")
-        XCTAssertEqual(recurrence("her gün")?.label, "Her gün")
-        XCTAssertEqual(recurrence("her ay")?.label, "Her ay")
-        XCTAssertEqual(recurrence("her yıl")?.label, "Her yıl")
-        XCTAssertEqual(TaskPriority.high.displayText, "Yüksek öncelik")
-        XCTAssertEqual(TaskPriority.low.displayText, "Düşük öncelik")
+        XCTAssertEqual(recurrence("hafta içi her gün")?.label, "Every weekday")
+        XCTAssertEqual(recurrence("2 haftada bir")?.label, "Every 2 weeks")
+        XCTAssertEqual(recurrence("her gün")?.label, "Every day")
+        XCTAssertEqual(recurrence("her ay")?.label, "Every month")
+        XCTAssertEqual(recurrence("her yıl")?.label, "Every year")
+        XCTAssertEqual(TaskPriority.high.displayText, "High priority")
+        XCTAssertEqual(TaskPriority.low.displayText, "Low priority")
     }
 
     func testRecurrenceWithTimeAnchorsToOccurrence() {

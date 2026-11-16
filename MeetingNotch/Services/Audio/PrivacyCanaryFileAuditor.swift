@@ -42,19 +42,19 @@ enum PrivacyCanaryFileAuditError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case let .invalidFrequency(value):
-            "Canary frekansı geçersiz: \(value)"
+            "Invalid canary frequency: \(value)"
         case let .invalidThreshold(value):
-            "Tone amplitude eşiği geçersiz: \(value)"
+            "Invalid tone amplitude threshold: \(value)"
         case let .invalidMinimumDuration(value):
-            "Minimum süre geçersiz: \(value)"
+            "Invalid minimum duration: \(value)"
         case let .unreadableAudio(path):
-            "Ses dosyası okunamadı: \(path)"
+            "Couldn’t read audio file: \(path)"
         case let .unsupportedAudioFormat(path):
-            "Ses dosyası Float32 PCM'e açılamadı: \(path)"
+            "Couldn’t open audio file as Float32 PCM: \(path)"
         case let .emptyAudio(path):
-            "Ses dosyasında frame yok: \(path)"
+            "Audio file has no frames: \(path)"
         case let .unreadableTranscript(path):
-            "Transkript dosyası okunamadı: \(path)"
+            "Couldn’t read transcript file: \(path)"
         }
     }
 }

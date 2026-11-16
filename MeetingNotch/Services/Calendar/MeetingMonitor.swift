@@ -107,7 +107,7 @@ final class MeetingMonitor {
                 await refresh()
             }
         } catch {
-            onAccessStateChange?(.failed("Takvim erişimi istenirken bir hata oluştu."))
+            onAccessStateChange?(.failed("Couldn’t request calendar access."))
         }
     }
 
@@ -166,7 +166,7 @@ final class MeetingMonitor {
         } catch {
             guard isEnabled, version == configurationVersion else { return }
             onIntegrationSnapshotChange?(nil)
-            onAccessStateChange?(.failed("Yaklaşan etkinlikler okunamadı."))
+            onAccessStateChange?(.failed("Couldn’t read upcoming events."))
             onMeetingsChange?([])
             publish(MeetingReminderSnapshot(nextMeeting: nil, level: .none, secondsUntilStart: nil))
         }

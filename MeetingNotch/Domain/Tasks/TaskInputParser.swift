@@ -44,7 +44,7 @@ struct TaskInputSuggestion: Equatable, Sendable, Identifiable {
     /// Span of the matched phrase (including connector words) in the parsed input.
     let range: Range<String.Index>
     let matchedText: String
-    /// Short Turkish chip label: "Bugün", "Yarın 15:00", "Pzt 23 Kas", "Her pazartesi", "Yüksek öncelik".
+    /// Short chip label: "Today", "Tomorrow 15:00", "Mon 23 Nov", "Every Monday", "High priority".
     let label: String
     /// For `.recurrence`: first occurrence (start of day) on or after `now`; used by `apply` as the
     /// due date when no due suggestion is accepted.
@@ -117,7 +117,7 @@ struct TaskInputParser: Sendable {
         return result
     }
 
-    /// Compact Turkish label: "Bugün", "Yarın 09:00", "Cum 20 Kas" (2-7 days ahead), "23 Kas", "23 Kas 2027".
+    /// Compact label: "Today", "Tomorrow 09:00", "Fri 20 Nov" (2-7 days ahead), "23 Nov", "23 Nov 2027".
     func dueLabel(for date: Date, hasTime: Bool, now: Date) -> String {
         Labels.due(date, hasTime: hasTime, now: now, calendar: calendar)
     }
@@ -487,26 +487,31 @@ private struct DateContext {
 }
 
 private enum Labels {
-    static let weekdays = ["Paz", "Pzt", "Sal", "Çar", "Per", "Cum", "Cmt"]
-    static let months = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"]
-
     static func due(_ date: Date, hasTime: Bool, now: Date, calendar: Calendar) -> String {
         let today = calendar.startOfDay(for: now)
         let dayDiff = calendar.dateComponents([.day], from: today, to: calendar.startOfDay(for: date)).day ?? 0
-        let parts = calendar.dateComponents([.year, .month, .day, .weekday, .hour, .minute], from: date)
-        let day = parts.day ?? 1
-        let month = months[((parts.month ?? 1) - 1 + 12) % 12]
+        let parts = calendar.dateComponents([.year, .hour, .minute], from: date)
         var text: String
         switch dayDiff {
-        case 0: text = "Bugün"
-        case 1: text = "Yarın"
-        case 2...7: text = "\(weekdays[((parts.weekday ?? 1) - 1 + 7) % 7]) \(day) \(month)"
+        case 0: text = "Today"
+        case 1: text = "Tomorrow"
+        case 2...7: text = format(date, "EEE d MMM", calendar: calendar)
         default:
-            text = "\(day) \(month)"
-            if parts.year != calendar.component(.year, from: now) { text += " \(parts.year ?? 0)" }
+            let sameYear = parts.year == calendar.component(.year, from: now)
+            text = format(date, sameYear ? "d MMM" : "d MMM yyyy", calendar: calendar)
         }
         if hasTime { text += String(format: " %02d:%02d", parts.hour ?? 0, parts.minute ?? 0) }
         return text
+    }
+
+    /// Day and month names follow the interface language ("Mon 23 Nov").
+    private static func format(_ date: Date, _ pattern: String, calendar: Calendar) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.locale = AppLanguage.locale
+        formatter.dateFormat = pattern
+        return formatter.string(from: date)
     }
 }
 

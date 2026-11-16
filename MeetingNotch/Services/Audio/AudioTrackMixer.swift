@@ -14,13 +14,13 @@ enum AudioMixError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .missingSource(let source):
-            "\(source.displayName) kaydı bulunamadı."
+            "\(source.displayName) recording not found."
         case .unreadableSource(let source):
-            "\(source.displayName) kaydı okunamadı."
+            "Couldn’t read the \(source.displayName) recording."
         case .renderFailed:
-            "Ses kaynakları birleştirilemedi."
+            "Couldn’t merge the audio sources."
         case .invalidOutput:
-            "Oluşturulan M4A dosyası geçerli ses içermiyor."
+            "The generated M4A file has no valid audio."
         }
     }
 }

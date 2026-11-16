@@ -172,7 +172,7 @@ final class FileMeetingRepositoryTests: XCTestCase {
         let loadedMarkdown = try await repository.loadMarkdown(for: meeting.id)
         let markdown = try XCTUnwrap(loadedMarkdown)
         XCTAssertTrue(markdown.contains("# Markdown Meeting"))
-        XCTAssertTrue(markdown.contains("## Kararlar"))
+        XCTAssertTrue(markdown.contains("## Decisions"))
         XCTAssertTrue(markdown.contains("V1 devam edecek."))
         let directory = root.appending(path: "Meetings/\(meeting.id.uuidString)")
         XCTAssertTrue(FileManager.default.fileExists(atPath: directory.appending(path: "meeting.md").path))

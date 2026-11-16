@@ -126,13 +126,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.presentNotch(followPointer: false)
             if source == .systemAudio, connectionState == .pipelineStalled {
                 self?.handleRecordingSafetyInterruption(
-                    connectionState.message ?? "Sistem sesi akışı koptu."
+                    connectionState.message ?? "System audio stream was lost."
                 )
             }
         }
         coordinator.onSafetyInterruption = { [weak self] error in
             self?.handleRecordingSafetyInterruption(
-                error.errorDescription ?? "Kayıt güvenliği için kayıt durduruluyor."
+                error.errorDescription ?? "Stopping the recording to keep it safe."
             )
         }
         coordinator.onMicrophoneGateChange = { [weak self] gate in
@@ -429,11 +429,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = appState.meetingFlow.isRecording
-            ? "Kayıt devam ediyor"
-            : "Toplantı işlenmeye devam ediyor"
-        alert.informativeText = "Şimdi çıkarsanız mevcut işlem durdurulacak."
-        alert.addButton(withTitle: "İşlemi Durdur ve Çık")
-        alert.addButton(withTitle: "Vazgeç")
+            ? "Recording in progress"
+            : "Meeting is still processing"
+        alert.informativeText = "If you quit now, the current work will stop."
+        alert.addButton(withTitle: "Stop and Quit")
+        alert.addButton(withTitle: "Cancel")
 
         guard alert.runModal() == .alertFirstButtonReturn else {
             return .terminateCancel
@@ -610,7 +610,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func saveMicrophoneSelection(_ deviceID: String?) async -> SettingsActionResult {
         let devices = await microphoneDeviceService.currentDevices()
         if let deviceID, !devices.contains(where: { $0.id == deviceID }) {
-            return .failed(message: "Seçilen mikrofon artık bağlı değil. Listeyi yenileyin.")
+            return .failed(message: "The selected microphone is no longer connected. Refresh the list.")
         }
 
         do {
@@ -618,10 +618,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences.selectedMicrophoneID = deviceID
             try await appSettingsRepository.save(preferences)
             appState.updateSelectedMicrophoneID(deviceID)
-            return .succeeded(message: deviceID == nil ? "Sistem varsayılanı kullanılacak." : "Mikrofon seçimi kaydedildi.")
+            return .succeeded(message: deviceID == nil ? "The system default will be used." : "Microphone saved.")
         } catch {
             AppLogger.persistenceFailed(operation: "save-microphone-settings", error: error)
-            return .failed(message: "Mikrofon seçimi kaydedilemedi. Tekrar deneyin.")
+            return .failed(message: "Couldn't save the microphone. Try again.")
         }
     }
 
@@ -629,7 +629,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ snapshot: GeneralSettingsSnapshot
     ) async -> SettingsActionResult {
         guard (60...(60 * 60)).contains(snapshot.reminderLeadTime) else {
-            return .failed(message: "Hatırlatma süresi 1–60 dakika arasında olmalıdır.")
+            return .failed(message: "Reminder time must be between 1 and 60 minutes.")
         }
 
         do {
@@ -646,12 +646,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             return .succeeded(
                 message: launchAtLoginService.requiresApproval
-                    ? "Login’de açma için Sistem Ayarları’nda onay gerekiyor."
+                    ? "Approve Open at Login in System Settings."
                     : nil
             )
         } catch {
             AppLogger.persistenceFailed(operation: "save-general-settings", error: error)
-            return .failed(message: "Genel ayarlar kaydedilemedi. Tekrar deneyin.")
+            return .failed(message: "Couldn't save general settings. Try again.")
         }
     }
 
@@ -674,13 +674,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .succeeded()
         } catch {
             AppLogger.persistenceFailed(operation: "reset-onboarding", error: error)
-            return .failed(message: "Onboarding yeniden başlatılamadı.")
+            return .failed(message: "Couldn't restart onboarding.")
         }
     }
 
     func deleteAllData() async -> SettingsActionResult {
         guard !appState.requiresTerminationConfirmation else {
-            return .failed(message: "Kayıt veya işleme sürerken tüm veriler silinemez.")
+            return .failed(message: "You can't delete all data while recording or processing.")
         }
 
         processingTask?.cancel()
@@ -726,13 +726,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             if keychainDeletionFailed {
                 return .failed(
-                    message: "Yerel veriler silindi ancak en az bir Keychain anahtarı kaldı. Tekrar deneyin."
+                    message: "Local data was deleted, but at least one Keychain key remains. Try again."
                 )
             }
-            return .succeeded(message: "Tüm toplantı, görev, ayar ve API anahtarı verileri silindi.")
+            return .succeeded(message: "All meetings, tasks, settings and API keys were deleted.")
         } catch {
             AppLogger.persistenceFailed(operation: "delete-all-data", error: error)
-            return .failed(message: "Tüm veriler tamamen silinemedi. Tekrar deneyin.")
+            return .failed(message: "Couldn't delete all data. Try again.")
         }
     }
 
@@ -775,27 +775,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return CrenelSettingsActions(
             load: { [weak self] in await self?.loadCrenelPreferences() ?? .default },
             save: { [weak self] preferences in
-                await self?.saveCrenelPreferences(preferences) ?? .failed(message: "Uygulama kapanıyor.")
+                await self?.saveCrenelPreferences(preferences) ?? .failed(message: "The app is quitting.")
             },
             hasAnthropicKey: { ((try? await anthropicKeys.apiKey()) ?? nil) != nil },
             saveAnthropicKey: { [weak self] key in
                 let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return .failed(message: "Anahtar boş olamaz.") }
+                guard !trimmed.isEmpty else { return .failed(message: "Key can't be empty.") }
                 do {
                     try await anthropicKeys.saveAPIKey(trimmed)
                     await self?.reapplyAgentProvider()
-                    return .succeeded(message: "Anthropic anahtarı Keychain’e kaydedildi.")
+                    return .succeeded(message: "Anthropic key saved to Keychain.")
                 } catch {
-                    return .failed(message: "Anahtar kaydedilemedi.")
+                    return .failed(message: "Couldn't save the key.")
                 }
             },
             deleteAnthropicKey: { [weak self] in
                 do {
                     try await anthropicKeys.deleteAPIKey()
                     await self?.reapplyAgentProvider()
-                    return .succeeded(message: "Anthropic anahtarı kaldırıldı.")
+                    return .succeeded(message: "Anthropic key removed.")
                 } catch {
-                    return .failed(message: "Anahtar kaldırılamadı.")
+                    return .failed(message: "Couldn't remove the key.")
                 }
             },
             onDeviceModelStatus: {
@@ -811,22 +811,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         OpenAISettingsActions(
             hasKey: { [weak self] in (try? await self?.openAIKeys.apiKey()) != nil },
             save: { [weak self] key in
-                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
+                guard let self else { return .failed(message: "The app is quitting.") }
                 do {
                     try await OpenAIMeetingSummaryService(keys: self.openAIKeys).validate(apiKey: key)
                     try await self.openAIKeys.saveAPIKey(key)
                     await self.reapplyAgentProvider()
-                    return .succeeded(message: "OpenAI bağlandı. Yeni toplantılar otomatik özetlenecek.")
+                    return .succeeded(message: "OpenAI connected. New meetings will be summarized automatically.")
                 } catch {
-                    return .failed(message: (error as? MeetingAnalysisError)?.errorDescription ?? "Anahtar Keychain’e kaydedilemedi.")
+                    return .failed(message: (error as? MeetingAnalysisError)?.errorDescription ?? "Couldn't save the key to Keychain.")
                 }
             },
             disconnect: { [weak self] in
                 do {
                     try await self?.openAIKeys.deleteAPIKey()
                     await self?.reapplyAgentProvider()
-                    return .succeeded(message: "OpenAI bağlantısı kaldırıldı. Kayıtlarınız korundu.")
-                } catch { return .failed(message: "Anahtar kaldırılamadı.") }
+                    return .succeeded(message: "OpenAI disconnected. Your recordings are kept.")
+                } catch { return .failed(message: "Couldn't remove the key.") }
             }
         )
     }
@@ -834,10 +834,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func deleteTranscriptionAPIKey() async -> SettingsActionResult {
         do {
             try await apiKeyRepository.deleteAPIKey()
-            return .succeeded(message: "ElevenLabs bağlantısı kaldırıldı.")
+            return .succeeded(message: "ElevenLabs disconnected.")
         } catch {
             AppLogger.persistenceFailed(operation: "delete-transcription-key", error: error)
-            return .failed(message: "API anahtarı Keychain’den kaldırılamadı.")
+            return .failed(message: "Couldn't remove the API key from Keychain.")
         }
     }
 
@@ -1042,7 +1042,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .succeeded(message: nil)
         } catch {
             AppLogger.persistenceFailed(operation: "save-crenel-settings", error: error)
-            return .failed(message: "Ayarlar kaydedilemedi. Tekrar deneyin.")
+            return .failed(message: "Couldn't save settings. Try again.")
         }
     }
 
@@ -1532,10 +1532,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var meetingAnalysisActions: MeetingAnalysisActions {
         MeetingAnalysisActions(
             renameSpeaker: { [weak self] meetingID, speakerID, name in
-                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
+                guard let self else { return .failed(message: "The app is quitting.") }
                 guard !self.editingMeetingIDs.contains(meetingID),
                       !self.appState.processingJobs.contains(where: { $0.meetingID == meetingID }) else {
-                    return .failed(message: "İşleme bitince konuşmacıyı düzenleyebilirsiniz.")
+                    return .failed(message: "You can edit speakers once processing is done.")
                 }
                 self.editingMeetingIDs.insert(meetingID)
                 defer { self.editingMeetingIDs.remove(meetingID) }
@@ -1547,21 +1547,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     }
                     await self.taskCoordinator.reload()
                     if self.appState.presentedMeetingDetail?.id == meetingID { self.openStoredMeeting(meeting) }
-                    return .succeeded(message: "Konuşmacı güncellendi.")
-                } catch { return .failed(message: "Konuşmacı kaydedilemedi. Tekrar deneyin.") }
+                    return .succeeded(message: "Speaker updated.")
+                } catch { return .failed(message: "Couldn't save the speaker. Try again.") }
             },
             importAction: { [weak self] meetingID, action in
-                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
+                guard let self else { return .failed(message: "The app is quitting.") }
                 do {
                     // Validate the source against persisted content, not a stale view snapshot.
                     guard let stored = try await self.meetingRepository.loadTranscription(for: meetingID),
                           let current = stored.summary?.actionItems.first(where: { $0.id == action.id }) else {
-                        return .failed(message: "Görevin kaynağı değişti. Toplantıyı yeniden açın.")
+                        return .failed(message: "The task's source changed. Reopen the meeting.")
                     }
                     _ = try await self.taskCoordinator.repository.importAction(current, meetingID: meetingID)
                     await self.taskCoordinator.reload()
-                    return .succeeded(message: "Görev listenize eklendi.")
-                } catch { return .failed(message: "Görev kaydedilemedi. Tekrar deneyin.") }
+                    return .succeeded(message: "Added to your tasks.")
+                } catch { return .failed(message: "Couldn't save the task. Try again.") }
             }
         )
     }
@@ -1607,7 +1607,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func exportMarkdown(_ markdown: String, for meeting: StoredMeeting) {
         let panel = NSSavePanel()
-        panel.title = "Toplantıyı Markdown Olarak Kaydet"
+        panel.title = "Save Meeting as Markdown"
         panel.nameFieldStringValue = URL(fileURLWithPath: meeting.audioFileName)
             .deletingPathExtension()
             .lastPathComponent + ".md"
@@ -1621,8 +1621,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppLogger.persistenceFailed(operation: "export-meeting-markdown", error: error)
             let alert = NSAlert()
             alert.alertStyle = .warning
-            alert.messageText = "Markdown kaydedilemedi"
-            alert.informativeText = "Seçtiğiniz klasöre yazma iznini kontrol edip tekrar deneyin."
+            alert.messageText = "Couldn't save Markdown"
+            alert.informativeText = "Check that you can write to the selected folder and try again."
             alert.runModal()
         }
     }
@@ -1638,10 +1638,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func deleteStoredMeeting(_ meeting: StoredMeeting) {
         let alert = NSAlert()
         alert.alertStyle = .warning
-        alert.messageText = "Toplantı silinsin mi?"
-        alert.informativeText = "“\(meeting.title)” kaydı ve bağlı ses dosyaları kalıcı olarak silinecek."
-        alert.addButton(withTitle: "Sil")
-        alert.addButton(withTitle: "Vazgeç")
+        alert.messageText = "Delete meeting?"
+        alert.informativeText = "“\(meeting.title)” and its audio files will be deleted permanently."
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
         deleteStoredMeetingConfirmed(meeting)
@@ -1777,36 +1777,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func recordingFailure(from error: Error) -> AppFailure {
         if error is MeetingRepositoryError {
-            return .fileSystem("Toplantı dosyaları kaydedilemedi. Tekrar deneyin.")
+            return .fileSystem("Couldn't save the meeting files. Try again.")
         }
         guard let captureError = error as? RecordingCaptureError else {
-            return .recording("Kayıt işlemi tamamlanamadı. Tekrar deneyin.")
+            return .recording("Couldn't finish the recording. Try again.")
         }
 
         switch captureError {
         case .microphonePermissionDenied, .systemAudioPermissionDenied:
-            return .permission("Kayıt için gerekli ses iznini Sistem Ayarları'ndan açın.", settings: true)
+            return .permission("Turn on audio access for recording in System Settings.", settings: true)
         case .insufficientDiskSpace, .diskSpaceBecameLow:
-            return .fileSystem("Kayıt için yeterli boş disk alanı yok.", diskFull: true)
+            return .fileSystem("Not enough free disk space to record.", diskFull: true)
         case .alreadyRecording:
-            return .recording("Zaten devam eden bir kayıt var.", retryable: false)
+            return .recording("A recording is already in progress.", retryable: false)
         case .noMicrophone:
-            return .recording("Kullanılabilir bir mikrofon bulunamadı.", retryable: false)
+            return .recording("No microphone available.", retryable: false)
         case .noDisplay:
-            return .recording("Sistem sesini yakalamak için kullanılabilir ekran bulunamadı.")
+            return .recording("No display available to capture system audio.")
         case .meetingProcessUnavailable:
             return .recording(
-                "Toplantı sesi güvenli biçimde doğrulanamadı. Toplantı istemcisi açıkken tekrar deneyin."
+                "Couldn't safely verify the meeting audio. Try again with the meeting app open."
             )
         case .browserMeetingAudioIsolationUnavailable:
             return AppFailure(
                 category: .recording,
-                title: "Google Meet sesi güvenli ayrılamadı",
-                message: "Crenel gizlilik için global ses kaydına geçmedi ve hiçbir kayıt başlatmadı. Güvenli fallback olarak görüşmeye kayıtsız devam edin veya Zoom masaüstü istemcisini kullanın.",
+                title: "Couldn't safely isolate Google Meet audio",
+                message: "To protect your privacy, Crenel didn't fall back to recording all system audio and started no recording. Continue the call without recording, or use the Zoom desktop app.",
                 recoveryAction: .dismiss
             )
         case .sourceDidNotProduceAudio(let source), .sourceFailed(let source, _):
-            return .recording("\(source.displayName) kaydı tamamlanamadı. Bağlantıyı kontrol edip tekrar deneyin.")
+            return .recording("Couldn't finish recording \(source.displayName). Check the connection and try again.")
         }
     }
 
@@ -1815,12 +1815,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) -> AppFailure {
         if permissions.microphone != .authorized {
             return .permission(
-                "Mikrofon erişimini Sistem Ayarları > Gizlilik ve Güvenlik > Mikrofon bölümünden açın.",
+                "Turn on microphone access in System Settings > Privacy & Security > Microphone.",
                 settings: permissions.microphone.requiresSystemSettings
             )
         }
         return .permission(
-            "Sistem sesini kaydetmek için Sistem Sesini Kaydetme iznini açın.",
+            "To record system audio, turn on System Audio Recording access.",
             settings: permissions.systemAudio.requiresSystemSettings
         )
     }

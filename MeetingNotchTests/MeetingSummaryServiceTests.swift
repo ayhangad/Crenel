@@ -79,10 +79,10 @@ final class MeetingSummaryServiceTests: XCTestCase {
         )
 
         XCTAssertTrue(markdown.hasPrefix("# Haftalık \\#Plan"))
-        XCTAssertTrue(markdown.contains("## Kısa Özet"))
-        XCTAssertTrue(markdown.contains("## Kararlar"))
-        XCTAssertTrue(markdown.contains("## Aksiyon Maddeleri"))
-        XCTAssertTrue(markdown.contains("## Transkript"))
+        XCTAssertTrue(markdown.contains("## Summary"))
+        XCTAssertTrue(markdown.contains("## Decisions"))
+        XCTAssertTrue(markdown.contains("## Action items"))
+        XCTAssertTrue(markdown.contains("## Transcript"))
         XCTAssertTrue(markdown.contains("### Ayşe · 00:05"))
         XCTAssertTrue(markdown.contains("ElevenLabs Scribe v2"))
     }

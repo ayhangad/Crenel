@@ -85,7 +85,7 @@ final class SystemAudioCaptureSource: AudioCaptureSource {
 
     func start() async throws {
         guard let recorder else {
-            throw RecordingCaptureError.sourceFailed(.systemAudio, "Sistem sesi hazırlanmamış.")
+            throw RecordingCaptureError.sourceFailed(.systemAudio, "System audio isn’t ready.")
         }
         do {
             try recorder.start()
@@ -98,7 +98,7 @@ final class SystemAudioCaptureSource: AudioCaptureSource {
     func stop() async throws -> CapturedAudioTrack {
         stopLevelUpdates()
         guard let recorder, let outputURL else {
-            throw RecordingCaptureError.sourceFailed(.systemAudio, "Sistem sesi hazırlanmamış.")
+            throw RecordingCaptureError.sourceFailed(.systemAudio, "System audio isn’t ready.")
         }
         do {
             try recorder.stop()
@@ -106,7 +106,7 @@ final class SystemAudioCaptureSource: AudioCaptureSource {
             reset()
             throw RecordingCaptureError.sourceFailed(
                 .systemAudio,
-                "Sistem sesi dosyası sonlandırılamadı."
+                "Couldn’t finalize the system audio file."
             )
         }
         guard recorder.hasCapturedAudio, recorder.firstSampleTime >= 0 else {

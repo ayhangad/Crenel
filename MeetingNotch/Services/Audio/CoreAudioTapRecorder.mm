@@ -238,7 +238,7 @@ void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
         if (error != nullptr) {
             *error = RecorderError(
                 kAudioHardwareIllegalOperationError,
-                @"Toplantı sesi için doğrulanmış process bulunamadı."
+                @"No verified process found for meeting audio."
             );
         }
         return NO;
@@ -267,7 +267,7 @@ void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
     OSStatus status = AudioHardwareCreateProcessTap(tapDescription, &_state->tapID);
     if (status != kAudioHardwareNoError) {
         if (error != nullptr) {
-            *error = RecorderError(status, @"Sistem sesi tap'i oluşturulamadı.");
+            *error = RecorderError(status, @"Couldn’t create the system audio tap.");
         }
         DestroyCaptureResources(_state, true);
         return NO;
@@ -285,7 +285,7 @@ void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
     }
     if (status != kAudioHardwareNoError || tapUID == nullptr) {
         if (error != nullptr) {
-            *error = RecorderError(status, @"Sistem sesi tap formatı okunamadı.");
+            *error = RecorderError(status, @"Couldn’t read the system audio tap format.");
         }
         if (tapUID != nullptr) {
             CFRelease(tapUID);
@@ -311,7 +311,7 @@ void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
     CFRelease(tapUID);
     if (status != kAudioHardwareNoError) {
         if (error != nullptr) {
-            *error = RecorderError(status, @"Sistem sesi aggregate device oluşturulamadı.");
+            *error = RecorderError(status, @"Couldn’t create the system audio aggregate device.");
         }
         DestroyCaptureResources(_state, true);
         return NO;
@@ -351,7 +351,7 @@ void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
     }
     if (status != kAudioHardwareNoError) {
         if (error != nullptr) {
-            *error = RecorderError(status, @"Sistem sesi dosyası hazırlanamadı.");
+            *error = RecorderError(status, @"Couldn’t prepare the system audio file.");
         }
         DestroyCaptureResources(_state, true);
         return NO;
@@ -362,7 +362,7 @@ void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
 - (BOOL)startWithError:(NSError **)error {
     if (_state->aggregateDeviceID == kAudioObjectUnknown || _state->ioProcID == nullptr) {
         if (error != nullptr) {
-            *error = RecorderError(kAudioHardwareNotRunningError, @"Sistem sesi hazırlanmamış.");
+            *error = RecorderError(kAudioHardwareNotRunningError, @"System audio isn’t ready.");
         }
         return NO;
     }
@@ -370,7 +370,7 @@ void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
     const OSStatus status = AudioDeviceStart(_state->aggregateDeviceID, _state->ioProcID);
     if (status != kAudioHardwareNoError) {
         if (error != nullptr) {
-            *error = RecorderError(status, @"Sistem sesi kaydı başlatılamadı.");
+            *error = RecorderError(status, @"Couldn’t start system audio recording.");
         }
         return NO;
     }
@@ -387,7 +387,7 @@ void DestroyCaptureResources(RecorderState *state, bool removeOutput) {
     DestroyCaptureResources(_state, false);
     if (status != kAudioHardwareNoError) {
         if (error != nullptr) {
-            *error = RecorderError(status, @"Sistem sesi kaydı durdurulamadı.");
+            *error = RecorderError(status, @"Couldn’t stop system audio recording.");
         }
         return NO;
     }

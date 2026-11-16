@@ -40,15 +40,15 @@ enum MeetingRepositoryError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .missingFinalAudio:
-            "Tamamlanmış toplantı ses dosyası bulunamadı."
+            "Couldn’t find the finished meeting audio."
         case .incompleteSession:
-            "Kayıt oturumu tamamlanmadı."
+            "The recording session didn’t finish."
         case .duplicateMeeting:
-            "Bu toplantı daha önce kaydedilmiş."
+            "This meeting is already saved."
         case .unsupportedSchema(let version):
-            "Toplantı metadata sürümü desteklenmiyor: \(version)."
+            "Unsupported meeting metadata version: \(version)."
         case .meetingNotFound:
-            "Toplantı kaydı bulunamadı."
+            "Meeting not found."
         }
     }
 }
@@ -212,7 +212,7 @@ actor FileMeetingRepository: MeetingRepository {
         let directory = layout.meetings.appending(path: meeting.id.uuidString, directoryHint: .isDirectory)
         guard fileManager.fileExists(atPath: directory.path) else { throw MeetingRepositoryError.meetingNotFound }
         var updated = try decoder.decode(StoredMeeting.self, from: Data(contentsOf: directory.appending(path: "metadata.json")))
-        if updated.title == "İsimsiz Toplantı", let title = transcription.summary?.suggestedTitle,
+        if Self.isDefaultTitle(updated.title), let title = transcription.summary?.suggestedTitle,
            !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             updated.title = title
         }
@@ -340,7 +340,15 @@ actor FileMeetingRepository: MeetingRepository {
 
     private func normalizedTitle(_ title: String?) -> String {
         let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return trimmed.isEmpty ? "İsimsiz Toplantı" : String(trimmed.prefix(160))
+        return trimmed.isEmpty ? Self.defaultTitle : String(trimmed.prefix(160))
+    }
+
+    static let defaultTitle = "Untitled meeting"
+    /// Meetings saved before the English default may still carry the old Turkish title.
+    private static let legacyDefaultTitles: Set<String> = ["İsimsiz Toplantı"]
+
+    private static func isDefaultTitle(_ title: String) -> Bool {
+        title == defaultTitle || legacyDefaultTitles.contains(title)
     }
 
     private func isSafeFileName(_ fileName: String) -> Bool {

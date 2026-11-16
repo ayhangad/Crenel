@@ -86,7 +86,7 @@ final class TaskCoordinator {
         }
         dayChangeTask?.cancel()
         dayChangeTask = Task { [weak self] in
-            // Sections ("Bugün", "Gecikmiş") depend on the date; republish at midnight.
+            // Sections ("Today", "Overdue") depend on the date; republish at midnight.
             for await _ in NotificationCenter.default.notifications(named: .NSCalendarDayChanged) {
                 guard let self, !Task.isCancelled else { return }
                 self.appState.replaceTasks(self.appState.tasks)

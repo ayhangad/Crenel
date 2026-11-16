@@ -74,7 +74,7 @@ final class SampleBufferAudioWriter {
             ) else {
                 throw RecordingCaptureError.sourceFailed(
                     source,
-                    "\(source.displayName) buffer'ı hazırlanamadı."
+                    "Couldn’t prepare the \(source.displayName) buffer."
                 )
             }
 
@@ -91,7 +91,7 @@ final class SampleBufferAudioWriter {
             }
             if status == .error {
                 throw conversionError
-                    ?? RecordingCaptureError.sourceFailed(source, "Mikrofon formatı dönüştürülemedi.")
+                    ?? RecordingCaptureError.sourceFailed(source, "Couldn’t convert the microphone format.")
             }
             guard convertedBuffer.frameLength > 0 else { return }
 
@@ -173,7 +173,7 @@ final class SampleBufferAudioWriter {
               audioFile.processingFormat.channelCount == Self.outputChannelCount else {
             throw RecordingCaptureError.sourceFailed(
                 source,
-                "\(source.displayName) dosya formatı hazırlanamadı."
+                "Couldn’t prepare the \(source.displayName) file format."
             )
         }
         self.audioFile = audioFile
@@ -189,7 +189,7 @@ final class SampleBufferAudioWriter {
         }
         guard inputFormat.sampleRate > 0,
               let converter = AVAudioConverter(from: inputFormat, to: outputFormat) else {
-            throw RecordingCaptureError.sourceFailed(source, "Mikrofon formatı desteklenmiyor.")
+            throw RecordingCaptureError.sourceFailed(source, "Microphone format isn’t supported.")
         }
         converter.primeMethod = .none
         self.converter = converter
@@ -205,7 +205,7 @@ final class SampleBufferAudioWriter {
 
     private func storeTerminalError(_ error: Error) {
         AppLogger.audioCaptureFailed(source: source.rawValue, error: error)
-        terminalError = .sourceFailed(source, "Ses dosyası yazılamadı.")
+        terminalError = .sourceFailed(source, "Couldn’t write the audio file.")
     }
 
     private static func numericTime(_ time: CMTime) -> TimeInterval {

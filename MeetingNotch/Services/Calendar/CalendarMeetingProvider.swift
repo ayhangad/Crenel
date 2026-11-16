@@ -112,7 +112,7 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
         return Meeting(
             id: MeetingStableIdentifier.uuid(for: sourceIdentifier),
             title: event.title?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
-                ?? (kind == .event ? "İsimsiz Etkinlik" : "İsimsiz Toplantı"),
+                ?? (kind == .event ? "Untitled event" : "Untitled meeting"),
             startDate: startDate,
             endDate: endDate,
             meetingURL: meetingURL,

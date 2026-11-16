@@ -173,6 +173,7 @@
 		D4C4509422D53D66A578E785 /* PrivacyBoundaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14F2C92E23D8C1FE850800F7 /* PrivacyBoundaryTests.swift */; };
 		D4E8A5CA62B13D361DD4D5A7 /* FnKeySystemActionGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87E0FA49559C94EEFCEBD0FA /* FnKeySystemActionGuardTests.swift */; };
 		D638693D6122047B58D6D4D0 /* MeetingSessionMachineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2D0728B05B9DB66D1A9AD3 /* MeetingSessionMachineTests.swift */; };
+		D86D5AAC6CEFBAB7CD11BF38 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB209F8DAFD4D5E0A05F1707 /* AppLanguage.swift */; };
 		D8BA4FFE583C0702979FC555 /* CrenelShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = F4629E5B54B0771811A81DC9 /* CrenelShaders.metal */; };
 		D949351A163CA6745016956C /* DesignProposalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB0169BFB9C5AF6CD60CBDD3 /* DesignProposalTests.swift */; };
 		DA91105F561399130D5A6DA7 /* RecordingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF9AC71AE8A4342CBD833E00 /* RecordingSession.swift */; };
@@ -373,6 +374,7 @@
 		A40D73DC3F0888A88F80F9BA /* MeetingDetailPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingDetailPresentationTests.swift; sourceTree = "<group>"; };
 		A42E7ED52D4AB68F77C94098 /* ApplicationRelauncherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRelauncherTests.swift; sourceTree = "<group>"; };
 		A77B183372E5CAD31E20014D /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
+		AB209F8DAFD4D5E0A05F1707 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
 		AC2144FBF69C04C86582206A /* TaskItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskItem.swift; sourceTree = "<group>"; };
 		ADC3272FBCED6925AFCE998D /* DictationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationCoordinator.swift; sourceTree = "<group>"; };
 		ADFF944CA9C1D204E6475634 /* RemindersTaskRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemindersTaskRepository.swift; sourceTree = "<group>"; };
@@ -476,6 +478,7 @@
 				B18BF7D1F43C56018A8CA938 /* Dictation */,
 				BC6A4038E6FBF30DC0C9072C /* Tasks */,
 				90D587B894BDBD9194675805 /* AppFailure.swift */,
+				AB209F8DAFD4D5E0A05F1707 /* AppLanguage.swift */,
 				0D325D4B71E55FF2DAA7DCAE /* AppPreferences.swift */,
 				289A661E932E23B6C9BBA2D4 /* AudioCapture.swift */,
 				9E65815C44D98F7408A9397C /* AudioCapturePermission.swift */,
@@ -1171,6 +1174,7 @@
 				7E4D3DC26B4FA5FFF15EFEA9 /* AnthropicProvider.swift in Sources */,
 				F41B98AC2027728236D83DB4 /* AppDelegate.swift in Sources */,
 				4F077BDFD1B665ADD0B1E01D /* AppFailure.swift in Sources */,
+				D86D5AAC6CEFBAB7CD11BF38 /* AppLanguage.swift in Sources */,
 				75A6E6C68EBAABFEE35B31A6 /* AppLogger.swift in Sources */,
 				48DA54EF97940813DC165197 /* AppPreferences.swift in Sources */,
 				3C240AF3B3F56BD6A5C44C51 /* AppState.swift in Sources */,

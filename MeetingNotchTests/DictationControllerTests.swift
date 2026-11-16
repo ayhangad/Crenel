@@ -197,7 +197,7 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertEqual(trigger.externalEndCount, 1)
         XCTAssertEqual(
             DictationFailure.microphonePermissionDenied.message,
-            "Mikrofon izni verilmedi. Sistem Ayarları > Gizlilik ve Güvenlik > Mikrofon bölümünden izin verin."
+            "Microphone access is off. Turn it on in System Settings > Privacy & Security > Microphone."
         )
     }
 
@@ -262,8 +262,8 @@ final class DictationControllerTests: XCTestCase {
         for failure in failures {
             XCTAssertFalse(failure.message.isEmpty, "\(failure)")
         }
-        XCTAssertEqual(DictationFailure.noFocusedTextField.message, "Odaklanmış bir metin alanı bulunamadı; metin panoya kopyalandı.")
-        XCTAssertEqual(DictationFailure.noSpeechDetected.message, "Konuşma algılanmadı.")
+        XCTAssertEqual(DictationFailure.noFocusedTextField.message, "No focused text field. Copied to clipboard.")
+        XCTAssertEqual(DictationFailure.noSpeechDetected.message, "No speech detected.")
     }
 
     func testLanguageResolution() {

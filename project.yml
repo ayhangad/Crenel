@@ -4,6 +4,7 @@ options:
   minimumXcodeGenVersion: 2.45.4
   createIntermediateGroups: true
   groupSortPosition: top
+  developmentLanguage: en
 
 configs:
   Debug: debug
@@ -54,13 +55,13 @@ targets:
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSUIElement: true
-        NSMicrophoneUsageDescription: Crenel dikte ve toplantı kaydı için mikrofon erişimi kullanır.
-        NSAudioCaptureUsageDescription: Crenel toplantının sistem sesini kaydetmek için ses yakalama erişimi kullanır.
-        NSCalendarsUsageDescription: Crenel yaklaşan toplantı ve etkinlikleri notch'ta göstermek için takvim erişimi kullanır.
-        NSCalendarsFullAccessUsageDescription: Crenel yaklaşan toplantı ve etkinlikleri notch'ta göstermek için takvim erişimi kullanır.
-        NSRemindersUsageDescription: Crenel görevlerinizi Apple Hatırlatıcılar'da saklamak ve cihazlarınız arasında senkronlamak için hatırlatıcı erişimi kullanır.
-        NSRemindersFullAccessUsageDescription: Crenel görevlerinizi Apple Hatırlatıcılar'da saklamak ve cihazlarınız arasında senkronlamak için hatırlatıcı erişimi kullanır.
-        NSSpeechRecognitionUsageDescription: Crenel dikte ettiğiniz konuşmayı cihaz üzerinde yazıya çevirmek için konuşma tanıma kullanır.
+        NSMicrophoneUsageDescription: Crenel uses the microphone for dictation and meeting recording.
+        NSAudioCaptureUsageDescription: Crenel captures system audio to record the other side of your meetings.
+        NSCalendarsUsageDescription: Crenel shows your upcoming meetings and events in the notch.
+        NSCalendarsFullAccessUsageDescription: Crenel shows your upcoming meetings and events in the notch.
+        NSRemindersUsageDescription: Crenel keeps your tasks in Apple Reminders so they sync across your devices.
+        NSRemindersFullAccessUsageDescription: Crenel keeps your tasks in Apple Reminders so they sync across your devices.
+        NSSpeechRecognitionUsageDescription: Crenel transcribes your dictation on this Mac.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: gad.MeetingNotch

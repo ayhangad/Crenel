@@ -41,15 +41,15 @@ enum OnDeviceUnavailableReason: Equatable, Sendable {
     var message: String {
         switch self {
         case .unsupportedOperatingSystem:
-            "Cihaz içi model macOS 26 veya üzerini gerektirir."
+            "The on-device model requires macOS 26 or later."
         case .deviceNotEligible:
-            "Bu Mac, Apple Intelligence cihaz içi modelini desteklemiyor."
+            "This Mac doesn’t support the Apple Intelligence on-device model."
         case .appleIntelligenceNotEnabled:
-            "Apple Intelligence kapalı. Sistem Ayarları → Apple Intelligence ve Siri bölümünden açabilirsiniz."
+            "Apple Intelligence is off. Turn it on in System Settings → Apple Intelligence & Siri."
         case .modelNotReady:
-            "Apple Intelligence modeli henüz hazır değil; indiriliyor olabilir. Biraz sonra tekrar deneyin."
+            "The Apple Intelligence model isn’t ready yet; it may still be downloading. Try again shortly."
         case .unknown:
-            "Cihaz içi model şu anda kullanılamıyor."
+            "The on-device model is unavailable right now."
         }
     }
 }
@@ -75,33 +75,33 @@ enum AgentError: Error, LocalizedError, Equatable, Sendable {
     var errorDescription: String? {
         switch self {
         case .providerDisabled:
-            "Yapay zekâ düzenlemesi kapalı."
+            "AI editing is off."
         case .missingKey(let kind):
-            "\(kind.displayName) API anahtarı bulunamadı. Ayarlar’dan anahtarınızı ekleyin."
+            "No \(kind.displayName) API key. Add one in Settings."
         case .authentication(let kind):
-            "\(kind.displayName) anahtarı doğrulanamadı. Ayarlar’dan bağlantıyı kontrol edin."
+            "Couldn’t verify the \(kind.displayName) key. Check it in Settings."
         case .modelUnavailable(let kind):
-            "Seçilen \(kind.displayName) modeline erişilemiyor. Model adını kontrol edin."
+            "Can’t reach the selected \(kind.displayName) model. Check the model name."
         case .quotaExceeded(let kind):
-            "\(kind.displayName) bakiyesi veya kullanım kotası yetersiz."
+            "\(kind.displayName) balance or usage quota is exhausted."
         case .rateLimited(let kind):
-            "\(kind.displayName) istek sınırına ulaşıldı. Biraz sonra tekrar deneyin."
+            "\(kind.displayName) rate limit reached. Try again shortly."
         case .serverError(let kind):
-            "\(kind.displayName) şu anda yanıt veremiyor. Daha sonra tekrar deneyin."
+            "\(kind.displayName) isn’t responding. Try again later."
         case .network(let kind):
-            "\(kind.displayName) sunucusuna ulaşılamadı. İnternet bağlantınızı kontrol edin."
+            "Can’t reach \(kind.displayName). Check your internet connection."
         case .invalidRequest(let kind):
-            "\(kind.displayName) isteği kabul etmedi."
+            "\(kind.displayName) rejected the request."
         case .timeout:
-            "Yapay zekâ zamanında yanıt vermedi; metin düzenlenmeden kullanıldı."
+            "The AI didn’t respond in time; the text was used unedited."
         case .invalidResponse:
-            "Yapay zekâ yanıtı kullanılabilir değildi; metin düzenlenmeden kullanıldı."
+            "The AI response wasn’t usable; the text was used unedited."
         case .refused:
-            "Model bu metni işlemeyi reddetti."
+            "The model refused to process this text."
         case .inputTooLong:
-            "Metin, modelin işleyebileceği uzunluğu aşıyor."
+            "The text is too long for the model."
         case .unsupportedLanguage:
-            "Cihaz içi model bu dili desteklemiyor."
+            "The on-device model doesn’t support this language."
         case .onDeviceUnavailable(let reason):
             reason.message
         }

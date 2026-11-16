@@ -68,7 +68,7 @@ struct MeetingRetentionPolicy: Codable, Equatable, Sendable {
             throw DecodingError.dataCorruptedError(
                 forKey: .days,
                 in: container,
-                debugDescription: "Saklama süresi pozitif bir gün sayısı olmalıdır."
+                debugDescription: "Retention must be a positive number of days."
             )
         }
         self = policy
@@ -120,7 +120,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
         case launchAtLogin
         case selectedMicrophoneID
         case transcription
-        // V1 öncesi belgelerde transkripsiyon ayarları bu anahtar altında tutuluyordu.
+        // Pre-V1 documents stored transcription settings under this key.
         case provider
         case meetingRetentionPolicy
         case selectedCalendarIDs

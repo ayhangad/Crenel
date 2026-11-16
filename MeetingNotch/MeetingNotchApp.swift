@@ -13,36 +13,36 @@ struct MeetingNotchApp: App {
 
     var body: some Scene {
         MenuBarExtra("Crenel", systemImage: "waveform.badge.mic") {
-            Button("MeetingNotch'u Aç", systemImage: "macbook") {
+            Button("Open Crenel", systemImage: "macbook") {
                 appDelegate.showDesktop()
             }
 
-            Button("Notch’u Göster", systemImage: "rectangle.topthird.inset.filled") {
+            Button("Show Notch", systemImage: "rectangle.topthird.inset.filled") {
                 appDelegate.showMeetingNotch()
             }
 
-            Button("Kaydı Başlat", systemImage: "record.circle") {
+            Button("Start Recording", systemImage: "record.circle") {
                 appDelegate.startManualRecording()
             }
             .keyboardShortcut("r")
 
-            Button("Toplantı Mikrofonunu Aç/Kapat", systemImage: "mic.badge.plus") {
+            Button("Toggle Meeting Mic", systemImage: "mic.badge.plus") {
                 appDelegate.toggleMeetingMicrophoneGate()
             }
             .keyboardShortcut("m", modifiers: [.command, .option])
 
-            Button("Takvimi Yenile", systemImage: "calendar.badge.clock") {
+            Button("Refresh Calendar", systemImage: "calendar.badge.clock") {
                 appDelegate.refreshCalendar()
             }
 
             Divider()
 
-            Button("Ayarlar…", systemImage: "gearshape") { appDelegate.showDesktop(section: .settings) }
+            Button("Settings…", systemImage: "gearshape") { appDelegate.showDesktop(section: .settings) }
             .keyboardShortcut(",")
 
             Divider()
 
-            Button("Çıkış", systemImage: "power", role: .destructive) {
+            Button("Quit", systemImage: "power", role: .destructive) {
                 appDelegate.quit()
             }
             .keyboardShortcut("q")
@@ -50,11 +50,11 @@ struct MeetingNotchApp: App {
         .menuBarExtraStyle(.menu)
         .commands {
             CommandGroup(replacing: .appSettings) {
-                Button("Ayarlar…") { appDelegate.showDesktop(section: .settings) }
+                Button("Settings…") { appDelegate.showDesktop(section: .settings) }
                     .keyboardShortcut(",")
             }
             CommandGroup(after: .appSettings) {
-                Button("MeetingNotch’u Aç") { appDelegate.showDesktop() }
+                Button("Open Crenel") { appDelegate.showDesktop() }
                     .keyboardShortcut("0", modifiers: .command)
             }
         }

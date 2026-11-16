@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// First run: a welcome, then one screen that sets up everything. Every capability is
-/// listed with why it is needed and its live state; "Hepsini aç" walks through them.
+/// listed with why it is needed and its live state; "Turn on all" walks through them.
 /// Nothing is configured per module later.
 struct OnboardingView: View {
     @ObservedObject var setup: SetupCoordinator
@@ -49,10 +49,10 @@ struct OnboardingView: View {
             VStack(spacing: Crenel.Space.m) {
                 CrenelIcon(.logo, size: 30)
                     .foregroundStyle(Crenel.Palette.textPrimary)
-                Text("Notch’unuzda yaşayan yardımcı")
+                Text("A helper that lives in your notch")
                     .crenelText(.title)
                     .font(.system(size: 26, weight: .semibold))
-                Text("Takvim, görevler, dikte ve toplantı kaydı — hepsi tek bir yerde, tek seferde kurulur.")
+                Text("Calendar, tasks, dictation and meeting recording — all in one place, set up once.")
                     .crenelText(.body, color: Crenel.Palette.textSecondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 380)
@@ -61,7 +61,7 @@ struct OnboardingView: View {
             Button {
                 step = .setup
             } label: {
-                Text("Başlayalım").frame(minWidth: 180)
+                Text("Get started").frame(minWidth: 180)
             }
             .buttonStyle(CrenelButtonStyle(kind: .primary, size: .large))
             .keyboardShortcut(.defaultAction)
@@ -75,11 +75,11 @@ struct OnboardingView: View {
     private var setupScreen: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: Crenel.Space.s) {
-                Text("Kurulum").eyebrow(color: Crenel.Palette.calendar)
-                Text("Crenel’e ihtiyacı olanı verin")
+                Text("Setup").eyebrow(color: Crenel.Palette.calendar)
+                Text("Give Crenel what it needs")
                     .font(.system(size: 22, weight: .semibold))
                     .foregroundStyle(Crenel.Palette.textPrimary)
-                Text("Hepsi isteğe bağlı. Vermediğiniz izin yalnız o özelliği kapatır; diğerleri çalışır.")
+                Text("All optional. Skipping a permission only turns off that feature; the rest still work.")
                     .crenelText(.callout, color: Crenel.Palette.textTertiary)
             }
             .padding(.horizontal, Crenel.Space.xxl)
@@ -89,11 +89,11 @@ struct OnboardingView: View {
             ScrollView {
                 VStack(spacing: Crenel.Space.l) {
                     group("Plan", [.calendar, .reminders, .notifications])
-                    group("Ses", [.microphone, .systemAudio])
-                    group("Klavye", [.inputMonitoring, .accessibility])
+                    group("Audio", [.microphone, .systemAudio])
+                    group("Keyboard", [.inputMonitoring, .accessibility])
                     HStack(alignment: .top, spacing: Crenel.Space.s) {
                         CrenelIcon(.shield, size: 14)
-                        Text("Dikte ve agent cihazda çalışır. Toplantı sesi yalnız transkript için, siz kayıt başlattığınızda işlenir.")
+                        Text("Dictation and the agent run on-device. Meeting audio is processed only for transcripts, and only when you start a recording.")
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .crenelText(.caption, color: Crenel.Palette.textTertiary)
@@ -108,11 +108,11 @@ struct OnboardingView: View {
                 progressSummary
                 Spacer()
                 if setup.allGranted {
-                    Button("Crenel’i aç", action: onComplete)
+                    Button("Open Crenel", action: onComplete)
                         .buttonStyle(CrenelButtonStyle(kind: .primary, size: .large))
                         .keyboardShortcut(.defaultAction)
                 } else {
-                    Button("Şimdilik bu kadar", action: onComplete)
+                    Button("Not now", action: onComplete)
                         .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .large))
                     Button {
                         Task { await setup.requestAll() }
@@ -121,7 +121,7 @@ struct OnboardingView: View {
                             if setup.isRunningAll {
                                 ProgressView().controlSize(.small).tint(.black)
                             }
-                            Text("Hepsini aç")
+                            Text("Turn on all")
                         }
                     }
                     .buttonStyle(CrenelButtonStyle(kind: .primary, size: .large))
@@ -148,13 +148,13 @@ struct OnboardingView: View {
         return HStack(spacing: Crenel.Space.s) {
             CrenelProgressRing(progress: Double(granted) / Double(total), tint: Crenel.Palette.success, lineWidth: 2.5)
                 .frame(width: 18, height: 18)
-            Text("\(granted)/\(total) hazır")
+            Text("\(granted)/\(total) ready")
                 .crenelText(.caption, color: Crenel.Palette.textSecondary)
         }
         .accessibilityElement(children: .combine)
     }
 
-    private func group(_ title: String, _ capabilities: [SetupCapability]) -> some View {
+    private func group(_ title: LocalizedStringKey, _ capabilities: [SetupCapability]) -> some View {
         VStack(alignment: .leading, spacing: Crenel.Space.s) {
             Text(title).eyebrow()
                 .padding(.horizontal, Crenel.Space.xs)
@@ -194,25 +194,25 @@ private struct SetupRow: View {
             case .granted:
                 HStack(spacing: 4) {
                     CrenelIcon(.check, size: 12, weight: 2.4)
-                    Text("Hazır")
+                    Text("Ready")
                 }
                 .crenelText(.callout, color: Crenel.Palette.success)
                 .transition(.scale(scale: 0.8).combined(with: .opacity))
-                .accessibilityLabel("\(capability.title) hazır")
+                .accessibilityLabel("\(capability.title) ready")
             case .notAsked:
-                Button(capability.usesSystemPrompt ? "İzin ver" : "Aç", action: action)
+                Button(capability.usesSystemPrompt ? "Allow" : "Turn on", action: action)
                     .buttonStyle(CrenelButtonStyle(kind: .secondary, size: .small))
-                    .accessibilityLabel("\(capability.title) iznini ver")
+                    .accessibilityLabel("Allow \(capability.title)")
             case .blocked:
                 Button(action: action) {
                     HStack(spacing: 4) {
-                        Text("Ayarlar’da aç")
+                        Text("Open Settings")
                         CrenelIcon(.arrowUpRight, size: 10, weight: 2.2)
                     }
                 }
                 .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.warning), size: .small))
-                .help("Bu izin daha önce kapatılmış; yalnızca Sistem Ayarları’ndan açılabilir.")
-                .accessibilityLabel("\(capability.title) iznini Sistem Ayarları’nda aç")
+                .help("This permission was turned off before; it can only be turned on in System Settings.")
+                .accessibilityLabel("Turn on \(capability.title) in System Settings")
             }
         }
         .padding(.horizontal, Crenel.Space.m)

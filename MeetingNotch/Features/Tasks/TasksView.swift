@@ -36,25 +36,25 @@ struct TasksView: View {
         .animation(motion(Crenel.Motion.snappy), value: pickerTaskID)
         .animation(motion(Crenel.Motion.gentle), value: appState.tasks)
         .alert(
-            "Görev silinsin mi?",
+            "Delete task?",
             isPresented: deleteTaskAlertBinding,
             presenting: taskPendingDeletion
         ) { task in
-            Button("Sil", role: .destructive) {
+            Button("Delete", role: .destructive) {
                 if openTaskID == task.id { openTaskID = nil }
                 actions.tasks.delete(task)
             }
-            Button("Vazgeç", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: { task in
             Text(appState.taskStorageStatus.isReminders
-                 ? "“\(task.title)” Hatırlatıcılar’dan ve tüm cihazlarınızdan silinecek."
-                 : "“\(task.title)” kalıcı olarak silinecek.")
+                 ? "“\(task.title)” will be deleted from Reminders and all your devices."
+                 : "“\(task.title)” will be deleted permanently.")
         }
-        .alert("Geçmiş temizlensin mi?", isPresented: $showsClearHistoryConfirmation) {
-            Button("Tümünü Sil", role: .destructive, action: actions.tasks.clearHistory)
-            Button("Vazgeç", role: .cancel) {}
+        .alert("Clear history?", isPresented: $showsClearHistoryConfirmation) {
+            Button("Delete All", role: .destructive, action: actions.tasks.clearHistory)
+            Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Tamamlanan görevler kalıcı olarak silinecek.")
+            Text("Completed tasks will be deleted permanently.")
         }
     }
 
@@ -65,8 +65,8 @@ struct TasksView: View {
         if presentation.isEmpty {
             CrenelEmptyState(
                 glyph: .check,
-                title: "Liste boş",
-                detail: "Yukarıya yazıp Enter’a basın. “yarın 15:00” gibi tarihleri Crenel anlar.",
+                title: "Nothing to do",
+                detail: "Type above and press Return. Crenel understands dates like “tomorrow 3pm”.",
                 tint: Crenel.Palette.tasks
             )
         } else {
@@ -131,8 +131,8 @@ struct TasksView: View {
         if presentation.history.isEmpty {
             CrenelEmptyState(
                 glyph: .history,
-                title: "Henüz geçmiş yok",
-                detail: "Biten görevler gün sonunda buraya taşınır."
+                title: "No history yet",
+                detail: "Done tasks move here at the end of the day."
             )
         } else {
             VStack(alignment: .leading, spacing: Crenel.Space.l) {
@@ -163,7 +163,7 @@ struct TasksView: View {
             } label: {
                 HStack(spacing: 6) {
                     CrenelIcon(showsHistory ? .chevronLeft : .history, size: 13)
-                    Text(showsHistory ? "Görevler" : "Geçmiş")
+                    Text(showsHistory ? "Tasks" : "History")
                 }
             }
             .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
@@ -174,7 +174,7 @@ struct TasksView: View {
                 } label: {
                     HStack(spacing: 6) {
                         CrenelIcon(.trash, size: 13)
-                        Text("Temizle")
+                        Text("Clear")
                     }
                 }
                 .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
@@ -193,19 +193,19 @@ struct TasksView: View {
         case .reminders:
             HStack(spacing: 5) {
                 Circle().fill(Crenel.Palette.success).frame(width: 5, height: 5)
-                Text("Hatırlatıcılar ile eşitleniyor")
+                Text("Syncing with Reminders")
             }
             .crenelText(.caption, color: Crenel.Palette.textQuaternary)
-            .help("Görevler Apple Hatırlatıcılar’daki “Crenel” listesinde; iPhone ve Watch’ta da görünür.")
+            .help("Tasks live in the “Crenel” list in Apple Reminders, so they also show on iPhone and Apple Watch.")
         case .localDenied, .localAfterError, .localNotConnected:
             Button {
                 actions.tasks.connectReminders()
             } label: {
-                Text("Bu Mac’te saklanıyor")
+                Text("Stored on this Mac")
                     .crenelText(.caption, color: Crenel.Palette.textQuaternary)
             }
             .buttonStyle(.plain)
-            .help("Hatırlatıcılar izni verildiğinde görevler otomatik eşitlenir.")
+            .help("Tasks sync automatically once you allow Reminders access.")
         case .localByChoice:
             EmptyView()
         }
@@ -224,9 +224,9 @@ struct TasksView: View {
 
     private static func historyTitle(for day: Date) -> String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(day) { return "Bugün" }
-        if calendar.isDateInYesterday(day) { return "Dün" }
-        return day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "tr_TR")))
+        if calendar.isDateInToday(day) { return "Today" }
+        if calendar.isDateInYesterday(day) { return "Yesterday" }
+        return day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(AppLanguage.locale))
     }
 
     private var deleteTaskAlertBinding: Binding<Bool> {
@@ -266,9 +266,9 @@ private struct TaskRow: View {
                         .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
                 }
                 .buttonStyle(.plain)
-                .help("Durumu değiştir")
-                .accessibilityLabel("Durum: \(task.status.title)")
-                .accessibilityHint("Durum seçeneklerini açar")
+                .help("Change status")
+                .accessibilityLabel("Status: \(task.status.title)")
+                .accessibilityHint("Opens status options")
 
                 Button(action: onOpen) {
                     VStack(alignment: .leading, spacing: 3) {
@@ -283,7 +283,7 @@ private struct TaskRow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityHint("Görev kartını açar")
+                .accessibilityHint("Opens the task card")
 
                 if hovering, !task.isCompleted {
                     Button {
@@ -292,8 +292,8 @@ private struct TaskRow: View {
                         CrenelIcon(.check, size: 13, weight: 2.2)
                     }
                     .buttonStyle(CrenelIconButtonStyle(diameter: 24, tint: Crenel.Palette.success))
-                    .help("Bitti olarak işaretle")
-                    .accessibilityLabel("Bitti")
+                    .help("Mark as done")
+                    .accessibilityLabel("Done")
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
                 }
             }
@@ -333,18 +333,18 @@ private struct TaskRow: View {
         }
         Divider()
         if !task.isCompleted {
-            Button("Bugüne al") {
+            Button("Move to Today") {
                 actions.tasks.reschedule(task, Calendar.current.startOfDay(for: Date()), false)
             }
-            Button("Yarına ertele") { actions.tasks.postponeToTomorrow(task) }
+            Button("Postpone to Tomorrow") { actions.tasks.postponeToTomorrow(task) }
         }
         if task.isArchived {
-            Button("Listeye geri al") { actions.tasks.restore(task) }
+            Button("Restore to List") { actions.tasks.restore(task) }
         } else if task.isCompleted {
-            Button("Listeden kaldır") { actions.tasks.archive(task) }
+            Button("Remove from List") { actions.tasks.archive(task) }
         }
         Divider()
-        Button("Sil", role: .destructive, action: onRequestDelete)
+        Button("Delete", role: .destructive, action: onRequestDelete)
     }
 }
 
@@ -372,16 +372,16 @@ private struct TaskMetaLine: View {
                 if task.notes?.isEmpty == false {
                     CrenelIcon(.copy, size: 10.5, weight: 2)
                         .foregroundStyle(Crenel.Palette.textQuaternary)
-                        .help("Notu var")
+                        .help("Has a note")
                 }
                 if let meetingID = task.sourceMeetingID {
                     Button {
                         actions.tasks.openSourceMeeting(meetingID)
                     } label: {
-                        meta(.waveform, "Toplantı", color: Crenel.Palette.calendar)
+                        meta(.waveform, "Meeting", color: Crenel.Palette.calendar)
                     }
                     .buttonStyle(.plain)
-                    .help("Görevin geldiği toplantıyı aç")
+                    .help("Open the meeting this task came from")
                 }
             }
             .lineLimit(1)
@@ -428,7 +428,7 @@ private struct TaskDetailCard: View {
             HStack(alignment: .top, spacing: Crenel.Space.m) {
                 TaskStateGlyph(status: task.status, tint: Crenel.Palette.textSecondary, size: 20)
                     .padding(.top, 2)
-                TextField("Görev", text: $title, axis: .vertical)
+                TextField("Task", text: $title, axis: .vertical)
                     .textFieldStyle(.plain)
                     .crenelText(.title)
                     .lineLimit(1...4)
@@ -440,22 +440,22 @@ private struct TaskDetailCard: View {
                 }
                 .buttonStyle(CrenelIconButtonStyle(diameter: 26))
                 .keyboardShortcut(.cancelAction)
-                .help("Kartı kapat")
-                .accessibilityLabel("Kartı kapat")
+                .help("Close card")
+                .accessibilityLabel("Close card")
             }
 
             TaskStatePicker(current: task.status) { actions.tasks.setStatus(task, $0) }
 
             VStack(alignment: .leading, spacing: Crenel.Space.s) {
-                Text("Tarih").eyebrow()
+                Text("Date").eyebrow()
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Crenel.Space.xs) {
-                        dateOption("Bugün", date: startOfDay(0))
-                        dateOption("Yarın", date: startOfDay(1))
-                        dateOption("Hafta sonu", date: nextWeekend)
-                        dateOption("Gelecek hafta", date: startOfDay(7))
+                        dateOption("Today", date: startOfDay(0))
+                        dateOption("Tomorrow", date: startOfDay(1))
+                        dateOption("Weekend", date: nextWeekend)
+                        dateOption("Next week", date: startOfDay(7))
                         if task.dueDate != nil {
-                            Button("Tarihi kaldır") { actions.tasks.reschedule(task, nil, false) }
+                            Button("Remove Date") { actions.tasks.reschedule(task, nil, false) }
                                 .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
                         }
                     }
@@ -474,24 +474,24 @@ private struct TaskDetailCard: View {
             }
 
             VStack(alignment: .leading, spacing: Crenel.Space.s) {
-                Text("Öncelik").eyebrow()
+                Text("Priority").eyebrow()
                 CrenelSegmented(
                     selection: Binding(
                         get: { task.priority },
                         set: { actions.tasks.setPriority(task, $0) }
                     ),
                     items: [
-                        .init(value: TaskPriority.none, title: "Yok"),
-                        .init(value: .low, title: "Düşük"),
-                        .init(value: .medium, title: "Orta"),
-                        .init(value: .high, title: "Yüksek")
+                        .init(value: TaskPriority.none, title: "None"),
+                        .init(value: .low, title: "Low"),
+                        .init(value: .medium, title: "Medium"),
+                        .init(value: .high, title: "High")
                     ]
                 )
             }
 
             VStack(alignment: .leading, spacing: Crenel.Space.s) {
-                Text("Not").eyebrow()
-                TextField("Not ekle", text: $notes, axis: .vertical)
+                Text("Note").eyebrow()
+                TextField("Add a note", text: $notes, axis: .vertical)
                     .textFieldStyle(.plain)
                     .crenelText(.body, color: Crenel.Palette.textSecondary)
                     .lineLimit(2...8)
@@ -507,20 +507,20 @@ private struct TaskDetailCard: View {
                     } label: {
                         HStack(spacing: 6) {
                             CrenelIcon(.waveform, size: 13)
-                            Text("Toplantıyı aç")
+                            Text("Open Meeting")
                         }
                     }
                     .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.calendar), size: .small))
                 }
                 if task.isCompleted && !task.isArchived {
-                    Button("Listeden kaldır") { actions.tasks.archive(task); onClose() }
+                    Button("Remove from List") { actions.tasks.archive(task); onClose() }
                         .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
                 }
                 Spacer()
                 Button(action: onRequestDelete) {
                     HStack(spacing: 6) {
                         CrenelIcon(.trash, size: 13)
-                        Text("Sil")
+                        Text("Delete")
                     }
                 }
                 .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.danger), size: .small))
@@ -538,7 +538,7 @@ private struct TaskDetailCard: View {
         .onDisappear(perform: commit)
     }
 
-    private func dateOption(_ label: String, date: Date?) -> some View {
+    private func dateOption(_ label: LocalizedStringKey, date: Date?) -> some View {
         let isSelected = date.map { day in
             task.dueDate.map { Calendar.current.isDate($0, inSameDayAs: day) } ?? false
         } ?? false
@@ -602,7 +602,7 @@ struct TaskQuickAddField: View {
                     .foregroundStyle(focused ? Crenel.Palette.tasks : Crenel.Palette.textTertiary)
                     .frame(width: 24, height: 24)
 
-                TextField("Görev ekle", text: $text, prompt: Text("Görev ekle — “yarın 15te raporu gönder”").foregroundStyle(Crenel.Palette.textTertiary))
+                TextField("Add task", text: $text, prompt: Text("Add task — “send the report tomorrow 3pm”").foregroundStyle(Crenel.Palette.textTertiary))
                     .textFieldStyle(.plain)
                     .crenelText(.body)
                     .focused($focused)
@@ -617,8 +617,8 @@ struct TaskQuickAddField: View {
                         reset()
                         return .handled
                     }
-                    .accessibilityLabel("Yeni görev")
-                    .accessibilityHint("Tarih yazarsanız öneri çıkar; Tab ile ekleyin.")
+                    .accessibilityLabel("New task")
+                    .accessibilityHint("Type a date to get a suggestion. Press Tab to add it.")
 
                 if canSubmit {
                     Button(action: submit) {
@@ -626,7 +626,7 @@ struct TaskQuickAddField: View {
                             .rotationEffect(.degrees(-90))
                     }
                     .buttonStyle(CrenelIconButtonStyle(diameter: 26, tint: .black, fill: .white))
-                    .accessibilityLabel("Görevi ekle")
+                    .accessibilityLabel("Add task")
                     .transition(.scale(scale: 0.6).combined(with: .opacity))
                 } else {
                     CrenelKeyCap(label: "↵")
@@ -661,7 +661,7 @@ struct TaskQuickAddField: View {
                     if !suggestions.isEmpty {
                         HStack(spacing: 4) {
                             CrenelKeyCap(label: "⇥")
-                            Text("ekle")
+                            Text("add")
                         }
                         .crenelText(.caption, color: Crenel.Palette.textTertiary)
                     }
@@ -787,8 +787,8 @@ private struct TaskTokenChip: View {
             )
         }
         .buttonStyle(.plain)
-        .help(isAccepted ? "Kaldırmak için tıklayın" : "Eklemek için tıklayın veya Tab’a basın")
-        .accessibilityLabel(isAccepted ? "\(label), eklendi. Kaldır" : "\(label) öner. Ekle")
+        .help(isAccepted ? "Click to remove" : "Click or press Tab to add")
+        .accessibilityLabel(isAccepted ? "\(label), added. Remove" : "Suggested: \(label). Add")
     }
 }
 
@@ -797,9 +797,9 @@ extension TaskPriority {
     var shortText: String {
         switch self {
         case .none: ""
-        case .low: "Düşük"
-        case .medium: "Orta"
-        case .high: "Yüksek"
+        case .low: "Low"
+        case .medium: "Medium"
+        case .high: "High"
         }
     }
 }

@@ -20,7 +20,7 @@ struct MeetingNotificationPlan: Equatable {
 
 @MainActor
 final class MeetingNotificationService: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
-    @Published private(set) var status = "Bildirim izni kontrol ediliyor"
+    @Published private(set) var status = "Checking notification access"
     private let center = UNUserNotificationCenter.current()
     private var meetings: [Meeting] = []
     private var leadTime: TimeInterval = 600
@@ -32,24 +32,24 @@ final class MeetingNotificationService: NSObject, ObservableObject, UNUserNotifi
     override init() {
         super.init()
         center.delegate = self
-        let join = UNNotificationAction(identifier: "join", title: "Toplantıya katıl", options: [.foreground])
-        let snooze = UNNotificationAction(identifier: "snooze", title: "5 dakika ertele", options: [])
+        let join = UNNotificationAction(identifier: "join", title: "Join meeting", options: [.foreground])
+        let snooze = UNNotificationAction(identifier: "snooze", title: "Snooze 5 min", options: [])
         center.setNotificationCategories([UNNotificationCategory(identifier: "meeting", actions: [join, snooze], intentIdentifiers: [])])
     }
 
     func refreshStatus() async {
         let settings = await center.notificationSettings()
         switch settings.authorizationStatus {
-        case .authorized, .provisional: status = "Bildirimler açık"
-        case .denied: status = "Bildirimler sistem ayarlarında kapalı"
-        case .notDetermined: status = "Bildirim izni gerekli"
-        default: status = "Bildirimler kullanılamıyor"
+        case .authorized, .provisional: status = "Notifications on"
+        case .denied: status = "Notifications are off in System Settings"
+        case .notDetermined: status = "Notification access needed"
+        default: status = "Notifications unavailable"
         }
     }
 
     func requestAccess() async {
         do { _ = try await center.requestAuthorization(options: [.alert, .sound]) }
-        catch { status = "Bildirim izni alınamadı"; return }
+        catch { status = "Couldn’t get notification access"; return }
         await refreshStatus()
         update(meetings: meetings, leadTime: leadTime, enabled: enabled)
     }
@@ -91,7 +91,7 @@ final class MeetingNotificationService: NSObject, ObservableObject, UNUserNotifi
                old.content.userInfo["url"] as? String == plan.meeting.meetingURL?.absoluteString { continue }
             let content = UNMutableNotificationContent()
             content.title = plan.meeting.title
-            content.body = "Toplantınız \(plan.meeting.startDate.formatted(date: .omitted, time: .shortened)) için planlandı."
+            content.body = "Starts at \(plan.meeting.startDate.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.locale)))."
             content.categoryIdentifier = "meeting"
             content.sound = .default
             content.userInfo = ["url": plan.meeting.meetingURL?.absoluteString ?? "", "meetingID": plan.meeting.id.uuidString]
@@ -100,7 +100,7 @@ final class MeetingNotificationService: NSObject, ObservableObject, UNUserNotifi
             let request = UNNotificationRequest(identifier: plan.id, content: content,
                 trigger: UNTimeIntervalNotificationTrigger(timeInterval: max(1, interval), repeats: false))
             do { try await center.add(request) }
-            catch { status = "Toplantı bildirimi zamanlanamadı" }
+            catch { status = "Couldn’t schedule meeting notification" }
         }
     }
 

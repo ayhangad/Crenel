@@ -117,7 +117,7 @@ struct CrenelCompactView: View {
                 value(DictationStatusText.title(for: state), Crenel.Palette.dictation)
                     .crenelShimmer()
             case .inserted:
-                value("Eklendi", Crenel.Palette.success)
+                value("Inserted", Crenel.Palette.success)
             case .failed(let failure):
                 value(DictationStatusText.short(for: failure), Crenel.Palette.warning)
                     .help(failure.message)
@@ -136,9 +136,9 @@ struct CrenelCompactView: View {
                     .crenelShimmer()
             }
         case .completed:
-            value("Hazır", Crenel.Palette.success)
+            value("Done", Crenel.Palette.success)
         case .failed:
-            value("Hata", Crenel.Palette.danger)
+            value("Error", Crenel.Palette.danger)
         case .agenda(let agenda):
             value(NotchAgendaFormatter.compactText(for: agenda), agenda.tint)
                 .contentTransition(.numericText())
@@ -147,7 +147,7 @@ struct CrenelCompactView: View {
             value(NotchAgendaFormatter.durationText(max(60, now.timeIntervalSince(task.startedAt ?? now))), Crenel.Palette.focus)
         case .tasks(let count):
             value("\(count)", Crenel.Palette.tasks)
-                .accessibilityLabel("\(count) açık görev")
+                .accessibilityLabel("\(count) open tasks")
         case .idle:
             EmptyView()
         }
@@ -223,11 +223,11 @@ extension NotchCompactStatus {
 extension NotchCompactStatus.ProcessingStage {
     var shortTitle: String {
         switch self {
-        case .preparing: "Hazırlanıyor"
-        case .finalizing: "Kaydediliyor"
-        case .uploading: "Yükleniyor"
-        case .transcribing: "Yazıya çevriliyor"
-        case .summarizing: "Özetleniyor"
+        case .preparing: "Preparing"
+        case .finalizing: "Saving"
+        case .uploading: "Uploading"
+        case .transcribing: "Transcribing"
+        case .summarizing: "Summarizing"
         }
     }
 }

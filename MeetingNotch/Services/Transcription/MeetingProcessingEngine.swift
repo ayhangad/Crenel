@@ -7,8 +7,8 @@ enum MeetingTranscriptionEngine: String, Codable, CaseIterable, Equatable, Senda
 
     var displayName: String {
         switch self {
-        case .elevenLabs: "ElevenLabs (bulut, konuşmacı ayrımı)"
-        case .onDevice: "Cihaz içi (Apple Speech)"
+        case .elevenLabs: "ElevenLabs (cloud, speaker labels)"
+        case .onDevice: "On-device (Apple Speech)"
         }
     }
 
@@ -28,7 +28,7 @@ enum MeetingSummaryEngine: String, Codable, CaseIterable, Equatable, Sendable {
     var displayName: String {
         switch self {
         case .openAI: "OpenAI"
-        case .agent: "Yapay zekâ sağlayıcısı (Ajan ayarları)"
+        case .agent: "AI provider (Agent settings)"
         }
     }
 

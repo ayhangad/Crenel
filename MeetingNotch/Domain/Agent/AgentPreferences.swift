@@ -12,11 +12,11 @@ enum AgentProviderKind: String, Codable, CaseIterable, Equatable, Sendable {
 
     var displayName: String {
         switch self {
-        case .automatic: "Otomatik (önerilen)"
-        case .onDevice: "Cihaz içi (Apple Intelligence)"
+        case .automatic: "Automatic (recommended)"
+        case .onDevice: "On-device (Apple Intelligence)"
         case .openAI: "OpenAI"
         case .anthropic: "Anthropic Claude"
-        case .off: "Kapalı"
+        case .off: "Off"
         }
     }
 

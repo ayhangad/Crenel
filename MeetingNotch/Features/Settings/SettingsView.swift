@@ -136,14 +136,14 @@ struct SettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("Ayarlar").font(MeetingNotchTheme.pageTitleFont)
+                Text("Settings").font(MeetingNotchTheme.pageTitleFont)
             }
             HStack(spacing: 6) {
                 ForEach(SettingsCategory.allCases) { item in
                     Button { category = item } label: {
                         ViewThatFits(in: .horizontal) {
-                            Label(item.rawValue, systemImage: item.symbol)
-                            Text(item.rawValue)
+                            Label(item.title, systemImage: item.symbol)
+                            Text(item.title)
                         }
                         .font(MeetingNotchTheme.controlFont)
                         .frame(maxWidth: .infinity).frame(height: 40)
@@ -152,7 +152,7 @@ struct SettingsView: View {
                     .buttonStyle(MeetingNotchRowButtonStyle(selected: category == item))
                     .accessibilityAddTraits(category == item ? .isSelected : [])
                 }
-            }.accessibilityElement(children: .contain).accessibilityLabel("Ayar kategorileri")
+            }.accessibilityElement(children: .contain).accessibilityLabel("Settings categories")
             ScrollView {
             LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
                 switch category {
@@ -199,34 +199,34 @@ struct SettingsView: View {
             availableMicrophones = devices
             if let selectedMicrophoneID,
                !devices.contains(where: { $0.id == selectedMicrophoneID }) {
-                microphoneSettingsMessage = "Seçili mikrofon bağlı değil; kayıtta sistem varsayılanı kullanılacak."
+                microphoneSettingsMessage = "Selected mic isn’t connected; recordings will use the system default."
                 microphoneSettingsFailed = true
             }
         }
-        .alert("Tüm veriler silinsin mi?", isPresented: $showsDeleteAllDataConfirmation) {
-            Button("Vazgeç", role: .cancel) {}
-            Button("Kalıcı Olarak Sil", role: .destructive) { deleteAllData() }
+        .alert("Delete all data?", isPresented: $showsDeleteAllDataConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete permanently", role: .destructive) { deleteAllData() }
         } message: {
-            Text("Toplantılar, ses kayıtları, transkriptler, bu Mac’teki görevler, ayarlar ve Keychain’deki ElevenLabs, OpenAI ve Anthropic anahtarları kalıcı olarak silinecek. Apple Hatırlatıcılar’daki görevleriniz silinmez. Bu işlem geri alınamaz.")
+            Text("Meetings, audio, transcripts, tasks on this Mac, settings, and the ElevenLabs, OpenAI and Anthropic keys in Keychain will be permanently deleted. Tasks in Apple Reminders stay. This can’t be undone.")
         }
     }
 
     @ViewBuilder private var generalContent: some View {
-                settingsSection(title: "Genel", assetName: "FigmaMore") {
-                    Toggle("Oturum açıldığında başlat", isOn: $launchAtLogin)
+                settingsSection(title: "General", assetName: "FigmaMore") {
+                    Toggle("Launch at login", isOn: $launchAtLogin)
 
                     settingsDivider
 
-                    Picker("Toplantıları sakla", selection: $retentionDays) {
-                        Text("Süresiz").tag(nil as Int?)
-                        Text("7 gün").tag(7 as Int?)
-                        Text("30 gün").tag(30 as Int?)
-                        Text("90 gün").tag(90 as Int?)
+                    Picker("Keep meetings", selection: $retentionDays) {
+                        Text("Forever").tag(nil as Int?)
+                        Text("7 days").tag(7 as Int?)
+                        Text("30 days").tag(30 as Int?)
+                        Text("90 days").tag(90 as Int?)
                     }
                 }
 
                 settingsActionRow(message: generalSettingsMessage, isFailure: generalSettingsFailed,
-                    buttonTitle: "Değişiklikleri Kaydet", isBusy: isSavingGeneralSettings,
+                    buttonTitle: "Save changes", isBusy: isSavingGeneralSettings,
                     isDisabled: isLoadingGeneralSettings, action: saveGeneralSettings)
     }
 
@@ -239,21 +239,21 @@ struct SettingsView: View {
                     title: "ElevenLabs",
                     assetName: "FigmaVoice"
                 ) {
-                    Picker("Transkript dili", selection: $languageCode) {
-                        Text("Otomatik algıla").tag(nil as String?)
-                        Text("Türkçe").tag("tr" as String?)
-                        Text("İngilizce").tag("en" as String?)
+                    Picker("Transcript language", selection: $languageCode) {
+                        Text("Automatic").tag(nil as String?)
+                        Text("Turkish").tag("tr" as String?)
+                        Text("English").tag("en" as String?)
                     }
                     SecureField(
-                        hasStoredAPIKey ? "Kayıtlı anahtarı değiştirmek için yazın" : "ElevenLabs API anahtarı",
+                        hasStoredAPIKey ? "Type to replace the saved key" : "ElevenLabs API key",
                         text: $apiKey
                     )
                     .textContentType(.password)
                     .focused($apiKeyFocused)
                     .meetingFieldSurface(focused: apiKeyFocused)
-                    .accessibilityLabel("ElevenLabs API anahtarı")
+                    .accessibilityLabel("ElevenLabs API key")
                     Link(
-                        "ElevenLabs’te API anahtarı oluştur",
+                        "Create an API key on ElevenLabs",
                         destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!
                     )
                     .buttonStyle(.plain)
@@ -262,7 +262,7 @@ struct SettingsView: View {
                     settingsActionRow(
                         message: transcriptionSettingsMessage,
                         isFailure: transcriptionSettingsFailed,
-                        buttonTitle: "Doğrula ve Kaydet",
+                        buttonTitle: "Verify and save",
                         isBusy: isSavingTranscriptionSettings,
                         isDisabled: isLoadingTranscriptionSettings
                             || (apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -270,7 +270,7 @@ struct SettingsView: View {
                         action: saveTranscriptionSettings
                     )
                     if hasStoredAPIKey {
-                        Button("Bağlantıyı Kaldır", role: .destructive) {
+                        Button("Remove connection", role: .destructive) {
                             deleteTranscriptionAPIKey()
                         }
                         .buttonStyle(MeetingNotchActionButtonStyle())
@@ -288,8 +288,8 @@ struct SettingsView: View {
                 }
                 calendarSettingsSection
                 if let calendars = appState.calendarIntegrationSnapshot?.calendars, !calendars.isEmpty {
-                    settingsSection(title: "İzlenecek Takvimler", assetName: "FigmaVideo") {
-                        Toggle("Tüm takvimler", isOn: Binding(
+                    settingsSection(title: "Watched calendars", assetName: "FigmaVideo") {
+                        Toggle("All calendars", isOn: Binding(
                             get: { selectedCalendarIDs == nil },
                             set: { selectedCalendarIDs = $0 ? nil : calendars.map(\.id) }
                         ))
@@ -305,7 +305,7 @@ struct SettingsView: View {
                                 ))
                             }
                         }
-                        Button("Takvim Seçimini Kaydet", action: saveGeneralSettings)
+                        Button("Save calendar selection", action: saveGeneralSettings)
                             .disabled(isSavingGeneralSettings)
                     }
                 }
@@ -314,15 +314,15 @@ struct SettingsView: View {
 
     @ViewBuilder private var recordingContent: some View {
                 settingsSection(
-                    title: "Kayıt Kaynağı",
+                    title: "Recording source",
                     assetName: "FigmaMicrophone",
                     footer: nil
                 ) {
                     HStack(spacing: 12) {
-                    Picker("Kayıt mikrofonu", selection: $selectedMicrophoneID) {
-                        Text("Sistem varsayılanı").tag(nil as String?)
+                    Picker("Recording mic", selection: $selectedMicrophoneID) {
+                        Text("System default").tag(nil as String?)
                         ForEach(availableMicrophones) { microphone in
-                            Text(microphone.isSystemDefault ? "\(microphone.name) — varsayılan" : microphone.name)
+                            Text(microphone.isSystemDefault ? "\(microphone.name) — default" : microphone.name)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                                 .help(microphone.name)
@@ -330,14 +330,14 @@ struct SettingsView: View {
                         }
                         if let selectedMicrophoneID,
                            !availableMicrophones.contains(where: { $0.id == selectedMicrophoneID }) {
-                            Text("Seçili mikrofon bağlı değil")
+                            Text("Selected mic not connected")
                                 .tag(selectedMicrophoneID as String?)
                         }
                     }
                     .controlSize(.large)
                     .disabled(isLoadingMicrophones || availableMicrophones.isEmpty)
 
-                        Button("Kaydet", action: saveMicrophoneSelection)
+                        Button("Save", action: saveMicrophoneSelection)
                             .buttonStyle(MeetingNotchActionButtonStyle())
                             .disabled(isLoadingMicrophones || isSavingMicrophone || availableMicrophones.isEmpty)
                     }
@@ -347,14 +347,14 @@ struct SettingsView: View {
                 }
 
                 settingsSection(
-                    title: "Kayıt İzinleri",
+                    title: "Recording permissions",
                     assetName: "FigmaVolume",
                     footer: nil
                 ) {
                     PermissionRow(
                         source: .microphone,
-                        title: "Mikrofon",
-                        detail: "Sizin konuşmanızı toplantı kaydına ekler.",
+                        title: "Microphone",
+                        detail: "Adds your voice to meeting recordings.",
                         status: appState.audioCapturePermissions.microphone,
                         onRequestAccess: onRequestMicrophoneAccess,
                         onOpenSystemSettings: onOpenSystemSettings
@@ -362,8 +362,8 @@ struct SettingsView: View {
                     settingsDivider
                     PermissionRow(
                         source: .systemAudio,
-                        title: "Sistem sesi",
-                        detail: "Toplantıdaki diğer kişilerin sesini kaydeder.",
+                        title: "System audio",
+                        detail: "Records other people in the meeting.",
                         status: appState.audioCapturePermissions.systemAudio,
                         onRequestAccess: onRequestSystemAudioAccess,
                         onOpenSystemSettings: onOpenSystemSettings,
@@ -377,18 +377,18 @@ struct SettingsView: View {
                     )
                 }
 
-                DisclosureGroup("Gelişmiş kayıt bilgileri") {
-                settingsSection(title: "Gizlilik Sınırı", assetName: "FigmaMicrophoneOff") {
-                    settingValue("Toplantı mikrofonu", "Her kayıtta kapalı başlar")
+                DisclosureGroup("Advanced recording details") {
+                settingsSection(title: "Privacy guard", assetName: "FigmaMicrophoneOff") {
+                    settingValue("Meeting mic", "Starts muted in every recording")
                     settingsDivider
-                    settingValue("Belirsiz mute durumu", "Ses kayda alınmaz")
+                    settingValue("Unknown mute state", "Audio isn’t recorded")
                     settingsDivider
-                    settingValue("Manuel kontrol", "Notch veya ⌥⌘M", monospaced: true)
+                    settingValue("Manual control", "Notch or ⌥⌘M", monospaced: true)
                     settingsDivider
-                    settingValue("Google Meet", "Yalnız bağlı görüşme sekmesi")
+                    settingValue("Google Meet", "Connected call tab only")
                     settingsDivider
                     HStack(spacing: 12) {
-                        Text("Meet sekme bağlantısı")
+                        Text("Meet tab connection")
                         Spacer()
                         Label(browserAudioStatusText, systemImage: browserAudioStatusSymbol)
                             .foregroundStyle(browserAudioStatusColor)
@@ -400,18 +400,18 @@ struct SettingsView: View {
 
     @ViewBuilder private var dataContent: some View {
                 settingsSection(
-                    title: "Veri ve Uygulama",
+                    title: "Data and app",
                     assetName: "FigmaArchive",
                     footer: appState.requiresTerminationConfirmation
-                        ? "Kayıt veya işleme sürerken tüm veriler silinemez."
+                        ? "Can’t delete all data while recording or processing."
                         : nil
                 ) {
                     MeetingNotchActionGroup {
-                        Button("Veri Klasörünü Aç", action: onOpenDataDirectory)
+                        Button("Open data folder", action: onOpenDataDirectory)
                             .buttonStyle(MeetingNotchActionButtonStyle())
-                        Button("Kurulum rehberini aç", action: resetOnboarding)
+                        Button("Open setup guide", action: resetOnboarding)
                             .buttonStyle(MeetingNotchActionButtonStyle())
-                        Button("Tüm Verileri Sil…", role: .destructive) {
+                        Button("Delete all data…", role: .destructive) {
                             showsDeleteAllDataConfirmation = true
                         }
                         .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
@@ -422,19 +422,19 @@ struct SettingsView: View {
                     }
                     settingsDivider
                     settingValue(
-                        "Sürüm",
-                        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—",
+                        "Version",
+                        "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")",
                         monospaced: true
                     )
                 }
     }
 
-    private var browserAudioStatusText: String {
+    private var browserAudioStatusText: LocalizedStringKey {
         switch appState.browserAudioConnectionStatus {
-        case .unavailable: "Kullanılamıyor"
-        case .waitingForMeetTab: "Meet sekmesi bekleniyor"
-        case .tabConnected: "Sekme bağlı"
-        case .recording: "Kayıt hattına bağlı"
+        case .unavailable: "Unavailable"
+        case .waitingForMeetTab: "Waiting for Meet tab"
+        case .tabConnected: "Tab connected"
+        case .recording: "Connected to recording"
         }
     }
 
@@ -457,9 +457,9 @@ struct SettingsView: View {
     }
 
     private func settingsSection<Content: View>(
-        title: String,
+        title: LocalizedStringKey,
         assetName: String,
-        footer: String? = nil,
+        footer: LocalizedStringKey? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: MeetingNotchTheme.contentSpacing) {
@@ -501,8 +501,8 @@ struct SettingsView: View {
     }
 
     private func settingValue(
-        _ title: String,
-        _ value: String,
+        _ title: LocalizedStringKey,
+        _ value: LocalizedStringKey,
         monospaced: Bool = false
     ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -524,7 +524,7 @@ struct SettingsView: View {
     private func settingsActionRow(
         message: String?,
         isFailure: Bool,
-        buttonTitle: String,
+        buttonTitle: LocalizedStringKey,
         isBusy: Bool,
         isDisabled: Bool,
         action: @escaping () -> Void
@@ -536,7 +536,7 @@ struct SettingsView: View {
             HStack(spacing: 10) {
                 Spacer(minLength: 0)
                 if isBusy {
-                    ProgressView().controlSize(.small).accessibilityLabel("İşlem sürüyor")
+                    ProgressView().controlSize(.small).accessibilityLabel("Working")
                 }
                 Button(buttonTitle, action: action)
                     .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
@@ -566,7 +566,7 @@ struct SettingsView: View {
         selectedMicrophoneID = snapshot.selectedDeviceID
         isLoadingMicrophones = false
         if !snapshot.selectedDeviceIsAvailable {
-            microphoneSettingsMessage = "Seçili mikrofon bağlı değil; kayıtta sistem varsayılanı kullanılacak."
+            microphoneSettingsMessage = "Selected mic isn’t connected; recordings will use the system default."
             microphoneSettingsFailed = true
         }
     }
@@ -597,7 +597,7 @@ struct SettingsView: View {
             let result = await onSaveMicrophoneSelection(selectedMicrophoneID)
             switch result {
             case .succeeded(let message):
-                microphoneSettingsMessage = message ?? "Mikrofon seçimi kaydedildi."
+                microphoneSettingsMessage = message ?? "Mic selection saved."
                 microphoneSettingsFailed = false
             case .failed(let message):
                 microphoneSettingsMessage = message
@@ -621,8 +621,8 @@ struct SettingsView: View {
                 hasStoredAPIKey = true
                 apiKey = ""
                 transcriptionSettingsMessage = retriedJobCount > 0
-                    ? "Doğrulandı; bekleyen \(retriedJobCount) kayıt yeniden işleniyor"
-                    : "Speech-to-Text yetkisi doğrulandı ve kaydedildi"
+                    ? "Verified; reprocessing \(retriedJobCount) pending recordings"
+                    : "Speech-to-Text access verified and saved"
                 transcriptionSettingsFailed = false
             case .failed(let failure):
                 transcriptionSettingsMessage = failure.message
@@ -640,7 +640,7 @@ struct SettingsView: View {
             case .succeeded(let message):
                 hasStoredAPIKey = false
                 apiKey = ""
-                transcriptionSettingsMessage = message ?? "ElevenLabs bağlantısı kaldırıldı"
+                transcriptionSettingsMessage = message ?? "ElevenLabs connection removed"
                 transcriptionSettingsFailed = false
             case .failed(let message):
                 transcriptionSettingsMessage = message
@@ -669,7 +669,7 @@ struct SettingsView: View {
     private func handleGeneralResult(_ result: SettingsActionResult) {
         switch result {
         case .succeeded(let message):
-            generalSettingsMessage = message ?? "Kaydedildi"
+            generalSettingsMessage = message ?? "Saved"
             generalSettingsFailed = false
         case .failed(let message):
             generalSettingsMessage = message
@@ -679,31 +679,31 @@ struct SettingsView: View {
 
     private var calendarSettingsSection: some View {
         settingsSection(
-            title: "Takvim Bağlantısı",
+            title: "Calendar connection",
             assetName: "FigmaRecentCheck",
             footer: nil
         ) {
-            Toggle("Takvim toplantılarını göster", isOn: $isCalendarEnabled)
+            Toggle("Show calendar meetings", isOn: $isCalendarEnabled)
 
             settingsDivider
 
-            Picker("Toplantı hatırlatması", selection: $reminderLeadTime) {
-                Text("5 dakika ve 1 dakika önce").tag(TimeInterval(5 * 60))
-                Text("10 dakika ve 1 dakika önce").tag(TimeInterval(10 * 60))
-                Text("15 dakika ve 1 dakika önce").tag(TimeInterval(15 * 60))
+            Picker("Meeting reminder", selection: $reminderLeadTime) {
+                Text("5 min and 1 min before").tag(TimeInterval(5 * 60))
+                Text("10 min and 1 min before").tag(TimeInterval(10 * 60))
+                Text("15 min and 1 min before").tag(TimeInterval(15 * 60))
             }
             .disabled(!isCalendarEnabled)
 
             settingsDivider
 
-            LabeledContent("Bağlantı") {
+            LabeledContent("Connection") {
                 Label(calendarStatusTitle, systemImage: calendarStatusSymbol)
                     .foregroundStyle(calendarStatusColor)
             }
 
             if let snapshot = appState.calendarIntegrationSnapshot,
                appState.calendarAccessState == .authorized {
-                DisclosureGroup("Bağlantı ayrıntıları") {
+                DisclosureGroup("Connection details") {
                     CalendarIntegrationDetails(snapshot: snapshot)
                 }
             }
@@ -711,7 +711,7 @@ struct SettingsView: View {
             HStack(spacing: 8) {
                 calendarPrimaryAction
 
-                Button("Hesapları Aç", systemImage: "person.crop.circle.badge.plus") {
+                Button("Open accounts", systemImage: "person.crop.circle.badge.plus") {
                     onOpenInternetAccounts()
                 }
                 .buttonStyle(MeetingNotchActionButtonStyle())
@@ -721,7 +721,7 @@ struct SettingsView: View {
             settingsActionRow(
                 message: generalSettingsMessage,
                 isFailure: generalSettingsFailed,
-                buttonTitle: "Takvim Ayarlarını Kaydet",
+                buttonTitle: "Save calendar settings",
                 isBusy: isSavingGeneralSettings,
                 isDisabled: isLoadingGeneralSettings,
                 action: saveGeneralSettings
@@ -729,15 +729,15 @@ struct SettingsView: View {
         }
     }
 
-    private var calendarStatusTitle: String {
-        guard isCalendarEnabled else { return "Kapalı" }
-        if appState.isCalendarRefreshing { return "Yenileniyor" }
+    private var calendarStatusTitle: LocalizedStringKey {
+        guard isCalendarEnabled else { return "Off" }
+        if appState.isCalendarRefreshing { return "Refreshing" }
         return switch appState.calendarAccessState {
-        case .authorized: "Bağlı"
-        case .requesting: "İzin bekleniyor"
-        case .denied, .restricted: "İzin verilmedi"
-        case .failed: "Bağlantı hatası"
-        case .notDetermined: "Henüz bağlanmadı"
+        case .authorized: "Connected"
+        case .requesting: "Waiting for permission"
+        case .denied, .restricted: "Permission denied"
+        case .failed: "Connection error"
+        case .notDetermined: "Not connected yet"
         }
     }
 
@@ -767,29 +767,29 @@ struct SettingsView: View {
     private var calendarPrimaryAction: some View {
         switch appState.calendarAccessState {
         case .authorized:
-            Button("Şimdi Yenile", systemImage: "arrow.clockwise") {
+            Button("Refresh now", systemImage: "arrow.clockwise") {
                 onRefreshCalendar()
             }
             .buttonStyle(MeetingNotchActionButtonStyle())
             .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
         case .denied, .restricted:
-            Button("Takvim İznini Aç", systemImage: "gearshape") {
+            Button("Open calendar permission", systemImage: "gearshape") {
                 onOpenCalendarSettings()
             }
             .buttonStyle(MeetingNotchActionButtonStyle())
             .disabled(!isCalendarEnabled)
         case .requesting:
-            Button("İzin Bekleniyor…", systemImage: "clock") {}
+            Button("Waiting for permission…", systemImage: "clock") {}
                 .buttonStyle(MeetingNotchActionButtonStyle())
                 .disabled(true)
         case .failed:
-            Button("Tekrar Dene", systemImage: "arrow.clockwise") {
+            Button("Try again", systemImage: "arrow.clockwise") {
                 onRefreshCalendar()
             }
             .buttonStyle(MeetingNotchActionButtonStyle())
             .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
         case .notDetermined:
-            Button("Takvime İzin Ver", systemImage: "calendar.badge.plus") {
+            Button("Allow calendar access", systemImage: "calendar.badge.plus") {
                 onRequestCalendarAccess()
             }
             .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
@@ -799,9 +799,9 @@ struct SettingsView: View {
 
     private var microphoneFooterText: String {
         if availableMicrophones.isEmpty {
-            return "Bağlı mikrofon bulunamadı. Bir mikrofon bağladıktan sonra liste otomatik yenilenir."
+            return "No mic connected. The list refreshes when you connect one."
         }
-        return "Seçili cihaz kayıt başlarken yeniden doğrulanır. Bağlı değilse sistem varsayılanına geçilir; kayıt sırasında bağlantı değişirse notch üzerinde uyarı gösterilir."
+        return "The selected mic is checked when recording starts. If it’s missing, the system default is used; if it disconnects mid-recording, the notch shows a warning."
     }
 }
 
@@ -809,19 +809,19 @@ private struct CalendarIntegrationDetails: View {
     let snapshot: CalendarIntegrationSnapshot
 
     var body: some View {
-        LabeledContent("Hesap kaynakları") {
+        LabeledContent("Account sources") {
             Text(sourceDescription)
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
                 .multilineTextAlignment(.trailing)
         }
 
-        LabeledContent("Okunabilir içerik") {
+        LabeledContent("Readable content") {
             Text(readableContentDescription)
                 .font(.body.monospacedDigit())
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
         }
 
-        LabeledContent("Çevrim içi toplantı") {
+        LabeledContent("Online meetings") {
             Text(snapshot.matchedMeetingCount, format: .number)
                 .font(.body.monospacedDigit())
                 .foregroundStyle(
@@ -831,7 +831,7 @@ private struct CalendarIntegrationDetails: View {
                 )
         }
 
-        LabeledContent("Son yenileme") {
+        LabeledContent("Last refresh") {
             Text(snapshot.refreshedAt, style: .relative)
                 .font(.body.monospacedDigit())
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
@@ -844,7 +844,7 @@ private struct CalendarIntegrationDetails: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 16, height: 16)
-                Text("Google Calendar görünmüyor. Google hesabını macOS İnternet Hesapları’na ekleyip Takvim’i açın.")
+                Text("Google Calendar isn’t showing. Add your Google account in macOS Internet Accounts and turn on Calendars.")
             }
             .font(MeetingNotchTheme.MainPanel.smallFont)
             .foregroundStyle(MeetingNotchTheme.warning)
@@ -855,18 +855,18 @@ private struct CalendarIntegrationDetails: View {
         let description = snapshot.sources
             .map { "\($0.kind.title) (\($0.calendarCount))" }
             .joined(separator: " · ")
-        return description.isEmpty ? "Takvim kaynağı bulunamadı" : description
+        return description.isEmpty ? "No calendar sources found" : description
     }
 
     private var readableContentDescription: String {
-        "\(snapshot.readableCalendarCount) takvim · \(snapshot.scannedEventCount) etkinlik"
+        "\(snapshot.readableCalendarCount) calendars · \(snapshot.scannedEventCount) events"
     }
 }
 
 private struct PermissionRow: View {
     let source: AudioSourceKind
-    let title: String
-    let detail: String
+    let title: LocalizedStringKey
+    let detail: LocalizedStringKey
     let status: AudioCapturePermissionStatus
     let onRequestAccess: () -> Void
     let onOpenSystemSettings: (AudioSourceKind) -> Void
@@ -880,18 +880,18 @@ private struct PermissionRow: View {
             Spacer(minLength: 8)
             if status == .authorized {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(MeetingNotchTheme.success)
-                    .accessibilityLabel("İzin verildi")
+                    .accessibilityLabel("Allowed")
             } else {
                 Button(actionTitle) {
                     status.requiresSystemSettings ? onOpenSystemSettings(source) : onRequestAccess()
                 }.buttonStyle(MeetingNotchActionButtonStyle())
                 if source == .systemAudio, status.requiresSystemSettings {
                     Menu {
-                        Button("Tekrar iste", action: onRequestAccess)
-                        Button("Uygulamayı yeniden başlat", action: onRelaunchApplication)
+                        Button("Ask again", action: onRequestAccess)
+                        Button("Relaunch app", action: onRelaunchApplication)
                     } label: { Image(systemName: "ellipsis") }
                     .menuStyle(.borderlessButton).frame(width: 40, height: 40)
-                    .accessibilityLabel("Sistem sesi seçenekleri")
+                    .accessibilityLabel("System audio options")
                 }
             }
         }
@@ -900,17 +900,17 @@ private struct PermissionRow: View {
         .accessibilityValue(statusTitle)
     }
 
-    private var actionTitle: String {
-        status.requiresSystemSettings ? "Ayarları Aç" : "İzin Ver"
+    private var actionTitle: LocalizedStringKey {
+        status.requiresSystemSettings ? "Open Settings" : "Allow"
     }
 
-    private var statusTitle: String {
+    private var statusTitle: LocalizedStringKey {
         switch status {
-        case .authorized: "İzin verildi"
-        case .verificationRequired: "Sistem sesi izni doğrulanmalı"
-        case .notDetermined: "İzin bekleniyor"
-        case .denied: "İzin verilmedi"
-        case .restricted: "Sistem tarafından kısıtlandı"
+        case .authorized: "Allowed"
+        case .verificationRequired: "System audio permission needs checking"
+        case .notDetermined: "Waiting for permission"
+        case .denied: "Permission denied"
+        case .restricted: "Restricted by the system"
         }
     }
 
@@ -932,16 +932,16 @@ private struct AccessibilityPermissionRow: View {
         HStack(spacing: 10) {
             Image(systemName: "accessibility").frame(width: 24)
                 .foregroundStyle(isGranted ? MeetingNotchTheme.success : MeetingNotchTheme.secondaryText)
-            Text("Mikrofon takibi").help("Toplantının mikrofon durumunu algılamak için erişilebilirlik izni gerekir.")
+            Text("Mic tracking").help("Accessibility access is needed to detect the meeting’s mic state.")
             Spacer(minLength: 8)
             if isGranted {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(MeetingNotchTheme.success)
-                    .accessibilityLabel("İzin verildi")
+                    .accessibilityLabel("Allowed")
             } else {
-                Button("İzin ver", action: onRequestAccess).buttonStyle(MeetingNotchActionButtonStyle())
+                Button("Allow", action: onRequestAccess).buttonStyle(MeetingNotchActionButtonStyle())
                 Button(action: onOpenSystemSettings) { Image(systemName: "gearshape") }
-                    .buttonStyle(MeetingNotchIconButtonStyle()).help("Erişilebilirlik ayarları")
-                    .accessibilityLabel("Erişilebilirlik ayarlarını aç")
+                    .buttonStyle(MeetingNotchIconButtonStyle()).help("Accessibility settings")
+                    .accessibilityLabel("Open Accessibility settings")
             }
         }.frame(minHeight: 44)
         .accessibilityElement(children: .contain)
@@ -950,14 +950,19 @@ private struct AccessibilityPermissionRow: View {
 }
 
 enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
-    case general = "Genel"
-    case dictation = "Dikte"
-    case tasks = "Görevler"
-    case ai = "Yapay zekâ"
-    case calendar = "Takvim"
-    case recording = "Kayıt"
-    case data = "Veri"
+    case general, dictation, tasks, ai, calendar, recording, data
     var id: String { rawValue }
+    var title: LocalizedStringKey {
+        switch self {
+        case .general: "General"
+        case .dictation: "Dictation"
+        case .tasks: "Tasks"
+        case .ai: "AI"
+        case .calendar: "Calendar"
+        case .recording: "Recording"
+        case .data: "Data"
+        }
+    }
     var symbol: String {
         switch self {
         case .general: "slider.horizontal.3"

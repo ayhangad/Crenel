@@ -48,11 +48,11 @@ enum DictationTrigger: Codable, Hashable, Sendable {
         case .fnHold:
             return "Fn (🌐)"
         case .rightOptionHold:
-            return "Sağ Option (⌥)"
+            return "Right Option (⌥)"
         case .rightCommandHold:
-            return "Sağ Command (⌘)"
+            return "Right Command (⌘)"
         case .shortcut:
-            return "Özel kısayol"
+            return "Custom shortcut"
         }
     }
 }

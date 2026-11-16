@@ -90,7 +90,7 @@ actor TranscriptionProcessingWorker {
                 } catch {
                     stored = StoredTranscription(transcript: result.transcript, summary: existing?.summary)
                     stored.summaryFailure = (error as? MeetingAnalysisError)?.errorDescription
-                        ?? "Özet oluşturulamadı. Transkript korundu; özeti tekrar deneyebilirsiniz."
+                        ?? "Couldn’t create the summary. The transcript was kept, so you can try the summary again."
                 }
                 try Task.checkCancellation()
                 let updatedMeeting = try await meetingRepository.saveAnalysis(stored, for: meeting)

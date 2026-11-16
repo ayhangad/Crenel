@@ -7,7 +7,7 @@ final class AppFailureTests: XCTestCase {
 
         XCTAssertEqual(failure.category, .network)
         XCTAssertTrue(failure.isRetryable)
-        XCTAssertEqual(failure.recoveryButtonTitle, "Bağlantıyı Kontrol Et")
+        XCTAssertEqual(failure.recoveryButtonTitle, "Check connection")
     }
 
     func testInvalidCredentialsRequireSettingsUpdate() {

@@ -6,7 +6,7 @@ struct CrenelSettingsActions {
     var load: () async -> CrenelPreferences = { .default }
     var save: (CrenelPreferences) async -> SettingsActionResult = { _ in .succeeded() }
     var hasAnthropicKey: () async -> Bool = { false }
-    var saveAnthropicKey: (String) async -> SettingsActionResult = { _ in .failed(message: "Kullanılamıyor.") }
+    var saveAnthropicKey: (String) async -> SettingsActionResult = { _ in .failed(message: "Unavailable.") }
     var deleteAnthropicKey: () async -> SettingsActionResult = { .succeeded() }
     var onDeviceModelStatus: () async -> String? = { nil }
 }
@@ -51,50 +51,50 @@ struct DictationSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
-            CrenelSettingsCard(title: "Akıllı dikte", symbol: "mic") {
-                Toggle("Dikteyi kullan", isOn: binding(\.dictationEnabled))
+            CrenelSettingsCard(title: "Smart dictation", symbol: "mic") {
+                Toggle("Use dictation", isOn: binding(\.dictationEnabled))
                 permissionRow
 
-                Picker("Kısayol", selection: binding(\.dictationTrigger.trigger)) {
-                    Text("Fn (🌐) basılı tut").tag(DictationTrigger.fnHold)
-                    Text("Sağ ⌥ basılı tut").tag(DictationTrigger.rightOptionHold)
-                    Text("Sağ ⌘ basılı tut").tag(DictationTrigger.rightCommandHold)
+                Picker("Shortcut", selection: binding(\.dictationTrigger.trigger)) {
+                    Text("Hold Fn (🌐)").tag(DictationTrigger.fnHold)
+                    Text("Hold right ⌥").tag(DictationTrigger.rightOptionHold)
+                    Text("Hold right ⌘").tag(DictationTrigger.rightCommandHold)
                 }
-                Picker("Mod", selection: binding(\.dictationTrigger.mode)) {
-                    Text("Basılı tut, konuş").tag(DictationTriggerMode.holdToTalk)
-                    Text("Bas başlat, bas bitir").tag(DictationTriggerMode.toggle)
+                Picker("Mode", selection: binding(\.dictationTrigger.mode)) {
+                    Text("Hold to talk").tag(DictationTriggerMode.holdToTalk)
+                    Text("Press to start, press to stop").tag(DictationTriggerMode.toggle)
                 }
-                Toggle("Çift dokunuşla eller serbest", isOn: binding(\.dictationTrigger.allowsDoubleTapHandsFree))
-                Picker("Dil", selection: binding(\.dictationLanguage)) {
-                    Text("Sistem dili").tag(DictationLanguage.automatic)
-                    Text("Türkçe").tag(DictationLanguage.turkish)
-                    Text("İngilizce").tag(DictationLanguage.english)
+                Toggle("Double-tap for hands-free", isOn: binding(\.dictationTrigger.allowsDoubleTapHandsFree))
+                Picker("Language", selection: binding(\.dictationLanguage)) {
+                    Text("System language").tag(DictationLanguage.automatic)
+                    Text("Turkish").tag(DictationLanguage.turkish)
+                    Text("English").tag(DictationLanguage.english)
                 }
                 HStack {
-                    Text("Ses modeli cihazda çalışır; ilk kullanımda indirilir.")
+                    Text("The speech model runs on-device and downloads on first use.")
                         .font(MeetingNotchTheme.MainPanel.smallFont)
                         .foregroundStyle(MeetingNotchTheme.secondaryText)
                     Spacer()
-                    Button("Modeli indir", action: crenelActions.dictation.prepareSpeechAssets)
+                    Button("Download model", action: crenelActions.dictation.prepareSpeechAssets)
                 }
                 if model.preferences.dictationTrigger.trigger == .fnHold {
-                    Text("Fn dikte tuşuyken tek başına dil değiştirmez, emoji açmaz. Dil değiştirmek için ⌃Boşluk kullanın; dikte kapanınca Fn’nin eski davranışı geri gelir.")
+                    Text("While Fn is the dictation key, it won’t switch input languages or open emoji on its own. Use ⌃Space to switch languages; Fn’s usual behavior returns when dictation is off.")
                         .font(MeetingNotchTheme.MainPanel.smallFont)
                         .foregroundStyle(MeetingNotchTheme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
-            CrenelSettingsCard(title: "Kişisel sözlük", symbol: "character.book.closed") {
-                Text("İsimler, ürünler ve teknik terimler bu yazımla eklenir.")
+            CrenelSettingsCard(title: "Personal dictionary", symbol: "character.book.closed") {
+                Text("Names, products and technical terms are written exactly as entered.")
                     .font(MeetingNotchTheme.MainPanel.smallFont)
                     .foregroundStyle(MeetingNotchTheme.secondaryText)
                 HStack {
-                    TextField("Örn. Crenel, SwiftUI, Ayhan", text: $newTerm)
+                    TextField("E.g. Crenel, SwiftUI, Ayhan", text: $newTerm)
                         .focused($termFocused)
                         .meetingFieldSurface(focused: termFocused)
                         .onSubmit(addTerm)
-                    Button("Ekle", action: addTerm)
+                    Button("Add", action: addTerm)
                         .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 if !model.preferences.dictationVocabulary.isEmpty {
@@ -105,9 +105,9 @@ struct DictationSettingsView: View {
                 }
             }
 
-            CrenelSettingsCard(title: "Son dikteler", symbol: "clock.arrow.circlepath") {
+            CrenelSettingsCard(title: "Recent dictations", symbol: "clock.arrow.circlepath") {
                 if appState.dictationHistory.isEmpty {
-                    Text("Bu oturumda dikte yok. Geçmiş yalnızca bellekte tutulur, diske yazılmaz.")
+                    Text("No dictations this session. History stays in memory and is never written to disk.")
                         .font(MeetingNotchTheme.MainPanel.smallFont)
                         .foregroundStyle(MeetingNotchTheme.secondaryText)
                 } else {
@@ -128,8 +128,8 @@ struct DictationSettingsView: View {
                                 Image(systemName: "doc.on.doc")
                             }
                             .buttonStyle(MeetingNotchIconButtonStyle())
-                            .help("Kopyala")
-                            .accessibilityLabel("Dikteyi kopyala")
+                            .help("Copy")
+                            .accessibilityLabel("Copy dictation")
                         }
                     }
                 }
@@ -145,19 +145,19 @@ struct DictationSettingsView: View {
         switch appState.dictationAvailability {
         case .needsInputMonitoring:
             HStack {
-                Label("Kısayol için Girdi İzleme izni gerekli", systemImage: "keyboard")
+                Label("The shortcut needs Input Monitoring access", systemImage: "keyboard")
                     .foregroundStyle(MeetingNotchTheme.warning)
                 Spacer()
-                Button("İzin ver", action: crenelActions.dictation.requestInputMonitoring)
+                Button("Allow", action: crenelActions.dictation.requestInputMonitoring)
             }
         case .ready:
-            Label("Kısayol hazır. İmlecin olduğu yere yazar.", systemImage: "checkmark.circle")
+            Label("Shortcut ready. Types at the cursor.", systemImage: "checkmark.circle")
                 .foregroundStyle(MeetingNotchTheme.success)
         case .disabled:
             EmptyView()
         }
         if !appState.accessibilityPermissionGranted {
-            Text("Metni doğrudan yazmak için Erişilebilirlik izni gerekir; izin yoksa metin panoya kopyalanır.")
+            Text("Typing text directly needs Accessibility access; without it, text is copied to the clipboard.")
                 .font(MeetingNotchTheme.MainPanel.smallFont)
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -193,18 +193,18 @@ struct AgentSettingsView: View {
 
     var body: some View {
         CrenelSettingsCard(title: "Agent", symbol: "sparkles") {
-            Text("Dikteyi temizler, noktalar ve seçili metni sesli komutla düzenler.")
+            Text("Cleans up and punctuates dictation, and edits selected text by voice.")
                 .font(MeetingNotchTheme.MainPanel.smallFont)
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
             Picker("Model", selection: binding(\.agent.provider)) {
-                Text("Otomatik (önerilen)").tag(AgentProviderKind.automatic)
-                Text("Cihazda (Apple)").tag(AgentProviderKind.onDevice)
-                Text("OpenAI (kendi anahtarınız)").tag(AgentProviderKind.openAI)
-                Text("Anthropic (kendi anahtarınız)").tag(AgentProviderKind.anthropic)
-                Text("Kapalı").tag(AgentProviderKind.off)
+                Text("Automatic (recommended)").tag(AgentProviderKind.automatic)
+                Text("On-device (Apple)").tag(AgentProviderKind.onDevice)
+                Text("OpenAI (your key)").tag(AgentProviderKind.openAI)
+                Text("Anthropic (your key)").tag(AgentProviderKind.anthropic)
+                Text("Off").tag(AgentProviderKind.off)
             }
             if model.preferences.agent.provider == .automatic {
-                Text("Kayıtlı API anahtarınızı kullanır: önce Anthropic (Claude Haiku), yoksa OpenAI. Anahtar yoksa cihazdaki Apple modeline geçer.")
+                Text("Uses your saved API key: Anthropic (Claude Haiku) first, then OpenAI. With no key, it falls back to Apple’s on-device model.")
                     .font(MeetingNotchTheme.MainPanel.smallFont)
                     .foregroundStyle(MeetingNotchTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -215,24 +215,24 @@ struct AgentSettingsView: View {
                     .foregroundStyle(MeetingNotchTheme.warning)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Toggle("Dikteyi düzenle", isOn: binding(\.agent.cleanupEnabled))
-            Toggle("Seçili metinde sesli komut", isOn: binding(\.agent.commandModeEnabled))
+            Toggle("Clean up dictation", isOn: binding(\.agent.cleanupEnabled))
+            Toggle("Voice commands on selected text", isOn: binding(\.agent.commandModeEnabled))
 
             if model.preferences.agent.provider == .openAI {
-                Text("OpenAI anahtarı toplantı özetleriyle ortaktır; Yapay zekâ › OpenAI bölümünden bağlanır.")
+                Text("The OpenAI key is shared with meeting summaries; connect it under AI › OpenAI.")
                     .font(MeetingNotchTheme.MainPanel.smallFont)
                     .foregroundStyle(MeetingNotchTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
-                TextField("Model kimliği (boş: varsayılan)", text: optionalBinding(\.agent.openAIModelID))
+                TextField("Model ID (empty: default)", text: optionalBinding(\.agent.openAIModelID))
                     .meetingFieldSurface(focused: false)
             }
             if model.preferences.agent.provider == .anthropic || model.preferences.agent.provider == .automatic {
                 HStack {
-                    SecureField(hasAnthropicKey ? "Yeni Anthropic API anahtarı" : "Anthropic API anahtarı", text: $anthropicKey)
+                    SecureField(hasAnthropicKey ? "New Anthropic API key" : "Anthropic API key", text: $anthropicKey)
                         .textContentType(.password)
                         .focused($keyFocused)
                         .meetingFieldSurface(focused: keyFocused)
-                    Button("Kaydet") {
+                    Button("Save") {
                         let key = anthropicKey
                         Task {
                             let result = await actions.saveAnthropicKey(key)
@@ -243,7 +243,7 @@ struct AgentSettingsView: View {
                     }
                     .disabled(anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
                     if hasAnthropicKey {
-                        Button("Kaldır") {
+                        Button("Remove") {
                             Task {
                                 keyMessage = await actions.deleteAnthropicKey().message
                                 hasAnthropicKey = await actions.hasAnthropicKey()
@@ -251,25 +251,25 @@ struct AgentSettingsView: View {
                         }
                     }
                 }
-                Label(hasAnthropicKey ? "Anahtar Keychain’de" : "Anahtar gerekli", systemImage: hasAnthropicKey ? "checkmark.circle" : "key")
+                Label(hasAnthropicKey ? "Key in Keychain" : "Key required", systemImage: hasAnthropicKey ? "checkmark.circle" : "key")
                     .foregroundStyle(hasAnthropicKey ? MeetingNotchTheme.success : MeetingNotchTheme.secondaryText)
-                TextField("Model kimliği (boş: varsayılan)", text: optionalBinding(\.agent.anthropicModelID))
+                TextField("Model ID (empty: default)", text: optionalBinding(\.agent.anthropicModelID))
                     .meetingFieldSurface(focused: false)
                 if let keyMessage {
                     Text(keyMessage).font(MeetingNotchTheme.MainPanel.smallFont)
                 }
             }
             Divider()
-            Text("Toplantılar")
+            Text("Meetings")
                 .font(MeetingNotchTheme.MainPanel.smallFont.weight(.semibold))
-            Picker("Transkript", selection: binding(\.meetingProcessing.transcription)) {
+            Picker("Transcript", selection: binding(\.meetingProcessing.transcription)) {
                 ForEach(MeetingTranscriptionEngine.allCases, id: \.self) { Text($0.displayName).tag($0) }
             }
-            Picker("Özet", selection: binding(\.meetingProcessing.summary)) {
+            Picker("Summary", selection: binding(\.meetingProcessing.summary)) {
                 ForEach(MeetingSummaryEngine.allCases, id: \.self) { Text($0.displayName).tag($0) }
             }
             if model.preferences.meetingProcessing.transcription == .onDevice {
-                Text("Cihaz içi transkript ücretsizdir ve ses Mac’ten çıkmaz; konuşmacılar “Siz” ve “Katılımcılar” olarak ayrılır.")
+                Text("On-device transcripts are free and audio never leaves your Mac; speakers are split into “You” and “Participants”.")
                     .font(MeetingNotchTheme.MainPanel.smallFont)
                     .foregroundStyle(MeetingNotchTheme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -311,16 +311,16 @@ struct TaskStorageSettingsView: View {
     @StateObject private var model = CrenelSettingsModel()
 
     var body: some View {
-        CrenelSettingsCard(title: "Görevler", symbol: "checklist") {
-            Picker("Görevleri sakla", selection: Binding(
+        CrenelSettingsCard(title: "Tasks", symbol: "checklist") {
+            Picker("Store tasks in", selection: Binding(
                 get: { model.preferences.taskStorage },
                 set: { model.preferences.taskStorage = $0; model.save(actions) }
             )) {
-                Text("Apple Hatırlatıcılar").tag(TaskStorageBackend.reminders)
-                Text("Yalnızca bu Mac").tag(TaskStorageBackend.local)
+                Text("Apple Reminders").tag(TaskStorageBackend.reminders)
+                Text("This Mac only").tag(TaskStorageBackend.local)
             }
             statusRow
-            Text("Hatırlatıcılar’da “Crenel” listesi kullanılır: görevler iPhone, iPad ve Watch’ta görünür; saatli görevlerin bildirimini Apple gönderir. “Üzerinde çalışılıyor” ve sıralama yalnızca bu Mac’te tutulur.")
+            Text("Uses a “Crenel” list in Reminders: tasks show up on iPhone, iPad and Watch, and Apple sends alerts for timed tasks. “In progress” and ordering stay on this Mac.")
                 .font(MeetingNotchTheme.MainPanel.smallFont)
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -333,27 +333,27 @@ struct TaskStorageSettingsView: View {
     private var statusRow: some View {
         switch appState.taskStorageStatus {
         case .reminders(let listTitle):
-            Label("Bağlı · “\(listTitle)” listesi", systemImage: "checkmark.circle")
+            Label("Connected · “\(listTitle)” list", systemImage: "checkmark.circle")
                 .foregroundStyle(MeetingNotchTheme.success)
         case .localNotConnected:
             HStack {
-                Label("Hatırlatıcılar bağlı değil", systemImage: "icloud.slash")
+                Label("Reminders not connected", systemImage: "icloud.slash")
                     .foregroundStyle(MeetingNotchTheme.secondaryText)
                 Spacer()
-                Button("Bağla", action: crenelActions.tasks.connectReminders)
+                Button("Connect", action: crenelActions.tasks.connectReminders)
             }
         case .localDenied:
-            Label("Hatırlatıcılar izni kapalı (Sistem Ayarları › Gizlilik › Hatırlatıcılar)", systemImage: "lock")
+            Label("Reminders access is off (System Settings › Privacy & Security › Reminders)", systemImage: "lock")
                 .foregroundStyle(MeetingNotchTheme.warning)
         case .localAfterError(let message):
             HStack {
                 Label(message, systemImage: "exclamationmark.triangle")
                     .foregroundStyle(MeetingNotchTheme.warning)
                 Spacer()
-                Button("Tekrar dene", action: crenelActions.tasks.connectReminders)
+                Button("Try again", action: crenelActions.tasks.connectReminders)
             }
         case .localByChoice:
-            Label("Görevler bu Mac’te saklanıyor", systemImage: "desktopcomputer")
+            Label("Tasks are stored on this Mac", systemImage: "desktopcomputer")
                 .foregroundStyle(MeetingNotchTheme.secondaryText)
         }
     }
@@ -362,7 +362,7 @@ struct TaskStorageSettingsView: View {
 // MARK: - Building blocks
 
 private struct CrenelSettingsCard<Content: View>: View {
-    let title: String
+    let title: LocalizedStringKey
     let symbol: String
     @ViewBuilder let content: Content
 
@@ -413,7 +413,7 @@ private struct FlowChips: View {
                     .background(MeetingNotchTheme.MainPanel.surface, in: Capsule())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(item) terimini kaldır")
+                .accessibilityLabel("Remove \(item)")
             }
         }
     }

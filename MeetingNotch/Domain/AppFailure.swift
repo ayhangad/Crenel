@@ -42,26 +42,26 @@ struct AppFailure: Error, Identifiable, Equatable, Sendable {
     var recoveryButtonTitle: String {
         switch recoveryAction {
         case .requestPermission:
-            "İzin Ver"
+            "Allow"
         case .openSystemSettings:
-            "Sistem Ayarlarını Aç"
+            "Open System Settings"
         case .retry:
-            "Tekrar Dene"
+            "Try again"
         case .freeDiskSpace:
-            "Depolamayı Kontrol Et"
+            "Check storage"
         case .checkConnection:
-            "Bağlantıyı Kontrol Et"
+            "Check connection"
         case .updateCredentials:
-            "API Anahtarını Güncelle"
+            "Update API key"
         case .dismiss:
-            "Kapat"
+            "Close"
         }
     }
 
     static func permission(_ message: String, settings: Bool = false) -> AppFailure {
         AppFailure(
             category: .permission,
-            title: "İzin gerekli",
+            title: "Permission needed",
             message: message,
             recoveryAction: settings ? .openSystemSettings : .requestPermission
         )
@@ -70,7 +70,7 @@ struct AppFailure: Error, Identifiable, Equatable, Sendable {
     static func recording(_ message: String, retryable: Bool = true) -> AppFailure {
         AppFailure(
             category: .recording,
-            title: "Kayıt başlatılamadı",
+            title: "Couldn’t start recording",
             message: message,
             recoveryAction: retryable ? .retry : .dismiss
         )
@@ -79,7 +79,7 @@ struct AppFailure: Error, Identifiable, Equatable, Sendable {
     static func fileSystem(_ message: String, diskFull: Bool = false) -> AppFailure {
         AppFailure(
             category: .fileSystem,
-            title: "Dosya kaydedilemedi",
+            title: "Couldn’t save file",
             message: message,
             recoveryAction: diskFull ? .freeDiskSpace : .retry
         )
@@ -88,7 +88,7 @@ struct AppFailure: Error, Identifiable, Equatable, Sendable {
     static func network(_ message: String) -> AppFailure {
         AppFailure(
             category: .network,
-            title: "Bağlantı kurulamadı",
+            title: "Couldn’t connect",
             message: message,
             recoveryAction: .checkConnection
         )
@@ -97,7 +97,7 @@ struct AppFailure: Error, Identifiable, Equatable, Sendable {
     static func provider(_ message: String, credentialsInvalid: Bool = false) -> AppFailure {
         AppFailure(
             category: .provider,
-            title: "Transkripsiyon tamamlanamadı",
+            title: "Transcription didn’t finish",
             message: message,
             recoveryAction: credentialsInvalid ? .updateCredentials : .retry
         )
@@ -106,7 +106,7 @@ struct AppFailure: Error, Identifiable, Equatable, Sendable {
     static func decoding(_ message: String) -> AppFailure {
         AppFailure(
             category: .decoding,
-            title: "Yanıt okunamadı",
+            title: "Couldn’t read the response",
             message: message,
             recoveryAction: .retry
         )

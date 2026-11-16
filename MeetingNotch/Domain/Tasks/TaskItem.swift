@@ -13,10 +13,10 @@ enum TaskStatus: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var title: String {
         switch self {
-        case .open: "Yapılacak"
-        case .inProgress: "Devam ediyor"
-        case .blocked: "Bloke"
-        case .completed: "Bitti"
+        case .open: "To do"
+        case .inProgress: "In progress"
+        case .blocked: "Blocked"
+        case .completed: "Done"
         }
     }
 

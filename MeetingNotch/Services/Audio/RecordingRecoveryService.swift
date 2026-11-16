@@ -201,11 +201,11 @@ private enum RecoveryError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidSessionDirectory:
-            "Kayıt klasörünün oturum kimliği geçersiz."
+            "The recording folder has an invalid session ID."
         case .sessionIdentityMismatch:
-            "Kayıt klasörü ile oturum kimliği eşleşmiyor."
+            "The recording folder doesn’t match the session ID."
         case .invalidRecoveredDuration:
-            "Kurtarılan ses dosyasının süresi okunamadı."
+            "Couldn’t read the recovered audio file’s duration."
         }
     }
 }

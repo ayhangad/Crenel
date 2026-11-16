@@ -89,9 +89,9 @@ enum MeetingSessionAcceptanceAuditError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case let .invalidRequiredRuns(value):
-            "Gerekli session koşusu geçersiz: \(value)"
+            "Invalid required session run: \(value)"
         case let .invalidExpectedClient(value):
-            "Beklenen meeting istemcisi geçersiz: \(value)"
+            "Invalid expected meeting client: \(value)"
         }
     }
 }

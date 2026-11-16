@@ -25,18 +25,18 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Crenel toplantının sistem sesini kaydetmek için ses yakalama erişimi kullanır.</string>
+	<string>Crenel captures system audio to record the other side of your meetings.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Crenel yaklaşan toplantı ve etkinlikleri notch'ta göstermek için takvim erişimi kullanır.</string>
+	<string>Crenel shows your upcoming meetings and events in the notch.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Crenel yaklaşan toplantı ve etkinlikleri notch'ta göstermek için takvim erişimi kullanır.</string>
+	<string>Crenel shows your upcoming meetings and events in the notch.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Crenel dikte ve toplantı kaydı için mikrofon erişimi kullanır.</string>
+	<string>Crenel uses the microphone for dictation and meeting recording.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>Crenel görevlerinizi Apple Hatırlatıcılar'da saklamak ve cihazlarınız arasında senkronlamak için hatırlatıcı erişimi kullanır.</string>
+	<string>Crenel keeps your tasks in Apple Reminders so they sync across your devices.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>Crenel görevlerinizi Apple Hatırlatıcılar'da saklamak ve cihazlarınız arasında senkronlamak için hatırlatıcı erişimi kullanır.</string>
+	<string>Crenel keeps your tasks in Apple Reminders so they sync across your devices.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Crenel dikte ettiğiniz konuşmayı cihaz üzerinde yazıya çevirmek için konuşma tanıma kullanır.</string>
+	<string>Crenel transcribes your dictation on this Mac.</string>
 </dict>
 </plist>

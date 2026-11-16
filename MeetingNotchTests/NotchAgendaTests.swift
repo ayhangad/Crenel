@@ -69,13 +69,13 @@ final class NotchAgendaTests: XCTestCase {
                 calendar: calendar
             )
         }
-        XCTAssertEqual(text(.upcoming(startsIn: 30)), "<1 dk")
-        XCTAssertEqual(text(.upcoming(startsIn: 12 * 60)), "12 dk")
-        XCTAssertEqual(text(.upcoming(startsIn: 11 * 60 + 5)), "12 dk")
-        XCTAssertEqual(text(.upcoming(startsIn: 60 * 60)), "1 sa")
-        XCTAssertEqual(text(.upcoming(startsIn: 65 * 60)), "1 sa 5 dk")
-        XCTAssertEqual(text(.ongoing(remaining: 25 * 60)), "25 dk kaldı")
-        XCTAssertEqual(text(.ongoing(remaining: 20)), "Bitiyor")
+        XCTAssertEqual(text(.upcoming(startsIn: 30)), "<1 min")
+        XCTAssertEqual(text(.upcoming(startsIn: 12 * 60)), "12 min")
+        XCTAssertEqual(text(.upcoming(startsIn: 11 * 60 + 5)), "12 min")
+        XCTAssertEqual(text(.upcoming(startsIn: 60 * 60)), "1 h")
+        XCTAssertEqual(text(.upcoming(startsIn: 65 * 60)), "1 h 5 min")
+        XCTAssertEqual(text(.ongoing(remaining: 25 * 60)), "25 min left")
+        XCTAssertEqual(text(.ongoing(remaining: 20)), "Ending")
         // 1_800_000_000 + 4h is 15:00 in Istanbul (UTC+3).
         XCTAssertEqual(text(.upcoming(startsIn: 4 * 60 * 60), start: 4 * 60 * 60), "15:00")
     }

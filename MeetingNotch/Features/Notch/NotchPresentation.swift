@@ -266,7 +266,7 @@ struct NotchPreviewProfile: Equatable, Hashable {
 
 enum NotchAccessibilityContract {
     static func tabLabel(_ tab: AppState.PanelTab) -> String {
-        "\(tab.rawValue) sekmesi"
+        "\(tab.rawValue) tab"
     }
 
     static func tabShortcutDescription(_ tab: AppState.PanelTab) -> String {
@@ -277,30 +277,30 @@ enum NotchAccessibilityContract {
     }
 
     static func recordingSessionLabel(clientID: MeetingClientID?) -> String {
-        "\(clientName(clientID)) oturumu kaydediliyor"
+        "Recording \(clientName(clientID)) session"
     }
 
     static func microphoneGateLabel(_ state: MeetingMicrophoneState) -> String {
-        "Toplantı mikrofonu \(microphoneGateTitle(state))"
+        "Meeting microphone \(microphoneGateTitle(state))"
     }
 
     static func recordingDurationLabel(_ formattedDuration: String) -> String {
-        "Kayıt süresi \(formattedDuration)"
+        "Recording time \(formattedDuration)"
     }
 
     private static func clientName(_ clientID: MeetingClientID?) -> String {
         switch clientID {
         case .zoom: "Zoom"
         case .googleMeetChrome: "Google Meet"
-        case .unsupported, nil: "Toplantı"
+        case .unsupported, nil: "Meeting"
         }
     }
 
     private static func microphoneGateTitle(_ state: MeetingMicrophoneState) -> String {
         switch state {
-        case .open: "açık"
-        case .closed: "kapalı"
-        case .unknown: "bilinmiyor, güvenli kapalı"
+        case .open: "on"
+        case .closed: "off"
+        case .unknown: "unknown, kept off"
         }
     }
 }

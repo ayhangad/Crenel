@@ -43,7 +43,7 @@ final class ProposalNotchModel: ObservableObject {
     @Published var compact: ProposalCompact
     @Published var levels: [Double] = [0.3, 0.6, 0.9, 0.5, 0.25]
     /// Titles used before, for inline completion while typing a task.
-    @Published var history: [String] = ["Haftalık raporu yaz", "Faturayı öde", "Spor salonu", "Sprint planlaması"]
+    @Published var history: [String] = ["Write weekly report", "Pay invoice", "Gym", "Sprint planning"]
     /// For static renders: which row shows the hover highlight.
     var forcedHover: AnyHashable?
     /// For static renders: text shown in the task input instead of a live field.
@@ -71,18 +71,18 @@ final class ProposalNotchModel: ObservableObject {
             isOpen: isOpen,
             now: now,
             events: [
-                ProposalEvent(title: "Ürün haftalık senkron", start: soon, end: soon.addingTimeInterval(45 * 60), venue: .online("Google Meet")),
-                ProposalEvent(title: "Tasarım incelemesi", start: soon.addingTimeInterval(95 * 60), end: soon.addingTimeInterval(155 * 60), venue: .place("Oda 2")),
+                ProposalEvent(title: "Product weekly sync", start: soon, end: soon.addingTimeInterval(45 * 60), venue: .online("Google Meet")),
+                ProposalEvent(title: "Design review", start: soon.addingTimeInterval(95 * 60), end: soon.addingTimeInterval(155 * 60), venue: .place("Room 2")),
                 ProposalEvent(title: "Edda Dev. Sync", start: at(18, 0, day: 1), end: at(18, 30, day: 1), venue: .online("Google Meet")),
                 ProposalEvent(title: "BB Dev. Sync", start: at(18, 30, day: 1), end: at(19, 0, day: 1), venue: .online("Zoom")),
-                ProposalEvent(title: "Selin ile 1:1", start: at(10, 0, day: 2), end: at(10, 30, day: 2))
+                ProposalEvent(title: "1:1 with Selin", start: at(10, 0, day: 2), end: at(10, 30, day: 2))
             ],
             tasks: [
-                ProposalTask(title: "Onboarding akışını bitir", state: .inProgress, due: "Bugün"),
-                ProposalTask(title: "Hukuk onayı", state: .blocked),
-                ProposalTask(title: "Haftalık raporu yaz", state: .open, due: "17:00"),
-                ProposalTask(title: "Annemi ara", state: .open),
-                ProposalTask(title: "Sprint notlarını paylaş", state: .completed)
+                ProposalTask(title: "Finish onboarding flow", state: .inProgress, due: "Today"),
+                ProposalTask(title: "Legal sign-off", state: .blocked),
+                ProposalTask(title: "Write weekly report", state: .open, due: "17:00"),
+                ProposalTask(title: "Call mom", state: .open),
+                ProposalTask(title: "Share sprint notes", state: .completed)
             ]
         )
     }
@@ -162,17 +162,17 @@ struct ProposalPanel: View {
     private var toolbar: some View {
         ZStack {
             HudTabs(items: [
-                .init(tab: .today, glyph: .calendar, title: "Bugün"),
-                .init(tab: .tasks, glyph: .queue, title: "Görevler", badge: model.tasks.filter { $0.state != .completed }.count)
+                .init(tab: .today, glyph: .calendar, title: "Today"),
+                .init(tab: .tasks, glyph: .queue, title: "Tasks", badge: model.tasks.filter { $0.state != .completed }.count)
             ], selection: $model.tab)
             HStack(spacing: 2) {
                 Button {} label: { HudIcon(.history) }
-                    .buttonStyle(HudButtonStyle(kind: .icon)).help("Geçmiş")
+                    .buttonStyle(HudButtonStyle(kind: .icon)).help("History")
                 Spacer()
                 Button {} label: { HudIcon(.window) }
-                    .buttonStyle(HudButtonStyle(kind: .icon)).help("Pencerede aç")
+                    .buttonStyle(HudButtonStyle(kind: .icon)).help("Open in window")
                 Button {} label: { HudIcon(.pin) }
-                    .buttonStyle(HudButtonStyle(kind: .icon)).help("Açık tut")
+                    .buttonStyle(HudButtonStyle(kind: .icon)).help("Keep open")
             }
         }
     }
@@ -199,10 +199,10 @@ struct ProposalToday: View {
                     .padding(.bottom, Hud.Space.x3)
             }
             if !today.isEmpty {
-                group("Bugün", today)
+                group("Today", today)
             }
             if !later.isEmpty {
-                group("Sonra", later)
+                group("Later", later)
                     .padding(.top, today.isEmpty ? 0 : Hud.Space.x3)
             }
         }
@@ -289,8 +289,8 @@ struct ProposalFocus: View {
     }
 
     private var primaryValue: String {
-        if isLive { return "\(max(1, Int(event.end.timeIntervalSince(now) / 60))) dk" }
-        if isNear { return "\(Int((untilStart / 60).rounded(.up))) dk" }
+        if isLive { return "\(max(1, Int(event.end.timeIntervalSince(now) / 60))) min" }
+        if isNear { return "\(Int((untilStart / 60).rounded(.up))) min" }
         return ProposalFormat.clock(event.start)
     }
 
@@ -399,11 +399,11 @@ struct ProposalTaskInput: View {
                         .font(Hud.Style.body.font)
                         .lineLimit(1)
                     if let staticInput = model.staticInput {
-                        Text(staticInput.isEmpty ? "Görev ekle" : staticInput)
+                        Text(staticInput.isEmpty ? "Add task" : staticInput)
                             .hud(.body, staticInput.isEmpty ? Hud.Ink.text3 : Hud.Ink.text1)
                             .lineLimit(1)
                     } else {
-                        TextField("", text: $text, prompt: Text("Görev ekle").foregroundColor(Hud.Ink.text3))
+                        TextField("", text: $text, prompt: Text("Add task").foregroundColor(Hud.Ink.text3))
                             .textFieldStyle(.plain)
                             .font(Hud.Style.body.font)
                             .foregroundStyle(Hud.Ink.text1)
@@ -426,11 +426,11 @@ struct ProposalTaskInput: View {
             if !current.isEmpty {
                 HStack(spacing: 4) {
                     if suggestions.isEmpty {
-                        ForEach(["bugün", "yarın", "!!"], id: \.self) { pick in
+                        ForEach(["today", "tomorrow", "!!"], id: \.self) { pick in
                             Button {
                                 text = current.trimmingCharacters(in: .whitespaces) + " " + pick
                             } label: {
-                                chip(pick == "!!" ? "Öncelikli" : pick.capitalized(with: Locale(identifier: "tr_TR")),
+                                chip(pick == "!!" ? "Priority" : pick.capitalized(with: AppLanguage.locale),
                                      glyph: pick == "!!" ? .bell : .calendar, tint: Hud.Ink.text3, dashed: true)
                             }
                             .buttonStyle(.plain)
@@ -568,7 +568,7 @@ struct ProposalCompactView: View {
         case .nextMeeting:
             if let next {
                 let minutes = Int((next.start.timeIntervalSince(model.now) / 60).rounded(.up))
-                Text(minutes > 60 ? ProposalFormat.day(next.start, now: model.now) : "\(max(0, minutes)) dk")
+                Text(minutes > 60 ? ProposalFormat.day(next.start, now: model.now) : "\(max(0, minutes)) min")
                     .hud(.label, minutes <= 10 ? Hud.Ink.signal : Hud.Ink.text2)
                     .contentTransition(.numericText(countsDown: true))
             }
@@ -604,24 +604,22 @@ struct ProposalPulse: View {
 // MARK: - Formatting
 
 enum ProposalFormat {
-    private static let turkish = Locale(identifier: "tr_TR")
-
     static func clock(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.locale = turkish
+        formatter.locale = AppLanguage.locale
         formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
     }
 
-    /// "Yarın", or a short weekday and day ("Sal 17").
+    /// "Today", "Tomorrow", or a short weekday and day ("Tue 17").
     static func day(_ date: Date, now: Date) -> String {
         let calendar = Calendar.current
-        if calendar.isDate(date, inSameDayAs: now) { return "Bugün" }
+        if calendar.isDate(date, inSameDayAs: now) { return "Today" }
         if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow) {
-            return "Yarın"
+            return "Tomorrow"
         }
         let formatter = DateFormatter()
-        formatter.locale = turkish
+        formatter.locale = AppLanguage.locale
         formatter.dateFormat = "EEE d"
         return formatter.string(from: date)
     }

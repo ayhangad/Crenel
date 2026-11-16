@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The "Bugün" surface while nothing is recording: the next event as a lit hero card,
+/// The "Today" surface while nothing is recording: the next event as a lit hero card,
 /// the rest of the day beside it, and the top of the task list.
 struct TodaySurface: View {
     @EnvironmentObject private var appState: AppState
@@ -49,7 +49,7 @@ struct TodaySurface: View {
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: Crenel.Space.s) {
                     if canRequestCalendarAccess {
-                        Button("Takvime bağlan", action: onRequestCalendarAccess)
+                        Button("Connect calendar", action: onRequestCalendarAccess)
                             .buttonStyle(CrenelButtonStyle(kind: .primary, size: .small))
                     }
                     RecordButton(action: onStartRecording)
@@ -71,7 +71,7 @@ struct TodaySurface: View {
         return VStack(alignment: .leading, spacing: Crenel.Space.l) {
             if !events.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    CrenelSectionHeader(title: "Sonra", count: events.count > 1 ? events.count : nil)
+                    CrenelSectionHeader(title: "Later", count: events.count > 1 ? events.count : nil)
                         .padding(.horizontal, Crenel.Space.xs)
                         .padding(.bottom, Crenel.Space.xxs)
                     ForEach(events) { event in
@@ -80,12 +80,12 @@ struct TodaySurface: View {
                 }
             }
             VStack(alignment: .leading, spacing: 2) {
-                CrenelSectionHeader(title: "Görevler", count: appState.activeTaskCount > 0 ? appState.activeTaskCount : nil, tint: Crenel.Palette.textTertiary) {
+                CrenelSectionHeader(title: "Tasks", count: appState.activeTaskCount > 0 ? appState.activeTaskCount : nil, tint: Crenel.Palette.textTertiary) {
                     Button {
                         appState.selectedTab = .tasks
                     } label: {
                         HStack(spacing: 3) {
-                            Text("Tümü")
+                            Text("All")
                             CrenelIcon(.chevronRight, size: 10, weight: 2.2)
                         }
                         .crenelText(.caption, color: Crenel.Palette.textTertiary)
@@ -95,7 +95,7 @@ struct TodaySurface: View {
                 .padding(.horizontal, Crenel.Space.xs)
                 .padding(.bottom, Crenel.Space.xxs)
                 if tasks.isEmpty {
-                    Text("Bugün için açık görev yok.")
+                    Text("No open tasks today.")
                         .crenelText(.callout, color: Crenel.Palette.textTertiary)
                         .padding(.horizontal, Crenel.Space.xs)
                 } else {
@@ -131,7 +131,7 @@ private struct NextEventHero: View {
                 }
                 .frame(width: 58, height: 58)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(ongoing ? "Sürüyor" : "Sıradaki").eyebrow(color: tint)
+                    Text(ongoing ? "Now" : "Next").eyebrow(color: tint)
                     Text(ringCaption)
                         .crenelText(.callout, color: Crenel.Palette.textSecondary)
                 }
@@ -140,7 +140,7 @@ private struct NextEventHero: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     if event.responseStatus == .pending {
-                        CrenelChip(title: "Yanıt bekliyor", tint: Crenel.Palette.warning)
+                        CrenelChip(title: "Awaiting reply", tint: Crenel.Palette.warning)
                     }
                 }
                 Text(event.title)
@@ -159,7 +159,7 @@ private struct NextEventHero: View {
                     } label: {
                         HStack(spacing: 6) {
                             CrenelIcon(.video, size: 14)
-                            Text("Katıl")
+                            Text("Join")
                         }
                     }
                     .buttonStyle(CrenelButtonStyle(kind: .accent(tint), size: .regular))
@@ -169,7 +169,7 @@ private struct NextEventHero: View {
                     } label: {
                         HStack(spacing: 6) {
                             CrenelIcon(.arrowUpRight, size: 13)
-                            Text("Takvim’de aç")
+                            Text("Open in Calendar")
                         }
                     }
                     .buttonStyle(CrenelButtonStyle(kind: .secondary, size: .regular))
@@ -191,8 +191,8 @@ private struct NextEventHero: View {
         }
         .crenelSurface(.clear)
         .contextMenu {
-            if let url = event.meetingURL { Button("Toplantıya katıl") { onJoin(url) } }
-            Button("Takvim’de aç") { actions.openInCalendar(event) }
+            if let url = event.meetingURL { Button("Join meeting") { onJoin(url) } }
+            Button("Open in Calendar") { actions.openInCalendar(event) }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(AgendaRowText.accessibilityLabel(for: event))
@@ -222,9 +222,9 @@ private struct NextEventHero: View {
     private var ringCaption: String {
         let interval = event.startDate <= now ? event.endDate.timeIntervalSince(now) : event.startDate.timeIntervalSince(now)
         if event.startDate <= now {
-            return "\(NotchAgendaFormatter.durationText(max(60, interval))) kaldı"
+            return "\(NotchAgendaFormatter.durationText(max(60, interval))) left"
         }
-        return interval < 3_600 ? "dakika sonra" : "\(NotchAgendaFormatter.durationText(interval)) sonra"
+        return interval < 3_600 ? "minutes away" : "in \(NotchAgendaFormatter.durationText(interval))"
     }
 }
 
@@ -236,12 +236,12 @@ struct RecordButton: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Circle().fill(Crenel.Palette.record).frame(width: 8, height: 8)
-                Text("Kaydet")
+                Text("Record")
             }
         }
         .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.record), size: .regular))
-        .help("Toplantı kaydını başlat")
-        .accessibilityLabel("Kaydı başlat")
+        .help("Record meeting")
+        .accessibilityLabel("Start recording")
     }
 }
 
@@ -283,8 +283,8 @@ private struct AgendaRow: View {
         .buttonStyle(CrenelRowStyle())
         .opacity(event.isSuggestion || event.responseStatus == .tentative ? 0.65 : 1)
         .contextMenu {
-            if let url = event.meetingURL { Button("Toplantıya katıl") { onJoin(url) } }
-            Button("Takvim’de aç") { actions.openInCalendar(event) }
+            if let url = event.meetingURL { Button("Join meeting") { onJoin(url) } }
+            Button("Open in Calendar") { actions.openInCalendar(event) }
         }
         .accessibilityLabel(AgendaRowText.accessibilityLabel(for: event))
     }
@@ -295,8 +295,8 @@ private struct AgendaRow: View {
     }
 
     private var timeText: String {
-        if event.isAllDay { return "Tüm gün" }
-        if event.responseStatus == .pending { return "Yanıt bekliyor" }
+        if event.isAllDay { return "All day" }
+        if event.responseStatus == .pending { return "Awaiting reply" }
         return NotchAgendaFormatter.clockText(event.startDate, calendar: .current)
     }
 }
@@ -317,7 +317,7 @@ private struct TaskPeekRow: View {
                     .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .help("Bitti olarak işaretle")
+            .help("Mark as done")
             Text(task.title)
                 .crenelText(.body)
                 .lineLimit(1)
@@ -344,7 +344,7 @@ struct RecentMeetingsList: View {
     var body: some View {
         if !meetings.isEmpty {
             VStack(alignment: .leading, spacing: 2) {
-                CrenelSectionHeader(title: "Son kayıtlar")
+                CrenelSectionHeader(title: "Recent recordings")
                     .padding(.horizontal, Crenel.Space.xs)
                     .padding(.bottom, Crenel.Space.xxs)
                 ForEach(meetings) { meeting in
@@ -366,12 +366,12 @@ struct RecentMeetingsList: View {
                     }
                     .buttonStyle(CrenelRowStyle())
                     .contextMenu {
-                        Button("Toplantıyı aç") { onOpen(meeting) }
+                        Button("Open meeting") { onOpen(meeting) }
                         if meeting.processingStatus == .failed {
-                            Button("İşlemeyi tekrar dene") { onRetry(meeting) }
+                            Button("Retry processing") { onRetry(meeting) }
                         }
                         Divider()
-                        Button("Toplantıyı sil", role: .destructive) { onDelete(meeting) }
+                        Button("Delete meeting", role: .destructive) { onDelete(meeting) }
                     }
                     .accessibilityLabel("\(meeting.title), \(detail(meeting)), \(duration(meeting))")
                 }
@@ -399,11 +399,11 @@ struct RecentMeetingsList: View {
     }
 
     private func detail(_ meeting: StoredMeeting) -> String {
-        let date = meeting.startedAt.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(Locale(identifier: "tr_TR")))
-        if meeting.summaryNeedsAttention == true { return "Özet bekliyor · \(date)" }
+        let date = meeting.startedAt.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(AppLanguage.locale))
+        if meeting.summaryNeedsAttention == true { return "Summary pending · \(date)" }
         switch meeting.processingStatus {
-        case .processing: return "İşleniyor · \(date)"
-        case .failed: return "İşlenemedi · \(date)"
+        case .processing: return "Processing · \(date)"
+        case .failed: return "Processing failed · \(date)"
         default: return date
         }
     }

@@ -118,7 +118,7 @@ enum ReminderTaskMapper {
         return TaskItem(
             id: sidecar?.taskID ?? taskID(forReminderIdentifier: identifier),
             title: record.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? "İsimsiz görev"
+                ? "Untitled task"
                 : record.title,
             notes: record.notes?.isEmpty == true ? nil : record.notes,
             createdAt: createdAt,

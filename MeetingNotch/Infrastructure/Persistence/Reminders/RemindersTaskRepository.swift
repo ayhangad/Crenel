@@ -236,7 +236,7 @@ actor TaskRepositoryRouter: TaskRepository {
                 backend = .local
                 AppLogger.persistenceFailed(operation: "activate-reminders", error: error)
                 return .localAfterError(
-                    (error as? LocalizedError)?.errorDescription ?? "Hatırlatıcılar açılamadı."
+                    (error as? LocalizedError)?.errorDescription ?? "Couldn't open Reminders."
                 )
             }
         }
@@ -247,7 +247,7 @@ actor TaskRepositoryRouter: TaskRepository {
         do {
             _ = try await store.requestAccess()
         } catch {
-            return .localAfterError("Hatırlatıcılar izni istenemedi.")
+            return .localAfterError("Couldn't request Reminders access.")
         }
         return await activate(preferReminders: true)
     }

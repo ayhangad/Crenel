@@ -86,9 +86,9 @@ final class HybridMeetingTests: XCTestCase {
     }
 
     func testEmptyCalendarStateDoesNotClaimNoMeetingsWithoutAccess() {
-        XCTAssertEqual(CalendarEmptyPresentation.message(enabled: true, access: .denied, snapshot: nil), "Takvim erişimine izin verin")
-        XCTAssertEqual(CalendarEmptyPresentation.message(enabled: false, access: .authorized, snapshot: nil), "Takvim bağlantısı kapalı")
-        XCTAssertEqual(CalendarEmptyPresentation.message(enabled: true, access: .failed("network"), snapshot: nil), "Takvim yenilenemedi")
+        XCTAssertEqual(CalendarEmptyPresentation.message(enabled: true, access: .denied, snapshot: nil), "Allow calendar access")
+        XCTAssertEqual(CalendarEmptyPresentation.message(enabled: false, access: .authorized, snapshot: nil), "Calendar is off")
+        XCTAssertEqual(CalendarEmptyPresentation.message(enabled: true, access: .failed("network"), snapshot: nil), "Couldn’t refresh calendar")
     }
 
     func testOpenAIResponseRequestUsesSchemaAndDoesNotStoreRemoteState() async throws {

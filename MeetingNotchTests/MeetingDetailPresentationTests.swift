@@ -28,7 +28,7 @@ final class MeetingDetailPresentationTests: XCTestCase {
 
         XCTAssertEqual(
             TranscriptTextFormatter.plainText(transcript),
-            "Ayşe [00:05]\nMerhaba\n\nKonuşmacı 2 [01:05]\nDünya"
+            "Ayşe [00:05]\nMerhaba\n\nSpeaker 2 [01:05]\nDünya"
         )
     }
 

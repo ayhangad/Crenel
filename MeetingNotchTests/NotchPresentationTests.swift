@@ -609,19 +609,19 @@ final class NotchPresentationTests: XCTestCase {
 
         XCTAssertEqual(
             NotchAccessibilityContract.recordingSessionLabel(clientID: .zoom),
-            "Zoom oturumu kaydediliyor"
+            "Recording Zoom session"
         )
         XCTAssertEqual(
             NotchAccessibilityContract.recordingSessionLabel(clientID: .googleMeetChrome),
-            "Google Meet oturumu kaydediliyor"
+            "Recording Google Meet session"
         )
         XCTAssertEqual(
             NotchAccessibilityContract.microphoneGateLabel(.unknown),
-            "Toplantı mikrofonu bilinmiyor, güvenli kapalı"
+            "Meeting microphone unknown, kept off"
         )
         XCTAssertEqual(
             NotchAccessibilityContract.recordingDurationLabel("01:23"),
-            "Kayıt süresi 01:23"
+            "Recording time 01:23"
         )
     }
 

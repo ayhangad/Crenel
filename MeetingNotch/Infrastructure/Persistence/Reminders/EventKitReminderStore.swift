@@ -17,13 +17,13 @@ enum ReminderStoreError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .accessDenied:
-            "Hatırlatıcılar erişimi yok. Görevler bu Mac’te saklanıyor."
+            "No access to Reminders. Tasks are stored on this Mac."
         case .noReminderSource:
-            "Hatırlatıcılar için iCloud veya yerel bir hesap bulunamadı."
+            "No iCloud or local account found for Reminders."
         case .listUnavailable:
-            "Crenel hatırlatıcı listesi açılamadı."
+            "Couldn't open the Crenel list in Reminders."
         case .reminderNotFound:
-            "Hatırlatıcı bulunamadı; başka bir cihazdan silinmiş olabilir."
+            "Reminder not found. It may have been deleted on another device."
         }
     }
 }

@@ -109,9 +109,9 @@ final class CrenelTaskTests: XCTestCase {
 
     func testDueLabels() {
         let start = calendar.startOfDay(for: now)
-        XCTAssertEqual(TaskDueFormatter.label(due: start, hasTime: false, now: now, calendar: calendar), "Bugün")
-        XCTAssertEqual(TaskDueFormatter.label(due: start.addingTimeInterval(86_400 + 9 * 3_600), hasTime: true, now: now, calendar: calendar), "Yarın 09:00")
-        XCTAssertEqual(TaskDueFormatter.label(due: start.addingTimeInterval(-86_400), hasTime: false, now: now, calendar: calendar), "Dün")
+        XCTAssertEqual(TaskDueFormatter.label(due: start, hasTime: false, now: now, calendar: calendar), "Today")
+        XCTAssertEqual(TaskDueFormatter.label(due: start.addingTimeInterval(86_400 + 9 * 3_600), hasTime: true, now: now, calendar: calendar), "Tomorrow 09:00")
+        XCTAssertEqual(TaskDueFormatter.label(due: start.addingTimeInterval(-86_400), hasTime: false, now: now, calendar: calendar), "Yesterday")
     }
 
     // MARK: Status and recurrence

@@ -70,9 +70,9 @@ final class MicrophoneDeviceTests: XCTestCase {
 
         XCTAssertTrue(recovered.isReady)
         XCTAssertTrue(recovered.needsAttention)
-        XCTAssertTrue(recovered.message?.contains("kayıt sürüyor") == true)
+        XCTAssertTrue(recovered.message?.contains("Recording continues") == true)
         XCTAssertFalse(disconnected.isReady)
         XCTAssertTrue(disconnected.needsAttention)
-        XCTAssertTrue(disconnected.message?.contains("yeniden bağlayın") == true)
+        XCTAssertTrue(disconnected.message?.contains("Reconnect") == true)
     }
 }

@@ -3,7 +3,7 @@ import CoreMedia
 import Foundation
 import Speech
 
-/// Typed on-device transcription failure with user-facing Turkish messages.
+/// Typed on-device transcription failure with user-facing messages.
 /// `serviceError` maps to the shared `TranscriptionServiceError` vocabulary so the worker's
 /// retry policy treats permanent failures (unsupported language, unreadable audio) as final.
 enum LocalMeetingTranscriptionError: Error, LocalizedError, Equatable, Sendable {
@@ -15,13 +15,13 @@ enum LocalMeetingTranscriptionError: Error, LocalizedError, Equatable, Sendable 
     var errorDescription: String? {
         switch self {
         case .unsupportedLocale(let identifier):
-            "Cihaz içi transkripsiyon \(identifier) dilini desteklemiyor. Ayarlar’dan başka bir dil veya ElevenLabs seçin."
+            "On-device transcription doesn’t support \(identifier). Choose another language or ElevenLabs in Settings."
         case .assetInstallationFailed(let identifier):
-            "\(identifier) için cihaz içi konuşma modeli indirilemedi. İnternet bağlantısını ve disk alanını kontrol edip tekrar deneyin."
+            "Couldn’t download the on-device speech model for \(identifier). Check your internet connection and disk space, then try again."
         case .unreadableAudio:
-            "Kayıt dosyası cihaz içi transkripsiyon için okunamadı."
+            "Couldn’t read the recording for on-device transcription."
         case .analysisFailed:
-            "Cihaz içi transkripsiyon tamamlanamadı. Tekrar deneyin."
+            "On-device transcription didn’t finish. Try again."
         }
     }
 
@@ -41,8 +41,8 @@ enum LocalMeetingTranscriptionError: Error, LocalizedError, Equatable, Sendable 
 /// - Nothing is written to disk by this service.
 /// - Poor-man's diarization: when the raw `microphone.m4a` / `system-audio.m4a` tracks that
 ///   `FileMeetingRepository` keeps next to the mixed recording still exist, each is transcribed
-///   separately and labelled "Siz" / "Katılımcılar"; otherwise the mixed file is transcribed as a
-///   single "Konuşmacı".
+///   separately and labelled "You" / "Participants"; otherwise the mixed file is transcribed as a
+///   single "Speaker".
 actor LocalMeetingTranscriptionService: TranscriptionServicing {
     static let microphoneTrackFileName = "microphone.m4a"
     static let systemAudioTrackFileName = "system-audio.m4a"
@@ -247,7 +247,7 @@ actor LocalMeetingTranscriptionService: TranscriptionServicing {
     }
 
     private static func displayName(for locale: Locale) -> String {
-        Locale(identifier: "tr_TR").localizedString(forIdentifier: locale.identifier) ?? locale.identifier
+        AppLanguage.locale.localizedString(forIdentifier: locale.identifier) ?? locale.identifier
     }
 
     // MARK: - Analysis
@@ -363,9 +363,9 @@ struct LocalTranscriptSpeaker: Equatable, Sendable {
     let id: String
     let name: String
 
-    static let microphone = LocalTranscriptSpeaker(id: "local_microphone", name: "Siz")
-    static let systemAudio = LocalTranscriptSpeaker(id: "local_system", name: "Katılımcılar")
-    static let single = LocalTranscriptSpeaker(id: "speaker_0", name: "Konuşmacı")
+    static let microphone = LocalTranscriptSpeaker(id: "local_microphone", name: "You")
+    static let systemAudio = LocalTranscriptSpeaker(id: "local_system", name: "Participants")
+    static let single = LocalTranscriptSpeaker(id: "speaker_0", name: "Speaker")
 }
 
 /// A recognized text run. `start`/`end` are nil for runs without an audio time range

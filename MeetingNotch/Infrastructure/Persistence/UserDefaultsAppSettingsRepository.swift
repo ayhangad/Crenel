@@ -13,9 +13,9 @@ enum AppSettingsRepositoryError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unsupportedSchema(let version):
-            "Uygulama ayarları sürümü desteklenmiyor: \(version)."
+            "Unsupported settings version: \(version)."
         case .corruptStore(let recoveryKey):
-            "Uygulama ayarları okunamadı ve \(recoveryKey) anahtarında korundu."
+            "Couldn’t read settings; saved a copy under \(recoveryKey)."
         }
     }
 }

@@ -24,9 +24,9 @@ enum CalendarAccountKind: String, CaseIterable, Hashable, Sendable {
         case .iCloud: "iCloud"
         case .exchange: "Exchange"
         case .calDAV: "CalDAV"
-        case .local: "Bu Mac"
-        case .subscribed: "Abonelik"
-        case .other: "Diğer"
+        case .local: "This Mac"
+        case .subscribed: "Subscribed"
+        case .other: "Other"
         }
     }
 }
@@ -133,15 +133,15 @@ struct MeetingReminderSnapshot: Equatable, Sendable {
 
 enum CalendarEmptyPresentation {
     static func message(enabled: Bool, access: CalendarAccessState, snapshot: CalendarIntegrationSnapshot?) -> String {
-        guard enabled else { return "Takvim bağlantısı kapalı" }
+        guard enabled else { return "Calendar is off" }
         switch access {
-        case .notDetermined: return "Toplantılarınız için takviminizi bağlayın"
-        case .requesting: return "Takvim izni bekleniyor"
-        case .denied, .restricted: return "Takvim erişimine izin verin"
-        case .failed: return "Takvim yenilenemedi"
+        case .notDetermined: return "Connect your calendar to see meetings"
+        case .requesting: return "Waiting for calendar access"
+        case .denied, .restricted: return "Allow calendar access"
+        case .failed: return "Couldn’t refresh calendar"
         case .authorized:
-            guard let snapshot else { return "Takvimler okunuyor" }
-            return snapshot.readableCalendarCount == 0 ? "Bu Mac’te bağlı takvim bulunamadı" : "Bugün başka etkinlik yok"
+            guard let snapshot else { return "Reading calendars" }
+            return snapshot.readableCalendarCount == 0 ? "No calendars on this Mac" : "Nothing else today"
         }
     }
 }

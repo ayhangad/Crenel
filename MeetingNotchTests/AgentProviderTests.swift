@@ -149,7 +149,7 @@ final class AgentProviderTests: XCTestCase {
         XCTAssertEqual(KeychainAPIKeyRepository.anthropicService, "gad.MeetingNotch.anthropic-api-key")
     }
 
-    func testErrorMessagesAreTurkishAndNeverEchoSecrets() {
+    func testErrorMessagesAreReadableAndNeverEchoSecrets() {
         let errors: [AgentError] = [
             .missingKey(.anthropic), .authentication(.openAI), .rateLimited(.anthropic), .serverError(.openAI),
             .timeout, .onDeviceUnavailable(.appleIntelligenceNotEnabled), .onDeviceUnavailable(.deviceNotEligible),
@@ -161,7 +161,7 @@ final class AgentProviderTests: XCTestCase {
             XCTAssertFalse(message?.contains("sk-") ?? true)
         }
         XCTAssertTrue(AgentError.onDeviceUnavailable(.appleIntelligenceNotEnabled).errorDescription!
-            .contains("Apple Intelligence kapalı"))
+            .contains("Apple Intelligence is off"))
     }
 
     // MARK: Preferences

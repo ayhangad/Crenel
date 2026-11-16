@@ -8,13 +8,13 @@ enum TaskPriority: Int, Codable, CaseIterable, Sendable, Comparable {
         lhs.rawValue < rhs.rawValue
     }
 
-    /// Short Turkish display text, e.g. "Yüksek öncelik".
+    /// Short display text, e.g. "High priority".
     var displayText: String {
         switch self {
-        case .none: "Öncelik yok"
-        case .low: "Düşük öncelik"
-        case .medium: "Orta öncelik"
-        case .high: "Yüksek öncelik"
+        case .none: "No priority"
+        case .low: "Low priority"
+        case .medium: "Medium priority"
+        case .high: "High priority"
         }
     }
 }
@@ -49,24 +49,24 @@ struct TaskRecurrence: Codable, Equatable, Hashable, Sendable {
         TaskRecurrence(frequency: .weekly, interval: interval, weekdays: weekdays)
     }
 
-    /// Short Turkish display text: "Her gün", "Her pazartesi", "Her hafta içi", "2 haftada bir", "Her ay", "Her yıl".
+    /// Short display text: "Every day", "Every Monday", "Every weekday", "Every 2 weeks", "Every month", "Every year".
     var displayText: String {
         switch frequency {
         case .daily:
-            return interval == 1 ? "Her gün" : "\(interval) günde bir"
+            return interval == 1 ? "Every day" : "Every \(interval) days"
         case .weekly:
             guard let weekdays, !weekdays.isEmpty else {
-                return interval == 1 ? "Her hafta" : "\(interval) haftada bir"
+                return interval == 1 ? "Every week" : "Every \(interval) weeks"
             }
-            if interval == 1, weekdays == [2, 3, 4, 5, 6] { return "Her hafta içi" }
-            if interval == 1, weekdays == [1, 7] { return "Her hafta sonu" }
-            let names = Self.mondayFirst(weekdays).map { Self.turkishWeekdayNames[$0] ?? "" }
+            if interval == 1, weekdays == [2, 3, 4, 5, 6] { return "Every weekday" }
+            if interval == 1, weekdays == [1, 7] { return "Every weekend" }
+            let names = Self.mondayFirst(weekdays).map { Self.weekdayNames[$0] ?? "" }
                 .joined(separator: ", ")
-            return interval == 1 ? "Her \(names)" : "\(interval) haftada bir \(names)"
+            return interval == 1 ? "Every \(names)" : "Every \(interval) weeks on \(names)"
         case .monthly:
-            return interval == 1 ? "Her ay" : "\(interval) ayda bir"
+            return interval == 1 ? "Every month" : "Every \(interval) months"
         case .yearly:
-            return interval == 1 ? "Her yıl" : "\(interval) yılda bir"
+            return interval == 1 ? "Every year" : "Every \(interval) years"
         }
     }
 
@@ -79,8 +79,8 @@ struct TaskRecurrence: Codable, Equatable, Hashable, Sendable {
         return calendar.date(byAdding: .day, value: offset, to: start) ?? start
     }
 
-    static let turkishWeekdayNames: [Int: String] = [
-        1: "pazar", 2: "pazartesi", 3: "salı", 4: "çarşamba", 5: "perşembe", 6: "cuma", 7: "cumartesi"
+    static let weekdayNames: [Int: String] = [
+        1: "Sunday", 2: "Monday", 3: "Tuesday", 4: "Wednesday", 5: "Thursday", 6: "Friday", 7: "Saturday"
     ]
 
     private static func mondayFirst(_ weekdays: [Int]) -> [Int] {

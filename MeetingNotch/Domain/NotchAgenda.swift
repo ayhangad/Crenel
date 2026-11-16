@@ -72,7 +72,7 @@ struct NotchAgendaStatus: Equatable, Sendable {
     }
 }
 
-/// Short Turkish texts for the closed notch, e.g. "12 dk", "1 sa 5 dk", "15:30", "25 dk kaldı".
+/// Short texts for the closed notch, e.g. "12 min", "1 h 5 min", "15:30", "25 min left".
 enum NotchAgendaFormatter {
     static func compactText(
         for status: NotchAgendaStatus,
@@ -80,14 +80,14 @@ enum NotchAgendaFormatter {
     ) -> String {
         switch status.phase {
         case .upcoming(let startsIn):
-            if startsIn < 60 { return "<1 dk" }
+            if startsIn < 60 { return "<1 min" }
             if startsIn >= 3 * 60 * 60 {
                 return clockText(status.item.startDate, calendar: calendar)
             }
             return durationText(startsIn)
         case .ongoing(let remaining):
-            if remaining < 60 { return "Bitiyor" }
-            return "\(durationText(remaining)) kaldı"
+            if remaining < 60 { return "Ending" }
+            return "\(durationText(remaining)) left"
         }
     }
 
@@ -95,26 +95,26 @@ enum NotchAgendaFormatter {
         for status: NotchAgendaStatus,
         calendar: Calendar = .current
     ) -> String {
-        let noun = status.item.isMeetingLike ? "Toplantı" : "Etkinlik"
+        let noun = status.item.isMeetingLike ? "Meeting" : "Event"
         switch status.phase {
         case .upcoming(let startsIn):
             if startsIn >= 3 * 60 * 60 {
-                return "\(status.item.title), saat \(clockText(status.item.startDate, calendar: calendar))"
+                return "\(status.item.title), at \(clockText(status.item.startDate, calendar: calendar))"
             }
-            return "\(noun) \(durationText(max(60, startsIn))) sonra: \(status.item.title)"
+            return "\(noun) in \(durationText(max(60, startsIn))): \(status.item.title)"
         case .ongoing(let remaining):
-            return "\(status.item.title), bitmesine \(durationText(max(60, remaining)))"
+            return "\(status.item.title), ends in \(durationText(max(60, remaining)))"
         }
     }
 
-    /// Minutes are rounded up so "starts in 59.5 min" never shows "59 dk".
+    /// Minutes are rounded up so "starts in 59.5 min" never shows "59 min".
     static func durationText(_ interval: TimeInterval) -> String {
         let totalMinutes = max(1, Int((interval / 60).rounded(.up)))
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
-        if hours == 0 { return "\(minutes) dk" }
-        if minutes == 0 { return "\(hours) sa" }
-        return "\(hours) sa \(minutes) dk"
+        if hours == 0 { return "\(minutes) min" }
+        if minutes == 0 { return "\(hours) h" }
+        return "\(hours) h \(minutes) min"
     }
 
     static func clockText(_ date: Date, calendar: Calendar) -> String {
@@ -144,13 +144,13 @@ enum AgendaRowText {
     static func subtitle(for item: Meeting, calendar: Calendar = .current) -> String {
         var parts: [String] = []
         if item.isAllDay {
-            parts.append("Tüm gün")
+            parts.append("All day")
         } else {
             let start = NotchAgendaFormatter.clockText(item.startDate, calendar: calendar)
             let end = NotchAgendaFormatter.clockText(item.endDate, calendar: calendar)
             let day = calendar.isDate(item.startDate, inSameDayAs: Date())
                 ? ""
-                : (calendar.isDateInTomorrow(item.startDate) ? "Yarın " : "")
+                : (calendar.isDateInTomorrow(item.startDate) ? "Tomorrow " : "")
             parts.append("\(day)\(start)–\(end)")
         }
         if let location = item.location, item.meetingURL == nil || !location.contains("://") {
@@ -158,12 +158,12 @@ enum AgendaRowText {
         } else if let calendarTitle = item.calendarTitle {
             parts.append(calendarTitle)
         }
-        if item.isSuggestion { parts.append("Mail’den öneri") }
+        if item.isSuggestion { parts.append("Suggested from Mail") }
         return parts.joined(separator: " · ")
     }
 
     static func accessibilityLabel(for item: Meeting) -> String {
-        let action = item.meetingURL == nil ? "Takvim’de aç" : "toplantıya katıl"
+        let action = item.meetingURL == nil ? "open in Calendar" : "join meeting"
         return "\(item.title), \(subtitle(for: item)), \(action)"
     }
 }
