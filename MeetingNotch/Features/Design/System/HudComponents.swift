@@ -232,3 +232,76 @@ struct HudTabs<Tab: Hashable>: View {
         .background(Capsule().fill(Color(white: 1, opacity: 0.035)))
     }
 }
+
+// MARK: - Pulse
+
+/// A dot that breathes while something is live (recording, listening).
+struct HudPulse: View {
+    let color: Color
+    var size: CGFloat = 7
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Circle().fill(color).frame(width: size, height: size)
+            .phaseAnimator(reduceMotion ? [1.0] : [1.0, 0.35]) { view, phase in view.opacity(phase) } animation: { _ in .easeInOut(duration: 0.8) }
+            .frame(width: max(size, Hud.Size.smallIcon), height: max(size, Hud.Size.smallIcon))
+            .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Ears
+
+/// Places the two ears of the closed notch beside the camera housing. Both ears share
+/// one width — the wider content plus padding — and each content is centred in its ear,
+/// so the notch stays balanced and only as wide as the current state needs.
+struct HudEarsLayout: Layout {
+    var gap: CGFloat
+    var padding: CGFloat
+
+    private func side(_ subviews: Subviews) -> CGFloat {
+        subviews.map { $0.sizeThatFits(.unspecified).width }.max().map { $0 + padding * 2 } ?? 0
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard subviews.count == 2 else { return .zero }
+        let height = subviews.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
+        return CGSize(width: side(subviews) * 2 + gap, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 2 else { return }
+        let ear = side(subviews)
+        subviews[0].place(at: CGPoint(x: bounds.minX + ear / 2, y: bounds.midY), anchor: .center, proposal: .unspecified)
+        subviews[1].place(at: CGPoint(x: bounds.maxX - ear / 2, y: bounds.midY), anchor: .center, proposal: .unspecified)
+    }
+}
+
+// MARK: - Formatting
+
+enum HudFormat {
+    static func clock(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = AppLanguage.locale
+        formatter.dateFormat = "HH:mm"
+        return formatter.string(from: date)
+    }
+
+    /// "Today", "Tomorrow", or a short weekday and day ("Tue 17").
+    static func day(_ date: Date, now: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDate(date, inSameDayAs: now) { return String(localized: "Today") }
+        if let tomorrow = calendar.date(byAdding: .day, value: 1, to: now), calendar.isDate(date, inSameDayAs: tomorrow) {
+            return String(localized: "Tomorrow")
+        }
+        let formatter = DateFormatter()
+        formatter.locale = AppLanguage.locale
+        formatter.dateFormat = "EEE d"
+        return formatter.string(from: date)
+    }
+
+    static func elapsed(_ interval: TimeInterval) -> String {
+        let total = max(0, Int(interval))
+        let hours = total / 3_600, minutes = (total % 3_600) / 60, seconds = total % 60
+        return hours > 0 ? String(format: "%d:%02d:%02d", hours, minutes, seconds) : String(format: "%d:%02d", minutes, seconds)
+    }
+}

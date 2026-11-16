@@ -32,7 +32,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var activeNotchScreen: NSScreen?
     private var onboardingWindowController: NSWindowController?
     private var onboardingCloseObserver: NSObjectProtocol?
-    private var proposalPreview: ProposalPreviewController?
     let meetingNotifications = MeetingNotificationService()
     private var notificationLeadTime: TimeInterval = 600
     private var calendarEnabled = true
@@ -272,6 +271,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Hud.registerFonts()
         // XCTest must not start real calendar/account/audio services or drain user queues.
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
               NSClassFromString("XCTestCase") == nil else { return }
@@ -303,14 +303,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Task {
             let screen = resolvedActiveNotchScreen(preferPhysicalNotch: true)
-            if ProposalPreviewController.isEnabled {
-                notch.isSuppressed = true
-                await notch.hide()
-                let preview = ProposalPreviewController(screen: screen)
-                proposalPreview = preview
-                preview.show()
-                return
-            }
             await notch.compact(on: screen)
         }
     }

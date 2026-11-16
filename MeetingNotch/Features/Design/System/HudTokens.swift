@@ -1,7 +1,7 @@
 import CoreText
 import SwiftUI
 
-/// Design proposal — "instrument" language.
+/// Crenel's design language — "instrument".
 ///
 /// A compact tool, read in a glance. Information is carried by position, icon and
 /// colour before words: a line of text appears only when nothing else can say it.
@@ -86,14 +86,28 @@ enum Hud {
 
         var font: Font {
             switch self {
-            case .title: .custom(Face.semibold, fixedSize: 15)
-            case .body: .custom(Face.medium, fixedSize: 13.5)
-            case .label: .custom(Face.medium, fixedSize: 12.5)
-            case .meta: .custom(Face.regular, fixedSize: 12)
-            case .value: .custom(Face.medium, fixedSize: 13.5)
-            case .display: .custom(Face.semibold, fixedSize: 22)
+            case .title: Hud.font(15, .semibold)
+            case .body: Hud.font(13.5, .medium)
+            case .label: Hud.font(12.5, .medium)
+            case .meta: Hud.font(12, .regular)
+            case .value: Hud.font(13.5, .medium)
+            case .display: Hud.font(22, .semibold)
             }
         }
+    }
+
+    enum Weight { case regular, medium, semibold }
+
+    /// Geist at any size, for the few places the named styles don't fit (page titles in
+    /// windows, large timers).
+    static func font(_ size: CGFloat, _ weight: Weight = .regular) -> Font {
+        _ = fontsReady
+        let face = switch weight {
+        case .regular: Face.regular
+        case .medium: Face.medium
+        case .semibold: Face.semibold
+        }
+        return .custom(face, fixedSize: size)
     }
 
     // MARK: Motion
@@ -111,16 +125,17 @@ enum Hud {
 
     // MARK: Fonts
 
-    private static var fontsRegistered = false
-
-    /// Registers the bundled Geist faces with the process. Safe to call repeatedly.
-    static func registerFonts(bundle: Bundle = .main) {
-        guard !fontsRegistered else { return }
-        fontsRegistered = true
+    /// Registers the bundled Geist faces once, on first use of any Hud font.
+    private static let fontsReady: Void = {
         for name in [Face.regular, Face.medium, Face.semibold] {
-            guard let url = bundle.url(forResource: name, withExtension: "ttf") else { continue }
+            guard let url = Bundle.main.url(forResource: name, withExtension: "ttf") else { continue }
             CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
         }
+    }()
+
+    /// Registers the bundled Geist faces with the process. Safe to call repeatedly.
+    static func registerFonts() {
+        _ = fontsReady
     }
 }
 

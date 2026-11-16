@@ -290,14 +290,16 @@ struct CrenelGlyphShape: Shape {
     }
 }
 
-/// Renders a Crenel glyph at a size, inheriting the foreground style.
+/// Renders a Crenel glyph at a size, inheriting the foreground style. Glyphs that exist
+/// in the Hud family draw as Hud icons; the rest use the same stroke language (square
+/// caps, mitred joins, Hud weight), so the app has one icon set.
 struct CrenelIcon: View {
     let glyph: CrenelGlyph
     var size: CGFloat = 16
-    /// Stroke weight on the 24 pt grid; scales with size.
-    var weight: CGFloat = 1.75
+    /// Kept for call-site compatibility; every icon draws at the Hud weight.
+    var weight: CGFloat = 2
 
-    init(_ glyph: CrenelGlyph, size: CGFloat = 16, weight: CGFloat = 1.75) {
+    init(_ glyph: CrenelGlyph, size: CGFloat = 16, weight: CGFloat = 2) {
         self.glyph = glyph
         self.size = size
         self.weight = weight
@@ -305,14 +307,41 @@ struct CrenelIcon: View {
 
     var body: some View {
         Group {
-            if glyph.isFilled {
+            if let hud = glyph.hud {
+                HudIcon(hud, size: size)
+            } else if glyph.isFilled {
                 CrenelGlyphShape(glyph: glyph).fill(style: FillStyle(eoFill: false))
+                    .frame(width: size, height: size)
             } else {
                 CrenelGlyphShape(glyph: glyph)
-                    .stroke(style: StrokeStyle(lineWidth: weight * size / 24, lineCap: .round, lineJoin: .round))
+                    .stroke(style: StrokeStyle(lineWidth: 2.07 * size / 24, lineCap: .square, lineJoin: .miter))
+                    .frame(width: size, height: size)
             }
         }
-        .frame(width: size, height: size)
         .accessibilityHidden(true)
+    }
+}
+
+extension CrenelGlyph {
+    /// The Hud icon drawing the same idea, when there is one.
+    var hud: HudGlyph? {
+        switch self {
+        case .calendar, .sun: .calendar
+        case .tasks: .queue
+        case .mic: .mic
+        case .video: .video
+        case .window: .window
+        case .pin: .pin
+        case .history: .history
+        case .record: .record
+        case .stop: .stop
+        case .chevronRight: .chevronRight
+        case .plus: .plus
+        case .close: .close
+        case .sparkle: .spark
+        case .arrowUpRight: .link
+        case .bell: .bell
+        default: nil
+        }
     }
 }
