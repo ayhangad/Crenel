@@ -194,12 +194,7 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
   - [x] Kompakt durumlar (dikte nokta küresi + seviye, kayıt, işleme, ajanda halkası,
     devam eden görev), Bugün (ışıklı sıradaki etkinlik kartı + ajanda + görev özeti),
     Görevler, canlı kayıt kartı, panel başlığı. — ✅ 2026-11-16 (ekran dışı render + test)
-  - [x] İkinci tur (kullanıcı geri bildirimi): referans kopyaları (nokta küresi, halkalı
-    kart) kaldırıldı; özgün piksel/terminal dili, monospace, kalın piksel ikonlar, kenar
-    ışığı, piksel çözülme; hover'da zıplama yok; görevde ayrı "bitti" düğmesi yok, durum
-    satır içinde kayar, detay kompakt sayfa. Takvim 7 günlük ajanda; kurulum penceresi
-    önde kalır. — ✅ 2026-11-16 (otomatik test + ekran dışı render)
-  - [ ] Dikte için genişleyen "canlı" ara boyut (canlı transkript).
+  - [ ] Dikte için genişleyen "canlı" ara boyut (orb + canlı transkript).
   - [ ] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
     taşınması (şu an eski `MeetingNotchTheme` ile).
   - [ ] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması.

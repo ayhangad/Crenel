@@ -17,20 +17,24 @@ enum MeetingNotchTheme {
     static let sectionSpacing: CGFloat = 20
     static let contentSpacing: CGFloat = 12
     static let itemSpacing: CGFloat = 10
-    static let surfaceRadius: CGFloat = 8
-    static let controlRadius: CGFloat = 6
-    static let controlHeight: CGFloat = 32
+    static let surfaceRadius: CGFloat = 22
+    static let controlRadius: CGFloat = 16
+    static let controlHeight: CGFloat = 40
     static let tabHeight: CGFloat = 40
     static let tabBarPadding: CGFloat = 4
     static let iconSize: CGFloat = 20
-    static let workspaceBackground = Crenel.Palette.ink
-    static let sidebarBackground = Crenel.Palette.layer1
-    static let pageTitleFont = Font.system(size: 22, weight: .bold, design: .monospaced)
+    static let workspaceBackground = Color(white: 23 / 255.0)
+    static let sidebarBackground = Color(white: 19 / 255.0)
+    static let pageTitleFont = Font.system(size: 26, weight: .semibold)
 
     // Workspace surfaces are softer than the physical notch palette.
     static let panelBackground = MainPanel.panelBackground
-    static let surface = Crenel.Palette.layer2
-    static let surfaceHover = Crenel.Palette.layer3
+    static let surface = Color(white: 32 / 255.0)
+    static let surfaceHover = Color(
+        red: 28 / 255.0,
+        green: 28 / 255.0,
+        blue: 28 / 255.0
+    )
     static let elevatedSurface = MainPanel.meterTrack
     static let hairline = MainPanel.meterTrack
     static let subtleHairline = MainPanel.meterTrack.opacity(0.8)
@@ -50,7 +54,7 @@ enum MeetingNotchTheme {
     static let success = MainPanel.success
     static let warning = MainPanel.warning
     static let danger = MainPanel.danger
-    static let primaryText = Crenel.Palette.textPrimary
+    static let primaryText = Color(white: 0.90)
     static let secondaryText = MainPanel.secondaryText
 
     static var titleFont: Font {
@@ -90,9 +94,9 @@ enum MeetingNotchTheme {
         static let rowSpacing: CGFloat = 4
         static let itemSpacing: CGFloat = 10
 
-        static let panelRadius: CGFloat = 12
-        static let surfaceRadius: CGFloat = 8
-        static let capsuleRadius: CGFloat = 6
+        static let panelRadius: CGFloat = 24
+        static let surfaceRadius: CGFloat = 22
+        static let capsuleRadius: CGFloat = 16
         static let compactRadius: CGFloat = 6
 
         static let tabHeight: CGFloat = 40
@@ -101,28 +105,64 @@ enum MeetingNotchTheme {
         static let smallIconSize: CGFloat = 16
 
         static let panelBackground = Color.black
-        static let surface = Crenel.Palette.layer1
-        static let meterTrack = Crenel.Palette.hairline
+        static let surface = Color(
+            red: 18 / 255.0,
+            green: 18 / 255.0,
+            blue: 18 / 255.0
+        )
+        static let meterTrack = Color(
+            red: 38 / 255.0,
+            green: 38 / 255.0,
+            blue: 38 / 255.0
+        )
         static let warningSurface = Color(
             red: 38 / 255.0,
             green: 30 / 255.0,
             blue: 11 / 255.0
         )
-        static let primaryText = Crenel.Palette.textPrimary
-        static let secondaryText = Crenel.Palette.textSecondary
-        static let inactiveTabText = Crenel.Palette.textTertiary
-        static let counterText = Crenel.Palette.textTertiary
-        static let danger = Crenel.Palette.danger
-        static let warning = Crenel.Palette.warning
-        static let cyan = Crenel.Palette.calendar
-        static let success = Crenel.Palette.success
+        static let primaryText = Color.white
+        static let secondaryText = Color(
+            red: 163 / 255.0,
+            green: 163 / 255.0,
+            blue: 163 / 255.0
+        )
+        static let inactiveTabText = Color(
+            red: 218 / 255.0,
+            green: 218 / 255.0,
+            blue: 218 / 255.0
+        )
+        static let counterText = Color(
+            red: 135 / 255.0,
+            green: 135 / 255.0,
+            blue: 135 / 255.0
+        )
+        static let danger = Color(
+            red: 254 / 255.0,
+            green: 75 / 255.0,
+            blue: 75 / 255.0
+        )
+        static let warning = Color(
+            red: 254 / 255.0,
+            green: 200 / 255.0,
+            blue: 75 / 255.0
+        )
+        static let cyan = Color(
+            red: 20 / 255.0,
+            green: 212 / 255.0,
+            blue: 255 / 255.0
+        )
+        static let success = Color(
+            red: 95 / 255.0,
+            green: 216 / 255.0,
+            blue: 151 / 255.0
+        )
 
-        static let tabFont = Font.system(size: 12.5, weight: .semibold, design: .monospaced)
-        static let sectionTitleFont = Font.system(size: 15, weight: .bold, design: .monospaced)
-        static let rowTitleFont = Font.system(size: 13, weight: .semibold, design: .monospaced)
-        static let bodyFont = Font.system(size: 13, weight: .medium, design: .monospaced)
-        static let smallFont = Font.system(size: 11.5, weight: .medium, design: .monospaced)
-        static let smallMediumFont = Font.system(size: 11.5, weight: .semibold, design: .monospaced)
+        static let tabFont = Font.system(size: 14, weight: .medium)
+        static let sectionTitleFont = Font.system(size: 20, weight: .medium)
+        static let rowTitleFont = Font.system(size: 14, weight: .medium)
+        static let bodyFont = Font.system(size: 14, weight: .regular)
+        static let smallFont = Font.system(size: 12, weight: .regular)
+        static let smallMediumFont = Font.system(size: 12, weight: .medium)
     }
 }
 
@@ -178,10 +218,14 @@ struct MeetingNotchIconButtonStyle: ButtonStyle {
                     : configuration.isPressed
                         ? MeetingNotchTheme.surfaceHover
                         : MeetingNotchTheme.surface,
-                in: PixelCornerShape()
+                in: RoundedRectangle(
+                    cornerRadius: MeetingNotchTheme.controlRadius,
+                    style: .continuous
+                )
             )
             .opacity(isEnabled ? 1 : 0.38)
             .meetingControlFeedback()
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.12),
                 value: configuration.isPressed
@@ -211,10 +255,14 @@ struct MeetingNotchActionButtonStyle: ButtonStyle {
             .contentShape(Rectangle())
             .background(
                 background.opacity(configuration.isPressed ? 0.78 : 1),
-                in: PixelCornerShape()
+                in: RoundedRectangle(
+                    cornerRadius: MeetingNotchTheme.controlRadius,
+                    style: .continuous
+                )
             )
             .opacity(isEnabled ? 1 : 0.38)
             .meetingControlFeedback()
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.12),
                 value: configuration.isPressed
@@ -223,7 +271,7 @@ struct MeetingNotchActionButtonStyle: ButtonStyle {
 
     private var foreground: Color {
         switch kind {
-        case .primary: Crenel.Palette.ink
+        case .primary: .black
         case .secondary: MeetingNotchTheme.primaryText
         case .danger: MeetingNotchTheme.danger
         }
@@ -231,7 +279,7 @@ struct MeetingNotchActionButtonStyle: ButtonStyle {
 
     private var background: Color {
         switch kind {
-        case .primary: MeetingNotchTheme.primaryText
+        case .primary: workspacePalette ? Color(white: 0.82) : MeetingNotchTheme.primaryText
         case .secondary: MeetingNotchTheme.surface
         case .danger: MeetingNotchTheme.danger.opacity(0.12)
         }
@@ -277,7 +325,10 @@ struct MeetingNotchCard<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 MeetingNotchTheme.surface,
-                in: PixelCornerShape(steps: 3)
+                in: RoundedRectangle(
+                    cornerRadius: MeetingNotchTheme.surfaceRadius,
+                    style: .continuous
+                )
             )
     }
 }
@@ -319,7 +370,7 @@ private struct MeetingControlFeedback: ViewModifier {
             }
             .overlay {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(isFocused ? Crenel.Palette.brand
+                    .strokeBorder(isFocused ? MeetingNotchTheme.cyan
                         : Color.white.opacity(contrast == .increased ? 0.45 : (hovering ? 0.14 : (restingBorder ? 0.06 : 0))),
                         lineWidth: isFocused ? 2 : 1)
                     .allowsHitTesting(false)
@@ -341,10 +392,10 @@ private struct MeetingFieldSurface: ViewModifier {
             .padding(.horizontal, 12)
             .frame(minHeight: 44)
             .background(MeetingNotchTheme.elevatedSurface.opacity(0.6),
-                in: PixelCornerShape())
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
-                PixelCornerShape()
-                    .strokeBorder(focused ? Crenel.Palette.brand : Color.white.opacity(contrast == .increased ? 0.4 : 0.1),
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(focused ? MeetingNotchTheme.cyan : Color.white.opacity(contrast == .increased ? 0.4 : 0.1),
                         lineWidth: focused ? 2 : 1)
                     .allowsHitTesting(false)
             }
@@ -366,9 +417,9 @@ struct MeetingNotchRowButtonStyle: ButtonStyle {
     var selected = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .contentShape(PixelCornerShape())
+            .contentShape(RoundedRectangle(cornerRadius: 12))
             .background(selected ? Color.white.opacity(0.09) : .clear,
-                in: PixelCornerShape())
+                in: RoundedRectangle(cornerRadius: 12))
             .opacity(configuration.isPressed ? 0.7 : 1)
             .meetingControlFeedback(radius: 12, restingBorder: selected)
     }
@@ -416,7 +467,7 @@ struct MeetingNotchFeedback: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background((isFailure ? MeetingNotchTheme.warning : MeetingNotchTheme.success).opacity(0.07),
-                in: PixelCornerShape())
+                in: RoundedRectangle(cornerRadius: 12))
             .accessibilityElement(children: .combine)
     }
 }

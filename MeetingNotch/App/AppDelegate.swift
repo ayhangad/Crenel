@@ -32,7 +32,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var activeNotchScreen: NSScreen?
     private var onboardingWindowController: NSWindowController?
     private var onboardingCloseObserver: NSObjectProtocol?
-    private var notchBeamObservation: AnyCancellable?
     let meetingNotifications = MeetingNotificationService()
     private var notificationLeadTime: TimeInterval = 600
     private var calendarEnabled = true
@@ -1121,12 +1120,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func configureNotchInteraction() {
         updateNotchTransitionConfiguration()
-        notchBeamObservation = appState.$meetingFlow
-            .combineLatest(appState.$dictationState, appState.$dictationLevel)
-            .receive(on: RunLoop.main)
-            .sink { [weak self] flow, dictation, level in
-                self?.notch.model.beam = NotchBeamPolicy.beam(flow: flow, dictation: dictation, level: Double(level))
-            }
         notchHoverObservation = notch.$isHovering
             .dropFirst()
             .removeDuplicates()

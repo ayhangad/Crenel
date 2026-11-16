@@ -50,7 +50,7 @@ final class CrenelDesignGalleryTests: XCTestCase {
                 }
                 HStack(spacing: 18) {
                     ForEach(TaskStatus.allCases) { status in
-                        TaskStateGlyph(status: status, size: 18)
+                        TaskStateGlyph(status: status, size: 22)
                     }
                     TaskStatePicker(current: .inProgress) { _ in }
                 }
@@ -61,28 +61,26 @@ final class CrenelDesignGalleryTests: XCTestCase {
                     Button("Kaydet") {}.buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.record)))
                     CrenelChip(title: "12 dk", glyph: .clock, tint: Crenel.Palette.calendar)
                     CrenelKeyCap(label: "⌥ Space")
-                    CrenelPixelMeter(progress: 0.62, tint: Crenel.Palette.calendar).frame(width: 90)
-                    CrenelSpinner(tint: Crenel.Palette.agent)
+                    CrenelProgressRing(progress: 0.62, tint: Crenel.Palette.calendar).frame(width: 28, height: 28)
                 }
             }
             .padding(24)
-            .background(Crenel.Palette.ink)
-        ), name: "system", size: CGSize(width: 1100, height: 160))
+            .background(Color.black)
+        ), name: "system", size: CGSize(width: 900, height: 160))
     }
 
     /// Shaders only run through SwiftUI's own renderer, so living visuals are captured
     /// with ImageRenderer.
     func testShaderVisualsRender() throws {
         let view = HStack(spacing: 24) {
+            CrenelOrb(top: .white, bottom: Crenel.Palette.record, level: 0.3, density: 16).frame(width: 160, height: 160)
+            CrenelOrb(top: .white, bottom: Crenel.Palette.dictation, level: 0.8, density: 9).frame(width: 60, height: 60)
             ZStack {
-                PixelCornerShape(step: 4, steps: 3).fill(Crenel.Palette.layer1)
-                CrenelIcon(.logo, size: 90).foregroundStyle(Crenel.Palette.brand)
+                RoundedRectangle(cornerRadius: 20).fill(Crenel.Palette.layer1)
+                CrenelAura(tint: Crenel.Palette.calendar, intensity: 0.75).clipShape(RoundedRectangle(cornerRadius: 20))
             }
-            .frame(width: 180, height: 180)
-            .crenelBeam(true, tint: Crenel.Palette.brand, level: 0.4, shape: PixelCornerShape(step: 4, steps: 3))
-            CrenelIcon(.calendar, size: 54).foregroundStyle(Crenel.Palette.calendar)
-                .modifier(DitherProbe())
-            CrenelMerlonMeter(level: 0.7, tint: Crenel.Palette.dictation, columns: 7, rows: 5, pixel: 6)
+            .frame(width: 250, height: 200)
+            Text("Yazıya çevriliyor").font(.system(size: 22, weight: .semibold)).foregroundStyle(Crenel.Palette.dictation).crenelShimmer()
         }
         .padding(24)
         .background(Color.black)
@@ -170,15 +168,6 @@ final class CrenelDesignGalleryTests: XCTestCase {
             let path = root.appending(path: "artifacts/ui-audit/crenel/\(name).png")
             try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
             try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: path)
-        }
-    }
-}
-
-/// Half-resolved dither, to check the pixel transition shader.
-private struct DitherProbe: ViewModifier {
-    func body(content: Content) -> some View {
-        content.visualEffect { view, _ in
-            view.colorEffect(ShaderLibrary.crenelDither(.float(0.5), .float(3)))
         }
     }
 }

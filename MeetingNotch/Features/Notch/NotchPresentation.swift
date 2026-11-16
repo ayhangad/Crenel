@@ -1,6 +1,5 @@
 import AppKit
 import Foundation
-import SwiftUI
 
 enum NotchCompactStatus: Equatable {
     struct RecordingStatus: Equatable {
@@ -302,29 +301,6 @@ enum NotchAccessibilityContract {
         case .open: "açık"
         case .closed: "kapalı"
         case .unknown: "bilinmiyor, güvenli kapalı"
-        }
-    }
-}
-
-/// When the notch edge carries light: while listening (sky, follows the voice), while
-/// recording (coral, slow) and while a meeting is processed (lilac).
-enum NotchBeamPolicy {
-    static func beam(flow: MeetingFlowState, dictation: DictationState, level: Double) -> NotchBeam? {
-        switch dictation {
-        case .listening:
-            return NotchBeam(tint: Crenel.Palette.dictation, level: min(1, level * 1.4), speed: 0.6)
-        case .transcribing, .refining, .inserting:
-            return NotchBeam(tint: Crenel.Palette.dictation, level: 0.2, speed: 1.1)
-        default:
-            break
-        }
-        switch flow {
-        case .recording:
-            return NotchBeam(tint: Crenel.Palette.record, level: 0.25, speed: 0.25)
-        case .preparingRecording, .finalizingAudio, .uploading, .transcribing, .summarizing:
-            return NotchBeam(tint: Crenel.Palette.agent, level: 0.3, speed: 0.9)
-        default:
-            return nil
         }
     }
 }

@@ -1,16 +1,16 @@
 {
-  "images": [
+  "images" : [
     {
-      "filename": "figmavoice-pixel.svg",
-      "idiom": "universal"
+      "filename" : "figma-voice.svg",
+      "idiom" : "universal"
     }
   ],
-  "info": {
-    "author": "xcode",
-    "version": 1
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
   },
-  "properties": {
-    "preserves-vector-representation": true,
-    "template-rendering-intent": "template"
+  "properties" : {
+    "preserves-vector-representation" : true,
+    "template-rendering-intent" : "template"
   }
 }

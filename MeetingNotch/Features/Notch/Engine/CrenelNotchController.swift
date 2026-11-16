@@ -33,16 +33,8 @@ final class CrenelNotchModel: ObservableObject {
 
     @Published var presentation: Presentation = .hidden
     @Published var metrics = CrenelNotchMetrics()
-    /// Bumped when the closed notch shows something new; the edge light sweeps once.
+    /// Bumped to make the compact notch give a small bounce (new information arrived).
     @Published var pulse = 0
-    /// Light travelling along the notch edge while something is live.
-    @Published var beam: NotchBeam?
-}
-
-struct NotchBeam: Equatable {
-    var tint: Color
-    var level: Double
-    var speed: Double = 0.45
 }
 
 /// Crenel's notch. One borderless panel at the top of the screen hosts a single shape
@@ -94,7 +86,7 @@ final class CrenelNotchController: ObservableObject {
         resignInput()
     }
 
-    /// One pass of edge light when the closed notch shows something new.
+    /// A small bounce when the closed notch shows something new.
     func pulse() {
         model.pulse &+= 1
     }
@@ -285,7 +277,7 @@ struct CrenelNotchRootView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var compactSize: CGSize = .zero
     @State private var expandedSize: CGSize = CGSize(width: 600, height: 420)
-    @State private var pulseLit = false
+    @State private var bounce = false
 
     var body: some View {
         let metrics = model.metrics
@@ -310,7 +302,7 @@ struct CrenelNotchRootView: View {
                             compact()
                                 .fixedSize()
                                 .onGeometryChange(for: CGSize.self, of: \.size) { newSize in
-                                    withAnimation(motion(Crenel.Motion.morph)) {
+                                    withAnimation(motion(Crenel.Motion.bouncy)) {
                                         compactSize = newSize
                                     }
                                 }
@@ -326,16 +318,8 @@ struct CrenelNotchRootView: View {
                     radius: 24,
                     y: 10
                 )
-                .crenelBeam(
-                    model.presentation != .hidden && (model.beam != nil || pulseLit),
-                    tint: model.beam?.tint ?? Crenel.Palette.brand,
-                    level: model.beam?.level ?? 0.5,
-                    speed: model.beam?.speed ?? 0.8,
-                    lineWidth: 1.5,
-                    shape: CrenelNotchShape(topRadius: radii.top, bottomRadius: radii.bottom)
-                )
-                .animation(motion(Crenel.Motion.fade), value: model.beam != nil)
                 .opacity(model.presentation == .hidden && !metrics.hasPhysicalNotch ? 0 : 1)
+                .scaleEffect(bounce ? 1.06 : 1, anchor: .top)
                 .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named("notchWindow")) }) { frame in
                     onShapeFrameChange(frame)
                 }
@@ -346,13 +330,9 @@ struct CrenelNotchRootView: View {
         .environment(\.crenelNotchMetrics, metrics)
         .environment(\.colorScheme, .dark)
         .onChange(of: model.pulse) { _, _ in
-            // New information: the edge light makes one pass instead of anything moving.
-            guard !reduceMotion, model.presentation == .compact, model.beam == nil else { return }
-            pulseLit = true
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1.3))
-                pulseLit = false
-            }
+            guard !reduceMotion, model.presentation == .compact else { return }
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.5)) { bounce = true }
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.7).delay(0.16)) { bounce = false }
         }
     }
 
@@ -374,7 +354,7 @@ struct CrenelNotchRootView: View {
         case .hidden, .compact:
             (6, max(8, metrics.hardware.height * 0.36))
         case .expanded:
-            (10, Crenel.Radius.notch)
+            (12, Crenel.Radius.notch)
         }
     }
 

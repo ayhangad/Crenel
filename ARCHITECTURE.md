@@ -66,23 +66,15 @@ yalnız görünen şeklin içinde alır (`ignoresMouseEvents` global/yerel fare 
 güncellenir); hover bölgesi şekil + kamera yuvasıdır (notch'suz ekranda üst ortada 200 pt).
 API önceki kütüphaneyle aynıdır: `expand(on:)`, `compact(on:)`, `hide()`, `isHovering`.
 
-Tasarım dili `Features/Design/System/` altındadır (2026-11-16 ikinci tur; kullanıcı
-referans kopyalarını reddetti, özgün dil istedi): notch ışıktan küçük bir terminaldir.
-`CrenelTokens` — monospace tipografi (okunurluk için orta/yarı kalın), mavimsi mürekkep
-katmanları, marka rengi kor turuncu, modül renkleri (takvim gök, görev kehribar, dikte
-turkuaz, kayıt mercan, işleme lila), hareket: yalnız renk geçişleri, kayma ve yumuşak
-morph; zıplama, büyüme veya hover'da yerleşim değişimi yoktur. `CrenelIcons` — 9×9
-ızgarada elle çizilmiş kalın piksel ikonlar (4,5 pt katlarında keskin); eski Figma asset'leri
-aynı bitmap'lerden üretilen piksel SVG'lerle değiştirildi. `CrenelComponents` — piksel
-basamaklı köşe (`PixelCornerShape`, "crenel") tüm kontrol ve panellerin şeklidir; buton,
-satır, sekme, çip, tuş, piksel ölçer, sur dişi ses ölçeri (`CrenelMerlonMeter`), braille
-spinner, adım adım yanıp sönen kayıt pikseli ve kenar ışığı (`crenelBeam`).
-`CrenelShaders.metal` — `crenelDither` (sıralı Bayer piksel çözülme; yalnız şekil/metin
-içeren küçük içerikte, çünkü renk efektleri AppKit kontrollerini çizemez — metin alanı ve
-kaydırma kabı içeren paneller düz opaklık kullanır) ve `crenelBeam` (notch kenarında dolaşan
-ışık: dinlerken sese göre, kayıtta yavaş, işlemede lila; yeni bilgi gelince tek tur). Eski
-`MeetingNotchTheme` değerleri yeni token'lara bağlıdır; masaüstü/ayarlar aynı paleti ve
-fontu kullanır.
+Tasarım dili `Features/Design/System/` altındadır: `CrenelTokens` (4 pt boşluk ızgarası,
+radius, katmanlı mürekkep yüzeyler, modül vurgu renkleri — takvim mor, görev kehribar,
+dikte gök mavisi, kayıt mercan —, yazı stilleri, hareket yayları ve geçişler),
+`CrenelIcons` (24 pt ızgarada tek çizgi ağırlığında kendi ikon seti; ürün ikonlarında SF
+Symbols kullanılmaz), `CrenelComponents` (yüzey, buton, segmentli kontrol, çip, halka, tuş,
+canlı görseller) ve `CrenelShaders.metal` (nokta küresi, aura ışığı, parıltı, kenar ışığı;
+SwiftUI `colorEffect`). Shader'ların temel dolgusu siyahtır; shader çalışmazsa yüzey boş
+mürekkep olarak kalır. Yeni yüzeyler eski `MeetingNotchTheme` yerine bu sistemi kullanır;
+eski tema masaüstü ve ayarlar yeniden yapılana kadar yaşar.
 
 ### Kurulum ve izinler (C9)
 
@@ -94,11 +86,7 @@ izin için Ayarlar'ı açar. Ayarlar'dan gelen izinler kısa süreli yoklamayla 
 `onGranted` izni ilgili özelliğe bağlar: takvim → `MeetingMonitor.requestAccess`,
 hatırlatıcılar → `TaskCoordinator.activate(preferReminders: true)`. Hardened Runtime
 altında EventKit için `com.apple.security.personal-information.calendars` entitlement'ı
-zorunludur; yokken izin penceresi hiç çıkmadan reddedilir. Kurulum penceresi açıkken
-uygulama `.regular` etkinleştirme politikasına geçer (Dock, ⌘Tab) ve her sistem penceresinden
-sonra öne alınır; aksi halde menü çubuğu uygulamasının penceresi diğer uygulamaların
-arkasına düşer. Takvim ajandası 7 gün ileriyi okur (`MeetingMonitor.agendaHorizon`); 24 saatlik
-ufuk, yaklaşan etkinlik olmadığında izin sorunu gibi görünüyordu.
+zorunludur; yokken izin penceresi hiç çıkmadan reddedilir.
 
 ### Kapalı notch önceliği
 
@@ -111,9 +99,8 @@ toplantıysa) > üzerinde çalışılan görev > sakin takvim öğesi > açık g
 `TaskStatus`: `open` (Yapılacak), `inProgress` (Devam ediyor), `blocked` (Bloke),
 `completed` (Bitti); eski `backlog`/`todo` değerleri Yapılacak olarak çözülür. "Başlatma"
 aksiyonu yoktur; durum, görev halkasından açılan seçiciden seçilir ve bir görevin durumunu
-değiştirmek başka görevi değiştirmez. Durum kutusuna dokunmak dört durumu başlığın yerine,
-satırın içinde soldan kaydırır (satır yüksekliği sabit). Satıra dokunmak yana kayan kompakt
-detay sayfasını açar (başlık, durum, tarih, öncelik, not); satır içi metin düzenleme yoktur. Bloke bilgisi Hatırlatıcılar'da
+değiştirmek başka görevi değiştirmez. Satıra dokunmak satır içi metin düzenleme yerine
+görev kartını açar (başlık, durum, tarih, öncelik, not). Bloke bilgisi Hatırlatıcılar'da
 karşılığı olmadığından yan dosyada (`isBlocked`) tutulur.
 Tamamlama arşivlemez: tamamlanan görev gün bitene kadar “Bugün tamamlananlar”da kalır,
 sonra Geçmiş'e geçer; `archive` yalnız tamamlanmış görevi listeden erken kaldırmak için
