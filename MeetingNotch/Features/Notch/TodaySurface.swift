@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The "Today" surface while nothing is recording: the next event as a lit hero card,
-/// the rest of the day beside it, and the top of the task list.
+/// "Today" while nothing is recording: the next thing that needs you, then the rest of
+/// today and what comes later. Rows say what kind of event it is with their icon; times
+/// sit on the right; colour appears only when something needs you.
 struct TodaySurface: View {
-    @EnvironmentObject private var appState: AppState
     @Environment(\.crenelActions) private var actions
     let events: [Meeting]
     let emptyMessage: String
@@ -11,405 +11,331 @@ struct TodaySurface: View {
     let onRequestCalendarAccess: () -> Void
     let onOpenMeetingURL: (URL) -> Void
     let onStartRecording: () -> Void
+    @State private var hovered: AnyHashable?
+    @Namespace private var glide
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
+        TimelineView(.periodic(from: .now, by: 15)) { context in
             let now = context.date
-            let hero = events.first { !$0.isAllDay && $0.endDate > now }
-            let rest = events.filter { $0.id != hero?.id }
-            // Side by side whenever the open notch is wide enough; stacked on small screens.
-            if appState.notchPanelAvailableSize.width >= 560 {
-                HStack(alignment: .top, spacing: Crenel.Space.l) {
-                    heroCard(hero, now: now)
-                        .frame(width: 250)
-                    sideColumn(rest, now: now)
-                        .frame(maxWidth: .infinity, alignment: .topLeading)
+            let upcoming = events.filter { $0.endDate > now }
+            let focus = upcoming.first { !$0.isAllDay }
+            let rest = upcoming.filter { $0.id != focus?.id }
+            let today = rest.filter { Calendar.current.isDate($0.startDate, inSameDayAs: now) }
+            let later = rest.filter { !Calendar.current.isDate($0.startDate, inSameDayAs: now) }
+
+            VStack(alignment: .leading, spacing: 0) {
+                if let focus {
+                    TodayFocus(event: focus, now: now)
+                        .modifier(EventActions(event: focus, open: open, onStartRecording: onStartRecording))
+                        .hudGlide(focus.id, hovered: $hovered, in: glide)
+                        .padding(.bottom, Hud.Space.x3)
                 }
-            } else {
-                VStack(alignment: .leading, spacing: Crenel.Space.l) {
-                    heroCard(hero, now: now)
-                    sideColumn(rest, now: now)
+                if !today.isEmpty {
+                    group("Today", today, now: now)
+                }
+                if !later.isEmpty {
+                    group("Later", later, now: now)
+                        .padding(.top, today.isEmpty ? 0 : Hud.Space.x3)
+                }
+                if upcoming.isEmpty {
+                    emptyRow
                 }
             }
         }
     }
 
-    @ViewBuilder
-    private func heroCard(_ event: Meeting?, now: Date) -> some View {
-        if let event {
-            NextEventHero(event: event, now: now, onJoin: onOpenMeetingURL, onStartRecording: onStartRecording)
-        } else {
-            VStack(alignment: .leading, spacing: Crenel.Space.m) {
-                CrenelIcon(.calendar, size: 20)
-                    .foregroundStyle(Crenel.Palette.calendar)
-                    .frame(width: 40, height: 40)
-                    .background(Crenel.Palette.calendar.opacity(0.12), in: Circle())
-                Text(emptyMessage)
-                    .crenelText(.headline)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(spacing: Crenel.Space.s) {
-                    if canRequestCalendarAccess {
-                        Button("Connect calendar", action: onRequestCalendarAccess)
-                            .buttonStyle(CrenelButtonStyle(kind: .primary, size: .small))
-                    }
-                    RecordButton(action: onStartRecording)
-                }
+    private func group(_ title: LocalizedStringKey, _ events: [Meeting], now: Date) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HudGroupHeader(title: title)
+            ForEach(events) { event in
+                TodayEventRow(event: event, now: now)
+                    .modifier(EventActions(event: event, open: open, onStartRecording: onStartRecording))
+                    .hudGlide(event.id, hovered: $hovered, in: glide)
             }
-            .padding(Crenel.Space.l)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .crenelSurface()
         }
     }
 
-    private func sideColumn(_ events: [Meeting], now: Date) -> some View {
-        let tasks = Array(appState.tasks.filter(\.isActive)
-            .sorted { lhs, rhs in
-                (lhs.status == .inProgress ? 0 : 1, lhs.dueDate ?? .distantFuture)
-                    < (rhs.status == .inProgress ? 0 : 1, rhs.dueDate ?? .distantFuture)
-            }
-            .prefix(4))
-        return VStack(alignment: .leading, spacing: Crenel.Space.l) {
-            if !events.isEmpty {
-                VStack(alignment: .leading, spacing: 2) {
-                    CrenelSectionHeader(title: "Later", count: events.count > 1 ? events.count : nil)
-                        .padding(.horizontal, Crenel.Space.xs)
-                        .padding(.bottom, Crenel.Space.xxs)
-                    ForEach(events) { event in
-                        AgendaRow(event: event, now: now, onJoin: onOpenMeetingURL)
-                    }
-                }
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                CrenelSectionHeader(title: "Tasks", count: appState.activeTaskCount > 0 ? appState.activeTaskCount : nil, tint: Crenel.Palette.textTertiary) {
-                    Button {
-                        appState.selectedTab = .tasks
-                    } label: {
-                        HStack(spacing: 3) {
-                            Text("All")
-                            CrenelIcon(.chevronRight, size: 10, weight: 2.2)
-                        }
-                        .crenelText(.caption, color: Crenel.Palette.textTertiary)
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, Crenel.Space.xs)
-                .padding(.bottom, Crenel.Space.xxs)
-                if tasks.isEmpty {
-                    Text("No open tasks today.")
-                        .crenelText(.callout, color: Crenel.Palette.textTertiary)
-                        .padding(.horizontal, Crenel.Space.xs)
-                } else {
-                    ForEach(tasks) { task in
-                        TaskPeekRow(task: task, now: now)
-                    }
-                }
+    /// No events: the calendar state in one row, with the one action that fixes it.
+    private var emptyRow: some View {
+        HStack(spacing: Hud.Space.x3) {
+            HudIcon(.calendar).foregroundStyle(Hud.Ink.text3)
+            Text(emptyMessage).hud(.body, Hud.Ink.text2).lineLimit(1)
+            Spacer(minLength: Hud.Space.x2)
+            if canRequestCalendarAccess {
+                Button("Connect", action: onRequestCalendarAccess)
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
             }
         }
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(height: Hud.Size.row)
+    }
+
+    private func open(_ event: Meeting) {
+        if let url = event.meetingURL { onOpenMeetingURL(url) } else { actions.openInCalendar(event) }
     }
 }
 
-// MARK: - Hero
-
-private struct NextEventHero: View {
+/// Click opens the event (its call link, or Calendar); the context menu holds the rest.
+private struct EventActions: ViewModifier {
     @Environment(\.crenelActions) private var actions
     let event: Meeting
-    let now: Date
-    let onJoin: (URL) -> Void
+    let open: (Meeting) -> Void
     let onStartRecording: () -> Void
 
-    var body: some View {
-        let ongoing = event.startDate <= now
-        let tint = accent
-        VStack(alignment: .leading, spacing: Crenel.Space.m) {
-            HStack(alignment: .center, spacing: Crenel.Space.m) {
-                ZStack {
-                    CrenelProgressRing(progress: progress, tint: tint, lineWidth: 3.5)
-                    Text(ringText)
-                        .font(.system(size: ringText.count > 2 ? 15 : 19, weight: .semibold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(Crenel.Palette.textPrimary)
-                        .contentTransition(.numericText())
-                }
-                .frame(width: 58, height: 58)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(ongoing ? "Now" : "Next").eyebrow(color: tint)
-                    Text(ringCaption)
-                        .crenelText(.callout, color: Crenel.Palette.textSecondary)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    if event.responseStatus == .pending {
-                        CrenelChip(title: "Awaiting reply", tint: Crenel.Palette.warning)
-                    }
-                }
-                Text(event.title)
-                    .crenelText(.title)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(AgendaRowText.subtitle(for: event))
-                    .crenelText(.callout, color: Crenel.Palette.textTertiary)
-                    .lineLimit(1)
-            }
-
-            HStack(spacing: Crenel.Space.s) {
+    func body(content: Content) -> some View {
+        content
+            .onTapGesture { open(event) }
+            .contextMenu {
                 if let url = event.meetingURL {
-                    Button {
-                        onJoin(url)
-                    } label: {
-                        HStack(spacing: 6) {
-                            CrenelIcon(.video, size: 14)
-                            Text("Join")
-                        }
+                    Button("Join meeting") { open(event) }
+                    Button("Copy link") {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(url.absoluteString, forType: .string)
                     }
-                    .buttonStyle(CrenelButtonStyle(kind: .accent(tint), size: .regular))
-                } else {
-                    Button {
-                        actions.openInCalendar(event)
-                    } label: {
-                        HStack(spacing: 6) {
-                            CrenelIcon(.arrowUpRight, size: 13)
-                            Text("Open in Calendar")
-                        }
-                    }
-                    .buttonStyle(CrenelButtonStyle(kind: .secondary, size: .regular))
                 }
+                Button("Open in Calendar") { actions.openInCalendar(event) }
                 if event.isMeetingLike {
-                    RecordButton(action: onStartRecording)
+                    Divider()
+                    Button("Record now", action: onStartRecording)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityLabel(AgendaRowText.accessibilityLabel(for: event))
+    }
+}
+
+// MARK: - Focus
+
+/// The next thing that needs you. No label and no buttons: its size and colour say
+/// "next". Within the hour a segmented bar empties toward the start; during the
+/// meeting it fills with elapsed time.
+private struct TodayFocus: View {
+    let event: Meeting
+    let now: Date
+
+    private var untilStart: TimeInterval { event.startDate.timeIntervalSince(now) }
+    private var isLive: Bool { untilStart <= 0 }
+    private var isNear: Bool { untilStart > 0 && untilStart <= 60 * 60 }
+    private var isUrgent: Bool { isLive || untilStart <= 10 * 60 }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: Hud.Space.x3) {
+            MeetingKindIcon(meeting: event, tint: isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
+                .padding(.top, 3)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
+                    Text(event.title).hud(.title).lineLimit(1)
+                    Spacer(minLength: Hud.Space.x2)
+                    Text(primaryValue).hud(.title, isUrgent ? Hud.Ink.signal : Hud.Ink.text1)
+                        .contentTransition(.numericText(countsDown: true))
+                        .fixedSize()
+                }
+                HStack(spacing: Hud.Space.x2) {
+                    Text(event.venueWord ?? "").hud(.meta, Hud.Ink.text3).lineLimit(1)
+                    Spacer(minLength: Hud.Space.x2)
+                    Text(secondaryValue).hud(.meta, Hud.Ink.text3).fixedSize()
+                }
+                if isNear || isLive {
+                    HudSegmentMeter(segments: 28, progress: progress, tint: isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
+                        .padding(.top, Hud.Space.x2)
+                        .transition(.opacity)
                 }
             }
         }
-        .padding(Crenel.Space.l)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: Crenel.Radius.l, style: .continuous)
-                    .fill(Crenel.Palette.layer1)
-                CrenelAura(tint: tint, intensity: 0.75)
-                    .clipShape(RoundedRectangle(cornerRadius: Crenel.Radius.l, style: .continuous))
-            }
-        }
-        .crenelSurface(.clear)
-        .contextMenu {
-            if let url = event.meetingURL { Button("Join meeting") { onJoin(url) } }
-            Button("Open in Calendar") { actions.openInCalendar(event) }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(AgendaRowText.accessibilityLabel(for: event))
+        .padding(.horizontal, Hud.Size.rowInset)
+        .padding(.vertical, Hud.Space.x3)
+        .opacity(event.isSuggestion || event.responseStatus == .tentative ? 0.6 : 1)
     }
 
-    private var accent: Color {
-        if let hex = event.calendarColorHex, let color = Color(crenelHex: hex) { return color }
-        return Crenel.Palette.calendar
+    private var primaryValue: String {
+        if isLive { return "\(max(1, Int((event.endDate.timeIntervalSince(now) / 60).rounded(.up)))) min" }
+        if isNear { return "\(max(1, Int((untilStart / 60).rounded(.up)))) min" }
+        return HudFormat.clock(event.startDate)
+    }
+
+    private var secondaryValue: String {
+        if isLive || isNear { return "\(HudFormat.clock(event.startDate)) – \(HudFormat.clock(event.endDate))" }
+        return HudFormat.day(event.startDate, now: now)
     }
 
     private var progress: Double {
-        if event.startDate <= now {
-            let duration = max(60, event.endDate.timeIntervalSince(event.startDate))
-            return min(1, now.timeIntervalSince(event.startDate) / duration)
+        if isLive {
+            return now.timeIntervalSince(event.startDate) / max(60, event.endDate.timeIntervalSince(event.startDate))
         }
-        return min(1, max(0.03, 1 - event.startDate.timeIntervalSince(now) / 3_600))
-    }
-
-    /// Minutes in the ring while under an hour; otherwise the start time.
-    private var ringText: String {
-        let interval = event.startDate <= now ? event.endDate.timeIntervalSince(now) : event.startDate.timeIntervalSince(now)
-        let minutes = max(0, Int((interval / 60).rounded(.up)))
-        if minutes < 60 { return "\(minutes)" }
-        return NotchAgendaFormatter.clockText(event.startDate <= now ? event.endDate : event.startDate, calendar: .current)
-    }
-
-    private var ringCaption: String {
-        let interval = event.startDate <= now ? event.endDate.timeIntervalSince(now) : event.startDate.timeIntervalSince(now)
-        if event.startDate <= now {
-            return "\(NotchAgendaFormatter.durationText(max(60, interval))) left"
-        }
-        return interval < 3_600 ? "minutes away" : "in \(NotchAgendaFormatter.durationText(interval))"
+        return untilStart / 3_600
     }
 }
 
-/// The red record action, reused wherever a recording can start.
-struct RecordButton: View {
-    let action: () -> Void
+// MARK: - Row
 
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Circle().fill(Crenel.Palette.record).frame(width: 8, height: 8)
-                Text("Record")
-            }
-        }
-        .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.record), size: .regular))
-        .help("Record meeting")
-        .accessibilityLabel("Start recording")
-    }
-}
-
-// MARK: - Rows
-
-private struct AgendaRow: View {
-    @Environment(\.crenelActions) private var actions
+/// Kind icon, then two lines: title and start on top; venue and end (or day) below.
+private struct TodayEventRow: View {
     let event: Meeting
     let now: Date
-    let onJoin: (URL) -> Void
 
     var body: some View {
-        Button {
-            if let url = event.meetingURL { onJoin(url) } else { actions.openInCalendar(event) }
-        } label: {
-            HStack(spacing: Crenel.Space.m) {
-                RoundedRectangle(cornerRadius: 2, style: .continuous)
-                    .fill(accent)
-                    .frame(width: 3, height: 26)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(event.title)
-                        .crenelText(.bodyEmphasis)
-                        .lineLimit(1)
-                    Text(AgendaRowText.subtitle(for: event))
-                        .crenelText(.caption, color: Crenel.Palette.textTertiary)
-                        .lineLimit(1)
+        HStack(alignment: .top, spacing: Hud.Space.x3) {
+            MeetingKindIcon(meeting: event).padding(.top, 2)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
+                    Text(event.title).hud(.body).lineLimit(1)
+                    Spacer(minLength: Hud.Space.x2)
+                    Text(event.isAllDay ? String(localized: "All day") : HudFormat.clock(event.startDate))
+                        .hud(.value, event.responseStatus == .pending ? Hud.Ink.signal : Hud.Ink.text2)
+                        .fixedSize()
                 }
-                Spacer(minLength: Crenel.Space.s)
-                if event.meetingURL != nil {
-                    CrenelIcon(.video, size: 13)
-                        .foregroundStyle(Crenel.Palette.textTertiary)
+                HStack(spacing: Hud.Space.x2) {
+                    Text(detail).hud(.meta, Hud.Ink.text3).lineLimit(1)
+                    Spacer(minLength: Hud.Space.x2)
+                    Text(trailingDetail).hud(.meta, Hud.Ink.text3).fixedSize()
                 }
-                Text(timeText)
-                    .crenelText(.caption, color: Crenel.Palette.textSecondary)
             }
-            .padding(.horizontal, Crenel.Space.xs)
-            .padding(.vertical, Crenel.Space.s)
         }
-        .buttonStyle(CrenelRowStyle())
-        .opacity(event.isSuggestion || event.responseStatus == .tentative ? 0.65 : 1)
-        .contextMenu {
-            if let url = event.meetingURL { Button("Join meeting") { onJoin(url) } }
-            Button("Open in Calendar") { actions.openInCalendar(event) }
-        }
-        .accessibilityLabel(AgendaRowText.accessibilityLabel(for: event))
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(height: Hud.Size.row)
+        .opacity(event.isSuggestion || event.responseStatus == .tentative ? 0.6 : 1)
     }
 
-    private var accent: Color {
-        if let hex = event.calendarColorHex, let color = Color(crenelHex: hex) { return color }
-        return event.isMeetingLike ? Crenel.Palette.calendar : Crenel.Palette.textTertiary
+    private var detail: String {
+        if event.responseStatus == .pending { return String(localized: "Invite") }
+        return event.venueWord ?? ""
     }
 
-    private var timeText: String {
-        if event.isAllDay { return "All day" }
-        if event.responseStatus == .pending { return "Awaiting reply" }
-        return NotchAgendaFormatter.clockText(event.startDate, calendar: .current)
+    private var trailingDetail: String {
+        if !Calendar.current.isDate(event.startDate, inSameDayAs: now) { return HudFormat.day(event.startDate, now: now) }
+        return event.isAllDay ? "" : HudFormat.clock(event.endDate)
     }
 }
 
-private struct TaskPeekRow: View {
-    @EnvironmentObject private var appState: AppState
-    @Environment(\.crenelActions) private var actions
-    let task: TaskItem
-    let now: Date
+// MARK: - Kind
+
+/// What kind of event this is: a call, a place, or a plain calendar entry.
+struct MeetingKindIcon: View {
+    let meeting: Meeting
+    var tint: Color = Hud.Ink.text3
 
     var body: some View {
-        HStack(spacing: Crenel.Space.m) {
-            Button {
-                actions.tasks.setStatus(task, task.isCompleted ? .open : .completed)
-            } label: {
-                TaskStateGlyph(status: task.status, size: 15)
-                    .frame(width: 20, height: 20)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .help("Mark as done")
-            Text(task.title)
-                .crenelText(.body)
-                .lineLimit(1)
-            Spacer(minLength: Crenel.Space.s)
-            if let due = TaskDueFormatter.label(for: task, now: now) {
-                Text(due).crenelText(.caption, color: Crenel.Palette.textTertiary)
+        Group {
+            if meeting.meetingURL != nil {
+                HudIcon(.video)
+            } else if meeting.location?.isEmpty == false {
+                HudIcon(.place)
+            } else {
+                HudIcon(.calendar)
             }
         }
-        .padding(.horizontal, Crenel.Space.xs)
-        .padding(.vertical, 7)
-        .contentShape(Rectangle())
-        .onTapGesture { appState.selectedTab = .tasks }
+        .foregroundStyle(tint)
     }
 }
 
-// MARK: - Recent meetings
+extension Meeting {
+    /// The shortest word for where it happens: the call service, or the place.
+    var venueWord: String? {
+        if let host = meetingURL?.host()?.lowercased() {
+            if host.contains("meet.google") { return "Google Meet" }
+            if host.contains("zoom") { return "Zoom" }
+            if host.contains("teams") { return "Teams" }
+            if host.contains("webex") { return "Webex" }
+            if host.contains("whereby") { return "Whereby" }
+            if host.contains("facetime") || host.contains("apple.com") { return "FaceTime" }
+            return host.replacingOccurrences(of: "www.", with: "")
+        }
+        if let location, !location.isEmpty, !location.contains("://") { return location }
+        return calendarTitle
+    }
+}
 
+// MARK: - History
+
+/// Recorded meetings, newest first. Time on the left of the second line, duration on the
+/// right; state is shown only when it needs attention.
 struct RecentMeetingsList: View {
     let meetings: [StoredMeeting]
     let onOpen: (StoredMeeting) -> Void
     let onDelete: (StoredMeeting) -> Void
     let onRetry: (StoredMeeting) -> Void
+    @State private var hovered: AnyHashable?
+    @Namespace private var glide
 
     var body: some View {
-        if !meetings.isEmpty {
-            VStack(alignment: .leading, spacing: 2) {
-                CrenelSectionHeader(title: "Recent recordings")
-                    .padding(.horizontal, Crenel.Space.xs)
-                    .padding(.bottom, Crenel.Space.xxs)
-                ForEach(meetings) { meeting in
-                    Button { onOpen(meeting) } label: {
-                        HStack(spacing: Crenel.Space.m) {
-                            CrenelIcon(glyph(meeting), size: 15)
-                                .foregroundStyle(tint(meeting))
-                                .frame(width: 30, height: 30)
-                                .background(tint(meeting).opacity(0.12), in: Circle())
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(meeting.title).crenelText(.bodyEmphasis).lineLimit(1)
-                                Text(detail(meeting)).crenelText(.caption, color: Crenel.Palette.textTertiary).lineLimit(1)
-                            }
-                            Spacer(minLength: Crenel.Space.s)
-                            Text(duration(meeting)).crenelText(.caption, color: Crenel.Palette.textSecondary)
-                        }
-                        .padding(.horizontal, Crenel.Space.xs)
-                        .padding(.vertical, Crenel.Space.xs)
-                    }
-                    .buttonStyle(CrenelRowStyle())
-                    .contextMenu {
-                        Button("Open meeting") { onOpen(meeting) }
-                        if meeting.processingStatus == .failed {
-                            Button("Retry processing") { onRetry(meeting) }
-                        }
-                        Divider()
-                        Button("Delete meeting", role: .destructive) { onDelete(meeting) }
-                    }
-                    .accessibilityLabel("\(meeting.title), \(detail(meeting)), \(duration(meeting))")
+        VStack(alignment: .leading, spacing: 0) {
+            if meetings.isEmpty {
+                HStack(spacing: Hud.Space.x3) {
+                    HudIcon(.history).foregroundStyle(Hud.Ink.text3)
+                    Text("No recordings yet").hud(.body, Hud.Ink.text2)
+                }
+                .padding(.horizontal, Hud.Size.rowInset)
+                .frame(height: Hud.Size.row)
+            }
+            ForEach(groups, id: \.title) { group in
+                HudGroupHeader(title: LocalizedStringKey(group.title))
+                    .padding(.top, group.title == groups.first?.title ? 0 : Hud.Space.x3)
+                ForEach(group.meetings) { meeting in
+                    row(meeting)
+                        .hudGlide(meeting.id, hovered: $hovered, in: glide)
                 }
             }
         }
     }
 
-    private func glyph(_ meeting: StoredMeeting) -> CrenelGlyph {
-        if meeting.summaryNeedsAttention == true { return .warning }
+    private var groups: [(title: String, meetings: [StoredMeeting])] {
+        var result: [(title: String, meetings: [StoredMeeting])] = []
+        for meeting in meetings {
+            let title = HudFormat.day(meeting.startedAt, now: Date())
+            if result.last?.title == title {
+                result[result.count - 1].meetings.append(meeting)
+            } else {
+                result.append((title, [meeting]))
+            }
+        }
+        return result
+    }
+
+    private func row(_ meeting: StoredMeeting) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
+                Text(meeting.title).hud(.body).lineLimit(1)
+                Spacer(minLength: Hud.Space.x2)
+                Text(HudFormat.clock(meeting.startedAt)).hud(.value, Hud.Ink.text2).fixedSize()
+            }
+            HStack(spacing: Hud.Space.x2) {
+                Text(state(meeting) ?? "").hud(.meta, stateColor(meeting)).lineLimit(1)
+                Spacer(minLength: Hud.Space.x2)
+                Text(HudFormat.elapsed(meeting.duration)).hud(.meta, Hud.Ink.text3).fixedSize()
+            }
+        }
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(height: Hud.Size.row)
+        .contentShape(Rectangle())
+        .onTapGesture { onOpen(meeting) }
+        .contextMenu {
+            Button("Open meeting") { onOpen(meeting) }
+            if meeting.processingStatus == .failed {
+                Button("Retry processing") { onRetry(meeting) }
+            }
+            Divider()
+            Button("Delete meeting", role: .destructive) { onDelete(meeting) }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("\(meeting.title), \(state(meeting) ?? ""), \(HudFormat.elapsed(meeting.duration))")
+    }
+
+    private func state(_ meeting: StoredMeeting) -> String? {
+        if meeting.summaryNeedsAttention == true { return String(localized: "Summary pending") }
         switch meeting.processingStatus {
-        case .recorded: return .waveform
-        case .processing: return .sparkle
-        case .completed: return .check
-        case .failed: return .warning
+        case .processing: return String(localized: "Processing")
+        case .failed: return String(localized: "Failed")
+        case .recorded: return String(localized: "Not transcribed")
+        case .completed: return nil
         }
     }
 
-    private func tint(_ meeting: StoredMeeting) -> Color {
-        if meeting.summaryNeedsAttention == true { return Crenel.Palette.warning }
-        switch meeting.processingStatus {
-        case .recorded, .processing: return Crenel.Palette.dictation
-        case .completed: return Crenel.Palette.success
-        case .failed: return Crenel.Palette.warning
-        }
-    }
-
-    private func detail(_ meeting: StoredMeeting) -> String {
-        let date = meeting.startedAt.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(AppLanguage.locale))
-        if meeting.summaryNeedsAttention == true { return "Summary pending · \(date)" }
-        switch meeting.processingStatus {
-        case .processing: return "Processing · \(date)"
-        case .failed: return "Processing failed · \(date)"
-        default: return date
-        }
-    }
-
-    private func duration(_ meeting: StoredMeeting) -> String {
-        CrenelCompactView.elapsed(meeting.duration)
+    private func stateColor(_ meeting: StoredMeeting) -> Color {
+        if meeting.processingStatus == .failed { return Hud.Ink.live }
+        if meeting.summaryNeedsAttention == true { return Hud.Ink.signal }
+        return Hud.Ink.text3
     }
 }
 

@@ -133,7 +133,7 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(viewport.availableSize, CGSize(width: 812, height: 704))
         XCTAssertEqual(
             NotchPanelLayout(availableSize: viewport.availableSize),
-            NotchPanelLayout(width: 600, maximumContentHeight: 600)
+            NotchPanelLayout(width: Hud.Size.panelWidth, maximumContentHeight: 600)
         )
 
         let small = NotchHostViewport(windowSize: CGSize(width: 860, height: 612), topInset: 24)
@@ -218,94 +218,24 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(Set(matrix.map(\.name)).count, matrix.count)
     }
 
-    func testFigmaPanelUsesDarkAppearanceInPhysicalAndFloatingPresentations() {
-        XCTAssertEqual(
-            MeetingNotchPanelAppearance.colorScheme(
-                inherited: .light,
-                hasPhysicalNotch: true
-            ),
-            .dark
-        )
-        XCTAssertEqual(
-            MeetingNotchPanelAppearance.colorScheme(
-                inherited: .dark,
-                hasPhysicalNotch: false
-            ),
-            .dark
-        )
-        XCTAssertEqual(
-            MeetingNotchPanelAppearance.colorScheme(
-                inherited: .light,
-                hasPhysicalNotch: false
-            ),
-            .dark
-        )
+    func testPanelTokensKeepTheCompactInstrumentGeometry() {
+        XCTAssertEqual(NotchPanelLayout.preferredWidth, Hud.Size.panelWidth)
+        XCTAssertEqual(NotchPanelLayout.preferredDetailWidth, Hud.Size.panelWidth)
+        // Hover fills bleed `rowInset` past the text and still clear the notch wall.
+        XCTAssertGreaterThan(Hud.Size.panelInset - Hud.Size.rowInset, 12)
+        XCTAssertGreaterThanOrEqual(Hud.Size.row, 44)
     }
 
-    func testFigmaMainPanelTokensMatchTheSourceFrame() {
-        XCTAssertEqual(MeetingNotchTheme.panelWidth, 600)
-        XCTAssertEqual(MeetingNotchTheme.detailPanelWidth, 600)
-        XCTAssertEqual(NotchPanelLayout.preferredDetailWidth, 600)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.horizontalPadding, 12)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.listRowHorizontalInset, 8)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.verticalPadding, 20)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.sectionSpacing, 20)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.contentSpacing, 12)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.rowSpacing, 4)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.itemSpacing, 10)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.panelRadius, 24)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.surfaceRadius, 22)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.capsuleRadius, 16)
-        XCTAssertGreaterThanOrEqual(MeetingNotchTheme.MainPanel.tabHeight, 40)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.rowHeight, 58)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.iconSize, 20)
-    }
-
-    func testInactiveTabsKeepReadableVisualWeight() {
-        XCTAssertGreaterThanOrEqual(MeetingNotchTheme.inactiveTabForegroundOpacity, 0.65)
-        XCTAssertGreaterThan(
-            MeetingNotchTheme.inactiveTabHoverForegroundOpacity,
-            MeetingNotchTheme.inactiveTabForegroundOpacity
-        )
-        XCTAssertGreaterThanOrEqual(MeetingNotchTheme.activeTabFillOpacity, 0.10)
-        XCTAssertGreaterThan(MeetingNotchTheme.surfaceRadius, MeetingNotchTheme.controlRadius)
-        XCTAssertGreaterThanOrEqual(
-            MeetingNotchTheme.surfaceRadius - MeetingNotchTheme.controlRadius,
-            MeetingNotchTheme.tabBarPadding
-        )
-    }
-
-    func testEveryApplicationSurfaceUsesTheFigmaGeometrySystem() {
-        XCTAssertEqual(
-            MeetingNotchTheme.panelHorizontalPadding,
-            MeetingNotchTheme.MainPanel.horizontalPadding
-        )
-        XCTAssertEqual(
-            MeetingNotchTheme.panelVerticalPadding,
-            MeetingNotchTheme.MainPanel.verticalPadding
-        )
-        XCTAssertEqual(MeetingNotchTheme.sectionSpacing, MeetingNotchTheme.MainPanel.sectionSpacing)
-        XCTAssertEqual(MeetingNotchTheme.contentSpacing, MeetingNotchTheme.MainPanel.contentSpacing)
-        XCTAssertEqual(MeetingNotchTheme.itemSpacing, MeetingNotchTheme.MainPanel.itemSpacing)
-        XCTAssertEqual(MeetingNotchTheme.surfaceRadius, MeetingNotchTheme.MainPanel.surfaceRadius)
-        XCTAssertEqual(MeetingNotchTheme.controlRadius, MeetingNotchTheme.MainPanel.capsuleRadius)
-        XCTAssertEqual(MeetingNotchTheme.iconSize, MeetingNotchTheme.MainPanel.iconSize)
-        XCTAssertGreaterThanOrEqual(MeetingNotchTheme.controlHeight, 40)
+    func testInkIsOneNeutralGreyScale() {
+        for ink in [Hud.Ink.text1, Hud.Ink.text2, Hud.Ink.text3, Hud.Ink.text4] {
+            let color = NSColor(ink).usingColorSpace(.sRGB)!
+            XCTAssertEqual(color.redComponent, color.greenComponent, accuracy: 0.001)
+            XCTAssertEqual(color.greenComponent, color.blueComponent, accuracy: 0.001)
+        }
     }
 
     @MainActor
-    func testRedesignedAuxiliarySurfacesAndFigmaIconsRender() throws {
-        let requiredAssets = [
-            "FigmaArchive", "FigmaArrowUp", "FigmaMicrophone", "FigmaMicrophoneOff",
-            "FigmaMore", "FigmaPin", "FigmaRecentCheck", "FigmaRecord", "FigmaStop",
-            "FigmaTaskBacklog", "FigmaTaskBlocked", "FigmaTaskCompleted",
-            "FigmaTaskProgress", "FigmaTaskTodo", "FigmaTasks", "FigmaVideo",
-            "FigmaVoice", "FigmaVolume", "FigmaWarning"
-        ]
-        for assetName in requiredAssets {
-            XCTAssertNotNil(NSImage(named: assetName), "\(assetName) asset'i yüklenemedi")
-        }
-
+    func testRedesignedAuxiliarySurfacesRender() throws {
         let settingsState = AppState()
         let onboardingState = AppState()
         let compactState = AppState(initialFlow: .completed(meetingID: UUID()))
@@ -433,13 +363,13 @@ final class NotchPresentationTests: XCTestCase {
             NotchPanelView()
                 .environmentObject(state)
         }
-        .frame(width: MeetingNotchTheme.panelWidth, height: 560, alignment: .top)
+        .frame(width: Hud.Size.panelWidth, height: 560, alignment: .top)
 
         let hostingView = NSHostingView(rootView: rootView)
         hostingView.appearance = NSAppearance(named: .aqua)
         hostingView.frame = CGRect(
             origin: .zero,
-            size: CGSize(width: MeetingNotchTheme.panelWidth, height: 560)
+            size: CGSize(width: Hud.Size.panelWidth, height: 560)
         )
         hostingView.layoutSubtreeIfNeeded()
 
@@ -469,7 +399,7 @@ final class NotchPresentationTests: XCTestCase {
     }
 
     @MainActor
-    func testFigmaMainPanelStatesRender() throws {
+    func testMainPanelStatesRender() throws {
         let now = Date()
         let upcomingState = AppState()
         upcomingState.updateNotchPanelPresentation(
@@ -562,13 +492,13 @@ final class NotchPresentationTests: XCTestCase {
                 NotchPanelView()
                     .environmentObject(item.state)
             }
-            .frame(width: MeetingNotchTheme.panelWidth, height: item.height, alignment: .top)
+            .frame(width: Hud.Size.panelWidth, height: item.height, alignment: .top)
 
             let hostingView = NSHostingView(rootView: rootView)
             hostingView.appearance = NSAppearance(named: .aqua)
             hostingView.frame = CGRect(
                 origin: .zero,
-                size: CGSize(width: MeetingNotchTheme.panelWidth, height: item.height)
+                size: CGSize(width: Hud.Size.panelWidth, height: item.height)
             )
             hostingView.layoutSubtreeIfNeeded()
 
@@ -752,7 +682,7 @@ extension NotchPresentationTests {
                     MeetingDetailView(content: content, onCopyText: { _ in }, onExportMarkdown: { _ in },
                         onRevealAudio: { _ in }, onRetry: { _ in }, onDelete: { _ in })
                 }
-            }.padding(20).background(MeetingNotchTheme.workspaceBackground)),
+            }.padding(20).background(Color(white: 0.06))),
                 name: "detail-\(status.rawValue)", size: CGSize(width: 680, height: 1050))
         }
     }

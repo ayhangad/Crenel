@@ -168,7 +168,7 @@ hata kaydı olmadan çalıştı. Gerçek izinli cihaz kabulü C8'de.
 
 ### C7 — Tasarım (kullanıcıyla birlikte, en son)
 
-- [ ] Notch ve masaüstü tasarımının birlikte güncellenmesi.
+- [x] Notch ve masaüstü tasarımının birlikte güncellenmesi ("enstrüman" dili, `docs/DESIGN.md`).
 
 ### C9 — Bütünsel deneyim yeniden yapımı (2026-11-16 kullanıcı kararı)
 

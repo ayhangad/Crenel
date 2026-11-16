@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// The closed notch. Status flanks the camera housing: a glyph or living visual on the
-/// left, a value on the right. With nothing to say it is exactly the hardware notch.
+/// The closed notch. Two equal ears flank the camera housing — a mark on the left, a
+/// value on the right, each centred in its ear — and the notch is only as wide as the
+/// current state needs. With nothing to say it is exactly the hardware notch.
 struct CrenelCompactView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.crenelNotchMetrics) private var metrics
@@ -11,7 +12,7 @@ struct CrenelCompactView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let status = appState.compactNotchStatus(now: context.date)
             content(status, now: context.date)
-                .animation(Crenel.Motion.resolve(Crenel.Motion.bouncy, reduceMotion: reduceMotion), value: status.identity)
+                .animation(reduceMotion ? nil : Hud.Motion.change, value: status.identity)
         }
     }
 
@@ -21,90 +22,74 @@ struct CrenelCompactView: View {
             Color.clear
                 .frame(width: metrics.hardware.width, height: metrics.hardware.height)
         } else {
-            NotchFlankLayout(gap: metrics.hasPhysicalNotch ? metrics.hardware.width + 12 : 14) {
+            HudEarsLayout(gap: metrics.hasPhysicalNotch ? metrics.hardware.width : Hud.Space.x3, padding: Hud.Space.x4) {
                 leading(status, now: now)
-                    .id(status.identity)
-                    .transition(.crenelMorph(anchor: .center))
+                    .id("leading." + status.identity)
+                    .transition(.opacity)
                 trailing(status, now: now)
-                    .id(status.identity)
-                    .transition(.crenelMorph(anchor: .center))
+                    .id("trailing." + status.identity)
+                    .transition(.opacity)
             }
-            .padding(.horizontal, 18)
             .frame(height: metrics.hardware.height)
             .accessibilityElement(children: .combine)
         }
     }
 
-    // MARK: Leading
+    // MARK: Leading — what it is
 
     @ViewBuilder
     private func leading(_ status: NotchCompactStatus, now: Date) -> some View {
         switch status {
         case .dictation(let state):
             switch state {
-            case .listening, .transcribing, .refining, .inserting:
-                CrenelOrb(
-                    top: .white,
-                    bottom: Crenel.Palette.dictation,
-                    level: state.isListening ? Double(appState.dictationLevel) : 0.1,
-                    density: 9
-                )
-                .frame(width: 22, height: 22)
+            case .listening:
+                HudIcon(.mic).foregroundStyle(Hud.Ink.text1)
+            case .transcribing, .refining, .inserting:
+                HudIcon(.mic).foregroundStyle(Hud.Ink.text2).modifier(HudBreathing())
             case .inserted:
-                glyph(.check, Crenel.Palette.success)
+                HudIcon(.mic).foregroundStyle(Hud.Ink.text2)
             case .failed:
-                glyph(.warning, Crenel.Palette.warning)
+                HudIcon(.mic).foregroundStyle(Hud.Ink.live)
             case .idle:
                 EmptyView()
             }
         case .recording(let recording):
             HStack(spacing: 7) {
-                CrenelPulseDot(color: Crenel.Palette.record, size: 7)
-                CrenelIcon(recording.microphoneState == .open ? .mic : .micOff, size: 14)
-                    .foregroundStyle(recording.microphoneState == .open ? Crenel.Palette.textPrimary : Crenel.Palette.textTertiary)
-                    .accessibilityLabel(NotchAccessibilityContract.microphoneGateLabel(recording.microphoneState))
+                HudPulse(color: Hud.Ink.live)
+                Text(HudFormat.elapsed(now.timeIntervalSince(recording.startedAt)))
+                    .hud(.label)
+                    .contentTransition(.numericText())
+                    .accessibilityLabel(NotchAccessibilityContract.recordingDurationLabel(HudFormat.elapsed(now.timeIntervalSince(recording.startedAt))))
             }
-        case .processing(let stage):
-            if case .uploading(let progress) = stage {
-                CrenelProgressRing(progress: progress, tint: Crenel.Palette.dictation, lineWidth: 2.4)
-                    .frame(width: 16, height: 16)
-            } else {
-                glyph(.waveform, Crenel.Palette.dictation)
-                    .crenelShimmer()
-            }
+        case .processing:
+            HudIcon(.transcript).foregroundStyle(Hud.Ink.text2).modifier(HudBreathing())
+                .accessibilityLabel("Processing")
         case .completed:
-            glyph(.check, Crenel.Palette.success)
+            HudIcon(.transcript).foregroundStyle(Hud.Ink.text1)
         case .failed:
-            glyph(.warning, Crenel.Palette.danger)
+            HudIcon(.transcript).foregroundStyle(Hud.Ink.live)
         case .agenda(let agenda):
             HStack(spacing: 7) {
-                CrenelProgressRing(progress: agenda.ringProgress(now: now), tint: agenda.tint, lineWidth: 2.4)
-                    .frame(width: 16, height: 16)
-                Text(agenda.item.title)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(Crenel.Palette.textPrimary)
-                    .lineLimit(1)
-                    .frame(maxWidth: 120, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: false)
+                MeetingKindIcon(meeting: agenda.item, tint: agenda.isUrgent ? Hud.Ink.signal : Hud.Ink.text3)
+                if agenda.phase.isOngoing {
+                    title(agenda.item.title)
+                } else {
+                    Text(HudFormat.clock(agenda.item.startDate)).hud(.label)
+                }
             }
         case .focus(let task):
             HStack(spacing: 7) {
-                TaskStateGlyph(status: .inProgress, size: 15)
-                Text(task.title)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(Crenel.Palette.textPrimary)
-                    .lineLimit(1)
-                    .frame(maxWidth: 120, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: false)
+                HudStateMark(state: .inProgress, size: 12)
+                title(task.title)
             }
         case .tasks:
-            glyph(.tasks, Crenel.Palette.tasks)
+            HudIcon(.queue).foregroundStyle(Hud.Ink.text2)
         case .idle:
             EmptyView()
         }
     }
 
-    // MARK: Trailing
+    // MARK: Trailing — how it is going
 
     @ViewBuilder
     private func trailing(_ status: NotchCompactStatus, now: Date) -> some View {
@@ -112,41 +97,48 @@ struct CrenelCompactView: View {
         case .dictation(let state):
             switch state {
             case .listening:
-                CrenelLevelBars(level: Double(appState.dictationLevel), tint: Crenel.Palette.dictation, height: 14)
+                CrenelLevelBars(level: Double(appState.dictationLevel), tint: Hud.Ink.text1, height: 14)
             case .transcribing, .refining, .inserting:
-                value(DictationStatusText.title(for: state), Crenel.Palette.dictation)
-                    .crenelShimmer()
+                HudStepMeter(steps: 3, current: state == .transcribing ? 0 : (state == .refining ? 1 : 2))
+                    .help(DictationStatusText.title(for: state))
             case .inserted:
-                value("Inserted", Crenel.Palette.success)
+                Text("Inserted").hud(.label, Hud.Ink.ok)
             case .failed(let failure):
-                value(DictationStatusText.short(for: failure), Crenel.Palette.warning)
+                Text(DictationStatusText.short(for: failure)).hud(.label, Hud.Ink.live)
+                    .lineLimit(1).fixedSize()
                     .help(failure.message)
             case .idle:
                 EmptyView()
             }
         case .recording(let recording):
-            value(Self.elapsed(now.timeIntervalSince(recording.startedAt)), Crenel.Palette.record)
-                .contentTransition(.numericText())
-                .accessibilityLabel(NotchAccessibilityContract.recordingDurationLabel(Self.elapsed(now.timeIntervalSince(recording.startedAt))))
-        case .processing(let stage):
-            if case .uploading(let progress) = stage {
-                value(progress.formatted(.percent.precision(.fractionLength(0))), Crenel.Palette.dictation)
-            } else {
-                value(stage.shortTitle, Crenel.Palette.dictation)
-                    .crenelShimmer()
+            HStack(spacing: 6) {
+                if recording.microphoneState != .open {
+                    CrenelIcon(.micOff, size: Hud.Size.smallIcon)
+                        .foregroundStyle(recording.microphoneState == .unknown ? Hud.Ink.signal : Hud.Ink.text3)
+                        .accessibilityLabel(NotchAccessibilityContract.microphoneGateLabel(recording.microphoneState))
+                }
+                CrenelLevelBars(level: recordingLevel, tint: Hud.Ink.text1, height: 14)
             }
+        case .processing(let stage):
+            HudStepMeter(steps: 4, current: stage.stepIndex, progress: stage.stepProgress)
+                .help(stage.shortTitle)
         case .completed:
-            value("Done", Crenel.Palette.success)
+            Text("Ready").hud(.label, Hud.Ink.ok)
         case .failed:
-            value("Error", Crenel.Palette.danger)
+            Text("Failed").hud(.label, Hud.Ink.live)
         case .agenda(let agenda):
-            value(NotchAgendaFormatter.compactText(for: agenda), agenda.tint)
-                .contentTransition(.numericText())
+            Text(agenda.compactValue)
+                .hud(.label, agenda.isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
+                .lineLimit(1).fixedSize()
+                .contentTransition(.numericText(countsDown: true))
                 .accessibilityLabel(NotchAgendaFormatter.accessibilityText(for: agenda))
         case .focus(let task):
-            value(NotchAgendaFormatter.durationText(max(60, now.timeIntervalSince(task.startedAt ?? now))), Crenel.Palette.focus)
+            Text(NotchAgendaFormatter.durationText(max(60, now.timeIntervalSince(task.startedAt ?? now))))
+                .hud(.label, Hud.Ink.text2)
+                .lineLimit(1).fixedSize()
         case .tasks(let count):
-            value("\(count)", Crenel.Palette.tasks)
+            Text("\(count)").hud(.label, Hud.Ink.text2)
+                .contentTransition(.numericText())
                 .accessibilityLabel("\(count) open tasks")
         case .idle:
             EmptyView()
@@ -155,27 +147,58 @@ struct CrenelCompactView: View {
 
     // MARK: Pieces
 
-    private func glyph(_ glyph: CrenelGlyph, _ tint: Color) -> some View {
-        CrenelIcon(glyph, size: 15, weight: 2)
-            .foregroundStyle(tint)
+    private var recordingLevel: Double {
+        Double(max(appState.recordingCaptureStatus.microphone.level, appState.recordingCaptureStatus.systemAudio.level))
     }
 
-    private func value(_ text: String, _ tint: Color) -> some View {
+    private func title(_ text: String) -> some View {
         Text(text)
-            .font(Crenel.TextStyle.numeral.font)
-            .foregroundStyle(tint)
+            .hud(.label)
             .lineLimit(1)
-            .fixedSize()
+            .frame(maxWidth: 110, alignment: .leading)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     static func elapsed(_ interval: TimeInterval) -> String {
-        let total = max(0, Int(interval))
-        let hours = total / 3_600
-        let minutes = (total % 3_600) / 60
-        let seconds = total % 60
-        return hours > 0
-            ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
-            : String(format: "%d:%02d", minutes, seconds)
+        HudFormat.elapsed(interval)
+    }
+}
+
+/// Steps of a pipeline as short capsules: done steps grey, the current one longer and
+/// white, the rest a faint track.
+struct HudStepMeter: View {
+    let steps: Int
+    let current: Int
+    /// 0…1 inside the current step, when known.
+    var progress: Double?
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0..<steps, id: \.self) { index in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(index < current ? Hud.Ink.text2 : Hud.Ink.track)
+                    if index == current {
+                        Capsule().fill(Hud.Ink.text1)
+                            .frame(width: progress.map { max(4, 12 * $0) })
+                    }
+                }
+                .frame(width: index == current ? 12 : 4, height: 4)
+            }
+        }
+        .animation(Hud.Motion.change, value: current)
+        .animation(Hud.Motion.change, value: progress)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Slow opacity breathing for work in progress.
+struct HudBreathing: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content.phaseAnimator(reduceMotion ? [1.0] : [0.45, 1.0]) { view, phase in
+            view.opacity(phase)
+        } animation: { _ in .easeInOut(duration: 0.9) }
     }
 }
 
@@ -232,14 +255,44 @@ extension NotchCompactStatus.ProcessingStage {
     }
 }
 
-extension NotchAgendaStatus {
-    var tint: Color {
-        switch urgency {
-        case .imminent: Crenel.Palette.danger
-        case .soon: Crenel.Palette.warning
-        case .calm: Crenel.Palette.calendar
+extension NotchCompactStatus.ProcessingStage {
+    var stepIndex: Int {
+        switch self {
+        case .preparing, .finalizing: 0
+        case .uploading: 1
+        case .transcribing: 2
+        case .summarizing: 3
         }
     }
+
+    var stepProgress: Double? {
+        if case .uploading(let progress) = self { return progress }
+        return nil
+    }
+}
+
+extension NotchAgendaStatus {
+    /// Amber when it needs you: starting within ten minutes, or under way.
+    var isUrgent: Bool {
+        switch phase {
+        case .ongoing: true
+        case .upcoming(let startsIn): startsIn <= 10 * 60
+        }
+    }
+
+    /// Minutes while under an hour; the day or a duration further out.
+    var compactValue: String {
+        switch phase {
+        case .ongoing(let remaining):
+            return "\(max(1, Int((remaining / 60).rounded(.up)))) min"
+        case .upcoming(let startsIn):
+            if startsIn <= 60 * 60 { return "\(max(1, Int((startsIn / 60).rounded(.up)))) min" }
+            if !Calendar.current.isDateInToday(item.startDate) { return HudFormat.day(item.startDate, now: Date()) }
+            return NotchAgendaFormatter.durationText(startsIn)
+        }
+    }
+
+    var tint: Color { isUrgent ? Hud.Ink.signal : Hud.Ink.text2 }
 
     /// Ongoing: elapsed share of the event. Upcoming: how close the start is within the
     /// last hour.

@@ -132,57 +132,47 @@ struct SettingsView: View {
     }
 
     @State private var category = SettingsCategory.general
+    @State private var showsPrivacyDetails = false
+    @State private var showsCalendarDetails = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Settings").font(MeetingNotchTheme.pageTitleFont)
-            }
-            HStack(spacing: 6) {
-                ForEach(SettingsCategory.allCases) { item in
-                    Button { category = item } label: {
-                        ViewThatFits(in: .horizontal) {
-                            Label(item.title, systemImage: item.symbol)
-                            Text(item.title)
-                        }
-                        .font(MeetingNotchTheme.controlFont)
-                        .frame(maxWidth: .infinity).frame(height: 40)
-                        .foregroundStyle(category == item ? MeetingNotchTheme.primaryText : MeetingNotchTheme.secondaryText)
-                    }
-                    .buttonStyle(MeetingNotchRowButtonStyle(selected: category == item))
-                    .accessibilityAddTraits(category == item ? .isSelected : [])
-                }
-            }.accessibilityElement(children: .contain).accessibilityLabel("Settings categories")
+        VStack(alignment: .leading, spacing: Hud.Space.x6) {
+            Text("Settings")
+                .font(Hud.font(22, .semibold))
+                .foregroundStyle(Hud.Ink.text1)
+                .padding(.horizontal, Hud.Size.rowInset)
+            SettingsCategoryTabs(selection: $category)
             ScrollView {
-            LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
-                switch category {
-                case .general: generalContent
-                case .dictation: DictationSettingsView(actions: crenelSettings)
-                case .tasks: TaskStorageSettingsView(actions: crenelSettings)
-                case .ai: aiContent
-                case .calendar: calendarContent
-                case .recording: recordingContent
-                case .data: dataContent
+                VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
+                    switch category {
+                    case .general: generalContent
+                    case .dictation: DictationSettingsView(actions: crenelSettings)
+                    case .tasks: TaskStorageSettingsView(actions: crenelSettings)
+                    case .ai: aiContent
+                    case .calendar: calendarContent
+                    case .recording: recordingContent
+                    case .data: dataContent
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, Hud.Space.x6)
+                .id(category)
+                .transition(.opacity)
             }
-            .padding(.vertical, 4)
-            .id(category)
-            .transition(MeetingNotchMotion.content(reduceMotion: reduceMotion))
-            }
-            .animation(MeetingNotchMotion.navigation(reduceMotion: reduceMotion), value: category)
+            .animation(reduceMotion ? nil : Hud.Motion.change, value: category)
             .scrollIndicators(.hidden)
         }
-        .padding(28)
+        .padding(.horizontal, Hud.Space.x6)
+        .padding(.top, Hud.Space.x7)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(MeetingNotchTheme.workspaceBackground)
-        .foregroundStyle(MeetingNotchTheme.primaryText)
-        .font(MeetingNotchTheme.bodyFont)
-        .tint(MeetingNotchTheme.cyan)
-        .buttonStyle(MeetingNotchActionButtonStyle())
+        .background(Color(white: 0.06))
+        .foregroundStyle(Hud.Ink.text1)
+        .font(Hud.Style.body.font)
+        .tint(Hud.Ink.text2)
+        .buttonStyle(HudButtonStyle(kind: .ghost))
         .toggleStyle(.switch)
         .controlSize(.small)
         .environment(\.colorScheme, .dark)
-        .environment(\.workspacePalette, true)
         .preferredColorScheme(.dark)
         .onAppear {
             onRefreshPermissions()
@@ -211,114 +201,127 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: Pages
+
     @ViewBuilder private var generalContent: some View {
-                settingsSection(title: "General", assetName: "FigmaMore") {
-                    Toggle("Launch at login", isOn: $launchAtLogin)
-
-                    settingsDivider
-
-                    Picker("Keep meetings", selection: $retentionDays) {
-                        Text("Forever").tag(nil as Int?)
-                        Text("7 days").tag(7 as Int?)
-                        Text("30 days").tag(30 as Int?)
-                        Text("90 days").tag(90 as Int?)
-                    }
-                }
-
-                settingsActionRow(message: generalSettingsMessage, isFailure: generalSettingsFailed,
+        SettingsGroup("General") {
+            SettingsRow(glyph: .sun, title: "Launch at login") {
+                Toggle("Launch at login", isOn: $launchAtLogin).settingsSwitch()
+            }
+            SettingsRow(glyph: .archive, title: "Keep meetings") {
+                Picker("Keep meetings", selection: $retentionDays) {
+                    Text("Forever").tag(nil as Int?)
+                    Text("7 days").tag(7 as Int?)
+                    Text("30 days").tag(30 as Int?)
+                    Text("90 days").tag(90 as Int?)
+                }.settingsMenu()
+            }
+            saveRow(message: generalSettingsMessage, isFailure: generalSettingsFailed,
                     buttonTitle: "Save changes", isBusy: isSavingGeneralSettings,
                     isDisabled: isLoadingGeneralSettings, action: saveGeneralSettings)
+        }
     }
 
     @ViewBuilder private var aiContent: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
-                AgentSettingsView(actions: crenelSettings)
-                OpenAISettingsView(actions: openAISettings)
+        AgentSettingsView(actions: crenelSettings)
+        OpenAISettingsView(actions: openAISettings)
 
-                settingsSection(
-                    title: "ElevenLabs",
-                    assetName: "FigmaVoice"
-                ) {
-                    Picker("Transcript language", selection: $languageCode) {
-                        Text("Automatic").tag(nil as String?)
-                        Text("Turkish").tag("tr" as String?)
-                        Text("English").tag("en" as String?)
-                    }
-                    SecureField(
-                        hasStoredAPIKey ? "Type to replace the saved key" : "ElevenLabs API key",
-                        text: $apiKey
-                    )
-                    .textContentType(.password)
-                    .focused($apiKeyFocused)
-                    .meetingFieldSurface(focused: apiKeyFocused)
-                    .accessibilityLabel("ElevenLabs API key")
-                    Link(
-                        "Create an API key on ElevenLabs",
-                        destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!
-                    )
-                    .buttonStyle(.plain)
-                    .foregroundStyle(MeetingNotchTheme.cyan)
-                    .fixedSize(horizontal: false, vertical: true)
-                    settingsActionRow(
-                        message: transcriptionSettingsMessage,
-                        isFailure: transcriptionSettingsFailed,
-                        buttonTitle: "Verify and save",
-                        isBusy: isSavingTranscriptionSettings,
-                        isDisabled: isLoadingTranscriptionSettings
-                            || (apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                                && !hasStoredAPIKey),
-                        action: saveTranscriptionSettings
-                    )
-                    if hasStoredAPIKey {
-                        Button("Remove connection", role: .destructive) {
-                            deleteTranscriptionAPIKey()
-                        }
-                        .buttonStyle(MeetingNotchActionButtonStyle())
-                        .disabled(isSavingTranscriptionSettings)
-                    }
+        SettingsGroup("ElevenLabs") {
+            SettingsRow(glyph: .waveform, title: "ElevenLabs") {
+                if hasStoredAPIKey {
+                    Text("Connected").hud(.label, Hud.Ink.ok)
+                } else {
+                    Link("Get a key", destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!)
+                        .buttonStyle(HudButtonStyle(kind: .ghost))
+                        .accessibilityLabel("Create an API key on ElevenLabs")
                 }
-
-    }
-
+            }
+            SettingsRow(title: "Transcript language") {
+                Picker("Transcript language", selection: $languageCode) {
+                    Text("Automatic").tag(nil as String?)
+                    Text("Turkish").tag("tr" as String?)
+                    Text("English").tag("en" as String?)
+                }.settingsMenu()
+            }
+            SettingsFieldRow {
+                SecureField(
+                    hasStoredAPIKey ? "Type to replace the saved key" : "ElevenLabs API key",
+                    text: $apiKey
+                )
+                .textContentType(.password)
+                .focused($apiKeyFocused)
+                .settingsField(focused: apiKeyFocused)
+                .accessibilityLabel("ElevenLabs API key")
+                if isSavingTranscriptionSettings {
+                    ProgressView().controlSize(.small).accessibilityLabel("Working")
+                }
+                Button("Verify and save", action: saveTranscriptionSettings)
+                    .buttonStyle(HudButtonStyle(kind: .primary))
+                    .disabled(isLoadingTranscriptionSettings || isSavingTranscriptionSettings
+                        || (apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            && !hasStoredAPIKey))
+                if hasStoredAPIKey {
+                    Button(action: deleteTranscriptionAPIKey) {
+                        Text("Remove").foregroundStyle(Hud.Ink.live)
+                    }
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+                    .disabled(isSavingTranscriptionSettings)
+                    .accessibilityLabel("Remove connection")
+                }
+            }
+            if let transcriptionSettingsMessage {
+                SettingsNote(transcriptionSettingsMessage,
+                             color: transcriptionSettingsFailed ? Hud.Ink.live : Hud.Ink.text3)
+            }
+        }
     }
 
     @ViewBuilder private var calendarContent: some View {
-                if let notificationService {
-                    MeetingNotificationSettingsView(service: notificationService)
+        calendarSettingsSection
+        if let notificationService {
+            MeetingNotificationSettingsView(service: notificationService)
+        }
+        if let calendars = appState.calendarIntegrationSnapshot?.calendars, !calendars.isEmpty {
+            SettingsGroup("Watched calendars") {
+                SettingsRow(glyph: .calendar, title: "All calendars") {
+                    Toggle("All calendars", isOn: Binding(
+                        get: { selectedCalendarIDs == nil },
+                        set: { selectedCalendarIDs = $0 ? nil : calendars.map(\.id) }
+                    )).settingsSwitch()
                 }
-                calendarSettingsSection
-                if let calendars = appState.calendarIntegrationSnapshot?.calendars, !calendars.isEmpty {
-                    settingsSection(title: "Watched calendars", assetName: "FigmaVideo") {
-                        Toggle("All calendars", isOn: Binding(
-                            get: { selectedCalendarIDs == nil },
-                            set: { selectedCalendarIDs = $0 ? nil : calendars.map(\.id) }
-                        ))
-                        if selectedCalendarIDs != nil {
-                            ForEach(calendars) { calendar in
-                                Toggle(calendar.title, isOn: Binding(
-                                    get: { selectedCalendarIDs?.contains(calendar.id) ?? true },
-                                    set: { selected in
-                                        var ids = Set(selectedCalendarIDs ?? [])
-                                        if selected { ids.insert(calendar.id) } else { ids.remove(calendar.id) }
-                                        selectedCalendarIDs = ids.sorted()
-                                    }
-                                ))
-                            }
+                if selectedCalendarIDs != nil {
+                    ForEach(calendars) { calendar in
+                        SettingsRow(title: calendar.title) {
+                            Toggle(calendar.title, isOn: Binding(
+                                get: { selectedCalendarIDs?.contains(calendar.id) ?? true },
+                                set: { selected in
+                                    var ids = Set(selectedCalendarIDs ?? [])
+                                    if selected { ids.insert(calendar.id) } else { ids.remove(calendar.id) }
+                                    selectedCalendarIDs = ids.sorted()
+                                }
+                            )).settingsSwitch()
                         }
-                        Button("Save calendar selection", action: saveGeneralSettings)
-                            .disabled(isSavingGeneralSettings)
                     }
                 }
-
+                HStack {
+                    Spacer()
+                    Button("Save selection", action: saveGeneralSettings)
+                        .buttonStyle(HudButtonStyle(kind: .primary))
+                        .disabled(isSavingGeneralSettings)
+                        .accessibilityLabel("Save calendar selection")
+                }
+                .padding(.horizontal, Hud.Size.rowInset)
+                .padding(.top, Hud.Space.x2)
+            }
+        }
     }
 
     @ViewBuilder private var recordingContent: some View {
-                settingsSection(
-                    title: "Recording source",
-                    assetName: "FigmaMicrophone",
-                    footer: nil
-                ) {
-                    HStack(spacing: 12) {
+        SettingsGroup("Source") {
+            SettingsRow(glyph: .mic, title: "Recording mic",
+                        detail: availableMicrophones.isEmpty && !isLoadingMicrophones
+                            ? Text("No mic connected") : nil) {
+                HStack(spacing: Hud.Space.x2) {
                     Picker("Recording mic", selection: $selectedMicrophoneID) {
                         Text("System default").tag(nil as String?)
                         ForEach(availableMicrophones) { microphone in
@@ -334,194 +337,127 @@ struct SettingsView: View {
                                 .tag(selectedMicrophoneID as String?)
                         }
                     }
-                    .controlSize(.large)
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: 220)
                     .disabled(isLoadingMicrophones || availableMicrophones.isEmpty)
 
-                        Button("Save", action: saveMicrophoneSelection)
-                            .buttonStyle(MeetingNotchActionButtonStyle())
-                            .disabled(isLoadingMicrophones || isSavingMicrophone || availableMicrophones.isEmpty)
-                    }
-                    if let microphoneSettingsMessage {
-                        MeetingNotchFeedback(message: microphoneSettingsMessage, isFailure: microphoneSettingsFailed)
-                    }
+                    Button("Save", action: saveMicrophoneSelection)
+                        .buttonStyle(HudButtonStyle(kind: .ghost))
+                        .disabled(isLoadingMicrophones || isSavingMicrophone || availableMicrophones.isEmpty)
                 }
+            }
+            if let microphoneSettingsMessage {
+                SettingsNote(microphoneSettingsMessage,
+                             color: microphoneSettingsFailed ? Hud.Ink.signal : Hud.Ink.text3)
+            }
+        }
 
-                settingsSection(
-                    title: "Recording permissions",
-                    assetName: "FigmaVolume",
-                    footer: nil
-                ) {
-                    PermissionRow(
-                        source: .microphone,
-                        title: "Microphone",
-                        detail: "Adds your voice to meeting recordings.",
-                        status: appState.audioCapturePermissions.microphone,
-                        onRequestAccess: onRequestMicrophoneAccess,
-                        onOpenSystemSettings: onOpenSystemSettings
-                    )
-                    settingsDivider
-                    PermissionRow(
-                        source: .systemAudio,
-                        title: "System audio",
-                        detail: "Records other people in the meeting.",
-                        status: appState.audioCapturePermissions.systemAudio,
-                        onRequestAccess: onRequestSystemAudioAccess,
-                        onOpenSystemSettings: onOpenSystemSettings,
-                        onRelaunchApplication: onRelaunchApplication
-                    )
-                    settingsDivider
-                    AccessibilityPermissionRow(
-                        isGranted: appState.accessibilityPermissionGranted,
-                        onRequestAccess: onRequestAccessibilityAccess,
-                        onOpenSystemSettings: onOpenAccessibilitySettings
-                    )
-                }
+        SettingsGroup("Permissions") {
+            PermissionRow(
+                source: .microphone,
+                title: "Microphone",
+                detail: "Your voice",
+                status: appState.audioCapturePermissions.microphone,
+                onRequestAccess: onRequestMicrophoneAccess,
+                onOpenSystemSettings: onOpenSystemSettings
+            )
+            PermissionRow(
+                source: .systemAudio,
+                title: "System audio",
+                detail: "Other people in the call",
+                status: appState.audioCapturePermissions.systemAudio,
+                onRequestAccess: onRequestSystemAudioAccess,
+                onOpenSystemSettings: onOpenSystemSettings,
+                onRelaunchApplication: onRelaunchApplication
+            )
+            AccessibilityPermissionRow(
+                isGranted: appState.accessibilityPermissionGranted,
+                onRequestAccess: onRequestAccessibilityAccess,
+                onOpenSystemSettings: onOpenAccessibilitySettings
+            )
+        }
 
-                DisclosureGroup("Advanced recording details") {
-                settingsSection(title: "Privacy guard", assetName: "FigmaMicrophoneOff") {
-                    settingValue("Meeting mic", "Starts muted in every recording")
-                    settingsDivider
-                    settingValue("Unknown mute state", "Audio isn’t recorded")
-                    settingsDivider
-                    settingValue("Manual control", "Notch or ⌥⌘M", monospaced: true)
-                    settingsDivider
+        SettingsGroup("Privacy guard") {
+            SettingsRow(glyph: .shield, title: "Meet tab connection") {
+                Text(browserAudioStatusText).hud(.label, browserAudioStatusColor)
+            }
+            ExpandRow(title: "Details", isExpanded: $showsPrivacyDetails)
+                .accessibilityLabel("Advanced recording details")
+            if showsPrivacyDetails {
+                Group {
+                    settingValue("Meeting mic", "Starts muted")
+                    settingValue("Unknown mute state", "Not recorded")
+                    settingValue("Manual control", "Notch or ⌥⌘M")
                     settingValue("Google Meet", "Connected call tab only")
-                    settingsDivider
-                    HStack(spacing: 12) {
-                        Text("Meet tab connection")
-                        Spacer()
-                        Label(browserAudioStatusText, systemImage: browserAudioStatusSymbol)
-                            .foregroundStyle(browserAudioStatusColor)
-                    }
                 }
-
-                }
+                .transition(.opacity)
+            }
+        }
+        .animation(reduceMotion ? nil : Hud.Motion.change, value: showsPrivacyDetails)
     }
 
     @ViewBuilder private var dataContent: some View {
-                settingsSection(
-                    title: "Data and app",
-                    assetName: "FigmaArchive",
-                    footer: appState.requiresTerminationConfirmation
-                        ? "Can’t delete all data while recording or processing."
-                        : nil
-                ) {
-                    MeetingNotchActionGroup {
-                        Button("Open data folder", action: onOpenDataDirectory)
-                            .buttonStyle(MeetingNotchActionButtonStyle())
-                        Button("Open setup guide", action: resetOnboarding)
-                            .buttonStyle(MeetingNotchActionButtonStyle())
-                        Button("Delete all data…", role: .destructive) {
-                            showsDeleteAllDataConfirmation = true
-                        }
-                        .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
-                        .disabled(appState.requiresTerminationConfirmation || isDeletingAllData)
-                    }
-                    if let generalSettingsMessage {
-                        MeetingNotchFeedback(message: generalSettingsMessage, isFailure: generalSettingsFailed)
-                    }
-                    settingsDivider
-                    settingValue(
-                        "Version",
-                        "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")",
-                        monospaced: true
-                    )
+        SettingsGroup("Data") {
+            SettingsRow(glyph: .archive, title: "Data folder") {
+                Button("Open", action: onOpenDataDirectory)
+                    .accessibilityLabel("Open data folder")
+            }
+            SettingsRow(glyph: .window, title: "Setup guide") {
+                Button("Open", action: resetOnboarding)
+                    .accessibilityLabel("Open setup guide")
+            }
+            SettingsRow(glyph: .trash, title: "Delete all data",
+                        detail: appState.requiresTerminationConfirmation
+                            ? Text("Not while recording or processing") : nil) {
+                Button(role: .destructive) {
+                    showsDeleteAllDataConfirmation = true
+                } label: {
+                    Text("Delete…").foregroundStyle(Hud.Ink.live)
                 }
+                .disabled(appState.requiresTerminationConfirmation || isDeletingAllData)
+                .accessibilityLabel("Delete all data…")
+            }
+            if let generalSettingsMessage {
+                SettingsNote(generalSettingsMessage, color: generalSettingsFailed ? Hud.Ink.live : Hud.Ink.text3)
+            }
+        }
+        SettingsGroup("About") {
+            settingValue(
+                "Version",
+                "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")"
+            )
+        }
     }
+
+    // MARK: Pieces
 
     private var browserAudioStatusText: LocalizedStringKey {
         switch appState.browserAudioConnectionStatus {
         case .unavailable: "Unavailable"
         case .waitingForMeetTab: "Waiting for Meet tab"
-        case .tabConnected: "Tab connected"
-        case .recording: "Connected to recording"
-        }
-    }
-
-    private var browserAudioStatusSymbol: String {
-        switch appState.browserAudioConnectionStatus {
-        case .unavailable: "exclamationmark.shield.fill"
-        case .waitingForMeetTab: "puzzlepiece.extension"
-        case .tabConnected: "checkmark.shield.fill"
-        case .recording: "record.circle.fill"
+        case .tabConnected: "Connected"
+        case .recording: "Recording"
         }
     }
 
     private var browserAudioStatusColor: Color {
         switch appState.browserAudioConnectionStatus {
-        case .unavailable: MeetingNotchTheme.danger
-        case .waitingForMeetTab: MeetingNotchTheme.secondaryText
-        case .tabConnected: MeetingNotchTheme.success
-        case .recording: MeetingNotchTheme.danger
+        case .unavailable: Hud.Ink.live
+        case .waitingForMeetTab: Hud.Ink.text3
+        case .tabConnected: Hud.Ink.ok
+        case .recording: Hud.Ink.live
         }
     }
 
-    private func settingsSection<Content: View>(
-        title: LocalizedStringKey,
-        assetName: String,
-        footer: LocalizedStringKey? = nil,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: MeetingNotchTheme.contentSpacing) {
-            HStack(spacing: MeetingNotchTheme.itemSpacing) {
-                Image(assetName)
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(
-                        width: MeetingNotchTheme.MainPanel.iconSize,
-                        height: MeetingNotchTheme.MainPanel.iconSize
-                    )
-                    .foregroundStyle(MeetingNotchTheme.primaryText)
-                Text(title)
-                    .font(.system(size: 15, weight: .semibold))
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                content()
-            }
-
-            if let footer {
-                Text(footer)
-                    .font(MeetingNotchTheme.MainPanel.smallFont)
-                    .foregroundStyle(MeetingNotchTheme.secondaryText)
-                    .lineSpacing(2)
-                    .padding(.horizontal, 4)
-            }
+    private func settingValue(_ title: LocalizedStringKey, _ value: LocalizedStringKey) -> some View {
+        SettingsRow(title: title) {
+            Text(value).hud(.label, Hud.Ink.text2).multilineTextAlignment(.trailing)
         }
-        .padding(18)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-    }
-
-    private var settingsDivider: some View {
-        Rectangle()
-            .fill(MeetingNotchTheme.hairline)
-            .frame(height: 1)
-    }
-
-    private func settingValue(
-        _ title: LocalizedStringKey,
-        _ value: LocalizedStringKey,
-        monospaced: Bool = false
-    ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(title)
-            Spacer(minLength: 16)
-            Text(value)
-                .font(
-                    monospaced
-                        ? MeetingNotchTheme.bodyFont.monospaced()
-                        : MeetingNotchTheme.bodyFont
-                )
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
-                .multilineTextAlignment(.trailing)
-        }
-        .frame(minHeight: 28)
     }
 
     @ViewBuilder
-    private func settingsActionRow(
+    private func saveRow(
         message: String?,
         isFailure: Bool,
         buttonTitle: LocalizedStringKey,
@@ -529,21 +465,23 @@ struct SettingsView: View {
         isDisabled: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        HStack(spacing: Hud.Space.x2) {
             if let message {
-                MeetingNotchFeedback(message: message, isFailure: isFailure)
+                Text(message)
+                    .hud(.meta, isFailure ? Hud.Ink.live : Hud.Ink.text3)
+                    .lineLimit(2)
             }
-            HStack(spacing: 10) {
-                Spacer(minLength: 0)
-                if isBusy {
-                    ProgressView().controlSize(.small).accessibilityLabel("Working")
-                }
-                Button(buttonTitle, action: action)
-                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
-                    .disabled(isDisabled || isBusy)
+            Spacer(minLength: 0)
+            if isBusy {
+                ProgressView().controlSize(.small).accessibilityLabel("Working")
             }
+            Button(buttonTitle, action: action)
+                .buttonStyle(HudButtonStyle(kind: .primary))
+                .disabled(isDisabled || isBusy)
         }
-        .frame(minHeight: 40)
+        .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3)
+        .padding(.trailing, Hud.Size.rowInset)
+        .padding(.top, Hud.Space.x2)
     }
 
     private func apply(_ snapshot: GeneralSettingsSnapshot) {
@@ -678,55 +616,52 @@ struct SettingsView: View {
     }
 
     private var calendarSettingsSection: some View {
-        settingsSection(
-            title: "Calendar connection",
-            assetName: "FigmaRecentCheck",
-            footer: nil
-        ) {
-            Toggle("Show calendar meetings", isOn: $isCalendarEnabled)
-
-            settingsDivider
-
-            Picker("Meeting reminder", selection: $reminderLeadTime) {
-                Text("5 min and 1 min before").tag(TimeInterval(5 * 60))
-                Text("10 min and 1 min before").tag(TimeInterval(10 * 60))
-                Text("15 min and 1 min before").tag(TimeInterval(15 * 60))
+        SettingsGroup("Calendar") {
+            SettingsRow(glyph: .calendar, title: "Show calendar meetings") {
+                Toggle("Show calendar meetings", isOn: $isCalendarEnabled).settingsSwitch()
             }
-            .disabled(!isCalendarEnabled)
-
-            settingsDivider
-
-            LabeledContent("Connection") {
-                Label(calendarStatusTitle, systemImage: calendarStatusSymbol)
-                    .foregroundStyle(calendarStatusColor)
+            SettingsRow(glyph: .bell, title: "Meeting reminder") {
+                Picker("Meeting reminder", selection: $reminderLeadTime) {
+                    Text("5 min and 1 min before").tag(TimeInterval(5 * 60))
+                    Text("10 min and 1 min before").tag(TimeInterval(10 * 60))
+                    Text("15 min and 1 min before").tag(TimeInterval(15 * 60))
+                }
+                .settingsMenu()
+                .disabled(!isCalendarEnabled)
+            }
+            SettingsRow(glyph: .people, title: "Connection") {
+                HStack(spacing: Hud.Space.x2) {
+                    Text(calendarStatusTitle).hud(.label, calendarStatusColor)
+                    calendarPrimaryAction
+                }
+            }
+            SettingsRow(title: "Accounts") {
+                Button("Open", action: onOpenInternetAccounts)
+                    .disabled(!isCalendarEnabled)
+                    .accessibilityLabel("Open accounts")
             }
 
             if let snapshot = appState.calendarIntegrationSnapshot,
                appState.calendarAccessState == .authorized {
-                DisclosureGroup("Connection details") {
+                ExpandRow(title: "Details", isExpanded: $showsCalendarDetails)
+                    .accessibilityLabel("Connection details")
+                if showsCalendarDetails {
                     CalendarIntegrationDetails(snapshot: snapshot)
+                        .transition(.opacity)
                 }
             }
 
-            HStack(spacing: 8) {
-                calendarPrimaryAction
-
-                Button("Open accounts", systemImage: "person.crop.circle.badge.plus") {
-                    onOpenInternetAccounts()
-                }
-                .buttonStyle(MeetingNotchActionButtonStyle())
-                .disabled(!isCalendarEnabled)
-            }
-
-            settingsActionRow(
+            saveRow(
                 message: generalSettingsMessage,
                 isFailure: generalSettingsFailed,
-                buttonTitle: "Save calendar settings",
+                buttonTitle: "Save",
                 isBusy: isSavingGeneralSettings,
                 isDisabled: isLoadingGeneralSettings,
                 action: saveGeneralSettings
             )
+            .accessibilityLabel("Save calendar settings")
         }
+        .animation(reduceMotion ? nil : Hud.Motion.change, value: showsCalendarDetails)
     }
 
     private var calendarStatusTitle: LocalizedStringKey {
@@ -737,29 +672,17 @@ struct SettingsView: View {
         case .requesting: "Waiting for permission"
         case .denied, .restricted: "Permission denied"
         case .failed: "Connection error"
-        case .notDetermined: "Not connected yet"
-        }
-    }
-
-    private var calendarStatusSymbol: String {
-        guard isCalendarEnabled else { return "calendar.badge.minus" }
-        if appState.isCalendarRefreshing { return "arrow.triangle.2.circlepath" }
-        return switch appState.calendarAccessState {
-        case .authorized: "checkmark.circle.fill"
-        case .requesting: "clock.fill"
-        case .denied, .restricted: "exclamationmark.triangle.fill"
-        case .failed: "xmark.octagon.fill"
-        case .notDetermined: "calendar.badge.plus"
+        case .notDetermined: "Not connected"
         }
     }
 
     private var calendarStatusColor: Color {
-        guard isCalendarEnabled else { return MeetingNotchTheme.secondaryText }
+        guard isCalendarEnabled else { return Hud.Ink.text3 }
         return switch appState.calendarAccessState {
-        case .authorized: MeetingNotchTheme.success
-        case .requesting, .notDetermined: MeetingNotchTheme.secondaryText
-        case .denied, .restricted: MeetingNotchTheme.warning
-        case .failed: MeetingNotchTheme.danger
+        case .authorized: Hud.Ink.ok
+        case .requesting, .notDetermined: Hud.Ink.text3
+        case .denied, .restricted: Hud.Ink.signal
+        case .failed: Hud.Ink.live
         }
     }
 
@@ -767,41 +690,90 @@ struct SettingsView: View {
     private var calendarPrimaryAction: some View {
         switch appState.calendarAccessState {
         case .authorized:
-            Button("Refresh now", systemImage: "arrow.clockwise") {
-                onRefreshCalendar()
-            }
-            .buttonStyle(MeetingNotchActionButtonStyle())
-            .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
+            Button("Refresh") { onRefreshCalendar() }
+                .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
+                .accessibilityLabel("Refresh now")
         case .denied, .restricted:
-            Button("Open calendar permission", systemImage: "gearshape") {
-                onOpenCalendarSettings()
-            }
-            .buttonStyle(MeetingNotchActionButtonStyle())
-            .disabled(!isCalendarEnabled)
+            Button("Open") { onOpenCalendarSettings() }
+                .disabled(!isCalendarEnabled)
+                .accessibilityLabel("Open calendar permission")
         case .requesting:
-            Button("Waiting for permission…", systemImage: "clock") {}
-                .buttonStyle(MeetingNotchActionButtonStyle())
-                .disabled(true)
+            EmptyView()
         case .failed:
-            Button("Try again", systemImage: "arrow.clockwise") {
-                onRefreshCalendar()
-            }
-            .buttonStyle(MeetingNotchActionButtonStyle())
-            .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
+            Button("Try again") { onRefreshCalendar() }
+                .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
         case .notDetermined:
-            Button("Allow calendar access", systemImage: "calendar.badge.plus") {
-                onRequestCalendarAccess()
-            }
-            .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
-            .disabled(!isCalendarEnabled)
+            Button("Allow") { onRequestCalendarAccess() }
+                .disabled(!isCalendarEnabled)
+                .accessibilityLabel("Allow calendar access")
         }
     }
+}
 
-    private var microphoneFooterText: String {
-        if availableMicrophones.isEmpty {
-            return "No mic connected. The list refreshes when you connect one."
+// MARK: - Category tabs
+
+/// Category switcher: icon and word per tab, a soft plate gliding to the selection.
+private struct SettingsCategoryTabs: View {
+    @Binding var selection: SettingsCategory
+    @Namespace private var namespace
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(SettingsCategory.allCases) { item in
+                let isSelected = item == selection
+                Button {
+                    withAnimation(Hud.Motion.glide) { selection = item }
+                } label: {
+                    HStack(spacing: 7) {
+                        CrenelIcon(item.glyph, size: Hud.Size.smallIcon)
+                        Text(item.title).font(Hud.Style.label.font)
+                    }
+                    .foregroundStyle(isSelected ? Hud.Ink.text1 : Hud.Ink.text3)
+                    .padding(.horizontal, Hud.Space.x3)
+                    .frame(height: 26)
+                    .background {
+                        if isSelected {
+                            Capsule().fill(Hud.Ink.selected)
+                                .matchedGeometryEffect(id: "settings.tab", in: namespace)
+                        }
+                    }
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
         }
-        return "The selected mic is checked when recording starts. If it’s missing, the system default is used; if it disconnects mid-recording, the notch shows a warning."
+        .padding(2)
+        .background(Capsule().fill(Color(white: 1, opacity: 0.035)))
+        .fixedSize()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Settings categories")
+    }
+}
+
+/// A quiet row that shows or hides secondary rows below it.
+private struct ExpandRow: View {
+    let title: LocalizedStringKey
+    @Binding var isExpanded: Bool
+    @State private var isHovering = false
+
+    var body: some View {
+        Button {
+            isExpanded.toggle()
+        } label: {
+            HStack(spacing: Hud.Space.x2) {
+                Text(title)
+                CrenelIcon(.chevronDown, size: 10)
+                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
+            }
+            .hud(.meta, isHovering ? Hud.Ink.text2 : Hud.Ink.text3)
+            .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3)
+            .frame(height: 30)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in withAnimation(Hud.Motion.hover) { isHovering = hovering } }
+        .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
     }
 }
 
@@ -809,45 +781,20 @@ private struct CalendarIntegrationDetails: View {
     let snapshot: CalendarIntegrationSnapshot
 
     var body: some View {
-        LabeledContent("Account sources") {
-            Text(sourceDescription)
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
-                .multilineTextAlignment(.trailing)
-        }
-
-        LabeledContent("Readable content") {
-            Text(readableContentDescription)
-                .font(.body.monospacedDigit())
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
-        }
-
-        LabeledContent("Online meetings") {
-            Text(snapshot.matchedMeetingCount, format: .number)
-                .font(.body.monospacedDigit())
-                .foregroundStyle(
-                    snapshot.matchedMeetingCount == 0
-                        ? MeetingNotchTheme.secondaryText
-                        : MeetingNotchTheme.success
-                )
-        }
-
-        LabeledContent("Last refresh") {
-            Text(snapshot.refreshedAt, style: .relative)
-                .font(.body.monospacedDigit())
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
-        }
+        detail("Account sources", Text(sourceDescription))
+        detail("Readable content", Text(readableContentDescription))
+        detail("Online meetings", Text(snapshot.matchedMeetingCount, format: .number),
+               color: snapshot.matchedMeetingCount == 0 ? Hud.Ink.text2 : Hud.Ink.ok)
+        detail("Last refresh", Text(snapshot.refreshedAt, style: .relative))
 
         if !snapshot.hasGoogleAccount {
-            HStack(alignment: .top, spacing: 8) {
-                Image("FigmaWarning")
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 16, height: 16)
-                Text("Google Calendar isn’t showing. Add your Google account in macOS Internet Accounts and turn on Calendars.")
-            }
-            .font(MeetingNotchTheme.MainPanel.smallFont)
-            .foregroundStyle(MeetingNotchTheme.warning)
+            SettingsNote("Google Calendar missing · add it in Internet Accounts", color: Hud.Ink.signal)
+        }
+    }
+
+    private func detail(_ title: LocalizedStringKey, _ value: Text, color: Color = Hud.Ink.text2) -> some View {
+        SettingsRow(title: title) {
+            value.hud(.label, color).lineLimit(1).truncationMode(.middle)
         }
     }
 
@@ -873,35 +820,41 @@ private struct PermissionRow: View {
     var onRelaunchApplication: () -> Void = {}
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: source == .microphone ? "mic" : "speaker.wave.2")
-                .foregroundStyle(statusColor).frame(width: 24)
-            Text(title).font(MeetingNotchTheme.bodyFont).help(detail)
-            Spacer(minLength: 8)
+        SettingsRow(glyph: source == .microphone ? .mic : .speaker, title: title, detail: detailText) {
             if status == .authorized {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(MeetingNotchTheme.success)
-                    .accessibilityLabel("Allowed")
+                Text("Allowed").hud(.label, Hud.Ink.ok)
             } else {
-                Button(actionTitle) {
-                    status.requiresSystemSettings ? onOpenSystemSettings(source) : onRequestAccess()
-                }.buttonStyle(MeetingNotchActionButtonStyle())
-                if source == .systemAudio, status.requiresSystemSettings {
-                    Menu {
-                        Button("Ask again", action: onRequestAccess)
-                        Button("Relaunch app", action: onRelaunchApplication)
-                    } label: { Image(systemName: "ellipsis") }
-                    .menuStyle(.borderlessButton).frame(width: 40, height: 40)
-                    .accessibilityLabel("System audio options")
+                HStack(spacing: Hud.Space.x1) {
+                    Button(actionTitle) {
+                        status.requiresSystemSettings ? onOpenSystemSettings(source) : onRequestAccess()
+                    }
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+                    if source == .systemAudio, status.requiresSystemSettings {
+                        Menu {
+                            Button("Ask again", action: onRequestAccess)
+                            Button("Relaunch app", action: onRelaunchApplication)
+                        } label: { CrenelIcon(.more, size: Hud.Size.smallIcon) }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .foregroundStyle(Hud.Ink.text3)
+                        .frame(width: Hud.Size.control, height: Hud.Size.control)
+                        .accessibilityLabel("System audio options")
+                    }
                 }
             }
         }
-        .frame(minHeight: 44)
-        .accessibilityElement(children: .contain)
         .accessibilityValue(statusTitle)
     }
 
+    private var detailText: Text {
+        switch status {
+        case .authorized: Text(detail)
+        default: Text(statusTitle).foregroundStyle(statusColor)
+        }
+    }
+
     private var actionTitle: LocalizedStringKey {
-        status.requiresSystemSettings ? "Open Settings" : "Allow"
+        status.requiresSystemSettings ? "Open" : "Allow"
     }
 
     private var statusTitle: LocalizedStringKey {
@@ -916,9 +869,9 @@ private struct PermissionRow: View {
 
     private var statusColor: Color {
         switch status {
-        case .authorized: MeetingNotchTheme.success
-        case .verificationRequired, .notDetermined: MeetingNotchTheme.warning
-        case .denied, .restricted: MeetingNotchTheme.danger
+        case .authorized: Hud.Ink.ok
+        case .verificationRequired, .notDetermined: Hud.Ink.signal
+        case .denied, .restricted: Hud.Ink.live
         }
     }
 }
@@ -929,24 +882,23 @@ private struct AccessibilityPermissionRow: View {
     let onOpenSystemSettings: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "accessibility").frame(width: 24)
-                .foregroundStyle(isGranted ? MeetingNotchTheme.success : MeetingNotchTheme.secondaryText)
-            Text("Mic tracking").help("Accessibility access is needed to detect the meeting’s mic state.")
-            Spacer(minLength: 8)
+        SettingsRow(glyph: .accessibility, title: "Mic tracking",
+                    detail: isGranted ? Text("Reads the meeting’s mute state")
+                        : Text("Needs Accessibility").foregroundStyle(Hud.Ink.signal)) {
             if isGranted {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(MeetingNotchTheme.success)
-                    .accessibilityLabel("Allowed")
+                Text("Allowed").hud(.label, Hud.Ink.ok)
             } else {
-                Button("Allow", action: onRequestAccess).buttonStyle(MeetingNotchActionButtonStyle())
-                Button(action: onOpenSystemSettings) { Image(systemName: "gearshape") }
-                    .buttonStyle(MeetingNotchIconButtonStyle()).help("Accessibility settings")
-                    .accessibilityLabel("Open Accessibility settings")
+                HStack(spacing: Hud.Space.x1) {
+                    Button("Allow", action: onRequestAccess)
+                        .buttonStyle(HudButtonStyle(kind: .ghost))
+                    Button("Open", action: onOpenSystemSettings)
+                        .buttonStyle(HudButtonStyle(kind: .ghost))
+                        .help("Accessibility settings")
+                        .accessibilityLabel("Open Accessibility settings")
+                }
             }
-        }.frame(minHeight: 44)
-        .accessibilityElement(children: .contain)
+        }
     }
-
 }
 
 enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
@@ -972,6 +924,18 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
         case .calendar: "calendar"
         case .recording: "mic"
         case .data: "externaldrive"
+        }
+    }
+    /// The Crenel icon for the category tab.
+    var glyph: CrenelGlyph {
+        switch self {
+        case .general: .sliders
+        case .dictation: .waveform
+        case .tasks: .tasks
+        case .ai: .sparkle
+        case .calendar: .calendar
+        case .recording: .mic
+        case .data: .archive
         }
     }
 }

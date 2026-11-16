@@ -17,27 +17,23 @@ struct OpenAISettingsView: View {
     @State private var failed = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("OpenAI", systemImage: "text.badge.checkmark")
-                .font(.system(size: 15, weight: .semibold))
-            Text("Summaries and tasks · Billed to your account.")
-                .font(MeetingNotchTheme.bodyFont)
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
-            HStack {
-                Text("Connection").foregroundStyle(MeetingNotchTheme.secondaryText)
-                Spacer()
-                Label(loading ? "Checking…" : connected ? "Connected" : "Key required", systemImage: loading ? "clock" : connected ? "checkmark.circle" : "key")
-                    .foregroundStyle(connected ? MeetingNotchTheme.success : MeetingNotchTheme.secondaryText)
-            }.font(MeetingNotchTheme.controlFont)
-            SecureField(connected ? "New OpenAI API key" : "OpenAI API key", text: $key)
-                .textContentType(.password)
-                .focused($keyFocused)
-                .meetingFieldSurface(focused: keyFocused)
-                .accessibilityLabel("OpenAI API key")
-            Text("Testing the connection sends a small paid request.")
-                .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-            HStack {
+        SettingsGroup("OpenAI") {
+            SettingsRow(glyph: .sparkle, title: "OpenAI", detail: Text("Summaries and tasks · billed to you")) {
+                if loading {
+                    Text("Checking…").hud(.label, Hud.Ink.text3)
+                } else if connected {
+                    Text("Connected").hud(.label, Hud.Ink.ok)
+                } else {
+                    Text("Key required").hud(.label, Hud.Ink.text3)
+                }
+            }
+            SettingsFieldRow {
+                SecureField(connected ? "New OpenAI API key" : "OpenAI API key", text: $key)
+                    .textContentType(.password)
+                    .focused($keyFocused)
+                    .settingsField(focused: keyFocused)
+                    .accessibilityLabel("OpenAI API key")
+                if busy { ProgressView().controlSize(.small).accessibilityLabel("Working") }
                 Button(connected ? "Update" : "Connect") {
                     busy = true
                     let candidate = key.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -46,21 +42,26 @@ struct OpenAISettingsView: View {
                         key = ""
                         await finish(result)
                     }
-                }.buttonStyle(MeetingNotchActionButtonStyle(kind: .primary)).disabled(loading || busy || key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                .buttonStyle(HudButtonStyle(kind: .primary))
+                .disabled(loading || busy || key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .help("Sends a small paid test request")
                 if connected {
-                    Button("Remove connection", role: .destructive) {
+                    Button {
                         busy = true
                         Task { await finish(actions.disconnect()) }
-                    }.disabled(busy)
+                    } label: {
+                        Text("Remove").foregroundStyle(Hud.Ink.live)
+                    }
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+                    .disabled(busy)
+                    .accessibilityLabel("Remove connection")
                 }
-                if busy { ProgressView().controlSize(.small) }
             }
-            if let message { MeetingNotchFeedback(message: message, isFailure: failed) }
-
+            if let message {
+                SettingsNote(message, color: failed ? Hud.Ink.live : Hud.Ink.text3)
+            }
         }
-        .padding(20)
-        .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: MeetingNotchTheme.surfaceRadius))
-        .buttonStyle(MeetingNotchActionButtonStyle())
         .task { connected = await actions.hasKey(); loading = false }
     }
 

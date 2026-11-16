@@ -46,7 +46,6 @@
 		3C240AF3B3F56BD6A5C44C51 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCB0E2DB2414C3311B00570 /* AppState.swift */; };
 		3E1D74FA0BB95C383BE2E858 /* TranscriptionProgressBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C52026288922C4EB725E0ACE /* TranscriptionProgressBridge.swift */; };
 		3F3454549456BFC9B03E693A /* MeetingMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BBC95FAA7DD7D1604037DEB /* MeetingMonitor.swift */; };
-		40889CCB5D38BEDB664A2D7E /* MeetingNotchTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFAB499F36F3F19EEAEF4E4E /* MeetingNotchTheme.swift */; };
 		40A00C20CB73D1B30123ACEF /* MeetingMicrophoneGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DE85360E6A005393C312EDB /* MeetingMicrophoneGate.swift */; };
 		441F82443D3BD46E4F44DA41 /* CrenelIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6043FF7DD1CFBEAA85FF061 /* CrenelIcons.swift */; };
 		44AF6B2B379F9C527446F1D5 /* MicrophoneDeviceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58BE57038969F42BC798CB9E /* MicrophoneDeviceServiceTests.swift */; };
@@ -436,7 +435,6 @@
 		FCCCD8A04CF6314894A79EA2 /* MeetingNotchTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MeetingNotchTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FDFC3CC96399338DFAC3DAB8 /* MeetingFileName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingFileName.swift; sourceTree = "<group>"; };
 		FE4EBB9D622A37796DEF919B /* MeetingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingDetailView.swift; sourceTree = "<group>"; };
-		FFAB499F36F3F19EEAEF4E4E /* MeetingNotchTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingNotchTheme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -837,7 +835,6 @@
 			isa = PBXGroup;
 			children = (
 				C8838E2D2003B98430119835 /* System */,
-				FFAB499F36F3F19EEAEF4E4E /* MeetingNotchTheme.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -1227,7 +1224,6 @@
 				40A00C20CB73D1B30123ACEF /* MeetingMicrophoneGate.swift in Sources */,
 				3F3454549456BFC9B03E693A /* MeetingMonitor.swift in Sources */,
 				25D9829D839710EAD5B83926 /* MeetingNotchApp.swift in Sources */,
-				40889CCB5D38BEDB664A2D7E /* MeetingNotchTheme.swift in Sources */,
 				91E9962B43DBDEEADCD3BB4C /* MeetingNotificationService.swift in Sources */,
 				7384EF936D387B2BB2621A2D /* MeetingNotificationSettingsView.swift in Sources */,
 				9BAB5002C91D20E518016CF7 /* MeetingProcessingEngine.swift in Sources */,

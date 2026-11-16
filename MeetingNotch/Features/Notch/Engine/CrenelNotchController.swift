@@ -276,7 +276,7 @@ struct CrenelNotchRootView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var compactSize: CGSize = .zero
-    @State private var expandedSize: CGSize = CGSize(width: 600, height: 420)
+    @State private var expandedSize: CGSize = CGSize(width: Hud.Size.panelWidth, height: 360)
     @State private var bounce = false
 
     var body: some View {
@@ -295,18 +295,28 @@ struct CrenelNotchRootView: View {
                             expanded()
                                 .fixedSize()
                                 .onGeometryChange(for: CGSize.self, of: \.size) { newSize in
-                                    expandedSize = newSize
+                                    withAnimation(motion(Hud.Motion.morph)) {
+                                        expandedSize = newSize
+                                    }
                                 }
-                                .transition(.crenelMorph(anchor: .top))
+                                // The shape grows first; content fades in once there is
+                                // room for it and leaves quickly so it never outruns the shape.
+                                .transition(.asymmetric(
+                                    insertion: .opacity.animation(.easeOut(duration: 0.24).delay(reduceMotion ? 0 : 0.12)),
+                                    removal: .opacity.animation(.easeOut(duration: 0.08))
+                                ))
                         case .compact:
                             compact()
                                 .fixedSize()
                                 .onGeometryChange(for: CGSize.self, of: \.size) { newSize in
-                                    withAnimation(motion(Crenel.Motion.bouncy)) {
+                                    withAnimation(motion(Hud.Motion.morph)) {
                                         compactSize = newSize
                                     }
                                 }
-                                .transition(.crenelMorph(anchor: .top))
+                                .transition(.asymmetric(
+                                    insertion: .opacity.animation(.easeOut(duration: 0.2).delay(reduceMotion ? 0 : 0.16)),
+                                    removal: .opacity.animation(.easeOut(duration: 0.06))
+                                ))
                         case .hidden:
                             EmptyView()
                         }
@@ -319,7 +329,7 @@ struct CrenelNotchRootView: View {
                     y: 10
                 )
                 .opacity(model.presentation == .hidden && !metrics.hasPhysicalNotch ? 0 : 1)
-                .scaleEffect(bounce ? 1.06 : 1, anchor: .top)
+                .scaleEffect(bounce ? 1.04 : 1, anchor: .top)
                 .onGeometryChange(for: CGRect.self, of: { $0.frame(in: .named("notchWindow")) }) { frame in
                     onShapeFrameChange(frame)
                 }
@@ -352,9 +362,9 @@ struct CrenelNotchRootView: View {
     private func shapeRadii(metrics: CrenelNotchMetrics) -> (top: CGFloat, bottom: CGFloat) {
         switch model.presentation {
         case .hidden, .compact:
-            (6, max(8, metrics.hardware.height * 0.36))
+            (6, 10)
         case .expanded:
-            (12, Crenel.Radius.notch)
+            (12, 20)
         }
     }
 

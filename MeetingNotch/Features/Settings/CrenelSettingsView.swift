@@ -50,84 +50,84 @@ struct DictationSettingsView: View {
     @FocusState private var termFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
-            CrenelSettingsCard(title: "Smart dictation", symbol: "mic") {
-                Toggle("Use dictation", isOn: binding(\.dictationEnabled))
-                permissionRow
-
-                Picker("Shortcut", selection: binding(\.dictationTrigger.trigger)) {
-                    Text("Hold Fn (🌐)").tag(DictationTrigger.fnHold)
-                    Text("Hold right ⌥").tag(DictationTrigger.rightOptionHold)
-                    Text("Hold right ⌘").tag(DictationTrigger.rightCommandHold)
+        VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
+            SettingsGroup("Dictation") {
+                SettingsRow(glyph: .waveform, title: "Use dictation") {
+                    Toggle("Use dictation", isOn: binding(\.dictationEnabled)).settingsSwitch()
                 }
-                Picker("Mode", selection: binding(\.dictationTrigger.mode)) {
-                    Text("Hold to talk").tag(DictationTriggerMode.holdToTalk)
-                    Text("Press to start, press to stop").tag(DictationTriggerMode.toggle)
+                permissionRows
+                SettingsRow(glyph: .keyboard, title: "Shortcut",
+                            detail: model.preferences.dictationTrigger.trigger == .fnHold
+                                ? Text("Use ⌃Space to switch input languages") : nil) {
+                    Picker("Shortcut", selection: binding(\.dictationTrigger.trigger)) {
+                        Text("Hold Fn (🌐)").tag(DictationTrigger.fnHold)
+                        Text("Hold right ⌥").tag(DictationTrigger.rightOptionHold)
+                        Text("Hold right ⌘").tag(DictationTrigger.rightCommandHold)
+                    }.settingsMenu()
                 }
-                Toggle("Double-tap for hands-free", isOn: binding(\.dictationTrigger.allowsDoubleTapHandsFree))
-                Picker("Language", selection: binding(\.dictationLanguage)) {
-                    Text("System language").tag(DictationLanguage.automatic)
-                    Text("Turkish").tag(DictationLanguage.turkish)
-                    Text("English").tag(DictationLanguage.english)
+                SettingsRow(title: "Mode") {
+                    Picker("Mode", selection: binding(\.dictationTrigger.mode)) {
+                        Text("Hold to talk").tag(DictationTriggerMode.holdToTalk)
+                        Text("Press to start, press to stop").tag(DictationTriggerMode.toggle)
+                    }.settingsMenu()
                 }
-                HStack {
-                    Text("The speech model runs on-device and downloads on first use.")
-                        .font(MeetingNotchTheme.MainPanel.smallFont)
-                        .foregroundStyle(MeetingNotchTheme.secondaryText)
-                    Spacer()
-                    Button("Download model", action: crenelActions.dictation.prepareSpeechAssets)
+                SettingsRow(title: "Double-tap for hands-free") {
+                    Toggle("Double-tap for hands-free", isOn: binding(\.dictationTrigger.allowsDoubleTapHandsFree))
+                        .settingsSwitch()
                 }
-                if model.preferences.dictationTrigger.trigger == .fnHold {
-                    Text("While Fn is the dictation key, it won’t switch input languages or open emoji on its own. Use ⌃Space to switch languages; Fn’s usual behavior returns when dictation is off.")
-                        .font(MeetingNotchTheme.MainPanel.smallFont)
-                        .foregroundStyle(MeetingNotchTheme.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
+                SettingsRow(title: "Language") {
+                    Picker("Language", selection: binding(\.dictationLanguage)) {
+                        Text("System language").tag(DictationLanguage.automatic)
+                        Text("Turkish").tag(DictationLanguage.turkish)
+                        Text("English").tag(DictationLanguage.english)
+                    }.settingsMenu()
+                }
+                SettingsRow(title: "Speech model", detail: Text("On-device")) {
+                    Button("Download", action: crenelActions.dictation.prepareSpeechAssets)
+                        .buttonStyle(HudButtonStyle(kind: .ghost))
+                        .accessibilityLabel("Download model")
                 }
             }
 
-            CrenelSettingsCard(title: "Personal dictionary", symbol: "character.book.closed") {
-                Text("Names, products and technical terms are written exactly as entered.")
-                    .font(MeetingNotchTheme.MainPanel.smallFont)
-                    .foregroundStyle(MeetingNotchTheme.secondaryText)
-                HStack {
-                    TextField("E.g. Crenel, SwiftUI, Ayhan", text: $newTerm)
+            SettingsGroup("Dictionary") {
+                HStack(spacing: Hud.Space.x2) {
+                    TextField("Crenel, SwiftUI, Ayhan", text: $newTerm)
                         .focused($termFocused)
-                        .meetingFieldSurface(focused: termFocused)
+                        .settingsField(focused: termFocused)
                         .onSubmit(addTerm)
-                    Button("Add", action: addTerm)
+                        .accessibilityLabel("New dictionary term")
+                    Button(action: addTerm) { HudIcon(.plus, size: Hud.Size.smallIcon) }
+                        .buttonStyle(HudButtonStyle(kind: .iconFilled))
                         .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .accessibilityLabel("Add")
                 }
+                .padding(.horizontal, Hud.Size.rowInset)
+                .padding(.vertical, Hud.Space.x1)
                 if !model.preferences.dictationVocabulary.isEmpty {
                     FlowChips(items: model.preferences.dictationVocabulary) { term in
                         model.preferences.dictationVocabulary.removeAll { $0 == term }
                         model.save(actions)
                     }
+                    .padding(.horizontal, Hud.Size.rowInset)
+                    .padding(.top, Hud.Space.x2)
                 }
             }
 
-            CrenelSettingsCard(title: "Recent dictations", symbol: "clock.arrow.circlepath") {
+            SettingsGroup("Recent") {
                 if appState.dictationHistory.isEmpty {
-                    Text("No dictations this session. History stays in memory and is never written to disk.")
-                        .font(MeetingNotchTheme.MainPanel.smallFont)
-                        .foregroundStyle(MeetingNotchTheme.secondaryText)
+                    SettingsNote("Nothing yet · kept in memory only")
                 } else {
                     ForEach(appState.dictationHistory.prefix(8)) { entry in
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(entry.finalText).lineLimit(2)
-                                Text([entry.appName, entry.createdAt.formatted(date: .omitted, time: .shortened)]
-                                    .compactMap { $0 }.joined(separator: " · "))
-                                    .font(MeetingNotchTheme.MainPanel.smallFont)
-                                    .foregroundStyle(MeetingNotchTheme.secondaryText)
-                            }
-                            Spacer()
+                        SettingsRow(title: entry.finalText,
+                                    detail: Text([entry.appName, entry.createdAt.formatted(date: .omitted, time: .shortened)]
+                                        .compactMap { $0 }.joined(separator: " · "))) {
                             Button {
                                 NSPasteboard.general.clearContents()
                                 NSPasteboard.general.setString(entry.finalText, forType: .string)
                             } label: {
-                                Image(systemName: "doc.on.doc")
+                                CrenelIcon(.copy, size: Hud.Size.smallIcon)
                             }
-                            .buttonStyle(MeetingNotchIconButtonStyle())
+                            .buttonStyle(HudButtonStyle(kind: .icon))
                             .help("Copy")
                             .accessibilityLabel("Copy dictation")
                         }
@@ -141,26 +141,18 @@ struct DictationSettingsView: View {
     }
 
     @ViewBuilder
-    private var permissionRow: some View {
+    private var permissionRows: some View {
         switch appState.dictationAvailability {
         case .needsInputMonitoring:
-            HStack {
-                Label("The shortcut needs Input Monitoring access", systemImage: "keyboard")
-                    .foregroundStyle(MeetingNotchTheme.warning)
-                Spacer()
+            SettingsRow(glyph: .keyboard, title: "Input Monitoring", detail: Text("Needed for the shortcut")) {
                 Button("Allow", action: crenelActions.dictation.requestInputMonitoring)
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
             }
-        case .ready:
-            Label("Shortcut ready. Types at the cursor.", systemImage: "checkmark.circle")
-                .foregroundStyle(MeetingNotchTheme.success)
-        case .disabled:
+        case .ready, .disabled:
             EmptyView()
         }
         if !appState.accessibilityPermissionGranted {
-            Text("Typing text directly needs Accessibility access; without it, text is copied to the clipboard.")
-                .font(MeetingNotchTheme.MainPanel.smallFont)
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
+            SettingsNote("Without Accessibility, text goes to the clipboard")
         }
     }
 
@@ -192,94 +184,107 @@ struct AgentSettingsView: View {
     @FocusState private var keyFocused: Bool
 
     var body: some View {
-        CrenelSettingsCard(title: "Agent", symbol: "sparkles") {
-            Text("Cleans up and punctuates dictation, and edits selected text by voice.")
-                .font(MeetingNotchTheme.MainPanel.smallFont)
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
-            Picker("Model", selection: binding(\.agent.provider)) {
-                Text("Automatic (recommended)").tag(AgentProviderKind.automatic)
-                Text("On-device (Apple)").tag(AgentProviderKind.onDevice)
-                Text("OpenAI (your key)").tag(AgentProviderKind.openAI)
-                Text("Anthropic (your key)").tag(AgentProviderKind.anthropic)
-                Text("Off").tag(AgentProviderKind.off)
-            }
-            if model.preferences.agent.provider == .automatic {
-                Text("Uses your saved API key: Anthropic (Claude Haiku) first, then OpenAI. With no key, it falls back to Apple’s on-device model.")
-                    .font(MeetingNotchTheme.MainPanel.smallFont)
-                    .foregroundStyle(MeetingNotchTheme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if model.preferences.agent.provider == .onDevice, let onDeviceStatus {
-                Text(onDeviceStatus)
-                    .font(MeetingNotchTheme.MainPanel.smallFont)
-                    .foregroundStyle(MeetingNotchTheme.warning)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Toggle("Clean up dictation", isOn: binding(\.agent.cleanupEnabled))
-            Toggle("Voice commands on selected text", isOn: binding(\.agent.commandModeEnabled))
+        VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
+            SettingsGroup("Agent") {
+                SettingsRow(glyph: .sparkle, title: "Model", detail: providerDetail) {
+                    Picker("Model", selection: binding(\.agent.provider)) {
+                        Text("Automatic").tag(AgentProviderKind.automatic)
+                        Text("On-device (Apple)").tag(AgentProviderKind.onDevice)
+                        Text("OpenAI (your key)").tag(AgentProviderKind.openAI)
+                        Text("Anthropic (your key)").tag(AgentProviderKind.anthropic)
+                        Text("Off").tag(AgentProviderKind.off)
+                    }.settingsMenu()
+                }
+                SettingsRow(title: "Clean up dictation") {
+                    Toggle("Clean up dictation", isOn: binding(\.agent.cleanupEnabled)).settingsSwitch()
+                }
+                SettingsRow(title: "Voice commands on selected text") {
+                    Toggle("Voice commands on selected text", isOn: binding(\.agent.commandModeEnabled)).settingsSwitch()
+                }
 
-            if model.preferences.agent.provider == .openAI {
-                Text("The OpenAI key is shared with meeting summaries; connect it under AI › OpenAI.")
-                    .font(MeetingNotchTheme.MainPanel.smallFont)
-                    .foregroundStyle(MeetingNotchTheme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                TextField("Model ID (empty: default)", text: optionalBinding(\.agent.openAIModelID))
-                    .meetingFieldSurface(focused: false)
-            }
-            if model.preferences.agent.provider == .anthropic || model.preferences.agent.provider == .automatic {
-                HStack {
-                    SecureField(hasAnthropicKey ? "New Anthropic API key" : "Anthropic API key", text: $anthropicKey)
-                        .textContentType(.password)
-                        .focused($keyFocused)
-                        .meetingFieldSurface(focused: keyFocused)
-                    Button("Save") {
-                        let key = anthropicKey
-                        Task {
-                            let result = await actions.saveAnthropicKey(key)
-                            anthropicKey = ""
-                            hasAnthropicKey = await actions.hasAnthropicKey()
-                            keyMessage = result.message
+                if model.preferences.agent.provider == .openAI {
+                    SettingsFieldRow {
+                        TextField("OpenAI model ID (empty: default)", text: optionalBinding(\.agent.openAIModelID))
+                            .settingsField()
+                    }
+                }
+                if model.preferences.agent.provider == .anthropic || model.preferences.agent.provider == .automatic {
+                    SettingsRow(title: "Anthropic") {
+                        if hasAnthropicKey {
+                            Text("Connected").hud(.label, Hud.Ink.ok)
+                        } else {
+                            Text("Key required").hud(.label, Hud.Ink.text3)
                         }
                     }
-                    .disabled(anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
-                    if hasAnthropicKey {
-                        Button("Remove") {
+                    SettingsFieldRow {
+                        SecureField(hasAnthropicKey ? "New Anthropic API key" : "Anthropic API key", text: $anthropicKey)
+                            .textContentType(.password)
+                            .focused($keyFocused)
+                            .settingsField(focused: keyFocused)
+                            .accessibilityLabel("Anthropic API key")
+                        Button("Save") {
+                            let key = anthropicKey
                             Task {
-                                keyMessage = await actions.deleteAnthropicKey().message
+                                let result = await actions.saveAnthropicKey(key)
+                                anthropicKey = ""
                                 hasAnthropicKey = await actions.hasAnthropicKey()
+                                keyMessage = result.message
                             }
                         }
+                        .buttonStyle(HudButtonStyle(kind: .primary))
+                        .disabled(anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                        if hasAnthropicKey {
+                            Button {
+                                Task {
+                                    keyMessage = await actions.deleteAnthropicKey().message
+                                    hasAnthropicKey = await actions.hasAnthropicKey()
+                                }
+                            } label: {
+                                Text("Remove").foregroundStyle(Hud.Ink.live)
+                            }
+                            .buttonStyle(HudButtonStyle(kind: .ghost))
+                        }
+                    }
+                    SettingsFieldRow {
+                        TextField("Anthropic model ID (empty: default)", text: optionalBinding(\.agent.anthropicModelID))
+                            .settingsField()
+                    }
+                    if let keyMessage {
+                        SettingsNote(keyMessage)
                     }
                 }
-                Label(hasAnthropicKey ? "Key in Keychain" : "Key required", systemImage: hasAnthropicKey ? "checkmark.circle" : "key")
-                    .foregroundStyle(hasAnthropicKey ? MeetingNotchTheme.success : MeetingNotchTheme.secondaryText)
-                TextField("Model ID (empty: default)", text: optionalBinding(\.agent.anthropicModelID))
-                    .meetingFieldSurface(focused: false)
-                if let keyMessage {
-                    Text(keyMessage).font(MeetingNotchTheme.MainPanel.smallFont)
+            }
+
+            SettingsGroup("Meetings") {
+                SettingsRow(glyph: .waveform, title: "Transcript",
+                            detail: model.preferences.meetingProcessing.transcription == .onDevice
+                                ? Text("Free · audio stays on this Mac") : nil) {
+                    Picker("Transcript", selection: binding(\.meetingProcessing.transcription)) {
+                        ForEach(MeetingTranscriptionEngine.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }.settingsMenu()
+                }
+                SettingsRow(glyph: .sparkle, title: "Summary") {
+                    Picker("Summary", selection: binding(\.meetingProcessing.summary)) {
+                        ForEach(MeetingSummaryEngine.allCases, id: \.self) { Text($0.displayName).tag($0) }
+                    }.settingsMenu()
                 }
             }
-            Divider()
-            Text("Meetings")
-                .font(MeetingNotchTheme.MainPanel.smallFont.weight(.semibold))
-            Picker("Transcript", selection: binding(\.meetingProcessing.transcription)) {
-                ForEach(MeetingTranscriptionEngine.allCases, id: \.self) { Text($0.displayName).tag($0) }
-            }
-            Picker("Summary", selection: binding(\.meetingProcessing.summary)) {
-                ForEach(MeetingSummaryEngine.allCases, id: \.self) { Text($0.displayName).tag($0) }
-            }
-            if model.preferences.meetingProcessing.transcription == .onDevice {
-                Text("On-device transcripts are free and audio never leaves your Mac; speakers are split into “You” and “Participants”.")
-                    .font(MeetingNotchTheme.MainPanel.smallFont)
-                    .foregroundStyle(MeetingNotchTheme.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+
             CrenelSaveStatus(message: model.message, failed: model.failed)
         }
         .task {
             await model.load(actions)
             hasAnthropicKey = await actions.hasAnthropicKey()
             onDeviceStatus = await actions.onDeviceModelStatus()
+        }
+    }
+
+    private var providerDetail: Text? {
+        switch model.preferences.agent.provider {
+        case .automatic: Text("Anthropic, then OpenAI, then on-device")
+        case .onDevice: onDeviceStatus.map { Text($0).foregroundStyle(Hud.Ink.signal) }
+        case .openAI: Text("Uses the OpenAI key below")
+        default: nil
         }
     }
 
@@ -311,19 +316,21 @@ struct TaskStorageSettingsView: View {
     @StateObject private var model = CrenelSettingsModel()
 
     var body: some View {
-        CrenelSettingsCard(title: "Tasks", symbol: "checklist") {
-            Picker("Store tasks in", selection: Binding(
-                get: { model.preferences.taskStorage },
-                set: { model.preferences.taskStorage = $0; model.save(actions) }
-            )) {
-                Text("Apple Reminders").tag(TaskStorageBackend.reminders)
-                Text("This Mac only").tag(TaskStorageBackend.local)
+        VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
+            SettingsGroup("Tasks") {
+                SettingsRow(glyph: .tasks, title: "Store tasks in",
+                            detail: model.preferences.taskStorage == .reminders
+                                ? Text("Syncs to iPhone, iPad and Watch") : nil) {
+                    Picker("Store tasks in", selection: Binding(
+                        get: { model.preferences.taskStorage },
+                        set: { model.preferences.taskStorage = $0; model.save(actions) }
+                    )) {
+                        Text("Apple Reminders").tag(TaskStorageBackend.reminders)
+                        Text("This Mac only").tag(TaskStorageBackend.local)
+                    }.settingsMenu()
+                }
+                statusRow
             }
-            statusRow
-            Text("Uses a “Crenel” list in Reminders: tasks show up on iPhone, iPad and Watch, and Apple sends alerts for timed tasks. “In progress” and ordering stay on this Mac.")
-                .font(MeetingNotchTheme.MainPanel.smallFont)
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
             CrenelSaveStatus(message: model.message, failed: model.failed)
         }
         .task { await model.load(actions) }
@@ -333,50 +340,181 @@ struct TaskStorageSettingsView: View {
     private var statusRow: some View {
         switch appState.taskStorageStatus {
         case .reminders(let listTitle):
-            Label("Connected · “\(listTitle)” list", systemImage: "checkmark.circle")
-                .foregroundStyle(MeetingNotchTheme.success)
+            SettingsRow(title: "Reminders", detail: Text("“\(listTitle)” list")) {
+                Text("Connected").hud(.label, Hud.Ink.ok)
+            }
         case .localNotConnected:
-            HStack {
-                Label("Reminders not connected", systemImage: "icloud.slash")
-                    .foregroundStyle(MeetingNotchTheme.secondaryText)
-                Spacer()
+            SettingsRow(title: "Reminders", detail: Text("Not connected")) {
                 Button("Connect", action: crenelActions.tasks.connectReminders)
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
             }
         case .localDenied:
-            Label("Reminders access is off (System Settings › Privacy & Security › Reminders)", systemImage: "lock")
-                .foregroundStyle(MeetingNotchTheme.warning)
+            SettingsRow(title: "Reminders",
+                        detail: Text("Privacy & Security › Reminders")) {
+                Text("Access off").hud(.label, Hud.Ink.signal)
+            }
         case .localAfterError(let message):
-            HStack {
-                Label(message, systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(MeetingNotchTheme.warning)
-                Spacer()
+            SettingsRow(title: "Reminders", detail: Text(message).foregroundStyle(Hud.Ink.live)) {
                 Button("Try again", action: crenelActions.tasks.connectReminders)
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
             }
         case .localByChoice:
-            Label("Tasks are stored on this Mac", systemImage: "desktopcomputer")
-                .foregroundStyle(MeetingNotchTheme.secondaryText)
+            EmptyView()
         }
     }
 }
 
-// MARK: - Building blocks
+// MARK: - Settings row system
 
-private struct CrenelSettingsCard<Content: View>: View {
-    let title: LocalizedStringKey
-    let symbol: String
+/// Shared layout values for every settings page.
+enum SettingsLayout {
+    /// Space between groups — groups are separated by air, never lines.
+    static let groupSpacing: CGFloat = Hud.Space.x7
+    /// Rows read best at a comfortable measure, not the full window width.
+    static let contentWidth: CGFloat = 600
+}
+
+/// A plain group: a small header, then its rows. No card, no rules.
+struct SettingsGroup<Content: View>: View {
+    let title: LocalizedStringKey?
+    @ViewBuilder let content: Content
+
+    init(_ title: LocalizedStringKey? = nil, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let title {
+                Text(title)
+                    .hud(.label, Hud.Ink.text3)
+                    .padding(.horizontal, Hud.Size.rowInset)
+                    .frame(height: 22, alignment: .bottom)
+                    .padding(.bottom, Hud.Space.x1)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            content
+        }
+        .frame(maxWidth: SettingsLayout.contentWidth, alignment: .leading)
+    }
+}
+
+/// One setting: icon · name · optional one-line detail · control or status on the right.
+struct SettingsRow<Trailing: View>: View {
+    var glyph: CrenelGlyph?
+    let title: Text
+    var detail: Text?
+    @ViewBuilder let trailing: Trailing
+
+    init(glyph: CrenelGlyph? = nil, title: LocalizedStringKey, detail: Text? = nil,
+         @ViewBuilder trailing: () -> Trailing) {
+        self.glyph = glyph
+        self.title = Text(title)
+        self.detail = detail
+        self.trailing = trailing()
+    }
+
+    init(glyph: CrenelGlyph? = nil, title: String, detail: Text? = nil,
+         @ViewBuilder trailing: () -> Trailing) {
+        self.glyph = glyph
+        self.title = Text(verbatim: title)
+        self.detail = detail
+        self.trailing = trailing()
+    }
+
+    var body: some View {
+        HStack(spacing: Hud.Space.x3) {
+            Group {
+                if let glyph {
+                    CrenelIcon(glyph, size: Hud.Size.icon)
+                } else {
+                    Color.clear
+                }
+            }
+            .frame(width: Hud.Size.icon, height: Hud.Size.icon)
+            .foregroundStyle(Hud.Ink.text3)
+
+            VStack(alignment: .leading, spacing: 2) {
+                title.hud(.body).lineLimit(1)
+                if let detail {
+                    detail.hud(.meta, Hud.Ink.text3).lineLimit(1)
+                }
+            }
+            Spacer(minLength: Hud.Space.x4)
+            trailing
+        }
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(minHeight: Hud.Size.row)
+        .accessibilityElement(children: .contain)
+    }
+}
+
+extension SettingsRow where Trailing == EmptyView {
+    init(glyph: CrenelGlyph? = nil, title: LocalizedStringKey, detail: Text? = nil) {
+        self.init(glyph: glyph, title: title, detail: detail) { EmptyView() }
+    }
+}
+
+/// A row holding a text field and its buttons, aligned with row text.
+struct SettingsFieldRow<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: MeetingNotchTheme.contentSpacing) {
-            Label(title, systemImage: symbol)
-                .font(.system(size: 15, weight: .semibold))
-            VStack(alignment: .leading, spacing: 12) {
-                content
-            }
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        HStack(spacing: Hud.Space.x2) { content }
+            .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3)
+            .padding(.trailing, Hud.Size.rowInset)
+            .padding(.vertical, Hud.Space.x1)
+    }
+}
+
+/// One short secondary line under a group.
+struct SettingsNote: View {
+    let text: Text
+    var color: Color = Hud.Ink.text3
+
+    init(_ key: LocalizedStringKey, color: Color = Hud.Ink.text3) {
+        self.text = Text(key)
+        self.color = color
+    }
+
+    init(_ string: String, color: Color = Hud.Ink.text3) {
+        self.text = Text(verbatim: string)
+        self.color = color
+    }
+
+    var body: some View {
+        text.hud(.meta, color)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3)
+            .padding(.trailing, Hud.Size.rowInset)
+            .padding(.vertical, Hud.Space.x1)
+    }
+}
+
+extension View {
+    /// A plain switch with a neutral tint.
+    func settingsSwitch() -> some View {
+        labelsHidden().toggleStyle(.switch).controlSize(.small).tint(Hud.Ink.text2)
+    }
+
+    /// A compact menu picker sitting at the right of a row.
+    func settingsMenu() -> some View {
+        labelsHidden().pickerStyle(.menu).fixedSize().controlSize(.small)
+    }
+
+    /// A text field on a faint fill — no border, focus lifts the fill only.
+    func settingsField(focused: Bool = false) -> some View {
+        textFieldStyle(.plain)
+            .font(Hud.Style.body.font)
+            .foregroundStyle(Hud.Ink.text1)
+            .padding(.horizontal, Hud.Space.x3)
+            .frame(height: Hud.Size.control)
+            .background(
+                RoundedRectangle(cornerRadius: Hud.Size.corner - 2, style: .continuous)
+                    .fill(focused ? Hud.Ink.selected : Hud.Ink.hover)
+            )
+            .animation(Hud.Motion.hover, value: focused)
     }
 }
 
@@ -386,9 +524,8 @@ private struct CrenelSaveStatus: View {
 
     var body: some View {
         if let message {
-            Text(message)
-                .font(MeetingNotchTheme.MainPanel.smallFont)
-                .foregroundStyle(failed ? MeetingNotchTheme.danger : MeetingNotchTheme.secondaryText)
+            SettingsNote(message, color: failed ? Hud.Ink.live : Hud.Ink.text3)
+                .frame(maxWidth: SettingsLayout.contentWidth, alignment: .leading)
         }
     }
 }
@@ -398,24 +535,36 @@ private struct FlowChips: View {
     let onRemove: (String) -> Void
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 6, alignment: .leading)], alignment: .leading, spacing: 6) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: Hud.Space.x1 + 2, alignment: .leading)],
+                  alignment: .leading, spacing: Hud.Space.x1 + 2) {
             ForEach(items, id: \.self) { item in
-                Button {
-                    onRemove(item)
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(item).lineLimit(1)
-                        Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
-                    }
-                    .font(MeetingNotchTheme.MainPanel.smallFont)
-                    .padding(.horizontal, 8)
-                    .frame(height: 24)
-                    .background(MeetingNotchTheme.MainPanel.surface, in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Remove \(item)")
+                FlowChip(item: item) { onRemove(item) }
             }
         }
+    }
+}
+
+private struct FlowChip: View {
+    let item: String
+    let onRemove: () -> Void
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: onRemove) {
+            HStack(spacing: Hud.Space.x1 + 2) {
+                Text(item).lineLimit(1)
+                HudIcon(.close, size: 8)
+                    .foregroundStyle(isHovering ? Hud.Ink.text1 : Hud.Ink.text4)
+            }
+            .hud(.meta, Hud.Ink.text2)
+            .padding(.horizontal, Hud.Space.x2)
+            .frame(height: 24)
+            .background(Capsule().fill(isHovering ? Hud.Ink.selected : Hud.Ink.hover))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in withAnimation(Hud.Motion.hover) { isHovering = hovering } }
+        .accessibilityLabel("Remove \(item)")
     }
 }
 

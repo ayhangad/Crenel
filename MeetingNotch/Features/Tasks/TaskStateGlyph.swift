@@ -1,44 +1,16 @@
 import SwiftUI
 
-/// The task's state drawn as one morphing ring: an empty ring (to do), a half-filled
-/// ring (in progress), a ring with a bar (blocked), a filled ring with a check (done).
+/// The task's state as a fill level: empty (to do), half (in progress), a bar
+/// (blocked), full (done). No check mark. Drawn by `HudStateMark`.
 struct TaskStateGlyph: View {
     let status: TaskStatus
+    /// Kept for call-site compatibility; state colours come from the mark itself.
     var tint: Color = Crenel.Palette.textTertiary
-    var size: CGFloat = 18
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var size: CGFloat = 14
 
     var body: some View {
-        let color = TaskStateGlyph.color(for: status, idle: tint)
-        ZStack {
-            Circle()
-                .strokeBorder(color, lineWidth: size * 0.1)
-                .opacity(status == .completed ? 0 : 1)
-
-            Circle()
-                .fill(color)
-                .scaleEffect(status == .completed ? 1 : 0.2)
-                .opacity(status == .completed ? 1 : 0)
-
-            PieSlice(fraction: status == .inProgress ? 0.5 : 0)
-                .fill(color)
-                .padding(size * 0.22)
-
-            Capsule()
-                .fill(color)
-                .frame(width: size * 0.5, height: size * 0.11)
-                .rotationEffect(.degrees(-45))
-                .scaleEffect(x: status == .blocked ? 1 : 0.01)
-                .opacity(status == .blocked ? 1 : 0)
-
-            CheckStroke()
-                .trim(from: 0, to: status == .completed ? 1 : 0)
-                .stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: size * 0.12, lineCap: .round, lineJoin: .round))
-                .padding(size * 0.26)
-        }
-        .frame(width: size, height: size)
-        .animation(Crenel.Motion.resolve(Crenel.Motion.bouncy, reduceMotion: reduceMotion), value: status)
-        .accessibilityHidden(true)
+        HudStateMark(state: status, size: size)
+            .animation(Hud.Motion.glide, value: status)
     }
 
     static func color(for status: TaskStatus, idle: Color) -> Color {
@@ -99,16 +71,16 @@ struct TaskStatePicker: View {
                     onSelect(status)
                 } label: {
                     HStack(spacing: 6) {
-                        TaskStateGlyph(status: status, tint: Crenel.Palette.textSecondary, size: 14)
+                        TaskStateGlyph(status: status, size: 12)
                         Text(status.title)
-                            .font(.system(size: 11.5, weight: .semibold))
+                            .font(Hud.Style.label.font)
                             .foregroundStyle(status == current ? Crenel.Palette.textPrimary : Crenel.Palette.textSecondary)
                     }
                     .padding(.horizontal, 10)
-                    .frame(height: 28)
+                    .frame(height: 26)
                     .background {
                         Capsule(style: .continuous)
-                            .fill(status == current ? Crenel.Palette.layer3 : (hovered == status ? Crenel.Palette.layer2 : .clear))
+                            .fill(status == current ? Hud.Ink.selected : (hovered == status ? Hud.Ink.hover : .clear))
                     }
                     .contentShape(Capsule())
                 }
@@ -119,7 +91,6 @@ struct TaskStatePicker: View {
             }
         }
         .padding(2)
-        .background(Crenel.Palette.layer1, in: Capsule(style: .continuous))
-        .overlay(Capsule(style: .continuous).strokeBorder(Crenel.Palette.hairline))
+        .background(Color(white: 1, opacity: 0.035), in: Capsule(style: .continuous))
     }
 }

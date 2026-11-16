@@ -69,33 +69,32 @@ struct NotchPanelView: View {
     }
 
     @Environment(\.crenelNotchMetrics) private var notchMetrics
+    @State private var showsHistory = false
 
     var body: some View {
         let showsDetail = appState.presentedMeetingDetail != nil
         let layout = NotchPanelLayout(
             availableSize: appState.notchPanelAvailableSize,
-            preferredWidth: NotchPanelLayout.preferredWidth
+            preferredWidth: Hud.Size.panelWidth
         )
 
-        VStack(alignment: .leading, spacing: Crenel.Space.l) {
-            if let detail = appState.presentedMeetingDetail {
-                MeetingDetailToolbar(
-                    content: detail,
-                    onBack: appState.dismissMeetingDetail,
-                    onCopyText: onCopyText
-                )
-                .transition(.crenelMorph())
-            } else {
-                NotchPanelHeader(
-                    compact: layout.width < 460,
-                    onTogglePin: onTogglePin
-                )
-                .transition(.crenelMorph())
+        VStack(alignment: .leading, spacing: Hud.Space.x4) {
+            Group {
+                if let detail = appState.presentedMeetingDetail {
+                    MeetingDetailToolbar(
+                        content: detail,
+                        onBack: appState.dismissMeetingDetail,
+                        onCopyText: onCopyText
+                    )
+                } else {
+                    NotchToolbar(showsHistory: $showsHistory, onTogglePin: onTogglePin)
+                }
             }
+            .transition(.opacity)
 
             NotchPanelScrollableContent(
                 maximumHeight: layout.maximumContentHeight,
-                bottomContentInset: showsDetail ? Crenel.Space.l : 0
+                bottomContentInset: showsDetail ? Hud.Space.x4 : 0
             ) {
                 ZStack(alignment: .top) {
                     if let detail = appState.presentedMeetingDetail {
@@ -113,7 +112,24 @@ struct NotchPanelView: View {
                             importedActionIDs: Set(appState.tasks.filter { $0.sourceMeetingID == detail.id }.compactMap(\.sourceActionID))
                         )
                         .id(detail.id)
-                        .transition(.crenelMorph())
+                        .transition(.opacity.combined(with: .offset(x: 14)))
+                    } else if showsHistory {
+                        VStack(alignment: .leading, spacing: Hud.Space.x3) {
+                            if let recoverySummary = appState.recordingRecoverySummary {
+                                RecordingRecoveryNoticeView(
+                                    summary: recoverySummary,
+                                    onOpenRecovery: onOpenRecovery,
+                                    onDismiss: appState.dismissRecordingRecoverySummary
+                                )
+                            }
+                            RecentMeetingsList(
+                                meetings: Array(appState.storedMeetings.prefix(30)),
+                                onOpen: onOpenStoredMeeting,
+                                onDelete: onDeleteStoredMeeting,
+                                onRetry: onRetryStoredMeeting
+                            )
+                        }
+                        .transition(.opacity.combined(with: .offset(x: -14)))
                     } else {
                         switch appState.selectedTab {
                         case .meetings:
@@ -129,9 +145,6 @@ struct NotchPanelView: View {
                                 onCancelFlow: onCancelFlow,
                                 onRecoverFromFailure: onRecoverFromFailure,
                                 onOpenStoredMeeting: onOpenStoredMeeting,
-                                onDeleteStoredMeeting: onDeleteStoredMeeting,
-                                onRetryStoredMeeting: onRetryStoredMeeting,
-                                onOpenRecovery: onOpenRecovery,
                                 onRelaunchApplication: onRelaunchApplication
                             )
                             .transition(tabTransition(for: .meetings))
@@ -144,43 +157,40 @@ struct NotchPanelView: View {
                 .frame(maxWidth: .infinity, alignment: .top)
             }
         }
-        // Clear the menu-bar band (and camera housing) the notch starts under, and keep
-        // content inside the flared walls of the shape.
-        .padding(.top, notchMetrics.topInset + Crenel.Space.s)
-        .padding(.horizontal, Crenel.Space.xxl)
-        .padding(.bottom, Crenel.Space.xl)
+        // Clear the menu-bar band (and camera housing) the notch starts under. Text sits
+        // `panelInset` from the walls; hover fills reach `rowInset` beyond the text.
+        .padding(.top, notchMetrics.topInset + Hud.Space.x2)
+        .padding(.horizontal, Hud.Size.panelInset - Hud.Size.rowInset)
+        .padding(.bottom, Hud.Space.x3)
         .frame(width: layout.width)
-        .meetingNotchPanelAppearance(
-            hasPhysicalNotch: appState.notchPanelHasPhysicalNotch
-        )
+        .environment(\.colorScheme, .dark)
         .onMoveCommand { direction in
             guard appState.presentedMeetingDetail == nil else { return }
             switch direction {
             case .left:
+                showsHistory = false
                 appState.selectPanelTab(offset: -1)
             case .right:
+                showsHistory = false
                 appState.selectPanelTab(offset: 1)
             default:
                 break
             }
         }
-        .animation(motion(Crenel.Motion.morph), value: appState.presentedMeetingDetail?.id)
-        .animation(motion(Crenel.Motion.morph), value: appState.selectedTab)
-        .animation(motion(Crenel.Motion.morph), value: layout.width)
+        .onChange(of: appState.selectedTab) { _, _ in showsHistory = false }
+        .animation(motion(Hud.Motion.change), value: appState.presentedMeetingDetail?.id)
+        .animation(motion(Hud.Motion.change), value: appState.selectedTab)
+        .animation(motion(Hud.Motion.change), value: showsHistory)
     }
 
     private func motion(_ animation: Animation) -> Animation {
-        Crenel.Motion.resolve(animation, reduceMotion: reduceMotion)
+        reduceMotion ? .linear(duration: 0.01) : animation
     }
 
-    /// Tabs slide in from the side they sit on in the header.
+    /// Tabs slide in from the side they sit on.
     private func tabTransition(for tab: AppState.PanelTab) -> AnyTransition {
         guard !reduceMotion else { return .opacity }
-        let edge: CGFloat = tab == .meetings ? -24 : 24
-        return .asymmetric(
-            insertion: .crenelMorph().combined(with: .offset(x: edge)),
-            removal: .opacity.combined(with: .offset(x: edge * 0.5))
-        )
+        return .opacity.combined(with: .offset(x: tab == .meetings ? -14 : 14))
     }
 }
 
@@ -218,58 +228,76 @@ struct NotchPanelScrollableContent<Content: View>: View {
     }
 }
 
-/// Header of the open notch: the crenel mark, the two surfaces, and window controls.
-private struct NotchPanelHeader: View {
+/// One toolbar: the two surfaces centred under the camera, history on the left, window
+/// controls on the right.
+private struct NotchToolbar: View {
     @EnvironmentObject private var appState: AppState
-    let compact: Bool
+    @Binding var showsHistory: Bool
     let onTogglePin: () -> Void
 
     var body: some View {
-        HStack(spacing: Crenel.Space.m) {
-            CrenelIcon(.logo, size: 20)
-                .foregroundStyle(Crenel.Palette.textPrimary)
-                .accessibilityLabel("Crenel")
-
-            CrenelSegmented(
-                selection: $appState.selectedTab,
+        ZStack {
+            HudTabs(
                 items: [
-                    .init(value: AppState.PanelTab.meetings, title: AppState.PanelTab.meetings.rawValue, glyph: .sun),
-                    .init(value: .tasks, title: AppState.PanelTab.tasks.rawValue, glyph: .tasks, badge: appState.activeTaskCount)
+                    .init(tab: AppState.PanelTab.meetings, glyph: .calendar, title: AppState.PanelTab.meetings.title),
+                    .init(tab: .tasks, glyph: .queue, title: AppState.PanelTab.tasks.title,
+                          badge: appState.activeTaskCount > 0 ? appState.activeTaskCount : nil)
                 ],
-                compact: compact
+                selection: Binding(
+                    get: { appState.selectedTab },
+                    set: { tab in
+                        showsHistory = false
+                        appState.selectedTab = tab
+                    }
+                )
             )
             .background {
                 // ⌘1 / ⌘2 switch surfaces.
                 ForEach(AppState.PanelTab.allCases) { tab in
-                    Button("") { appState.selectedTab = tab }
-                        .keyboardShortcut(tab.keyboardShortcut, modifiers: .command)
-                        .opacity(0)
-                        .accessibilityHidden(true)
+                    Button("") {
+                        showsHistory = false
+                        appState.selectedTab = tab
+                    }
+                    .keyboardShortcut(tab.keyboardShortcut, modifiers: .command)
+                    .opacity(0)
+                    .accessibilityHidden(true)
                 }
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Panel tabs")
 
-            Spacer(minLength: Crenel.Space.s)
+            HStack(spacing: 2) {
+                Button {
+                    showsHistory.toggle()
+                } label: {
+                    HudIcon(.history)
+                }
+                .buttonStyle(HudButtonStyle(kind: showsHistory ? .iconFilled : .icon))
+                .help("Recordings")
+                .accessibilityLabel("Recordings")
+                .accessibilityAddTraits(showsHistory ? .isSelected : [])
 
-            Button {
-                NotificationCenter.default.post(name: .openDesktopWorkspace, object: nil)
-            } label: {
-                CrenelIcon(.window, size: 15)
-            }
-            .buttonStyle(CrenelIconButtonStyle())
-            .help("Open in window")
-            .accessibilityLabel("Open in window")
+                Spacer(minLength: Hud.Space.x2)
 
-            Button(action: onTogglePin) {
-                CrenelIcon(.pin, size: 15)
-                    .rotationEffect(.degrees(appState.isNotchPinned ? 0 : 35))
+                Button {
+                    NotificationCenter.default.post(name: .openDesktopWorkspace, object: nil)
+                } label: {
+                    HudIcon(.window)
+                }
+                .buttonStyle(HudButtonStyle(kind: .icon))
+                .help("Open in window")
+                .accessibilityLabel("Open in window")
+
+                Button(action: onTogglePin) {
+                    HudIcon(.pin)
+                        .rotationEffect(.degrees(appState.isNotchPinned ? 0 : 30))
+                }
+                .buttonStyle(HudButtonStyle(kind: appState.isNotchPinned ? .iconFilled : .icon))
+                .animation(Hud.Motion.glide, value: appState.isNotchPinned)
+                .help(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
+                .accessibilityLabel(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
+                .accessibilityValue(appState.isNotchPinned ? "Pinned" : "Not pinned")
             }
-            .buttonStyle(CrenelIconButtonStyle(tint: appState.isNotchPinned ? Crenel.Palette.focus : Crenel.Palette.textSecondary, isActive: appState.isNotchPinned))
-            .animation(Crenel.Motion.bouncy, value: appState.isNotchPinned)
-            .help(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
-            .accessibilityLabel(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
-            .accessibilityValue(appState.isNotchPinned ? "Pinned" : "Not pinned")
         }
     }
 }
@@ -281,43 +309,16 @@ private extension AppState.PanelTab {
         case .tasks: "2"
         }
     }
-}
 
-private struct FigmaGateButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .contentShape(Rectangle())
-            .opacity(configuration.isPressed ? 0.72 : 1)
-            .meetingControlFeedback(radius: 16, restingBorder: false)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: 0.12),
-                value: configuration.isPressed
-            )
+    var title: String {
+        switch self {
+        case .meetings: String(localized: "Today")
+        case .tasks: String(localized: "Tasks")
+        }
     }
 }
 
-private struct NotchTabButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: 0.12),
-                value: configuration.isPressed
-            )
-    }
-}
-
-private extension MeetingFlowState {
-    var isRecordingPhase: Bool {
-        if case .recording = self { return true }
-        return false
-    }
-}
+// MARK: - Today tab
 
 private struct MeetingStatusView: View {
     @EnvironmentObject private var appState: AppState
@@ -334,39 +335,53 @@ private struct MeetingStatusView: View {
     let onCancelFlow: () -> Void
     let onRecoverFromFailure: (AppFailure) -> Void
     let onOpenStoredMeeting: (StoredMeeting) -> Void
-    let onDeleteStoredMeeting: (StoredMeeting) -> Void
-    let onRetryStoredMeeting: (StoredMeeting) -> Void
-    let onOpenRecovery: () -> Void
     let onRelaunchApplication: () -> Void
 
     var body: some View {
-        let presentation = MeetingFlowPresentation(
-            state: appState.meetingFlow,
-            nextMeeting: appState.nextMeeting,
-            reminderLevel: appState.meetingReminderLevel
-        )
-
-        VStack(alignment: .leading, spacing: Crenel.Space.xl) {
-            VStack(alignment: .leading, spacing: Crenel.Space.m) {
-                if !showsMeetingLists, !appState.meetingFlow.isRecordingPhase {
-                    todayHeader
-                }
-                todayContent(presentation: presentation)
+        VStack(alignment: .leading, spacing: Hud.Space.x3) {
+            if let prompt = appState.meetingLifecyclePrompt {
+                MeetingLifecyclePromptView(
+                    prompt: prompt,
+                    onStartRecording: onStartRecording,
+                    onDismiss: onDismissMeetingPrompt,
+                    onContinueRecording: onContinueRecording,
+                    onConfirmEnd: onConfirmMeetingEnded
+                )
+                .transition(.opacity.combined(with: .offset(y: -6)))
             }
 
-            if showsMeetingLists {
-                if let recoverySummary = appState.recordingRecoverySummary {
-                    RecordingRecoveryNoticeView(
-                        summary: recoverySummary,
-                        onOpenRecovery: onOpenRecovery,
-                        onDismiss: appState.dismissRecordingRecoverySummary
+            switch appState.meetingFlow {
+            case .idle, .upcomingMeeting:
+                if appState.meetingSessionDetection?.session.clientID == .googleMeetChrome,
+                   appState.browserAudioConnectionStatus == .unavailable || appState.browserAudioConnectionStatus == .waitingForMeetTab {
+                    NotchNoticeRow(
+                        text: googleMeetBridgeStatusText,
+                        tint: appState.browserAudioConnectionStatus == .unavailable ? Hud.Ink.live : Hud.Ink.signal
                     )
+                    .accessibilityLabel("Google Meet audio: \(googleMeetBridgeStatusText)")
                 }
-                RecentMeetingsList(
-                    meetings: Array(appState.storedMeetings.prefix(5)),
-                    onOpen: onOpenStoredMeeting,
-                    onDelete: onDeleteStoredMeeting,
-                    onRetry: onRetryStoredMeeting
+                TodaySurface(
+                    events: agenda,
+                    emptyMessage: CalendarEmptyPresentation.message(enabled: appState.isCalendarEnabled,
+                        access: appState.calendarAccessState, snapshot: appState.calendarIntegrationSnapshot),
+                    canRequestCalendarAccess: appState.isCalendarEnabled && appState.calendarAccessState != .authorized,
+                    onRequestCalendarAccess: onRequestCalendarAccess,
+                    onOpenMeetingURL: onOpenMeetingURL,
+                    onStartRecording: onStartRecording
+                )
+
+            case .recording(let startedAt):
+                recordingSurface(startedAt: startedAt)
+
+            default:
+                FlowSurface(
+                    flow: appState.meetingFlow,
+                    completedMeeting: appState.completedMeeting,
+                    onCancel: { showsCancelConfirmation = true },
+                    onOpenMeeting: onOpenStoredMeeting,
+                    onDone: appState.resetFlow,
+                    onRecover: onRecoverFromFailure,
+                    onRelaunch: onRelaunchApplication
                 )
             }
         }
@@ -378,186 +393,89 @@ private struct MeetingStatusView: View {
         } message: {
             Text(cancelConfirmationMessage)
         }
-        .animation(
-            reduceMotion ? nil : .smooth(duration: 0.24),
-            value: appState.meetingFlow.phase
-        )
+        .animation(reduceMotion ? nil : Hud.Motion.change, value: appState.meetingFlow.phase)
+        .animation(reduceMotion ? nil : Hud.Motion.change, value: appState.meetingLifecyclePrompt != nil)
     }
 
-    private var showsMeetingLists: Bool {
-        switch appState.meetingFlow {
-        case .idle, .upcomingMeeting:
-            true
-        default:
-            false
+    /// Today and the next few days, the next meeting first even if it starts later.
+    private var agenda: [Meeting] {
+        var items = appState.upcomingMeetings
+        if let nextMeeting = appState.nextMeeting, !items.contains(where: { $0.id == nextMeeting.id }) {
+            items.append(nextMeeting)
         }
-    }
-
-    private var scheduledMeetings: [Meeting] {
-        var timed = Array(appState.upcomingMeetings.filter { !$0.isAllDay }.prefix(3))
-        if let nextMeeting = appState.nextMeeting,
-           !timed.contains(where: { $0.id == nextMeeting.id }) {
-            timed.insert(nextMeeting, at: 0)
+        let sorted = items.sorted { lhs, rhs in
+            (lhs.isAllDay ? 1 : 0, lhs.startDate) < (rhs.isAllDay ? 1 : 0, rhs.startDate)
         }
-        let allDay = appState.upcomingMeetings
-            .filter { $0.isAllDay && Calendar.current.isDateInToday($0.startDate) }
-            .prefix(2)
-        return Array(timed.prefix(3)) + allDay
+        return Array(sorted.prefix(8))
     }
 
-    private var sectionTitle: String {
-        switch appState.meetingFlow {
-        case .idle, .upcomingMeeting: "Upcoming"
-        case .preparingRecording: "Preparing"
-        case .recording: "Recording"
-        case .finalizingAudio: "Finishing"
-        case .uploading, .transcribing, .summarizing: "Processing"
-        case .completed: "Ready"
-        case .failed: "Couldn’t finish"
-        case .cancelled: "Stopped"
-        }
-    }
-
-    private var todayHeader: some View {
-        Text(sectionTitle).eyebrow(color: Crenel.Palette.textSecondary)
-            .padding(.horizontal, Crenel.Space.xs)
-    }
-
-    @ViewBuilder
-    private func todayContent(presentation: MeetingFlowPresentation) -> some View {
-        switch appState.meetingFlow {
-        case .idle, .upcomingMeeting:
-            TodaySurface(
-                events: scheduledMeetings,
-                emptyMessage: CalendarEmptyPresentation.message(enabled: appState.isCalendarEnabled,
-                    access: appState.calendarAccessState, snapshot: appState.calendarIntegrationSnapshot),
-                canRequestCalendarAccess: appState.isCalendarEnabled && appState.calendarAccessState != .authorized,
-                onRequestCalendarAccess: onRequestCalendarAccess,
-                onOpenMeetingURL: onOpenMeetingURL,
-                onStartRecording: onStartRecording
-            )
-
-            if appState.meetingSessionDetection?.session.clientID == .googleMeetChrome,
-               appState.browserAudioConnectionStatus == .unavailable || appState.browserAudioConnectionStatus == .waitingForMeetTab {
-                FigmaWarningRow(
-                    text: googleMeetBridgeStatusText,
-                    isCritical: appState.browserAudioConnectionStatus == .unavailable
-                )
-                .accessibilityLabel("Google Meet audio: \(googleMeetBridgeStatusText)")
-            }
-
-            if let prompt = appState.meetingLifecyclePrompt {
-                MeetingLifecyclePromptView(
-                    prompt: prompt,
-                    onStartRecording: onStartRecording,
-                    onDismiss: onDismissMeetingPrompt,
-                    onContinueRecording: onContinueRecording,
-                    onConfirmEnd: onConfirmMeetingEnded
-                )
-            }
-
-        case .recording(let startedAt):
-            recordingSurface(startedAt: startedAt)
-
-        default:
-            fallbackFlowSurface(presentation: presentation)
-        }
-    }
+    // MARK: Recording
 
     private func recordingSurface(startedAt: Date) -> some View {
-        VStack(alignment: .leading, spacing: Crenel.Space.m) {
-            VStack(alignment: .leading, spacing: Crenel.Space.l) {
-                HStack(alignment: .center, spacing: Crenel.Space.l) {
-                    CrenelOrb(
-                        top: .white,
-                        bottom: Crenel.Palette.record,
-                        level: Double(max(appState.recordingCaptureStatus.microphone.level, appState.recordingCaptureStatus.systemAudio.level)),
-                        density: 14
-                    )
-                    .frame(width: 64, height: 64)
+        let gate = appState.meetingMicrophoneGate
+        return VStack(alignment: .leading, spacing: Hud.Space.x3) {
+            HStack(alignment: .center, spacing: Hud.Space.x3) {
+                HudPulse(color: Hud.Ink.live)
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    let elapsed = HudFormat.elapsed(context.date.timeIntervalSince(startedAt))
+                    Text(elapsed)
+                        .hud(.display)
+                        .contentTransition(.numericText())
+                        .accessibilityLabel(NotchAccessibilityContract.recordingDurationLabel(elapsed))
+                }
+                Spacer(minLength: Hud.Space.x2)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            CrenelPulseDot(color: Crenel.Palette.record, size: 6)
-                            Text("Recording").eyebrow(color: Crenel.Palette.record)
-                        }
-                        TimelineView(.periodic(from: .now, by: 1)) { context in
-                            Text(CrenelCompactView.elapsed(context.date.timeIntervalSince(startedAt)))
-                                .crenelText(.display)
-                                .contentTransition(.numericText())
-                                .accessibilityLabel(NotchAccessibilityContract.recordingDurationLabel(CrenelCompactView.elapsed(context.date.timeIntervalSince(startedAt))))
-                        }
+                if let gate {
+                    Button(action: onToggleMeetingMicrophone) {
+                        CrenelIcon(gate.permitsAudio ? .mic : .micOff, size: Hud.Size.icon)
+                            .foregroundStyle(gate.state == .unknown ? Hud.Ink.signal : (gate.permitsAudio ? Hud.Ink.text1 : Hud.Ink.text3))
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if let gate = appState.meetingMicrophoneGate {
-                        Button(action: onToggleMeetingMicrophone) {
-                            CrenelIcon(gate.permitsAudio ? .mic : .micOff, size: 17)
-                        }
-                        .buttonStyle(CrenelIconButtonStyle(
-                            diameter: 44,
-                            tint: gate.state == .open ? Crenel.Palette.textPrimary : (gate.state == .unknown ? Crenel.Palette.warning : Crenel.Palette.textTertiary),
-                            fill: Crenel.Palette.layer2
-                        ))
-                        .help("Turn meeting mic on, or off for privacy (⌥⌘M)")
-                        .accessibilityLabel(NotchAccessibilityContract.microphoneGateLabel(gate.state))
-                    }
-
-                    Button(action: onStopRecording) {
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(Crenel.Palette.record)
-                            .frame(width: 16, height: 16)
-                    }
-                    .buttonStyle(CrenelIconButtonStyle(diameter: 44, tint: Crenel.Palette.record, fill: Crenel.Palette.record.opacity(0.18)))
-                    .contextMenu {
-                        Button("Delete recording", role: .destructive) { showsCancelConfirmation = true }
-                    }
-                    .help("Stop recording")
-                    .accessibilityLabel("Stop recording")
+                    .buttonStyle(HudButtonStyle(kind: .iconFilled))
+                    .help("Turn meeting mic on, or off for privacy (⌥⌘M)")
+                    .accessibilityLabel(NotchAccessibilityContract.microphoneGateLabel(gate.state))
                 }
 
-                CaptureSourcesView(status: appState.recordingCaptureStatus)
-
-                if let gate = appState.meetingMicrophoneGate {
-                    HStack(spacing: 6) {
-                        Text(gate.state == .open ? "Your voice is being recorded" : (gate.state == .unknown ? "Mic state unknown; kept off" : "Your voice isn’t being recorded"))
-                        Spacer(minLength: 4)
-                        CrenelKeyCap(label: "⌥⌘M")
-                    }
-                    .crenelText(.caption, color: gate.state == .unknown ? Crenel.Palette.warning : Crenel.Palette.textTertiary)
+                Button(action: onStopRecording) {
+                    HudIcon(.stop, size: Hud.Size.icon).foregroundStyle(Hud.Ink.live)
                 }
+                .buttonStyle(HudButtonStyle(kind: .iconFilled))
+                .contextMenu {
+                    Button("Delete recording", role: .destructive) { showsCancelConfirmation = true }
+                }
+                .help("Stop recording")
+                .accessibilityLabel("Stop recording")
             }
-            .padding(Crenel.Space.l)
-            .background {
-                ZStack {
-                    RoundedRectangle(cornerRadius: Crenel.Radius.l, style: .continuous).fill(Crenel.Palette.layer1)
-                    CrenelAura(tint: Crenel.Palette.record, intensity: 0.5)
-                        .clipShape(RoundedRectangle(cornerRadius: Crenel.Radius.l, style: .continuous))
-                }
+            .padding(.horizontal, Hud.Size.rowInset)
+
+            VStack(alignment: .leading, spacing: 0) {
+                CaptureSourceRow(
+                    glyph: gate?.permitsAudio == false ? .micOff : .mic,
+                    title: "Microphone",
+                    status: appState.recordingCaptureStatus.microphone,
+                    isMuted: gate.map { !$0.permitsAudio } ?? false
+                )
+                CaptureSourceRow(
+                    glyph: .speaker,
+                    title: "System audio",
+                    status: appState.recordingCaptureStatus.systemAudio,
+                    isMuted: false
+                )
             }
-            .crenelSurface(.clear)
 
             ForEach(recordingWarnings, id: \.self) { warning in
-                FigmaWarningRow(text: warning, isCritical: true)
-            }
-
-            if let prompt = appState.meetingLifecyclePrompt {
-                MeetingLifecyclePromptView(
-                    prompt: prompt,
-                    onStartRecording: onStartRecording,
-                    onDismiss: onDismissMeetingPrompt,
-                    onContinueRecording: onContinueRecording,
-                    onConfirmEnd: onConfirmMeetingEnded
-                )
+                NotchNoticeRow(text: warning, tint: Hud.Ink.live)
             }
         }
     }
 
     private var recordingWarnings: [String] {
         var warnings: [String] = []
-        if let gate = appState.meetingMicrophoneGate,
-           let warning = microphonePrivacyWarning(for: gate) {
-            warnings.append(warning)
+        if let gate = appState.meetingMicrophoneGate {
+            if let warning = microphonePrivacyWarning(for: gate) {
+                warnings.append(warning)
+            } else if gate.state == .unknown {
+                warnings.append(String(localized: "Mic state unknown; kept off"))
+            }
         }
         if let message = appState.recordingCaptureStatus.microphone.connectionState.message {
             warnings.append(message)
@@ -569,52 +487,6 @@ private struct MeetingStatusView: View {
             warnings.append(message)
         }
         return warnings
-    }
-
-    private func fallbackFlowSurface(
-        presentation: MeetingFlowPresentation
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 10) {
-                Image(presentation.assetName)
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(presentation.color)
-                    .frame(width: 20, height: 20)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(presentation.title)
-                        .font(MeetingNotchTheme.MainPanel.rowTitleFont)
-                        .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
-                    Text(presentation.detail)
-                        .font(MeetingNotchTheme.MainPanel.bodyFont)
-                        .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                statusMetric
-            }
-
-            if let progress = presentation.progress {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                    .tint(presentation.color)
-                    .accessibilityLabel("Progress")
-            }
-
-            if appState.meetingLifecyclePrompt == nil {
-                actionArea
-            }
-        }
-        .padding(16)
-        .background(
-            MeetingNotchTheme.MainPanel.surface,
-            in: RoundedRectangle(
-                cornerRadius: MeetingNotchTheme.MainPanel.surfaceRadius,
-                style: .continuous
-            )
-        )
     }
 
     private var googleMeetBridgeStatusText: String {
@@ -630,21 +502,6 @@ private struct MeetingStatusView: View {
         }
     }
 
-    private var googleMeetBridgeStatusSymbol: String {
-        switch appState.browserAudioConnectionStatus {
-        case .unavailable: "exclamationmark.shield.fill"
-        case .waitingForMeetTab: "puzzlepiece.extension"
-        case .tabConnected: "checkmark.shield.fill"
-        case .recording: "record.circle.fill"
-        }
-    }
-
-    private var microphoneNoticeSymbol: String {
-        appState.recordingCaptureStatus.microphone.isReady
-            ? "arrow.triangle.2.circlepath"
-            : "mic.slash.fill"
-    }
-
     private func microphonePrivacyWarning(
         for gate: MeetingMicrophoneGate
     ) -> String? {
@@ -657,181 +514,6 @@ private struct MeetingStatusView: View {
             "Mac is going to sleep. Mic is off and the recording is ending."
         default:
             nil
-        }
-    }
-
-    @ViewBuilder
-    private var statusMetric: some View {
-        switch appState.meetingFlow {
-        case .recording(let startedAt):
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(MeetingNotchTheme.MainPanel.danger)
-                    .frame(width: 5, height: 5)
-                RecordingElapsedTimeView(startedAt: startedAt)
-            }
-            .font(MeetingNotchTheme.dataFont.monospacedDigit())
-            .foregroundStyle(MeetingNotchTheme.MainPanel.danger)
-        case .upcomingMeeting(let meeting):
-            MeetingCountdownView(startDate: meeting.startDate)
-        case .uploading(let progress):
-            Text(progress, format: .percent.precision(.fractionLength(0)))
-                .font(MeetingNotchTheme.dataFont.monospacedDigit())
-                .foregroundStyle(MeetingNotchTheme.MainPanel.cyan)
-        case .preparingRecording, .finalizingAudio, .transcribing, .summarizing:
-            ProgressView()
-                .controlSize(.mini)
-                .tint(MeetingNotchTheme.MainPanel.cyan)
-                .accessibilityLabel("Processing")
-        default:
-            EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private var actionArea: some View {
-        switch appState.meetingFlow {
-        case .idle:
-            MeetingNotchActionGroup {
-                if appState.calendarAccessState != .authorized {
-                    Button {
-                        onRequestCalendarAccess()
-                    } label: {
-                        FigmaActionLabel(calendarButtonTitle, assetName: "FigmaRecentCheck")
-                    }
-                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
-                    .disabled(appState.calendarAccessState == .requesting)
-                }
-
-                if let url = appState.nextMeeting?.meetingURL {
-                    Button {
-                        onOpenMeetingURL(url)
-                    } label: {
-                        FigmaActionLabel("Join", assetName: "FigmaVideo")
-                    }
-                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
-                }
-
-                Button {
-                    onStartRecording()
-                } label: {
-                    FigmaActionLabel("Start recording", assetName: "FigmaRecord")
-                }
-                .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
-            }
-
-        case .upcomingMeeting(let meeting):
-            MeetingNotchActionGroup {
-                if let url = meeting.meetingURL {
-                    Button {
-                        onOpenMeetingURL(url)
-                    } label: {
-                        FigmaActionLabel("Join", assetName: "FigmaVideo")
-                    }
-                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
-                }
-                Button {
-                    onStartRecording()
-                } label: {
-                    FigmaActionLabel("Start recording", assetName: "FigmaRecord")
-                }
-                .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
-                Button {
-                    appState.dismissCurrentMeetingReminder()
-                } label: {
-                    Text("Skip")
-                }
-                .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
-            }
-
-        case .preparingRecording, .uploading, .transcribing, .summarizing:
-            Button(role: .destructive) {
-                showsCancelConfirmation = true
-            } label: {
-                FigmaActionLabel("Cancel", assetName: "FigmaStop")
-            }
-            .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
-
-        case .finalizingAudio:
-            EmptyView()
-
-        case .recording:
-            MeetingNotchActionGroup {
-                Button(role: .destructive) {
-                    showsCancelConfirmation = true
-                } label: {
-                    FigmaActionLabel("Delete recording", assetName: "FigmaArchive")
-                }
-                .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
-
-                Button(role: .destructive) {
-                    onStopRecording()
-                } label: {
-                    FigmaActionLabel("Stop recording", assetName: "FigmaStop")
-                }
-                .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
-            }
-
-        case .failed(let failure):
-            if failure.category == .permission,
-               failure.recoveryAction == .openSystemSettings {
-                MeetingNotchActionGroup {
-                    Button {
-                        onRecoverFromFailure(failure)
-                    } label: {
-                        FigmaActionLabel("System Settings", assetName: "FigmaWarning")
-                    }
-                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
-
-                    Button(action: onRelaunchApplication) {
-                        FigmaActionLabel("Relaunch", assetName: "FigmaVoice")
-                    }
-                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
-                }
-            } else {
-                Button {
-                    onRecoverFromFailure(failure)
-                } label: {
-                    FigmaActionLabel(failure.recoveryButtonTitle, assetName: "FigmaWarning")
-                }
-                .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
-            }
-
-        case .completed:
-            MeetingNotchActionGroup {
-                if let meeting = appState.completedMeeting {
-                    Button {
-                        onOpenStoredMeeting(meeting)
-                    } label: {
-                        FigmaActionLabel("Open details", assetName: "FigmaTasks")
-                    }
-                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
-                }
-                Button("OK") {
-                    appState.resetFlow()
-                }
-                .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
-            }
-
-        case .cancelled:
-            Button("OK") {
-                appState.resetFlow()
-            }
-            .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
-
-        }
-    }
-
-    private var calendarButtonTitle: String {
-        switch appState.calendarAccessState {
-        case .requesting:
-            "Waiting for calendar…"
-        case .denied, .restricted:
-            "Calendar access"
-        case .failed:
-            "Reconnect"
-        default:
-            "Connect calendar"
         }
     }
 
@@ -867,6 +549,207 @@ private struct MeetingStatusView: View {
     }
 }
 
+// MARK: - Recording pieces
+
+/// One audio source: icon, name, and a segmented level that lives with the signal.
+/// A muted source dims instead of disappearing, so the layout never moves.
+private struct CaptureSourceRow: View {
+    let glyph: CrenelGlyph
+    let title: LocalizedStringKey
+    let status: AudioSourceStatus
+    let isMuted: Bool
+
+    var body: some View {
+        HStack(spacing: Hud.Space.x3) {
+            CrenelIcon(glyph, size: Hud.Size.icon)
+                .foregroundStyle(iconColor)
+            Text(title).hud(.label, Hud.Ink.text2).lineLimit(1)
+                .frame(width: 110, alignment: .leading)
+            HudSegmentMeter(segments: 24, progress: isMuted ? 0 : Double(min(max(status.level, 0), 1)), tint: Hud.Ink.text1, height: 4)
+        }
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(height: 34)
+        .opacity(isMuted ? 0.45 : 1)
+        .accessibilityElement(children: .combine)
+        .help(status.connectionState.message ?? (status.isReady ? "Ready" : "Preparing"))
+        .accessibilityLabel(accessibilityText)
+    }
+
+    private var iconColor: Color {
+        switch status.connectionState {
+        case .ready: Hud.Ink.text2
+        case .preparing, .recovered, .pipelineRecovered: Hud.Ink.signal
+        case .disconnected, .pipelineStalled: Hud.Ink.live
+        }
+    }
+
+    private var accessibilityText: Text {
+        if let message = status.connectionState.message {
+            return Text(title) + Text(": \(message)")
+        }
+        return Text(title) + Text(status.isReady ? " ready" : " preparing")
+    }
+}
+
+/// A one-line notice: a small mark and a sentence, coloured by what it means.
+private struct NotchNoticeRow: View {
+    let text: String
+    var tint: Color = Hud.Ink.signal
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
+            Circle().fill(tint).frame(width: 6, height: 6)
+                .frame(width: Hud.Size.icon)
+            Text(text)
+                .hud(.meta, Hud.Ink.text2)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Hud.Size.rowInset)
+        .padding(.vertical, Hud.Space.x1)
+    }
+}
+
+// MARK: - After recording
+
+/// Saving, uploading, transcribing and summarizing as four steps; then the result.
+private struct FlowSurface: View {
+    let flow: MeetingFlowState
+    let completedMeeting: StoredMeeting?
+    let onCancel: () -> Void
+    let onOpenMeeting: (StoredMeeting) -> Void
+    let onDone: () -> Void
+    let onRecover: (AppFailure) -> Void
+    let onRelaunch: () -> Void
+
+    private static let steps: [LocalizedStringKey] = ["Saving audio", "Uploading", "Transcribing", "Summarizing"]
+
+    var body: some View {
+        switch flow {
+        case .preparingRecording, .finalizingAudio, .uploading, .transcribing, .summarizing:
+            VStack(alignment: .leading, spacing: Hud.Space.x3) {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(Self.steps.enumerated()), id: \.offset) { index, title in
+                        stepRow(index: index, title: title)
+                    }
+                }
+                if case .finalizingAudio = flow {
+                    EmptyView()
+                } else {
+                    Button("Cancel", action: onCancel)
+                        .buttonStyle(HudButtonStyle(kind: .ghost))
+                }
+            }
+
+        case .completed:
+            resultRow(glyph: .transcript, tint: Hud.Ink.text1, title: "Ready", detail: completedMeeting?.title) {
+                if let completedMeeting {
+                    Button("Open") { onOpenMeeting(completedMeeting) }
+                        .buttonStyle(HudButtonStyle(kind: .primary))
+                }
+                Button("Done", action: onDone)
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+            }
+
+        case .failed(let failure):
+            resultRow(glyph: .transcript, tint: Hud.Ink.live, title: LocalizedStringKey(failure.title), detail: failure.message) {
+                if failure.category == .permission, failure.recoveryAction == .openSystemSettings {
+                    Button("System Settings") { onRecover(failure) }
+                        .buttonStyle(HudButtonStyle(kind: .ghost))
+                    Button("Relaunch", action: onRelaunch)
+                        .buttonStyle(HudButtonStyle(kind: .primary))
+                } else {
+                    Button(failure.recoveryButtonTitle) { onRecover(failure) }
+                        .buttonStyle(HudButtonStyle(kind: .primary))
+                }
+            }
+
+        case .cancelled:
+            resultRow(glyph: .stop, tint: Hud.Ink.text3, title: "Stopped", detail: nil) {
+                Button("Done", action: onDone)
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+            }
+
+        case .idle, .upcomingMeeting, .recording:
+            EmptyView()
+        }
+    }
+
+    private var currentStep: Int {
+        switch flow {
+        case .preparingRecording, .finalizingAudio: 0
+        case .uploading: 1
+        case .transcribing: 2
+        case .summarizing: 3
+        default: 0
+        }
+    }
+
+    private var uploadProgress: Double? {
+        if case .uploading(let progress) = flow { return progress }
+        return nil
+    }
+
+    private func stepRow(index: Int, title: LocalizedStringKey) -> some View {
+        let isDone = index < currentStep
+        let isCurrent = index == currentStep
+        return HStack(spacing: Hud.Space.x3) {
+            Text(title)
+                .hud(.body, isCurrent ? Hud.Ink.text1 : (isDone ? Hud.Ink.text3 : Hud.Ink.text4))
+                .frame(width: 130, alignment: .leading)
+            if isCurrent {
+                Group {
+                    if let uploadProgress {
+                        HudSegmentMeter(segments: 20, progress: uploadProgress, tint: Hud.Ink.text1)
+                    } else {
+                        HudSegmentMeter(segments: 20, progress: 1, tint: Hud.Ink.text2)
+                            .modifier(HudBreathing())
+                    }
+                }
+                .transition(.opacity)
+            } else {
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(height: 34)
+        .animation(Hud.Motion.change, value: currentStep)
+        .accessibilityElement(children: .combine)
+        .accessibilityValue(isDone ? "Done" : (isCurrent ? "In progress" : "Waiting"))
+    }
+
+    private func resultRow<Actions: View>(
+        glyph: HudGlyph,
+        tint: Color,
+        title: LocalizedStringKey,
+        detail: String?,
+        @ViewBuilder actions: () -> Actions
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Hud.Space.x3) {
+            HStack(alignment: .top, spacing: Hud.Space.x3) {
+                HudIcon(glyph).foregroundStyle(tint).padding(.top, 2)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).hud(.title)
+                    if let detail, !detail.isEmpty {
+                        Text(detail).hud(.meta, Hud.Ink.text3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(.horizontal, Hud.Size.rowInset)
+            HStack(spacing: Hud.Space.x1) {
+                actions()
+            }
+            .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3 - 12)
+        }
+        .padding(.vertical, Hud.Space.x2)
+    }
+}
+
+// MARK: - Prompts
+
+/// A detected meeting or an ending one: one row on a faint surface, the answer on the
+/// right. No separate window.
 private struct MeetingLifecyclePromptView: View {
     let prompt: MeetingLifecyclePrompt
     let onStartRecording: () -> Void
@@ -875,107 +758,79 @@ private struct MeetingLifecyclePromptView: View {
     let onConfirmEnd: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 8) {
-                Image(assetName)
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .foregroundStyle(tint)
-                    .frame(width: 20, height: 20)
+        HStack(alignment: .center, spacing: Hud.Space.x3) {
+            HudIcon(glyph).foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).hud(.body)
+                Text(detail).hud(.meta, Hud.Ink.text3).lineLimit(1)
+            }
+            Spacer(minLength: Hud.Space.x2)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(MeetingNotchTheme.controlFont)
-                    Text(detail)
-                        .font(MeetingNotchTheme.bodyFont)
-                        .foregroundStyle(MeetingNotchTheme.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 6)
-
-                if case .autoStop(_, _, let deadline) = prompt {
-                    AutoStopCountdownView(deadline: deadline)
-                }
+            if case .autoStop(_, _, let deadline) = prompt {
+                AutoStopCountdownView(deadline: deadline)
             }
 
             switch prompt {
             case .recordingOffer:
-                MeetingNotchActionGroup {
-                    Button("Not now", action: onDismiss)
-                        .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
-                    Button(action: onStartRecording) {
-                        FigmaActionLabel("Start recording", assetName: "FigmaRecord")
+                Button("Not now", action: onDismiss)
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+                Button(action: onStartRecording) {
+                    HStack(spacing: 6) {
+                        Circle().fill(Hud.Ink.live).frame(width: 7, height: 7)
+                        Text("Record")
                     }
-                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
                 }
+                .buttonStyle(HudButtonStyle(kind: .primary))
             case .endConfirmation, .autoStop:
-                MeetingNotchActionGroup {
-                    Button("Keep recording", action: onContinueRecording)
-                        .buttonStyle(MeetingNotchActionButtonStyle(kind: .secondary))
-                    Button(role: .destructive, action: onConfirmEnd) {
-                        FigmaActionLabel("Stop now", assetName: "FigmaStop")
-                    }
-                    .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
-                }
+                Button("Keep", action: onContinueRecording)
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+                Button("Stop", action: onConfirmEnd)
+                    .buttonStyle(HudButtonStyle(kind: .primary))
             }
         }
-        .padding(16)
-        .background(
-            MeetingNotchTheme.MainPanel.warningSurface,
-            in: RoundedRectangle(
-                cornerRadius: MeetingNotchTheme.MainPanel.surfaceRadius,
-                style: .continuous
-            )
-        )
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(minHeight: Hud.Size.row + 4)
+        .background(RoundedRectangle(cornerRadius: Hud.Size.corner + 2, style: .continuous).fill(Hud.Ink.hover))
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(title). \(detail)")
     }
 
     private var title: String {
         switch prompt {
-        case .recordingOffer:
-            "Meeting detected"
-        case .endConfirmation:
-            "Meeting may have ended"
-        case .autoStop:
-            "Meeting ended"
+        case .recordingOffer(_, let clientID): clientName(clientID)
+        case .endConfirmation: String(localized: "Meeting may have ended")
+        case .autoStop: String(localized: "Meeting ended")
         }
     }
 
     private var detail: String {
         switch prompt {
-        case .recordingOffer(_, let clientID):
-            "Record this \(clientName(clientID))?"
-        case .endConfirmation:
-            "Not sure it’s over. You can stop the recording yourself."
-        case .autoStop:
-            "Recording stops when the countdown ends."
+        case .recordingOffer: String(localized: "Record this meeting?")
+        case .endConfirmation: String(localized: "Stop the recording?")
+        case .autoStop: String(localized: "Recording stops soon")
         }
     }
 
-    private var assetName: String {
+    private var glyph: HudGlyph {
         switch prompt {
-        case .recordingOffer: "FigmaVideo"
-        case .endConfirmation: "FigmaWarning"
-        case .autoStop: "FigmaStop"
+        case .recordingOffer: .video
+        case .endConfirmation, .autoStop: .stop
         }
     }
 
     private var tint: Color {
         switch prompt {
-        case .recordingOffer: MeetingNotchTheme.MainPanel.cyan
-        case .endConfirmation: MeetingNotchTheme.MainPanel.warning
-        case .autoStop: MeetingNotchTheme.MainPanel.danger
+        case .recordingOffer: Hud.Ink.signal
+        case .endConfirmation: Hud.Ink.text2
+        case .autoStop: Hud.Ink.live
         }
     }
 
     private func clientName(_ clientID: MeetingClientID?) -> String {
         switch clientID {
-        case .zoom: "Zoom call"
-        case .googleMeetChrome: "Google Meet call"
-        case .unsupported, nil: "meeting"
+        case .zoom: "Zoom"
+        case .googleMeetChrome: "Google Meet"
+        case .unsupported, nil: String(localized: "Meeting detected")
         }
     }
 }
@@ -987,30 +842,9 @@ private struct AutoStopCountdownView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             let seconds = max(0, Int(ceil(deadline.timeIntervalSince(context.date))))
             Text("\(seconds) s")
-                .font(MeetingNotchTheme.dataFont.monospacedDigit())
-                .foregroundStyle(MeetingNotchTheme.MainPanel.danger)
+                .hud(.value, Hud.Ink.live)
+                .contentTransition(.numericText(countsDown: true))
                 .accessibilityLabel("Recording stops in \(seconds) seconds")
-        }
-    }
-}
-
-private struct FigmaActionLabel: View {
-    let title: String
-    let assetName: String
-
-    init(_ title: String, assetName: String) {
-        self.title = title
-        self.assetName = assetName
-    }
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(assetName)
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 16, height: 16)
-            Text(title)
         }
     }
 }
@@ -1021,259 +855,31 @@ private struct RecordingRecoveryNoticeView: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(summary.preservedCount > 0 ? "FigmaWarning" : "FigmaRecentCheck")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(
-                    summary.preservedCount > 0
-                        ? MeetingNotchTheme.MainPanel.warning
-                        : MeetingNotchTheme.MainPanel.success
-                )
-                .frame(width: 20, height: 20)
-                .padding(10)
-                .background(
-                    MeetingNotchTheme.MainPanel.warning.opacity(0.12),
-                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                )
-
+        HStack(spacing: Hud.Space.x3) {
+            HudIcon(.history).foregroundStyle(summary.preservedCount > 0 ? Hud.Ink.signal : Hud.Ink.text2)
             VStack(alignment: .leading, spacing: 2) {
                 if summary.recoveredCount > 0 {
-                    Text("\(summary.recoveredCount) recordings recovered")
+                    Text("\(summary.recoveredCount) recordings recovered").hud(.body)
                 }
                 if summary.preservedCount > 0 {
-                    Text("\(summary.preservedCount) recordings kept in Recovery")
+                    Text("\(summary.preservedCount) kept in Recovery").hud(.meta, Hud.Ink.text3)
                 }
             }
-            .font(MeetingNotchTheme.MainPanel.smallFont)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
+            Spacer(minLength: Hud.Space.x2)
             if summary.preservedCount > 0 {
-                Button(action: onOpenRecovery) {
-                    Image("FigmaArchive")
-                        .renderingMode(.template)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 20, height: 20)
-                }
-                .buttonStyle(MeetingNotchIconButtonStyle())
-                .help("Show Recovery folder")
+                Button("Show", action: onOpenRecovery)
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+                    .help("Show Recovery folder")
             }
             Button(action: onDismiss) {
-                Image(systemName: "xmark")
+                HudIcon(.close, size: Hud.Size.smallIcon)
             }
-            .buttonStyle(MeetingNotchIconButtonStyle())
+            .buttonStyle(HudButtonStyle(kind: .icon))
             .accessibilityLabel("Dismiss recovery notice")
         }
-        .padding(16)
-        .background(
-            MeetingNotchTheme.MainPanel.warningSurface,
-            in: RoundedRectangle(
-                cornerRadius: MeetingNotchTheme.MainPanel.surfaceRadius,
-                style: .continuous
-            )
-        )
-    }
-}
-
-private struct FigmaWarningRow: View {
-    let text: String
-    let isCritical: Bool
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image("FigmaWarning")
-                .resizable()
-                .frame(width: 16, height: 16)
-
-            Text(text)
-                .font(MeetingNotchTheme.MainPanel.smallFont)
-                .foregroundStyle(MeetingNotchTheme.MainPanel.warning)
-                .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .accessibilityHint(isCritical ? "Critical warning" : "Warning")
-    }
-}
-
-private struct FigmaMeetingCountdownView: View {
-    let startDate: Date
-    var endDate: Date?
-
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            let seconds = Int(startDate.timeIntervalSince(context.date))
-            Text(Self.text(seconds: seconds, remaining: endDate.map { $0.timeIntervalSince(context.date) }))
-                .font(MeetingNotchTheme.MainPanel.bodyFont.monospacedDigit())
-                .foregroundStyle(
-                    seconds <= 600
-                        ? MeetingNotchTheme.MainPanel.danger
-                        : MeetingNotchTheme.MainPanel.secondaryText
-                )
-                .lineLimit(1)
-                .accessibilityLabel("Time left \(Self.text(seconds: seconds, remaining: endDate.map { $0.timeIntervalSince(context.date) }))")
-        }
-    }
-
-    private static func text(seconds: Int, remaining: TimeInterval?) -> String {
-        guard seconds > 0 else {
-            guard let remaining, remaining > 0 else { return "Started" }
-            return "Now · \(NotchAgendaFormatter.durationText(remaining)) left"
-        }
-        let minutes = Int(ceil(Double(seconds) / 60))
-        guard minutes >= 60 else { return "\(minutes) min left" }
-        let hours = minutes / 60
-        let remainingMinutes = minutes % 60
-        return remainingMinutes == 0
-            ? "\(hours) h left"
-            : "\(hours) h \(remainingMinutes) min"
-    }
-}
-
-private struct CaptureSourcesView: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let status: RecordingCaptureStatus
-
-    var body: some View {
-        HStack(spacing: Crenel.Space.xl) {
-            source("Microphone", glyph: .mic, status: status.microphone)
-            source("System audio", glyph: .speaker, status: status.systemAudio)
-        }
-    }
-
-    private func source(_ title: String, glyph: CrenelGlyph, status: AudioSourceStatus) -> some View {
-        HStack(spacing: Crenel.Space.s) {
-            CrenelIcon(glyph, size: 13)
-                .foregroundStyle(sourceColor(status.connectionState))
-            Text(title)
-                .crenelText(.caption, color: Crenel.Palette.textSecondary)
-                .lineLimit(1)
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Crenel.Palette.layer3)
-                    Capsule()
-                        .fill(sourceColor(status.connectionState) == Crenel.Palette.textSecondary ? Crenel.Palette.record : sourceColor(status.connectionState))
-                        .frame(width: proxy.size.width * CGFloat(min(max(status.level, 0), 1)))
-                }
-            }
-            .frame(height: 4)
-            .animation(Crenel.Motion.resolve(.smooth(duration: 0.12), reduceMotion: reduceMotion), value: status.level)
-            .accessibilityHidden(true)
-        }
-        .frame(maxWidth: .infinity, minHeight: 16)
-        .accessibilityElement(children: .combine)
-        .help(status.connectionState.message ?? (status.isReady ? "Ready" : "Preparing"))
-        .accessibilityLabel(accessibilityLabel(title: title, status: status))
-    }
-
-    private func sourceColor(_ state: AudioSourceConnectionState) -> Color {
-        switch state {
-        case .ready: Crenel.Palette.textSecondary
-        case .preparing, .recovered, .pipelineRecovered: Crenel.Palette.warning
-        case .disconnected, .pipelineStalled: Crenel.Palette.danger
-        }
-    }
-
-    private func accessibilityLabel(title: String, status: AudioSourceStatus) -> String {
-        if let message = status.connectionState.message {
-            return "\(title): \(message)"
-        }
-        return "\(title) \(status.isReady ? "ready" : "preparing")"
-    }
-}
-
-private struct MeetingMicrophoneGateControl: View {
-    let gate: MeetingMicrophoneGate
-    let onToggle: () -> Void
-
-    var body: some View {
-        Button(action: onToggle) {
-            HStack(spacing: 10) {
-                Image(gate.permitsAudio ? "FigmaMicrophone" : "FigmaMicrophoneOff")
-                    .resizable()
-                    .renderingMode(.template)
-                    .foregroundStyle(color)
-                    .frame(width: 20, height: 20)
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("Meeting mic: \(title)")
-                        .font(MeetingNotchTheme.MainPanel.smallMediumFont)
-                        .foregroundStyle(color)
-                    Text(gate.state == .open ? "Your voice is being recorded" : "Your voice isn’t being recorded")
-                        .font(MeetingNotchTheme.MainPanel.smallFont)
-                        .foregroundStyle(MeetingNotchTheme.secondaryText)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Text("⌥⌘M").font(MeetingNotchTheme.metadataFont)
-                    .foregroundStyle(MeetingNotchTheme.secondaryText)
-                    .padding(6).background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 6))
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
-        }
-        .buttonStyle(FigmaGateButtonStyle())
-        .help("Turn mic recording on, or off for privacy (⌥⌘M)")
-        .accessibilityLabel("Meeting mic \(title). Press Option Command M to change.")
-    }
-
-    private var title: String {
-        switch gate.state {
-        case .open: "On"
-        case .closed: "Off"
-        case .unknown: "Unknown"
-        }
-    }
-
-    private var color: Color {
-        switch gate.state {
-        case .open: MeetingNotchTheme.MainPanel.success
-        case .closed: MeetingNotchTheme.MainPanel.secondaryText
-        case .unknown: MeetingNotchTheme.MainPanel.warning
-        }
-    }
-}
-
-private struct NotchRowButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .contentShape(Rectangle())
-            .opacity(configuration.isPressed ? 0.72 : 1)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: 0.12),
-                value: configuration.isPressed
-            )
-    }
-}
-
-private struct MeetingCountdownView: View {
-    let startDate: Date
-
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            let seconds = Int(startDate.timeIntervalSince(context.date))
-            Text(Self.text(seconds: seconds))
-                .font(MeetingNotchTheme.dataFont)
-                .foregroundStyle(
-                    seconds > 60
-                        ? MeetingNotchTheme.MainPanel.warning
-                        : MeetingNotchTheme.MainPanel.danger
-                )
-                .accessibilityLabel("Meeting starts in \(Self.text(seconds: seconds))")
-        }
-    }
-
-    private static func text(seconds: Int) -> String {
-        guard seconds > 0 else { return "Meeting started" }
-        let minutes = seconds / 60
-        let remainingSeconds = seconds % 60
-        return String(format: "%02d:%02d", minutes, remainingSeconds)
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(minHeight: Hud.Size.row)
+        .background(RoundedRectangle(cornerRadius: Hud.Size.corner + 2, style: .continuous).fill(Hud.Ink.hover))
     }
 }
 
@@ -1298,176 +904,6 @@ enum DictationStatusText {
         case .tooShort, .noSpeechDetected: "No speech"
         default: "Failed"
         }
-    }
-}
-
-private struct RecordingElapsedTimeView: View {
-    let startedAt: Date
-    var compact = false
-
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            let duration = Self.format(context.date.timeIntervalSince(startedAt))
-            Text(duration)
-                .font(
-                    compact
-                        ? MeetingNotchTheme.metadataFont.monospacedDigit()
-                        : MeetingNotchTheme.MainPanel.bodyFont.monospacedDigit()
-                )
-                .accessibilityLabel(
-                    NotchAccessibilityContract.recordingDurationLabel(duration)
-                )
-        }
-    }
-
-    private static func format(_ interval: TimeInterval) -> String {
-        let totalSeconds = max(0, Int(interval))
-        let hours = totalSeconds / 3_600
-        let minutes = (totalSeconds % 3_600) / 60
-        let seconds = totalSeconds % 60
-
-        if hours > 0 {
-            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-        }
-        return String(format: "%02d:%02d", minutes, seconds)
-    }
-}
-
-private struct MeetingFlowPresentation {
-    let assetName: String
-    let compactAssetName: String
-    let color: Color
-    let title: String
-    let detail: String
-    let progress: Double?
-
-    init(
-        state: MeetingFlowState,
-        nextMeeting: Meeting?,
-        reminderLevel: MeetingReminderLevel
-    ) {
-        switch state {
-        case .idle:
-            let title = nextMeeting?.title ?? "No upcoming meetings"
-            let detail = nextMeeting.map {
-                "Next: \($0.startDate.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: AppLanguage.locale)))"
-            } ?? "Start a recording whenever you’re ready."
-            self.init(
-                assetName: "FigmaRecord",
-                compactAssetName: "FigmaVoice",
-                color: MeetingNotchTheme.MainPanel.primaryText,
-                title: title,
-                detail: detail
-            )
-        case .upcomingMeeting(let meeting):
-            let detail: String
-            switch reminderLevel {
-            case .oneMinute:
-                detail = "Starts in under a minute"
-            case .tenMinutes:
-                detail = "Starts in under 10 minutes"
-            case .started:
-                detail = "Meeting started"
-            case .none:
-                detail = meeting.startDate.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: AppLanguage.locale))
-            }
-            self.init(
-                assetName: "FigmaVideo",
-                compactAssetName: "FigmaVideo",
-                color: MeetingNotchTheme.MainPanel.warning,
-                title: meeting.title,
-                detail: detail
-            )
-        case .preparingRecording:
-            self.init(
-                assetName: "FigmaMicrophone",
-                compactAssetName: "FigmaMicrophone",
-                color: MeetingNotchTheme.MainPanel.warning,
-                title: "Preparing recording",
-                detail: "Checking audio sources and permissions."
-            )
-        case .recording(let startedAt):
-            self.init(
-                assetName: "FigmaRecord",
-                compactAssetName: "FigmaRecord",
-                color: MeetingNotchTheme.MainPanel.danger,
-                title: "Recording",
-                detail: "Started at \(startedAt.formatted(Date.FormatStyle(date: .omitted, time: .standard, locale: AppLanguage.locale)))"
-            )
-        case .finalizingAudio:
-            self.init(
-                assetName: "FigmaStop",
-                compactAssetName: "FigmaStop",
-                color: MeetingNotchTheme.MainPanel.cyan,
-                title: "Finishing audio",
-                detail: "Wrapping up the recording."
-            )
-        case .uploading(let progress):
-            self.init(
-                assetName: "FigmaArrowUp",
-                compactAssetName: "FigmaArrowUp",
-                color: MeetingNotchTheme.MainPanel.cyan,
-                title: "Uploading",
-                detail: "Sending audio for transcription.",
-                progress: progress
-            )
-        case .transcribing:
-            self.init(
-                assetName: "FigmaVoice",
-                compactAssetName: "FigmaVoice",
-                color: MeetingNotchTheme.MainPanel.cyan,
-                title: "Transcribing",
-                detail: "Separating speakers."
-            )
-        case .summarizing:
-            self.init(
-                assetName: "FigmaTasks",
-                compactAssetName: "FigmaTasks",
-                color: MeetingNotchTheme.MainPanel.cyan,
-                title: "Summarizing",
-                detail: "Pulling out decisions and action items."
-            )
-        case .completed:
-            self.init(
-                assetName: "FigmaRecentCheck",
-                compactAssetName: "FigmaVoice",
-                color: MeetingNotchTheme.MainPanel.success,
-                title: "Recording saved",
-                detail: "Mic and system audio saved on this Mac."
-            )
-        case .cancelled:
-            self.init(
-                assetName: "FigmaStop",
-                compactAssetName: "FigmaVoice",
-                color: MeetingNotchTheme.MainPanel.secondaryText,
-                title: "Cancelled",
-                detail: "You can start a new recording."
-            )
-        case .failed(let failure):
-            self.init(
-                assetName: "FigmaWarning",
-                compactAssetName: "FigmaVoice",
-                color: MeetingNotchTheme.MainPanel.danger,
-                title: failure.title,
-                detail: failure.message
-            )
-        }
-    }
-
-    private init(
-        assetName: String,
-        compactAssetName: String,
-        color: Color,
-        title: String,
-        detail: String,
-        progress: Double? = nil
-    ) {
-        self.assetName = assetName
-        self.compactAssetName = compactAssetName
-        self.color = color
-        self.title = title
-        self.detail = detail
-        self.progress = progress
     }
 }
 

@@ -66,15 +66,17 @@ yalnız görünen şeklin içinde alır (`ignoresMouseEvents` global/yerel fare 
 güncellenir); hover bölgesi şekil + kamera yuvasıdır (notch'suz ekranda üst ortada 200 pt).
 API önceki kütüphaneyle aynıdır: `expand(on:)`, `compact(on:)`, `hide()`, `isHovering`.
 
-Tasarım dili `Features/Design/System/` altındadır: `CrenelTokens` (4 pt boşluk ızgarası,
-radius, katmanlı mürekkep yüzeyler, modül vurgu renkleri — takvim mor, görev kehribar,
-dikte gök mavisi, kayıt mercan —, yazı stilleri, hareket yayları ve geçişler),
-`CrenelIcons` (24 pt ızgarada tek çizgi ağırlığında kendi ikon seti; ürün ikonlarında SF
-Symbols kullanılmaz), `CrenelComponents` (yüzey, buton, segmentli kontrol, çip, halka, tuş,
-canlı görseller) ve `CrenelShaders.metal` (nokta küresi, aura ışığı, parıltı, kenar ışığı;
-SwiftUI `colorEffect`). Shader'ların temel dolgusu siyahtır; shader çalışmazsa yüzey boş
-mürekkep olarak kalır. Yeni yüzeyler eski `MeetingNotchTheme` yerine bu sistemi kullanır;
-eski tema masaüstü ve ayarlar yeniden yapılana kadar yaşar.
+Tasarım dili ("enstrüman", 2026-11-16, C7) `Features/Design/System/` altındadır ve
+`docs/DESIGN.md`'de tarif edilir. Kaynak `Hud`'dur: `HudTokens` (4 pt ızgara, satır/ikon/
+panel ölçüleri, tek nötr gri skala ve yalnız durum renkleri — amber "seni bekliyor",
+kırmızı canlı/hata, yeşil onay —, gömülü Geist yazı stilleri, hareket yayları),
+`HudIcons` (16 birimlik ızgarada tek çizgi ağırlığında ikon ailesi), `HudComponents`
+(grup başlığı, segmentli ve ses seviyesi göstergeleri, görev durum işareti, kayan hover
+zemini, butonlar, ortalı sekmeler, nabız, kapalı notch kulak yerleşimi, biçimleyiciler).
+`CrenelTokens`/`CrenelComponents`/`CrenelIcons` eski çağrı yerleri için korunur ve
+değerlerini `Hud`'dan alır; `MeetingNotchTheme` ve Figma görselleri kaldırıldı. Açık
+notch 490 pt'dir; alt köşe yarıçapı açıkken 20, kapalıyken 10'dur; şekil içeriği yayla
+kapsar, içerik şekilden sonra belirir.
 
 ### Kurulum ve izinler (C9)
 

@@ -11,11 +11,11 @@ enum DesktopSection: String, CaseIterable, Identifiable {
         case .settings: "Settings"
         }
     }
-    var symbol: String {
+    var glyph: CrenelGlyph {
         switch self {
-        case .meetings: "waveform"
-        case .tasks: "checklist"
-        case .settings: "gearshape"
+        case .meetings: .mic
+        case .tasks: .tasks
+        case .settings: .sliders
         }
     }
 }
@@ -93,116 +93,164 @@ final class DesktopWindowController: NSWindowController, NSWindowDelegate {
     }
 }
 
+/// Window surfaces: pure greys, separated by tone and space instead of lines.
+enum DesktopInk {
+    static let content = Color(white: 0.06)
+    static let sidebar = Color(white: 0.04)
+}
+
 struct DesktopWorkspaceView: View {
     let delegate: AppDelegate
     @ObservedObject var navigation: DesktopNavigation
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var sidebarSpace
+    @State private var hoveredItem: AnyHashable?
 
     var body: some View {
         HStack(spacing: 0) {
             sidebar
-            Rectangle().fill(MeetingNotchTheme.hairline).frame(width: 1)
             Group {
                 switch navigation.section {
                 case .meetings:
                     DesktopMeetingsView(delegate: delegate, selection: $navigation.selectedMeeting)
                 case .tasks:
-                    VStack(alignment: .leading, spacing: 24) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Tasks").font(MeetingNotchTheme.pageTitleFont)
-                        }
+                    VStack(alignment: .leading, spacing: Hud.Space.x5) {
+                        Text("Tasks").font(Hud.font(20, .semibold)).foregroundStyle(Hud.Ink.text1)
                         ScrollView {
                             TasksView()
-                                .padding(20)
-                                .background(MeetingNotchTheme.surface.opacity(0.4), in: RoundedRectangle(cornerRadius: 24))
                         }
-                    }.padding(32).frame(maxWidth: 900, maxHeight: .infinity, alignment: .topLeading)
+                        .scrollIndicators(.never)
+                    }
+                    .padding(Hud.Space.x8)
+                    .frame(maxWidth: 900, maxHeight: .infinity, alignment: .topLeading)
                 case .settings:
                     delegate.desktopSettings(category: navigation.settingsCategory).id(navigation.settingsCategory)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(MeetingNotchTheme.workspaceBackground)
+            .background(DesktopInk.content)
             .transition(.opacity)
         }
-        .foregroundStyle(MeetingNotchTheme.primaryText)
-        .environment(\.workspacePalette, true)
+        .foregroundStyle(Hud.Ink.text1)
         .preferredColorScheme(.dark)
-        .tint(MeetingNotchTheme.cyan)
-        .animation(MeetingNotchMotion.navigation(reduceMotion: reduceMotion), value: navigation.section)
+        .tint(Hud.Ink.text2)
+        .animation(reduceMotion ? nil : Hud.Motion.change, value: navigation.section)
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 28) {
-            HStack(spacing: 10) {
-                Image("FigmaVoice").resizable().renderingMode(.template)
-                    .frame(width: 22, height: 22)
-                    .foregroundStyle(MeetingNotchTheme.cyan)
-                    .frame(width: 36, height: 36)
-                    .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    .accessibilityHidden(true)
-                Text("Crenel").font(.system(size: 15, weight: .semibold))
-            }.padding(.horizontal, 4).padding(.top, 12)
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Hud.Space.x6) {
+            HStack(spacing: Hud.Space.x2) {
+                CrenelIcon(.logo, size: 16)
+                    .foregroundStyle(Hud.Ink.text1)
+                Text("Crenel").hud(.title, Hud.Ink.text1)
+            }
+            .padding(.horizontal, Hud.Size.rowInset)
+            .padding(.top, Hud.Space.x8)
+
+            VStack(alignment: .leading, spacing: 2) {
                 ForEach(DesktopSection.allCases) { section in
-                    Button { navigation.section = section } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: section.symbol).font(.system(size: 17, weight: .regular))
-                                .foregroundStyle(navigation.section == section ? MeetingNotchTheme.cyan : MeetingNotchTheme.secondaryText)
-                                .frame(width: 20).accessibilityHidden(true)
-                            Text(section.title)
-                            Spacer(minLength: 4)
-                            if section == .tasks, appState.activeTaskCount > 0 {
-                                Text("\(appState.activeTaskCount)").font(MeetingNotchTheme.metadataFont)
-                                    .padding(.horizontal, 6).padding(.vertical, 2)
-                                    .background(Color.white.opacity(0.07), in: Capsule())
-                            }
-                        }
-                        .font(.system(size: 13, weight: .medium))
-                        .padding(.horizontal, 12).frame(height: 44)
-                    }
-                    .buttonStyle(MeetingNotchRowButtonStyle(selected: navigation.section == section))
-                    .accessibilityAddTraits(navigation.section == section ? .isSelected : [])
+                    sectionRow(section)
                 }
             }
-            Spacer()
-            if case .recording(let startedAt) = appState.meetingFlow {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Label("Recording", systemImage: "record.circle")
-                            .foregroundStyle(MeetingNotchTheme.danger)
-                        Spacer(minLength: 0)
-                    }
-                    Text(startedAt, style: .timer).font(.system(size: 24, weight: .medium, design: .monospaced))
-                    Button("Stop recording", action: delegate.stopRecordingFlow)
-                        .buttonStyle(MeetingNotchActionButtonStyle(kind: .danger))
-                }.font(MeetingNotchTheme.metadataFont).padding(12)
-                    .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-            }
-            VStack(alignment: .leading, spacing: 12) {
-                Button(action: delegate.showMeetingNotch) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "rectangle.topthird.inset.filled")
-                        Text("Show notch")
-                        Spacer(minLength: 0)
-                        Image(systemName: "arrow.up.right").font(.system(size: 10))
-                    }.font(MeetingNotchTheme.controlFont).padding(.horizontal, 12).frame(height: 44)
-                }.buttonStyle(MeetingNotchRowButtonStyle())
 
+            Spacer()
+
+            if case .recording(let startedAt) = appState.meetingFlow {
+                VStack(alignment: .leading, spacing: Hud.Space.x2) {
+                    HStack(spacing: Hud.Space.x2) {
+                        HudPulse(color: Hud.Ink.live)
+                        Text("Recording").hud(.label, Hud.Ink.live)
+                    }
+                    Text(startedAt, style: .timer)
+                        .font(Hud.Style.display.font).monospacedDigit()
+                        .foregroundStyle(Hud.Ink.text1)
+                    Button(action: delegate.stopRecordingFlow) {
+                        HStack(spacing: Hud.Space.x2) {
+                            HudIcon(.stop, size: Hud.Size.smallIcon)
+                            Text("Stop recording")
+                        }
+                        .foregroundStyle(Hud.Ink.live)
+                    }
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+                    .padding(.leading, -Hud.Space.x3)
+                }
+                .padding(.horizontal, Hud.Size.rowInset)
+                .transition(.opacity)
             }
+
+            Button(action: delegate.showMeetingNotch) {
+                HStack(spacing: Hud.Space.x3) {
+                    HudIcon(.window, size: Hud.Size.icon)
+                        .foregroundStyle(Hud.Ink.text3)
+                    Text("Show notch").hud(.label, Hud.Ink.text2)
+                    Spacer(minLength: 0)
+                    HudIcon(.link, size: Hud.Size.smallIcon)
+                        .foregroundStyle(Hud.Ink.text4)
+                }
+                .padding(.horizontal, Hud.Size.rowInset)
+                .frame(height: 36)
+                .hudGlide("notch", hovered: $hoveredItem, in: sidebarSpace)
+            }
+            .buttonStyle(.plain)
         }
-        .padding(16).frame(width: 206)
-        .background(MeetingNotchTheme.sidebarBackground)
+        .padding(.horizontal, Hud.Space.x3)
+        .padding(.bottom, Hud.Space.x4)
+        .frame(width: 206)
+        .background(DesktopInk.sidebar)
+    }
+
+    private func sectionRow(_ section: DesktopSection) -> some View {
+        let isSelected = navigation.section == section
+        return Button {
+            withAnimation(reduceMotion ? nil : Hud.Motion.glide) { navigation.section = section }
+        } label: {
+            HStack(spacing: Hud.Space.x3) {
+                CrenelIcon(section.glyph, size: Hud.Size.icon)
+                    .foregroundStyle(isSelected ? Hud.Ink.text1 : Hud.Ink.text3)
+                    .frame(width: Hud.Size.icon + 2)
+                Text(section.title)
+                    .hud(.label, isSelected ? Hud.Ink.text1 : Hud.Ink.text2)
+                Spacer(minLength: Hud.Space.x1)
+                if section == .tasks, appState.activeTaskCount > 0 {
+                    Text("\(appState.activeTaskCount)").hud(.meta, Hud.Ink.text4)
+                }
+            }
+            .padding(.horizontal, Hud.Size.rowInset)
+            .frame(height: 36)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
+                        .fill(Hud.Ink.selected)
+                        .matchedGeometryEffect(id: "desktop.section", in: sidebarSpace)
+                }
+            }
+            .hudGlide(section, hovered: $hoveredItem, in: sidebarSpace)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
-private struct WorkspaceStatusLabelStyle: LabelStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 7) {
-            configuration.icon.font(.system(size: 5)).foregroundStyle(MeetingNotchTheme.success)
-            configuration.title
+/// A quiet empty or error state: an icon, a line, an optional detail.
+private struct DesktopEmptyState: View {
+    let glyph: CrenelGlyph
+    let title: LocalizedStringKey
+    var detail: LocalizedStringKey?
+
+    var body: some View {
+        VStack(spacing: Hud.Space.x2) {
+            CrenelIcon(glyph, size: 18)
+                .foregroundStyle(Hud.Ink.text4)
+                .padding(.bottom, Hud.Space.x1)
+            Text(title).hud(.body, Hud.Ink.text2)
+            if let detail {
+                Text(detail).hud(.meta, Hud.Ink.text3)
+                    .multilineTextAlignment(.center)
+            }
         }
+        .frame(maxWidth: 260)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -217,12 +265,15 @@ enum DesktopMeetingSearch {
 private struct DesktopMeetingsView: View {
     let delegate: AppDelegate
     @EnvironmentObject private var appState: AppState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var query = ""
     @FocusState private var searchFocused: Bool
     @Binding var selection: UUID?
     @State private var detail: MeetingDetailContent?
     @State private var loadError = false
     @State private var revision = 0
+    @State private var hoveredRow: AnyHashable?
+    @Namespace private var listSpace
 
     private var filtered: [StoredMeeting] { DesktopMeetingSearch.filter(appState.storedMeetings, query: query) }
     private var selected: StoredMeeting? { appState.storedMeetings.first { $0.id == selection } }
@@ -231,83 +282,23 @@ private struct DesktopMeetingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 18) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Meetings").font(MeetingNotchTheme.pageTitleFont)
-                        Text("^[\(appState.storedMeetings.count) recording](inflect: true)").font(.caption).foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Button(action: delegate.startManualRecording) { Image(systemName: "plus") }
-                        .buttonStyle(MeetingNotchIconButtonStyle(tint: MeetingNotchTheme.primaryText))
-                        .help("New recording").accessibilityLabel("New recording")
-                        .disabled(appState.requiresTerminationConfirmation)
-                }
-                HStack {
-                    Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                    TextField("Search meetings", text: $query).textFieldStyle(.plain)
-                        .focused($searchFocused).accessibilityLabel("Search meetings")
-                    if !query.isEmpty { Button { query = ""; searchFocused = true } label: { Image(systemName: "xmark.circle.fill").frame(width: 40, height: 40) }.buttonStyle(.plain).help("Clear search").accessibilityLabel("Clear search") }
-                }.padding(.leading, 12).padding(.trailing, query.isEmpty ? 12 : 0).frame(height: 44)
-                    .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(searchFocused ? MeetingNotchTheme.cyan : MeetingNotchTheme.hairline, lineWidth: 1))
-                if !appState.upcomingMeetings.isEmpty && query.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("UPCOMING").font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
-                        ForEach(appState.upcomingMeetings.prefix(2)) { meeting in
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(meeting.title).font(.system(size: 12, weight: .medium)).lineLimit(1)
-                                    Text(meeting.startDate.formatted(date: .abbreviated, time: .shortened)).font(.caption2).foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 4)
-                                if let url = meeting.meetingURL {
-                                    Button("Join") { delegate.openMeetingURL(url) }.buttonStyle(MeetingNotchActionButtonStyle())
-                                }
-                            }.padding(12).background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 16))
-                        }
-                    }
-                }
-                if filtered.isEmpty {
-                    MeetingNotchEmptyState(symbol: query.isEmpty ? "waveform" : "magnifyingglass",
+            VStack(alignment: .leading, spacing: Hud.Space.x4) {
+                header
+                searchField
+                if filtered.isEmpty && (appState.upcomingMeetings.isEmpty || !query.isEmpty) {
+                    DesktopEmptyState(glyph: query.isEmpty ? .waveform : .history,
                         title: query.isEmpty ? "No recordings yet" : "No results",
-                        detail: query.isEmpty ? "Your first recorded meeting will show up here." : "Try another meeting name.", compact: true)
+                        detail: query.isEmpty ? "Your first recorded meeting will show up here." : "Try another meeting name.")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List(selection: $selection) {
-                        ForEach(filtered) { meeting in
-                            VStack(alignment: .leading, spacing: 7) {
-                                Text(meeting.title).font(.system(size: 13, weight: .semibold)).lineLimit(2)
-                                HStack {
-                                    Text(meeting.startedAt.formatted(date: .abbreviated, time: .omitted))
-                                    Spacer()
-                                    Text(TranscriptTextFormatter.timestamp(meeting.duration)).monospacedDigit()
-                                }.font(.caption).foregroundStyle(.secondary)
-                                if appState.processingJobs.contains(where: { $0.meetingID == meeting.id && $0.state != .failed }) {
-                                    Label("Processing", systemImage: "ellipsis").font(.caption).foregroundStyle(.cyan)
-                                } else if meeting.processingStatus == .failed {
-                                    Label("Processing failed", systemImage: "exclamationmark.circle").font(.caption).foregroundStyle(.orange)
-                                } else if meeting.summaryNeedsAttention == true {
-                                    Text("Summary pending").font(.caption).foregroundStyle(.orange)
-                                }
-                            }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
-                                .background(selection == meeting.id ? Color.white.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: 12))
-                                .tag(meeting.id)
-                                .listRowInsets(EdgeInsets(top: 3, leading: 0, bottom: 3, trailing: 0))
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .contextMenu {
-                                    if meeting.processingStatus == .failed {
-                                        Button("Retry processing") { delegate.retryProcessing(meeting) }
-                                    }
-                                    Button("Delete meeting…", role: .destructive) { delegate.deleteStoredMeeting(meeting) }
-                                }
-                        }
-                    }.listStyle(.plain).scrollContentBackground(.hidden)
+                    list
                 }
-            }.padding(20).frame(width: 294).background(MeetingNotchTheme.sidebarBackground.opacity(0.45))
-            Rectangle().fill(MeetingNotchTheme.hairline).frame(width: 1)
-            detailPane.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .padding(.top, Hud.Space.x8)
+            .padding(.horizontal, Hud.Space.x4)
+            .frame(width: 300)
+            detailPane
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .task(id: requestID) { await loadSelection() }
         .onChange(of: appState.storedMeetings.map(\.id)) { _, ids in
@@ -315,12 +306,171 @@ private struct DesktopMeetingsView: View {
         }
     }
 
+    // MARK: List column
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Meetings").font(Hud.font(20, .semibold)).foregroundStyle(Hud.Ink.text1)
+            Text("\(appState.storedMeetings.count)").hud(.meta, Hud.Ink.text4)
+                .accessibilityLabel(Text("^[\(appState.storedMeetings.count) recording](inflect: true)"))
+            Spacer()
+            Button(action: delegate.startManualRecording) { HudIcon(.plus, size: Hud.Size.icon) }
+                .buttonStyle(HudButtonStyle(kind: .icon))
+                .help("New recording").accessibilityLabel("New recording")
+                .disabled(appState.requiresTerminationConfirmation)
+        }
+        .padding(.horizontal, Hud.Size.rowInset)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: Hud.Space.x2) {
+            TextField("Search meetings", text: $query)
+                .textFieldStyle(.plain)
+                .font(Hud.Style.body.font)
+                .foregroundStyle(Hud.Ink.text1)
+                .focused($searchFocused)
+                .accessibilityLabel("Search meetings")
+            if !query.isEmpty {
+                Button { query = ""; searchFocused = true } label: { HudIcon(.close, size: Hud.Size.smallIcon) }
+                    .buttonStyle(HudButtonStyle(kind: .icon))
+                    .help("Clear search").accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.leading, Hud.Size.rowInset)
+        .padding(.trailing, 2)
+        .frame(height: 32)
+        .background(
+            RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
+                .fill(searchFocused ? Hud.Ink.selected : Hud.Ink.hover)
+        )
+        .animation(Hud.Motion.hover, value: searchFocused)
+    }
+
+    private var list: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                if !appState.upcomingMeetings.isEmpty && query.isEmpty {
+                    groupHeader("Upcoming")
+                    ForEach(appState.upcomingMeetings.prefix(2)) { meeting in
+                        upcomingRow(meeting)
+                    }
+                    if !filtered.isEmpty {
+                        groupHeader("Recorded").padding(.top, Hud.Space.x3)
+                    }
+                }
+                ForEach(filtered) { meeting in
+                    meetingRow(meeting)
+                }
+            }
+            .padding(.bottom, Hud.Space.x4)
+        }
+        .scrollIndicators(.never)
+        .focusable()
+        .focusEffectDisabled()
+        .onKeyPress(.downArrow) { moveSelection(by: 1) }
+        .onKeyPress(.upArrow) { moveSelection(by: -1) }
+    }
+
+    private func groupHeader(_ title: LocalizedStringKey) -> some View {
+        Text(title)
+            .hud(.label, Hud.Ink.text3)
+            .padding(.horizontal, Hud.Size.rowInset)
+            .frame(height: 22, alignment: .bottom)
+            .padding(.bottom, Hud.Space.x1)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private func upcomingRow(_ meeting: Meeting) -> some View {
+        HStack(spacing: Hud.Space.x3) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(meeting.title).hud(.body, Hud.Ink.text1).lineLimit(1)
+                Text(HudFormat.day(meeting.startDate, now: .now)).hud(.meta, Hud.Ink.text3)
+            }
+            Spacer(minLength: Hud.Space.x2)
+            if let url = meeting.meetingURL {
+                Button("Join") { delegate.openMeetingURL(url) }
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
+            }
+            Text(HudFormat.clock(meeting.startDate)).hud(.value, Hud.Ink.text2)
+        }
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(height: Hud.Size.row)
+        .hudGlide(AnyHashable("upcoming-\(meeting.id)"), hovered: $hoveredRow, in: listSpace)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func meetingRow(_ meeting: StoredMeeting) -> some View {
+        let isSelected = selection == meeting.id
+        let isProcessing = appState.processingJobs.contains(where: { $0.meetingID == meeting.id && $0.state != .failed })
+        return Button {
+            selection = meeting.id
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(meeting.title).hud(.body, Hud.Ink.text1).lineLimit(1)
+                    meta(for: meeting, isProcessing: isProcessing)
+                }
+                Spacer(minLength: Hud.Space.x2)
+                Text(HudFormat.clock(meeting.startedAt))
+                    .hud(.value, isSelected ? Hud.Ink.text1 : Hud.Ink.text2)
+            }
+            .padding(.horizontal, Hud.Size.rowInset)
+            .frame(height: Hud.Size.row)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
+                        .fill(Hud.Ink.selected)
+                        .matchedGeometryEffect(id: "desktop.meeting", in: listSpace)
+                }
+            }
+            .hudGlide(meeting.id, hovered: $hoveredRow, in: listSpace)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .contextMenu {
+            if meeting.processingStatus == .failed {
+                Button("Retry processing") { delegate.retryProcessing(meeting) }
+            }
+            Button("Delete meeting…", role: .destructive) { delegate.deleteStoredMeeting(meeting) }
+        }
+    }
+
+    /// Second line: day and length, or the state that needs attention in its colour.
+    @ViewBuilder private func meta(for meeting: StoredMeeting, isProcessing: Bool) -> some View {
+        if isProcessing {
+            Text("Processing").hud(.meta, Hud.Ink.signal)
+        } else if meeting.processingStatus == .failed {
+            Text("Processing failed").hud(.meta, Hud.Ink.live)
+        } else if meeting.summaryNeedsAttention == true {
+            Text("Summary pending").hud(.meta, Hud.Ink.signal)
+        } else {
+            Text("\(HudFormat.day(meeting.startedAt, now: .now)) · \(TranscriptTextFormatter.timestamp(meeting.duration))")
+                .hud(.meta, Hud.Ink.text3)
+        }
+    }
+
+    private func moveSelection(by offset: Int) -> KeyPress.Result {
+        let ids = filtered.map(\.id)
+        guard !ids.isEmpty else { return .ignored }
+        let next: Int
+        if let selection, let index = ids.firstIndex(of: selection) {
+            next = min(max(index + offset, 0), ids.count - 1)
+        } else {
+            next = offset > 0 ? 0 : ids.count - 1
+        }
+        withAnimation(reduceMotion ? nil : Hud.Motion.glide) { selection = ids[next] }
+        return .handled
+    }
+
+    // MARK: Detail
+
     @ViewBuilder private var detailPane: some View {
         if let detail, detail.id == selection {
             VStack(spacing: 0) {
                 MeetingDetailToolbar(content: detail, onBack: { selection = nil }, onCopyText: delegate.copyToPasteboard)
-                    .padding(24)
-                Divider()
+                    .padding(.horizontal, Hud.Space.x6)
+                    .padding(.top, Hud.Space.x6)
+                    .padding(.bottom, Hud.Space.x2)
                 ScrollView {
                     MeetingDetailView(content: detail, onCopyText: delegate.copyToPasteboard,
                         onExportMarkdown: { delegate.exportMarkdown($0, for: detail.meeting) },
@@ -333,24 +483,37 @@ private struct DesktopMeetingsView: View {
                         }, importAction: delegate.meetingAnalysisActions.importAction),
                         isProcessing: processing,
                         importedActionIDs: Set(appState.tasks.filter { $0.sourceMeetingID == detail.id }.compactMap(\.sourceActionID)))
-                        .id(detail.id).padding(24)
+                        .id(detail.id)
+                        .padding(.horizontal, Hud.Space.x6)
+                        .padding(.vertical, Hud.Space.x4)
                 }
+                .scrollIndicators(.never)
             }
         } else if selection != nil {
             if loadError {
-                VStack(spacing: 4) {
-                    MeetingNotchEmptyState(symbol: "exclamationmark.circle", title: "Couldn’t open meeting",
+                VStack(spacing: Hud.Space.x4) {
+                    DesktopEmptyState(glyph: .warning, title: "Couldn’t open meeting",
                         detail: "Couldn’t read the files. Try opening it again.")
-                    Button("Try again") { revision += 1 }.buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
+                    Button("Try again") { revision += 1 }
+                        .buttonStyle(HudButtonStyle(kind: .primary))
                 }
-            } else { ProgressView("Opening meeting…") }
+            } else {
+                HStack(spacing: Hud.Space.x2) {
+                    ProgressView().controlSize(.small)
+                    Text("Opening meeting…").hud(.meta, Hud.Ink.text3)
+                }
+            }
         } else {
-            VStack(spacing: 4) {
-                MeetingNotchEmptyState(symbol: "waveform", title: "Select a meeting", detail: "")
+            VStack(spacing: Hud.Space.x4) {
+                DesktopEmptyState(glyph: .waveform, title: "Select a meeting")
                 Button(action: delegate.startManualRecording) {
-                    Label("New recording", systemImage: "plus")
-                }.buttonStyle(MeetingNotchActionButtonStyle(kind: .primary))
-                    .disabled(appState.requiresTerminationConfirmation)
+                    HStack(spacing: Hud.Space.x2) {
+                        HudIcon(.plus, size: Hud.Size.smallIcon)
+                        Text("New recording")
+                    }
+                }
+                .buttonStyle(HudButtonStyle(kind: .primary))
+                .disabled(appState.requiresTerminationConfirmation)
             }
         }
     }

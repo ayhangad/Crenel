@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// One flat task list. Sections follow from state and due date; the user only types.
-/// Tapping a task's ring picks its state; tapping the task opens its card.
+/// One flat task list with the input on top. Sections follow from state and due date;
+/// the user only types. Tapping a task's mark picks its state; tapping the task opens
+/// its card. One hover highlight glides between rows.
 struct TasksView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.crenelActions) private var actions
@@ -11,6 +12,8 @@ struct TasksView: View {
     @State private var pickerTaskID: UUID?
     @State private var taskPendingDeletion: TaskItem?
     @State private var showsClearHistoryConfirmation = false
+    @State private var hovered: AnyHashable?
+    @Namespace private var glide
 
     init(initiallyShowsHistory: Bool = false) {
         _showsHistory = State(initialValue: initiallyShowsHistory)
@@ -19,14 +22,17 @@ struct TasksView: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
             let presentation = appState.taskPresentation(now: context.date)
-            VStack(alignment: .leading, spacing: Crenel.Space.l) {
+            VStack(alignment: .leading, spacing: Hud.Space.x3) {
                 if showsHistory {
                     historyContent(presentation)
-                        .transition(.crenelRise)
+                        .transition(.opacity.combined(with: .offset(x: 14)))
                 } else {
-                    TaskQuickAddField(onSubmit: actions.tasks.add)
+                    TaskQuickAddField(
+                        knownTitles: appState.tasks.map(\.title),
+                        onSubmit: actions.tasks.add
+                    )
                     activeContent(presentation, now: context.date)
-                        .transition(.crenelRise)
+                        .transition(.opacity.combined(with: .offset(x: -14)))
                 }
                 footer(presentation)
             }
@@ -63,27 +69,16 @@ struct TasksView: View {
     @ViewBuilder
     private func activeContent(_ presentation: TaskListPresentation, now: Date) -> some View {
         if presentation.isEmpty {
-            CrenelEmptyState(
-                glyph: .check,
-                title: "Nothing to do",
-                detail: "Type above and press Return. Crenel understands dates like “tomorrow 3pm”.",
-                tint: Crenel.Palette.tasks
-            )
+            quietRow(.queue, "Nothing to do")
         } else {
-            VStack(alignment: .leading, spacing: Crenel.Space.l) {
-                ForEach(presentation.sections) { section in
-                    VStack(alignment: .leading, spacing: Crenel.Space.xxs) {
-                        CrenelSectionHeader(
-                            title: section.kind.title,
-                            count: section.tasks.count > 1 ? section.tasks.count : nil,
-                            tint: Self.sectionTint(section.kind)
-                        )
-                        .padding(.horizontal, Crenel.Space.xs)
-                        .padding(.bottom, Crenel.Space.xxs)
-                        VStack(spacing: 2) {
-                            ForEach(section.tasks) { task in
-                                row(task, now: now, isOverdue: section.kind == .overdue)
-                            }
+            // Two groups, like Today: what is on now (state marks already tell in
+            // progress and blocked apart) and what comes later; done tasks last.
+            VStack(alignment: .leading, spacing: Hud.Space.x3) {
+                ForEach(Self.groups(presentation.sections), id: \.id) { group in
+                    VStack(alignment: .leading, spacing: 0) {
+                        HudGroupHeader(title: group.title)
+                        ForEach(group.rows, id: \.task.id) { item in
+                            row(item.task, now: now, isOverdue: item.isOverdue)
                         }
                     }
                 }
@@ -100,7 +95,7 @@ struct TasksView: View {
                 onClose: { openTaskID = nil },
                 onRequestDelete: { taskPendingDeletion = task }
             )
-            .transition(.crenelMorph(anchor: .top))
+            .transition(.opacity)
         } else {
             TaskRow(
                 task: task,
@@ -120,8 +115,18 @@ struct TasksView: View {
                 },
                 onRequestDelete: { taskPendingDeletion = task }
             )
-            .transition(.crenelMorph(anchor: .top))
+            .hudGlide(task.id, hovered: $hovered, in: glide, forced: pickerTaskID == task.id ? task.id : nil)
+            .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: -8)), removal: .opacity))
         }
+    }
+
+    private func quietRow(_ glyph: HudGlyph, _ title: LocalizedStringKey) -> some View {
+        HStack(spacing: Hud.Space.x3) {
+            HudIcon(glyph).foregroundStyle(Hud.Ink.text3)
+            Text(title).hud(.body, Hud.Ink.text2)
+        }
+        .padding(.horizontal, Hud.Size.rowInset)
+        .frame(height: Hud.Size.row)
     }
 
     // MARK: History
@@ -129,22 +134,14 @@ struct TasksView: View {
     @ViewBuilder
     private func historyContent(_ presentation: TaskListPresentation) -> some View {
         if presentation.history.isEmpty {
-            CrenelEmptyState(
-                glyph: .history,
-                title: "No history yet",
-                detail: "Done tasks move here at the end of the day."
-            )
+            quietRow(.history, "No finished tasks yet")
         } else {
-            VStack(alignment: .leading, spacing: Crenel.Space.l) {
+            VStack(alignment: .leading, spacing: Hud.Space.x3) {
                 ForEach(presentation.history) { day in
-                    VStack(alignment: .leading, spacing: Crenel.Space.xxs) {
-                        CrenelSectionHeader(title: Self.historyTitle(for: day.day), count: day.tasks.count)
-                            .padding(.horizontal, Crenel.Space.xs)
-                            .padding(.bottom, Crenel.Space.xxs)
-                        VStack(spacing: 2) {
-                            ForEach(day.tasks) { task in
-                                row(task, now: Date(), isOverdue: false)
-                            }
+                    VStack(alignment: .leading, spacing: 0) {
+                        HudGroupHeader(title: Self.historyTitle(for: day.day))
+                        ForEach(day.tasks) { task in
+                            row(task, now: Date(), isOverdue: false)
                         }
                     }
                 }
@@ -155,54 +152,46 @@ struct TasksView: View {
     // MARK: Footer
 
     private func footer(_ presentation: TaskListPresentation) -> some View {
-        HStack(spacing: Crenel.Space.s) {
+        HStack(spacing: Hud.Space.x1) {
             Button {
                 openTaskID = nil
                 pickerTaskID = nil
                 showsHistory.toggle()
             } label: {
                 HStack(spacing: 6) {
-                    CrenelIcon(showsHistory ? .chevronLeft : .history, size: 13)
-                    Text(showsHistory ? "Tasks" : "History")
+                    CrenelIcon(showsHistory ? .chevronLeft : .history, size: Hud.Size.smallIcon)
+                    Text(showsHistory ? "Tasks" : "Finished")
                 }
             }
-            .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
+            .buttonStyle(HudButtonStyle(kind: .ghost))
 
             if showsHistory, !presentation.history.isEmpty {
-                Button {
+                Button("Clear") {
                     showsClearHistoryConfirmation = true
-                } label: {
-                    HStack(spacing: 6) {
-                        CrenelIcon(.trash, size: 13)
-                        Text("Clear")
-                    }
                 }
-                .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
+                .buttonStyle(HudButtonStyle(kind: .ghost))
             }
 
-            Spacer(minLength: Crenel.Space.s)
+            Spacer(minLength: Hud.Space.x2)
 
             storageLabel
+                .padding(.trailing, Hud.Size.rowInset)
         }
-        .padding(.top, Crenel.Space.xxs)
     }
 
     @ViewBuilder
     private var storageLabel: some View {
         switch appState.taskStorageStatus {
         case .reminders:
-            HStack(spacing: 5) {
-                Circle().fill(Crenel.Palette.success).frame(width: 5, height: 5)
-                Text("Syncing with Reminders")
-            }
-            .crenelText(.caption, color: Crenel.Palette.textQuaternary)
+            Text("Reminders")
+                .hud(.meta, Hud.Ink.text4)
             .help("Tasks live in the “Crenel” list in Apple Reminders, so they also show on iPhone and Apple Watch.")
         case .localDenied, .localAfterError, .localNotConnected:
             Button {
                 actions.tasks.connectReminders()
             } label: {
-                Text("Stored on this Mac")
-                    .crenelText(.caption, color: Crenel.Palette.textQuaternary)
+                Text("On this Mac")
+                    .hud(.meta, Hud.Ink.text4)
             }
             .buttonStyle(.plain)
             .help("Tasks sync automatically once you allow Reminders access.")
@@ -213,13 +202,25 @@ struct TasksView: View {
 
     // MARK: Helpers
 
-    private static func sectionTint(_ kind: TaskListPresentation.SectionKind) -> Color {
-        switch kind {
-        case .inProgress: Crenel.Palette.focus
-        case .blocked, .overdue: Crenel.Palette.danger
-        case .today: Crenel.Palette.tasks
-        default: Crenel.Palette.textTertiary
+    private struct Group {
+        let id: String
+        let title: LocalizedStringKey
+        var rows: [(task: TaskItem, isOverdue: Bool)]
+    }
+
+    private static func groups(_ sections: [TaskListPresentation.Section]) -> [Group] {
+        var now = Group(id: "now", title: "Today", rows: [])
+        var later = Group(id: "later", title: "Later", rows: [])
+        var done = Group(id: "done", title: "Done", rows: [])
+        for section in sections {
+            let rows = section.tasks.map { (task: $0, isOverdue: section.kind == .overdue) }
+            switch section.kind {
+            case .inProgress, .blocked, .overdue, .today: now.rows += rows
+            case .upcoming, .someday: later.rows += rows
+            case .completedToday: done.rows += rows
+            }
         }
+        return [now, later, done].filter { !$0.rows.isEmpty }
     }
 
     private static func historyTitle(for day: Date) -> String {
@@ -254,29 +255,26 @@ private struct TaskRow: View {
     let onRequestDelete: () -> Void
 
     @Environment(\.crenelActions) private var actions
-    @State private var hovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Crenel.Space.s) {
-            HStack(alignment: .firstTextBaseline, spacing: Crenel.Space.m) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Hud.Space.x3) {
                 Button(action: onTogglePicker) {
-                    TaskStateGlyph(status: task.status, tint: ringTint, size: 17)
-                        .frame(width: 24, height: 24)
-                        .contentShape(Circle())
-                        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
+                    TaskStateGlyph(status: task.status)
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, -4)
                 .help("Change status")
                 .accessibilityLabel("Status: \(task.status.title)")
                 .accessibilityHint("Opens status options")
 
                 Button(action: onOpen) {
-                    VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: Hud.Space.x2) {
                         Text(task.title)
-                            .crenelText(.body, color: task.isCompleted ? Crenel.Palette.textTertiary : Crenel.Palette.textPrimary)
-                            .strikethrough(task.isCompleted, color: Crenel.Palette.textTertiary)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
+                            .hud(.body, task.isCompleted ? Hud.Ink.text3 : Hud.Ink.text1)
+                            .lineLimit(1)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         TaskMetaLine(task: task, now: now, isOverdue: isOverdue)
                     }
@@ -284,45 +282,18 @@ private struct TaskRow: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Opens the task card")
-
-                if hovering, !task.isCompleted {
-                    Button {
-                        onPick(.completed)
-                    } label: {
-                        CrenelIcon(.check, size: 13, weight: 2.2)
-                    }
-                    .buttonStyle(CrenelIconButtonStyle(diameter: 24, tint: Crenel.Palette.success))
-                    .help("Mark as done")
-                    .accessibilityLabel("Done")
-                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
-                }
             }
+            .frame(height: 38)
 
             if showsPicker {
                 TaskStatePicker(current: task.status, onSelect: onPick)
-                    .padding(.leading, 36)
-                    .transition(.crenelRise)
+                    .padding(.leading, 26)
+                    .padding(.bottom, Hud.Space.x2)
+                    .transition(.opacity.combined(with: .offset(y: -4)))
             }
         }
-        .padding(.horizontal, Crenel.Space.s)
-        .padding(.vertical, Crenel.Space.s + 1)
-        .background {
-            RoundedRectangle(cornerRadius: Crenel.Radius.m, style: .continuous)
-                .fill(hovering || showsPicker ? Crenel.Palette.layer1 : .clear)
-        }
-        .onHover { hovering = $0 }
-        .animation(Crenel.Motion.snappy, value: hovering)
+        .padding(.horizontal, Hud.Size.rowInset)
         .contextMenu { contextActions }
-    }
-
-    private var ringTint: Color {
-        if isOverdue { return Crenel.Palette.danger }
-        switch task.priority {
-        case .high: return Crenel.Palette.record
-        case .medium: return Crenel.Palette.tasks
-        case .low: return Crenel.Palette.dictation
-        case .none: return Crenel.Palette.textTertiary
-        }
     }
 
     @ViewBuilder
@@ -355,45 +326,33 @@ private struct TaskMetaLine: View {
     @Environment(\.crenelActions) private var actions
 
     var body: some View {
-        let due = TaskDueFormatter.label(for: task, now: now)
-        if due != nil || task.recurrence != nil || task.priority != .none || task.sourceMeetingID != nil || task.notes != nil {
-            HStack(spacing: Crenel.Space.s) {
-                if let due {
-                    meta(task.dueHasTime ? .clock : .calendar, due,
-                         color: isOverdue ? Crenel.Palette.danger : Crenel.Palette.textTertiary)
-                }
-                if let recurrence = task.recurrence {
-                    meta(.history, recurrence.displayText)
-                }
-                if task.priority != .none {
-                    meta(.flag, task.priority.shortText,
-                         color: task.priority == .high ? Crenel.Palette.record : Crenel.Palette.textTertiary)
-                }
-                if task.notes?.isEmpty == false {
-                    CrenelIcon(.copy, size: 10.5, weight: 2)
-                        .foregroundStyle(Crenel.Palette.textQuaternary)
-                        .help("Has a note")
-                }
-                if let meetingID = task.sourceMeetingID {
-                    Button {
-                        actions.tasks.openSourceMeeting(meetingID)
-                    } label: {
-                        meta(.waveform, "Meeting", color: Crenel.Palette.calendar)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Open the meeting this task came from")
-                }
+        HStack(spacing: Hud.Space.x2) {
+            if task.recurrence != nil {
+                HudIcon(.history, size: 11).foregroundStyle(Hud.Ink.text4)
+                    .help(task.recurrence?.displayText ?? "")
             }
-            .lineLimit(1)
+            if let meetingID = task.sourceMeetingID {
+                Button {
+                    actions.tasks.openSourceMeeting(meetingID)
+                } label: {
+                    HudIcon(.transcript, size: 11).foregroundStyle(Hud.Ink.text4)
+                }
+                .buttonStyle(.plain)
+                .help("Open the meeting this task came from")
+            }
+            if task.priority == .high || task.priority == .medium {
+                HudIcon(.bell, size: 11)
+                    .foregroundStyle(task.priority == .high ? Hud.Ink.signal : Hud.Ink.text3)
+                    .help(task.priority.displayText)
+            }
+            if let due = TaskDueFormatter.label(for: task, now: now),
+               task.dueHasTime || !Calendar.current.isDate(task.dueDate ?? .distantPast, inSameDayAs: now) {
+                Text(due)
+                    .hud(.meta, isOverdue ? Hud.Ink.live : Hud.Ink.text3)
+                    .lineLimit(1)
+                    .fixedSize()
+            }
         }
-    }
-
-    private func meta(_ glyph: CrenelGlyph, _ text: String, color: Color = Crenel.Palette.textTertiary) -> some View {
-        HStack(spacing: 4) {
-            CrenelIcon(glyph, size: 10.5, weight: 2)
-            Text(text)
-        }
-        .crenelText(.caption, color: color)
     }
 }
 
@@ -424,21 +383,20 @@ private struct TaskDetailCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Crenel.Space.l) {
-            HStack(alignment: .top, spacing: Crenel.Space.m) {
-                TaskStateGlyph(status: task.status, tint: Crenel.Palette.textSecondary, size: 20)
-                    .padding(.top, 2)
+        VStack(alignment: .leading, spacing: Hud.Space.x4) {
+            HStack(alignment: .top, spacing: Hud.Space.x3) {
+                TaskStateGlyph(status: task.status)
+                    .padding(.top, 3)
                 TextField("Task", text: $title, axis: .vertical)
                     .textFieldStyle(.plain)
-                    .crenelText(.title)
+                    .hud(.title)
                     .lineLimit(1...4)
                     .focused($focus, equals: .title)
                     .onSubmit(commit)
                 Button(action: close) {
-                    CrenelIcon(.chevronDown, size: 14, weight: 2)
-                        .rotationEffect(.degrees(180))
+                    HudIcon(.close, size: Hud.Size.smallIcon)
                 }
-                .buttonStyle(CrenelIconButtonStyle(diameter: 26))
+                .buttonStyle(HudButtonStyle(kind: .icon))
                 .keyboardShortcut(.cancelAction)
                 .help("Close card")
                 .accessibilityLabel("Close card")
@@ -446,35 +404,35 @@ private struct TaskDetailCard: View {
 
             TaskStatePicker(current: task.status) { actions.tasks.setStatus(task, $0) }
 
-            VStack(alignment: .leading, spacing: Crenel.Space.s) {
-                Text("Date").eyebrow()
+            VStack(alignment: .leading, spacing: Hud.Space.x2) {
+                Text("Date").hud(.label, Hud.Ink.text3)
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: Crenel.Space.xs) {
+                    HStack(spacing: Hud.Space.x1) {
                         dateOption("Today", date: startOfDay(0))
                         dateOption("Tomorrow", date: startOfDay(1))
                         dateOption("Weekend", date: nextWeekend)
                         dateOption("Next week", date: startOfDay(7))
                         if task.dueDate != nil {
-                            Button("Remove Date") { actions.tasks.reschedule(task, nil, false) }
-                                .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
+                            Button("No date") { actions.tasks.reschedule(task, nil, false) }
+                                .buttonStyle(HudButtonStyle(kind: .ghost))
                         }
                     }
                 }
                 if let due = TaskDueFormatter.label(for: task, now: now) {
-                    HStack(spacing: 6) {
-                        CrenelIcon(task.dueHasTime ? .clock : .calendar, size: 12)
+                    HStack(spacing: Hud.Space.x2) {
+                        HudIcon(.calendar, size: 11)
                         Text(due)
                         if let recurrence = task.recurrence {
-                            Text("·")
+                            HudIcon(.history, size: 11).padding(.leading, Hud.Space.x1)
                             Text(recurrence.displayText)
                         }
                     }
-                    .crenelText(.callout, color: Crenel.Palette.textSecondary)
+                    .hud(.meta, Hud.Ink.text2)
                 }
             }
 
-            VStack(alignment: .leading, spacing: Crenel.Space.s) {
-                Text("Priority").eyebrow()
+            VStack(alignment: .leading, spacing: Hud.Space.x2) {
+                Text("Priority").hud(.label, Hud.Ink.text3)
                 CrenelSegmented(
                     selection: Binding(
                         get: { task.priority },
@@ -489,46 +447,41 @@ private struct TaskDetailCard: View {
                 )
             }
 
-            VStack(alignment: .leading, spacing: Crenel.Space.s) {
-                Text("Note").eyebrow()
-                TextField("Add a note", text: $notes, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .crenelText(.body, color: Crenel.Palette.textSecondary)
-                    .lineLimit(2...8)
-                    .focused($focus, equals: .notes)
-                    .padding(Crenel.Space.m)
-                    .crenelSurface(Crenel.Palette.layer2, radius: Crenel.Radius.s, lit: false)
-            }
+            TextField("Note", text: $notes, axis: .vertical)
+                .textFieldStyle(.plain)
+                .hud(.body, Hud.Ink.text2)
+                .lineLimit(2...8)
+                .focused($focus, equals: .notes)
+                .padding(Hud.Size.rowInset)
+                .background(RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous).fill(Hud.Ink.hover))
 
-            HStack(spacing: Crenel.Space.s) {
+            HStack(spacing: Hud.Space.x1) {
                 if let meetingID = task.sourceMeetingID {
                     Button {
                         actions.tasks.openSourceMeeting(meetingID)
                     } label: {
                         HStack(spacing: 6) {
-                            CrenelIcon(.waveform, size: 13)
-                            Text("Open Meeting")
+                            HudIcon(.transcript, size: Hud.Size.smallIcon)
+                            Text("Meeting")
                         }
                     }
-                    .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.calendar), size: .small))
+                    .buttonStyle(HudButtonStyle(kind: .ghost))
                 }
                 if task.isCompleted && !task.isArchived {
-                    Button("Remove from List") { actions.tasks.archive(task); onClose() }
-                        .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
+                    Button("Remove from list") { actions.tasks.archive(task); onClose() }
+                        .buttonStyle(HudButtonStyle(kind: .ghost))
                 }
                 Spacer()
                 Button(action: onRequestDelete) {
-                    HStack(spacing: 6) {
-                        CrenelIcon(.trash, size: 13)
-                        Text("Delete")
-                    }
+                    Text("Delete").foregroundStyle(Hud.Ink.live)
                 }
-                .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.danger), size: .small))
+                .buttonStyle(HudButtonStyle(kind: .ghost))
             }
         }
-        .padding(Crenel.Space.l)
-        .crenelSurface(Crenel.Palette.layer1, radius: Crenel.Radius.l)
-        .padding(.vertical, Crenel.Space.xxs)
+        .padding(Hud.Size.rowInset)
+        .padding(.vertical, Hud.Space.x1)
+        .background(RoundedRectangle(cornerRadius: Hud.Size.corner + 2, style: .continuous).fill(Color(white: 1, opacity: 0.04)))
+        .padding(.vertical, Hud.Space.x1)
         .onChange(of: focus) { previous, _ in
             if previous != nil { commit() }
         }
@@ -545,7 +498,8 @@ private struct TaskDetailCard: View {
         return Button(label) {
             if let date { actions.tasks.reschedule(task, date, false) }
         }
-        .buttonStyle(CrenelButtonStyle(kind: isSelected ? .tinted(Crenel.Palette.tasks) : .secondary, size: .small))
+        .buttonStyle(HudButtonStyle(kind: isSelected ? .iconFilled : .ghost))
+        .fixedSize()
     }
 
     private func startOfDay(_ offset: Int) -> Date? {
@@ -583,212 +537,197 @@ private struct TaskDetailCard: View {
 
 // MARK: - Quick add
 
-/// Single-line capture. Detected dates, repeats and priorities appear as suggestions
-/// under the field while typing; Tab accepts them, Enter saves (with or without them).
+/// Type and press Return. While typing, dates, repeats and priority are recognised live
+/// and shown under the field; Return saves the task with them. A title used before is
+/// completed inline (Tab accepts). When nothing is recognised yet, quick picks offer
+/// the common dates. Clicking a recognised value drops it.
 struct TaskQuickAddField: View {
+    var knownTitles: [String] = []
     let onSubmit: (TaskInputParseResult) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var focused: Bool
     @State private var text = ""
-    @State private var accepted: [TaskInputSuggestion.Kind] = []
+    /// Recognised values the user dismissed for the current text.
+    @State private var dismissed: Set<String> = []
     private let parser = TaskInputParser()
 
     var body: some View {
         let suggestions = currentSuggestions
-        VStack(alignment: .leading, spacing: Crenel.Space.s) {
-            HStack(spacing: Crenel.Space.s) {
-                CrenelIcon(.plus, size: 14, weight: 2)
-                    .foregroundStyle(focused ? Crenel.Palette.tasks : Crenel.Palette.textTertiary)
-                    .frame(width: 24, height: 24)
-
-                TextField("Add task", text: $text, prompt: Text("Add task — “send the report tomorrow 3pm”").foregroundStyle(Crenel.Palette.textTertiary))
-                    .textFieldStyle(.plain)
-                    .crenelText(.body)
-                    .focused($focused)
-                    .onSubmit(submit)
-                    .onKeyPress(.tab) {
-                        guard !suggestions.isEmpty else { return .ignored }
-                        acceptAll(suggestions)
-                        return .handled
-                    }
-                    .onKeyPress(.escape) {
-                        guard !text.isEmpty || !accepted.isEmpty else { return .ignored }
-                        reset()
-                        return .handled
-                    }
-                    .accessibilityLabel("New task")
-                    .accessibilityHint("Type a date to get a suggestion. Press Tab to add it.")
-
-                if canSubmit {
-                    Button(action: submit) {
-                        CrenelIcon(.chevronRight, size: 13, weight: 2.4)
-                            .rotationEffect(.degrees(-90))
-                    }
-                    .buttonStyle(CrenelIconButtonStyle(diameter: 26, tint: .black, fill: .white))
-                    .accessibilityLabel("Add task")
-                    .transition(.scale(scale: 0.6).combined(with: .opacity))
-                } else {
-                    CrenelKeyCap(label: "↵")
-                        .transition(.opacity)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Hud.Space.x3) {
+                HudIcon(.plus).foregroundStyle(text.isEmpty && !focused ? Hud.Ink.text3 : Hud.Ink.text1)
+                ZStack(alignment: .leading) {
+                    // Ghost completion sits behind the field, aligned to the typed text.
+                    (Text(text).foregroundColor(.clear) + Text(completion ?? "").foregroundColor(Hud.Ink.text4))
+                        .font(Hud.Style.body.font)
+                        .lineLimit(1)
+                        .accessibilityHidden(true)
+                    TextField("", text: $text, prompt: Text("Add task").foregroundColor(Hud.Ink.text3))
+                        .textFieldStyle(.plain)
+                        .font(Hud.Style.body.font)
+                        .foregroundStyle(Hud.Ink.text1)
+                        .focused($focused)
+                        .onSubmit(submit)
+                        .onKeyPress(.tab) {
+                            guard let completion else { return .ignored }
+                            text += completion
+                            return .handled
+                        }
+                        .onKeyPress(.escape) {
+                            guard !text.isEmpty else { return .ignored }
+                            reset()
+                            return .handled
+                        }
+                        .accessibilityLabel("New task")
+                        .accessibilityHint("Dates like tomorrow 3pm are recognised. Press Return to add.")
                 }
+                Spacer(minLength: 0)
             }
-            .padding(.leading, Crenel.Space.xs)
-            .padding(.trailing, Crenel.Space.xs)
-            .frame(minHeight: 40)
-            .background {
-                RoundedRectangle(cornerRadius: Crenel.Radius.m, style: .continuous)
-                    .fill(focused ? Crenel.Palette.layer2 : Crenel.Palette.layer1)
+            .padding(.horizontal, Hud.Size.rowInset)
+            .frame(height: 40)
+            .background(
+                RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
+                    .fill(focused ? Hud.Ink.selected : Hud.Ink.hover)
+            )
+            .onChange(of: text) { _, newValue in
+                if newValue.isEmpty { dismissed = [] }
             }
-            .overlay {
-                RoundedRectangle(cornerRadius: Crenel.Radius.m, style: .continuous)
-                    .strokeBorder(focused ? Crenel.Palette.tasks.opacity(0.5) : Crenel.Palette.hairline, lineWidth: 1)
-            }
-            .shadow(color: focused ? Crenel.Palette.tasks.opacity(0.18) : .clear, radius: 12)
 
-            if !accepted.isEmpty || !suggestions.isEmpty {
-                HStack(spacing: Crenel.Space.xs) {
-                    ForEach(Array(accepted.enumerated()), id: \.offset) { index, kind in
-                        TaskTokenChip(label: Self.label(for: kind), isAccepted: true) {
-                            accepted.remove(at: index)
+            // Below the field: what was recognised, or quick picks while nothing is.
+            if !text.trimmingCharacters(in: .whitespaces).isEmpty {
+                HStack(spacing: Hud.Space.x1) {
+                    if suggestions.isEmpty {
+                        ForEach(QuickPick.allCases, id: \.self) { pick in
+                            Button {
+                                text = text.trimmingCharacters(in: .whitespaces) + " " + pick.token
+                                focused = true
+                            } label: {
+                                chip(pick.title, glyph: pick.glyph, tint: Hud.Ink.text3, outlined: true)
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.opacity)
+                        }
+                    } else {
+                        ForEach(suggestions) { suggestion in
+                            Button {
+                                dismissed.insert(suggestion.matchedText)
+                            } label: {
+                                chip(label(for: suggestion), glyph: glyph(for: suggestion.kind), tint: tint(for: suggestion.kind))
+                            }
+                            .buttonStyle(.plain)
+                            .help("Click to drop")
+                            .accessibilityLabel("Recognised: \(label(for: suggestion)). Remove")
+                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
                         }
                     }
-                    ForEach(suggestions) { suggestion in
-                        TaskTokenChip(label: suggestion.label, isAccepted: false) {
-                            accept(suggestion)
-                        }
-                    }
-                    if !suggestions.isEmpty {
-                        HStack(spacing: 4) {
-                            CrenelKeyCap(label: "⇥")
-                            Text("add")
-                        }
-                        .crenelText(.caption, color: Crenel.Palette.textTertiary)
-                    }
-                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, Crenel.Space.s)
-                .transition(.crenelRise)
+                .padding(.horizontal, Hud.Size.rowInset)
+                .padding(.top, Hud.Space.x2)
+                .transition(.opacity.combined(with: .offset(y: -4)))
             }
         }
-        .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: focused)
-        .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: canSubmit)
-        .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: suggestions.map(\.id))
-        .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: accepted.count)
+        .animation(reduceMotion ? nil : Hud.Motion.glide, value: suggestions.map(\.id))
+        .animation(reduceMotion ? nil : Hud.Motion.change, value: text.isEmpty)
+        .animation(reduceMotion ? nil : Hud.Motion.hover, value: focused)
     }
 
-    /// Suggestions of a kind the user already accepted are not offered again.
+    private enum QuickPick: CaseIterable {
+        case today, tomorrow, priority
+
+        var token: String {
+            switch self {
+            case .today: "today"
+            case .tomorrow: "tomorrow"
+            case .priority: "!!"
+            }
+        }
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .today: "Today"
+            case .tomorrow: "Tomorrow"
+            case .priority: "Priority"
+            }
+        }
+
+        var glyph: HudGlyph { self == .priority ? .bell : .calendar }
+    }
+
     private var currentSuggestions: [TaskInputSuggestion] {
         guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
-        let acceptedKinds = Set(accepted.map(Self.kindKey))
         return parser.suggestions(for: text, now: Date())
-            .filter { !acceptedKinds.contains(Self.kindKey($0.kind)) }
+            .filter { !dismissed.contains($0.matchedText) }
     }
 
-    private var canSubmit: Bool {
-        TaskItem.normalizedTitle(text) != nil
+    /// Inline completion from titles used before.
+    private var completion: String? {
+        guard text.count >= 2 else { return nil }
+        let lower = text.lowercased()
+        return knownTitles.first { $0.lowercased().hasPrefix(lower) && $0.count > text.count }
+            .map { String($0.dropFirst(text.count)) }
     }
 
-    /// Ranges come from the text the suggestion was computed for; never apply a stale one.
-    private func isCurrent(_ suggestion: TaskInputSuggestion) -> Bool {
-        suggestion.range.upperBound <= text.endIndex
-            && String(text[suggestion.range]) == suggestion.matchedText
+    private func chip(_ label: some StringProtocol, glyph: HudGlyph, tint: Color, outlined: Bool = false) -> some View {
+        chip(Text(label), glyph: glyph, tint: tint, outlined: outlined)
     }
 
-    private func accept(_ suggestion: TaskInputSuggestion) {
-        guard isCurrent(suggestion) else { return }
-        accepted.append(suggestion.kind)
-        var remaining = text
-        remaining.removeSubrange(suggestion.range)
-        text = remaining
-            .replacingOccurrences(of: "  ", with: " ")
-            .trimmingCharacters(in: .whitespaces)
+    private func chip(_ label: LocalizedStringKey, glyph: HudGlyph, tint: Color, outlined: Bool = false) -> some View {
+        chip(Text(label), glyph: glyph, tint: tint, outlined: outlined)
     }
 
-    private func acceptAll(_ suggestions: [TaskInputSuggestion]) {
-        // Remove later ranges first so earlier indices stay valid.
-        for suggestion in suggestions.sorted(by: { $0.range.lowerBound > $1.range.lowerBound }) where isCurrent(suggestion) {
-            accepted.append(suggestion.kind)
-            text.removeSubrange(suggestion.range)
+    private func chip(_ label: Text, glyph: HudGlyph, tint: Color, outlined: Bool) -> some View {
+        HStack(spacing: 5) {
+            HudIcon(glyph, size: 11)
+            label.font(Hud.Style.meta.font).lineLimit(1)
         }
-        text = text
-            .replacingOccurrences(of: "  ", with: " ")
-            .trimmingCharacters(in: .whitespaces)
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .frame(height: 22)
+        .background {
+            if outlined {
+                Capsule().strokeBorder(Hud.Ink.track, lineWidth: 1)
+            } else {
+                Capsule().fill(Hud.Ink.selected)
+            }
+        }
+        .contentShape(Capsule())
+    }
+
+    private func label(for suggestion: TaskInputSuggestion) -> String {
+        switch suggestion.kind {
+        case .due(let date, let hasTime): TaskDueFormatter.label(due: date, hasTime: hasTime, now: Date())
+        case .recurrence(let recurrence): recurrence.displayText
+        case .priority(let priority): priority.displayText
+        }
+    }
+
+    private func glyph(for kind: TaskInputSuggestion.Kind) -> HudGlyph {
+        switch kind {
+        case .due: .calendar
+        case .recurrence: .history
+        case .priority: .bell
+        }
+    }
+
+    private func tint(for kind: TaskInputSuggestion.Kind) -> Color {
+        if case .priority(let priority) = kind, priority == .high { return Hud.Ink.signal }
+        return Hud.Ink.text1
     }
 
     private func submit() {
-        guard let title = TaskItem.normalizedTitle(text) else { return }
-        var result = TaskInputParseResult(
-            title: title,
-            dueDate: nil,
-            dueHasTime: false,
-            recurrence: nil,
-            priority: .none
-        )
-        for kind in accepted {
-            switch kind {
-            case .due(let date, let hasTime):
-                result.dueDate = date
-                result.dueHasTime = hasTime
-            case .recurrence(let recurrence):
-                result.recurrence = recurrence
-            case .priority(let priority):
-                result.priority = priority
-            }
-        }
-        onSubmit(result)
+        let result = parser.apply(currentSuggestions, to: text)
+        guard let title = TaskItem.normalizedTitle(result.title) else { return }
+        var final = result
+        final.title = title
+        onSubmit(final)
         reset()
         focused = true
     }
 
     private func reset() {
         text = ""
-        accepted = []
-    }
-
-    private static func kindKey(_ kind: TaskInputSuggestion.Kind) -> Int {
-        switch kind {
-        case .due: 0
-        case .recurrence: 1
-        case .priority: 2
-        }
-    }
-
-    private static func label(for kind: TaskInputSuggestion.Kind) -> String {
-        switch kind {
-        case .due(let date, let hasTime):
-            TaskDueFormatter.label(due: date, hasTime: hasTime, now: Date())
-        case .recurrence(let recurrence):
-            recurrence.displayText
-        case .priority(let priority):
-            priority.displayText
-        }
-    }
-}
-
-private struct TaskTokenChip: View {
-    let label: String
-    let isAccepted: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 4) {
-                CrenelIcon(isAccepted ? .check : .plus, size: 9, weight: 2.6)
-                Text(label).lineLimit(1)
-            }
-            .font(.system(size: 11, weight: .semibold))
-            .padding(.horizontal, 8)
-            .frame(height: 22)
-            .foregroundStyle(isAccepted ? Crenel.Palette.textPrimary : Crenel.Palette.tasks)
-            .background(
-                isAccepted ? Crenel.Palette.layer3 : Crenel.Palette.tasks.opacity(0.14),
-                in: Capsule(style: .continuous)
-            )
-        }
-        .buttonStyle(.plain)
-        .help(isAccepted ? "Click to remove" : "Click or press Tab to add")
-        .accessibilityLabel(isAccepted ? "\(label), added. Remove" : "Suggested: \(label). Add")
+        dismissed = []
     }
 }
 

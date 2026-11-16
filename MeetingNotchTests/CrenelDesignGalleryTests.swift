@@ -23,6 +23,9 @@ final class CrenelDesignGalleryTests: XCTestCase {
         let recording = sampleState(now: now, flow: .recording(startedAt: now.addingTimeInterval(-754)))
         try render(expanded: AnyView(NotchPanelView().environmentObject(recording)), name: "expanded-recording")
 
+        let processing = sampleState(now: now, flow: .transcribing)
+        try render(expanded: AnyView(NotchPanelView().environmentObject(processing)), name: "expanded-processing")
+
         let compactCases: [(String, AppState)] = [
             ("agenda", sampleState(now: now)),
             ("recording", sampleState(now: now, flow: .recording(startedAt: now.addingTimeInterval(-83)))),
@@ -30,6 +33,12 @@ final class CrenelDesignGalleryTests: XCTestCase {
                 let state = sampleState(now: now)
                 state.updateDictationState(.listening(startedAt: now, level: 0.6))
                 state.updateDictationLevel(0.6)
+                return state
+            }()),
+            ("processing", sampleState(now: now, flow: .transcribing)),
+            ("tasks", {
+                let state = AppState()
+                state.replaceTasks([TaskItem(title: "One", createdAt: now), TaskItem(title: "Two", createdAt: now)])
                 return state
             }()),
             ("idle", AppState())
@@ -55,9 +64,9 @@ final class CrenelDesignGalleryTests: XCTestCase {
                     TaskStatePicker(current: .inProgress) { _ in }
                 }
                 HStack(spacing: 10) {
-                    Button("Birincil") {}.buttonStyle(CrenelButtonStyle(kind: .primary))
-                    Button("İkincil") {}.buttonStyle(CrenelButtonStyle(kind: .secondary))
-                    Button("Katıl") {}.buttonStyle(CrenelButtonStyle(kind: .accent(Crenel.Palette.calendar)))
+                    Button("Primary") {}.buttonStyle(CrenelButtonStyle(kind: .primary))
+                    Button("Secondary") {}.buttonStyle(CrenelButtonStyle(kind: .secondary))
+                    Button("Join") {}.buttonStyle(CrenelButtonStyle(kind: .accent(Crenel.Palette.calendar)))
                     Button("Kaydet") {}.buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.record)))
                     CrenelChip(title: "12 dk", glyph: .clock, tint: Crenel.Palette.calendar)
                     CrenelKeyCap(label: "⌥ Space")
@@ -104,23 +113,23 @@ final class CrenelDesignGalleryTests: XCTestCase {
         state.updateNotchPanelAvailableSize(CGSize(width: 812, height: 640))
         state.updateCalendarAccessState(.authorized)
         state.updateUpcomingMeetings([
-            Meeting(title: "Ürün haftalık senkron", startDate: now.addingTimeInterval(12 * 60),
+            Meeting(title: "Weekly product sync", startDate: now.addingTimeInterval(12 * 60),
                     endDate: now.addingTimeInterval(57 * 60), meetingURL: URL(string: "https://meet.google.com/abc-defg-hij"),
-                    kind: .onlineMeeting, calendarTitle: "İş", calendarColorHex: "#8F80FF"),
-            Meeting(title: "Tasarım incelemesi", startDate: now.addingTimeInterval(2 * 3_600),
-                    endDate: now.addingTimeInterval(3 * 3_600), kind: .meeting, location: "Toplantı odası 2"),
-            Meeting(title: "Spor salonu", startDate: now.addingTimeInterval(5 * 3_600),
-                    endDate: now.addingTimeInterval(6 * 3_600), kind: .event, calendarTitle: "Kişisel")
+                    kind: .onlineMeeting, calendarTitle: "Work", calendarColorHex: "#8F80FF"),
+            Meeting(title: "Design review", startDate: now.addingTimeInterval(2 * 3_600),
+                    endDate: now.addingTimeInterval(3 * 3_600), kind: .meeting, location: "Room 2"),
+            Meeting(title: "Gym", startDate: now.addingTimeInterval(5 * 3_600),
+                    endDate: now.addingTimeInterval(6 * 3_600), kind: .event, calendarTitle: "Personal")
         ])
         let start = Calendar.current.startOfDay(for: now)
-        var done = TaskItem(title: "Sprint notlarını paylaş", createdAt: now)
+        var done = TaskItem(title: "Share sprint notes", createdAt: now)
         done.setStatus(.completed, at: now)
         state.replaceTasks([
-            TaskItem(title: "Onboarding akışını bitir", createdAt: now, status: .inProgress, startedAt: now.addingTimeInterval(-1_800), priority: .high),
-            TaskItem(title: "Hukuk onayı bekleniyor", createdAt: now, status: .blocked, dueDate: start),
-            TaskItem(title: "Haftalık raporu yaz", createdAt: now, dueDate: now.addingTimeInterval(3 * 3_600), dueHasTime: true, priority: .medium),
-            TaskItem(title: "Annemi ara", createdAt: now, dueDate: start),
-            TaskItem(title: "Kitap listesi", createdAt: now),
+            TaskItem(title: "Finish onboarding flow", createdAt: now, status: .inProgress, startedAt: now.addingTimeInterval(-1_800), priority: .high),
+            TaskItem(title: "Legal sign-off", createdAt: now, status: .blocked, dueDate: start),
+            TaskItem(title: "Write weekly report", createdAt: now, dueDate: now.addingTimeInterval(3 * 3_600), dueHasTime: true, priority: .medium),
+            TaskItem(title: "Call mom", createdAt: now, dueDate: start),
+            TaskItem(title: "Reading list", createdAt: now),
             done
         ])
         state.updateTaskStorageStatus(.reminders(listTitle: "Crenel"))

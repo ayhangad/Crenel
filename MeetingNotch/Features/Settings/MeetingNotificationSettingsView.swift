@@ -3,22 +3,21 @@ import SwiftUI
 struct MeetingNotificationSettingsView: View {
     @ObservedObject var service: MeetingNotificationService
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Label("Meeting notifications", systemImage: "bell.badge")
-                .font(.system(size: 15, weight: .semibold))
-            Text(service.status).font(MeetingNotchTheme.bodyFont)
-            HStack {
-                Button("Allow notifications") { Task { await service.requestAccess() } }
-                Button("Notification settings") {
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
-                        NSWorkspace.shared.open(url)
+        SettingsGroup("Notifications") {
+            SettingsRow(glyph: .bell, title: "Meeting notifications", detail: Text(service.status)) {
+                HStack(spacing: Hud.Space.x1) {
+                    Button("Allow") { Task { await service.requestAccess() } }
+                        .accessibilityLabel("Allow notifications")
+                    Button("Open") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+                            NSWorkspace.shared.open(url)
+                        }
                     }
+                    .accessibilityLabel("Notification settings")
                 }
+                .buttonStyle(HudButtonStyle(kind: .ghost))
             }
         }
-        .padding(20)
-        .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: MeetingNotchTheme.surfaceRadius))
-        .buttonStyle(MeetingNotchActionButtonStyle())
         .task { await service.refreshStatus() }
     }
 }

@@ -4,10 +4,19 @@ import SwiftUI
 
 /// A plain group title. No rule, no count, no letterspacing.
 struct HudGroupHeader: View {
-    let title: String
+    let title: Text
+
+    init(title: LocalizedStringKey) {
+        self.title = Text(title)
+    }
+
+    @_disfavoredOverload
+    init<S: StringProtocol>(title: S) {
+        self.title = Text(title)
+    }
 
     var body: some View {
-        Text(title)
+        title
             .hud(.label, Hud.Ink.text3)
             .padding(.horizontal, Hud.Size.rowInset)
             .frame(height: 22, alignment: .bottom)
