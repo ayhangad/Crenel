@@ -30,6 +30,11 @@ Kayıt, Veri**.
 
 ## İzinler
 
+Tüm izinler ilk açılışta tek bir kurulum ekranında listelenir; **Hepsini aç** sistem
+pencerelerini sırayla gösterir. Takvim veya Hatırlatıcılar izni geldiği anda ilgili özellik
+kendiliğinden bağlanır; modülleri ayrıca ayarlamak gerekmez. Daha önce reddedilen izin için
+satır doğrudan Sistem Ayarları’ndaki ilgili bölmeyi açar.
+
 | İzin | Neden | Vermezseniz |
 |---|---|---|
 | Takvim | Etkinlikleri ve geri sayımı göstermek | Takvim bölümü boş kalır |
@@ -53,6 +58,7 @@ Kayıt, Veri**.
 - macOS 26+
 - Güncel Xcode
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) 2.45.4+
+- Metal Toolchain (SwiftUI shader'ları için): `xcodebuild -downloadComponent MetalToolchain`
 
 Homebrew ile XcodeGen kurulumu:
 

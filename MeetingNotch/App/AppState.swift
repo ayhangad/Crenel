@@ -4,7 +4,7 @@ import Foundation
 final class AppState: ObservableObject {
     @Published var isCalendarEnabled = true
     enum PanelTab: String, CaseIterable, Identifiable {
-        case meetings = "Toplantılar"
+        case meetings = "Bugün"
         case tasks = "Görevler"
 
         var id: Self { self }

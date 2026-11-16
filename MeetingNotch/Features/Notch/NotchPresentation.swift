@@ -1,11 +1,5 @@
-import DynamicNotchKit
+import AppKit
 import Foundation
-
-enum NotchShadowPolicy {
-    // DynamicNotchKit's window reserves 15 pt for the external shadow. Its optional
-    // hover effect grows the shadow radius to 20 pt and gets clipped at the panel edge.
-    static let hoverBehavior: DynamicNotchHoverBehavior = [.keepVisible]
-}
 
 enum NotchCompactStatus: Equatable {
     struct RecordingStatus: Equatable {
@@ -138,38 +132,29 @@ struct NotchPanelLayout: Equatable {
     }
 }
 
+/// Space the open notch may use inside Crenel's notch window: the window minus side
+/// margins for the flare and shadow, and minus the menu-bar band the notch starts under.
 struct NotchHostViewport: Equatable {
-    // DynamicNotchKit 1.1.0 creates a borderless host window at half of the target
-    // screen's width and height. These insets mirror the library's expanded chrome so
-    // our fixed-size content never becomes taller than that host window.
-    static let windowScale: CGFloat = 0.5
-    static let physicalHorizontalInset: CGFloat = 60
-    static let physicalBottomInset: CGFloat = 15
-    static let floatingHorizontalInset: CGFloat = 70
-    static let floatingContainerInset: CGFloat = 70
+    static let horizontalMargin: CGFloat = 48
+    static let bottomMargin: CGFloat = 24
 
     let availableSize: CGSize
 
-    init(
-        screenFrameSize: CGSize,
-        topInset: CGFloat,
-        hasPhysicalNotch: Bool
-    ) {
-        let hostSize = CGSize(
-            width: screenFrameSize.width * Self.windowScale,
-            height: screenFrameSize.height * Self.windowScale
-        )
-        let horizontalInset = hasPhysicalNotch
-            ? Self.physicalHorizontalInset
-            : Self.floatingHorizontalInset
-        let verticalInset = max(0, topInset) + (hasPhysicalNotch
-            ? Self.physicalBottomInset
-            : Self.floatingContainerInset)
-
+    init(windowSize: CGSize, topInset: CGFloat) {
         availableSize = CGSize(
-            width: max(0, hostSize.width - horizontalInset),
-            height: max(0, hostSize.height - verticalInset)
+            width: max(0, windowSize.width - Self.horizontalMargin),
+            height: max(0, windowSize.height - max(0, topInset) - Self.bottomMargin)
         )
+    }
+
+    @MainActor
+    init(screen: NSScreen) {
+        let metrics = CrenelNotchController.metrics(for: screen)
+        let windowSize = CGSize(
+            width: min(CrenelNotchController.windowSize.width, screen.frame.width),
+            height: min(CrenelNotchController.windowSize.height, screen.frame.height * 0.85)
+        )
+        self.init(windowSize: windowSize, topInset: metrics.topInset)
     }
 }
 

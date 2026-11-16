@@ -39,6 +39,51 @@ final class CrenelTaskTests: XCTestCase {
         XCTAssertEqual(presentation.inProgress?.title, "Çalışılıyor")
     }
 
+    func testBlockedTasksGetTheirOwnSectionAfterInProgress() {
+        let working = TaskItem(title: "Devam", status: .inProgress)
+        let blocked = TaskItem(title: "Bekliyor", status: .blocked, dueDate: now)
+        let todo = TaskItem(title: "Sıradaki")
+
+        let presentation = TaskListPresentation(tasks: [todo, blocked, working], now: now, calendar: calendar)
+
+        XCTAssertEqual(presentation.sections.map(\.kind), [.inProgress, .blocked, .someday])
+        XCTAssertEqual(presentation.activeCount, 3)
+    }
+
+    func testBlockedStateClearsStartAndCompletionDates() {
+        var task = TaskItem(title: "API anahtarı bekleniyor")
+        task.setStatus(.inProgress, at: now)
+        task.setStatus(.blocked, at: now)
+        XCTAssertEqual(task.status, .blocked)
+        XCTAssertNil(task.startedAt)
+        XCTAssertNil(task.completedAt)
+        XCTAssertTrue(task.isActive)
+
+        let decoded = try? JSONDecoder().decode(TaskItem.self, from: JSONEncoder().encode(task))
+        XCTAssertEqual(decoded?.status, .blocked)
+    }
+
+    func testBlockedStateRoundTripsThroughRemindersSidecar() throws {
+        let task = TaskItem(title: "Onay bekliyor", createdAt: now, status: .blocked)
+        let record = ReminderTaskMapper.record(from: task, identifier: "rem-1", calendar: calendar)
+        let sidecar = ReminderTaskMapper.sidecar(from: task)
+        XCTAssertTrue(sidecar.isBlocked)
+        XCTAssertFalse(record.isCompleted)
+
+        let restored = ReminderTaskMapper.task(from: record, sidecar: sidecar, calendar: calendar)
+        XCTAssertEqual(restored.status, .blocked)
+        XCTAssertEqual(restored.id, task.id)
+    }
+
+    func testSidecarWrittenBeforeBlockedStateStillDecodes() throws {
+        let id = UUID()
+        let json = #"{"taskID":"\#(id.uuidString)","isInProgress":true}"#
+        let entry = try JSONDecoder().decode(TaskSidecarEntry.self, from: Data(json.utf8))
+        XCTAssertEqual(entry.taskID, id)
+        XCTAssertTrue(entry.isInProgress)
+        XCTAssertFalse(entry.isBlocked)
+    }
+
     func testCompletedTaskStaysInListUntilDayEndsAndArchiveMovesItToHistory() {
         var task = TaskItem(title: "Rapor")
         task.setStatus(.completed, at: now)
@@ -114,7 +159,7 @@ final class CrenelTaskTests: XCTestCase {
     }
 
     func testLegacyStatusesDecodeIntoThreeStates() throws {
-        for (raw, expected) in [("backlog", TaskStatus.open), ("todo", .open), ("blocked", .open), ("inProgress", .inProgress), ("completed", .completed)] {
+        for (raw, expected) in [("backlog", TaskStatus.open), ("todo", .open), ("blocked", .blocked), ("inProgress", .inProgress), ("completed", .completed)] {
             let json = """
             {"id":"\(UUID().uuidString)","title":"x","createdAt":0,"status":"\(raw)"\(raw == "completed" ? ",\"completedAt\":10" : "")}
             """

@@ -129,31 +129,19 @@ final class NotchPresentationTests: XCTestCase {
     }
 
     func testPanelUsesPreferredSizeOnLargeScreenAndStaysWithinSmallScreen() {
-        let physicalViewport = NotchHostViewport(
-            screenFrameSize: CGSize(width: 1_440, height: 900),
-            topInset: 30,
-            hasPhysicalNotch: true
-        )
-        XCTAssertEqual(physicalViewport.availableSize, CGSize(width: 660, height: 405))
-
+        let viewport = NotchHostViewport(windowSize: CGSize(width: 860, height: 760), topInset: 32)
+        XCTAssertEqual(viewport.availableSize, CGSize(width: 812, height: 704))
         XCTAssertEqual(
-            NotchPanelLayout(availableSize: physicalViewport.availableSize),
-            NotchPanelLayout(width: 600, maximumContentHeight: 305)
-        )
-        XCTAssertEqual(
-            NotchPanelLayout(
-                availableSize: physicalViewport.availableSize,
-                preferredWidth: NotchPanelLayout.preferredDetailWidth
-            ),
-            NotchPanelLayout(width: 600, maximumContentHeight: 305)
+            NotchPanelLayout(availableSize: viewport.availableSize),
+            NotchPanelLayout(width: 600, maximumContentHeight: 600)
         )
 
-        let floatingViewport = NotchHostViewport(
-            screenFrameSize: CGSize(width: 1_440, height: 900),
-            topInset: 24,
-            hasPhysicalNotch: false
+        let small = NotchHostViewport(windowSize: CGSize(width: 860, height: 612), topInset: 24)
+        XCTAssertEqual(small.availableSize, CGSize(width: 812, height: 564))
+        XCTAssertEqual(
+            NotchPanelLayout(availableSize: small.availableSize).maximumContentHeight,
+            564 - NotchPanelLayout.fixedVerticalSpace
         )
-        XCTAssertEqual(floatingViewport.availableSize, CGSize(width: 650, height: 356))
 
         let constrained = NotchPanelLayout(availableSize: CGSize(width: 328, height: 250))
         XCTAssertEqual(constrained.width, 328)
@@ -195,10 +183,6 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(detailContent.fittingSize.height, 68, accuracy: 0.5)
     }
 
-    func testHoverShadowStaysInsideDynamicNotchWindowInset() {
-        XCTAssertTrue(NotchShadowPolicy.hoverBehavior.contains(.keepVisible))
-        XCTAssertFalse(NotchShadowPolicy.hoverBehavior.contains(.increaseShadow))
-    }
 
     func testOnlyCompletionResetsAfterTransientPresentation() {
         let completed = MeetingFlowState.completed(meetingID: UUID())
@@ -383,24 +367,15 @@ final class NotchPresentationTests: XCTestCase {
             (
                 "onboarding",
                 AnyView(
-                    OnboardingView(
-                        onRequestMicrophoneAccess: {},
-                        onRequestSystemAudioAccess: {},
-                        onRequestAccessibilityAccess: {},
-                        onRequestCalendarAccess: {},
-                        onComplete: {}
-                    )
+                    OnboardingView(setup: .preview(), onComplete: {})
                     .environmentObject(onboardingState)
                 ),
-                CGSize(width: 600, height: 500)
+                CGSize(width: 560, height: 680)
             ),
             (
                 "compact",
                 AnyView(
-                    HStack(spacing: 24) {
-                        CompactLeadingView()
-                        CompactTrailingView()
-                    }
+                    CrenelCompactView()
                     .padding(12)
                     .background(Color.black)
                     .environmentObject(compactState)
@@ -691,7 +666,7 @@ extension NotchPresentationTests {
                     name: "notch-\(name)-\(Int(width))", size: CGSize(width: width, height: 640))
             }
             let compact = AppState(initialFlow: flow)
-            try auditRender(AnyView(HStack(spacing: 24) { CompactLeadingView(); CompactTrailingView() }
+            try auditRender(AnyView(CrenelCompactView()
                 .padding(12).background(.black).environmentObject(compact)),
                 name: "compact-\(name)", size: CGSize(width: 300, height: 48))
         }
@@ -723,10 +698,9 @@ extension NotchPresentationTests {
     func testEveryOnboardingStepAndLightSystemAppearanceRenders() throws {
         for step in OnboardingView.Step.allCases {
             let state = AppState()
-            let view = OnboardingView(onRequestMicrophoneAccess: {}, onRequestSystemAudioAccess: {},
-                onRequestAccessibilityAccess: {}, onRequestCalendarAccess: {}, onComplete: {}, initialStep: step)
+            let view = OnboardingView(setup: .preview(), onComplete: {}, initialStep: step)
                 .environmentObject(state)
-            try auditRender(AnyView(view), name: "onboarding-\(step.rawValue)", size: CGSize(width: 600, height: 500))
+            try auditRender(AnyView(view), name: "onboarding-\(step.rawValue)", size: CGSize(width: 560, height: 680))
         }
         let state = AppState(initialFlow: .uploading(progress: 0.72))
         try auditRender(AnyView(NotchPanelView().environmentObject(state)

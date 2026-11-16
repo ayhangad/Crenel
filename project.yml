@@ -9,11 +9,6 @@ configs:
   Debug: debug
   Release: release
 
-packages:
-  DynamicNotchKit:
-    url: https://github.com/MrKai77/DynamicNotchKit
-    from: 1.1.0
-
 settings:
   base:
     MACOSX_DEPLOYMENT_TARGET: 26.0
@@ -82,7 +77,6 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
     dependencies:
-      - package: DynamicNotchKit
       - target: MeetingNotchBrowserAudioHost
         link: false
         embed: false

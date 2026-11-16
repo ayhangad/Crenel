@@ -1,11 +1,14 @@
 import SwiftUI
 
 /// One flat task list. Sections follow from state and due date; the user only types.
+/// Tapping a task's ring picks its state; tapping the task opens its card.
 struct TasksView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.crenelActions) private var actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showsHistory: Bool
+    @State private var openTaskID: UUID?
+    @State private var pickerTaskID: UUID?
     @State private var taskPendingDeletion: TaskItem?
     @State private var showsClearHistoryConfirmation = false
 
@@ -16,26 +19,31 @@ struct TasksView: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
             let presentation = appState.taskPresentation(now: context.date)
-            LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.MainPanel.contentSpacing) {
-                header(presentation)
-
+            VStack(alignment: .leading, spacing: Crenel.Space.l) {
                 if showsHistory {
                     historyContent(presentation)
-                        .transition(contentTransition)
+                        .transition(.crenelRise)
                 } else {
                     TaskQuickAddField(onSubmit: actions.tasks.add)
-                    storageNotice
                     activeContent(presentation, now: context.date)
-                        .transition(contentTransition)
+                        .transition(.crenelRise)
                 }
+                footer(presentation)
             }
         }
+        .animation(motion(Crenel.Motion.gentle), value: showsHistory)
+        .animation(motion(Crenel.Motion.morph), value: openTaskID)
+        .animation(motion(Crenel.Motion.snappy), value: pickerTaskID)
+        .animation(motion(Crenel.Motion.gentle), value: appState.tasks)
         .alert(
             "Görev silinsin mi?",
             isPresented: deleteTaskAlertBinding,
             presenting: taskPendingDeletion
         ) { task in
-            Button("Sil", role: .destructive) { actions.tasks.delete(task) }
+            Button("Sil", role: .destructive) {
+                if openTaskID == task.id { openTaskID = nil }
+                actions.tasks.delete(task)
+            }
             Button("Vazgeç", role: .cancel) {}
         } message: { task in
             Text(appState.taskStorageStatus.isReminders
@@ -48,81 +56,6 @@ struct TasksView: View {
         } message: {
             Text("Tamamlanan görevler kalıcı olarak silinecek.")
         }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: showsHistory)
-    }
-
-    // MARK: Header
-
-    private func header(_ presentation: TaskListPresentation) -> some View {
-        HStack(spacing: 8) {
-            Text(showsHistory ? "Tamamlananlar" : "Görevler")
-                .font(MeetingNotchTheme.MainPanel.sectionTitleFont)
-                .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
-                .lineLimit(1)
-
-            if !showsHistory, appState.taskStorageStatus.isReminders {
-                Image(systemName: "icloud")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
-                    .help("Apple Hatırlatıcılar’daki “Crenel” listesiyle senkronlanıyor")
-                    .accessibilityLabel("Hatırlatıcılar ile senkronlanıyor")
-            }
-
-            Spacer(minLength: 8)
-
-            if !showsHistory, presentation.activeCount > 0 {
-                Text("\(presentation.activeCount)")
-                    .font(MeetingNotchTheme.metadataFont.monospacedDigit())
-                    .foregroundStyle(MeetingNotchTheme.MainPanel.counterText)
-                    .accessibilityLabel("\(presentation.activeCount) açık görev")
-            }
-
-            Button {
-                showsHistory.toggle()
-            } label: {
-                HStack(spacing: 4) {
-                    Image(showsHistory ? "FigmaTasks" : "FigmaArchive")
-                        .resizable()
-                        .renderingMode(.template)
-                        .frame(width: 16, height: 16)
-                    Text(showsHistory ? "Görevler" : "Geçmiş")
-                }
-            }
-            .buttonStyle(TaskHeaderButtonStyle(isActive: showsHistory))
-            .help(showsHistory ? "Görevlere dön" : "Tamamlanan görevleri göster")
-            .accessibilityLabel(showsHistory ? "Görevlere dön" : "Tamamlanan görevleri göster")
-        }
-    }
-
-    // MARK: Storage
-
-    @ViewBuilder
-    private var storageNotice: some View {
-        switch appState.taskStorageStatus {
-        case .localNotConnected:
-            TaskNoticeRow(
-                symbol: "icloud",
-                text: "Görevleriniz iPhone ve Watch’ta da görünsün",
-                actionTitle: "Hatırlatıcılar’a bağla",
-                action: actions.tasks.connectReminders
-            )
-        case .localDenied:
-            TaskNoticeRow(
-                symbol: "lock",
-                text: "Hatırlatıcılar izni kapalı; görevler bu Mac’te tutuluyor. Sistem Ayarları › Gizlilik › Hatırlatıcılar’dan açabilirsiniz.",
-                actionTitle: nil,
-                action: {}
-            )
-        case .localAfterError(let message):
-            TaskNoticeRow(
-                symbol: "exclamationmark.triangle",
-                text: message,
-                actionTitle: "Tekrar dene",
-                action: actions.tasks.connectReminders
-            )
-        case .reminders, .localByChoice:
-            EmptyView()
-        }
     }
 
     // MARK: Active list
@@ -130,23 +63,64 @@ struct TasksView: View {
     @ViewBuilder
     private func activeContent(_ presentation: TaskListPresentation, now: Date) -> some View {
         if presentation.isEmpty {
-            emptyState(assetName: "FigmaTaskCompleted", text: "Yapılacak bir şey yok. Yazıp Enter’a basın.")
+            CrenelEmptyState(
+                glyph: .check,
+                title: "Liste boş",
+                detail: "Yukarıya yazıp Enter’a basın. “yarın 15:00” gibi tarihleri Crenel anlar.",
+                tint: Crenel.Palette.tasks
+            )
         } else {
-            ForEach(presentation.sections) { section in
-                VStack(alignment: .leading, spacing: 2) {
-                    TaskSectionHeader(kind: section.kind, count: section.tasks.count)
-                    LazyVStack(spacing: MeetingNotchTheme.MainPanel.rowSpacing) {
-                        ForEach(section.tasks) { task in
-                            TaskRowView(
-                                task: task,
-                                now: now,
-                                isOverdue: section.kind == .overdue,
-                                onRequestDelete: { taskPendingDeletion = task }
-                            )
+            VStack(alignment: .leading, spacing: Crenel.Space.l) {
+                ForEach(presentation.sections) { section in
+                    VStack(alignment: .leading, spacing: Crenel.Space.xxs) {
+                        CrenelSectionHeader(
+                            title: section.kind.title,
+                            count: section.tasks.count > 1 ? section.tasks.count : nil,
+                            tint: Self.sectionTint(section.kind)
+                        )
+                        .padding(.horizontal, Crenel.Space.xs)
+                        .padding(.bottom, Crenel.Space.xxs)
+                        VStack(spacing: 2) {
+                            ForEach(section.tasks) { task in
+                                row(task, now: now, isOverdue: section.kind == .overdue)
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func row(_ task: TaskItem, now: Date, isOverdue: Bool) -> some View {
+        if openTaskID == task.id {
+            TaskDetailCard(
+                task: task,
+                now: now,
+                onClose: { openTaskID = nil },
+                onRequestDelete: { taskPendingDeletion = task }
+            )
+            .transition(.crenelMorph(anchor: .top))
+        } else {
+            TaskRow(
+                task: task,
+                now: now,
+                isOverdue: isOverdue,
+                showsPicker: pickerTaskID == task.id,
+                onTogglePicker: {
+                    pickerTaskID = pickerTaskID == task.id ? nil : task.id
+                },
+                onPick: { status in
+                    actions.tasks.setStatus(task, status)
+                    pickerTaskID = nil
+                },
+                onOpen: {
+                    pickerTaskID = nil
+                    openTaskID = task.id
+                },
+                onRequestDelete: { taskPendingDeletion = task }
+            )
+            .transition(.crenelMorph(anchor: .top))
         }
     }
 
@@ -155,33 +129,96 @@ struct TasksView: View {
     @ViewBuilder
     private func historyContent(_ presentation: TaskListPresentation) -> some View {
         if presentation.history.isEmpty {
-            emptyState(assetName: "FigmaArchive", text: "Henüz geçmiş yok. Tamamlanan görevler gün bitince buraya taşınır.")
+            CrenelEmptyState(
+                glyph: .history,
+                title: "Henüz geçmiş yok",
+                detail: "Biten görevler gün sonunda buraya taşınır."
+            )
         } else {
-            HStack {
-                Spacer()
-                Button("Geçmişi temizle", systemImage: "trash") {
-                    showsClearHistoryConfirmation = true
-                }
-                .buttonStyle(MeetingNotchActionButtonStyle())
-            }
-            ForEach(presentation.history) { day in
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(Self.historyTitle(for: day.day))
-                        .font(MeetingNotchTheme.MainPanel.smallFont)
-                        .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
-                        .padding(.horizontal, MeetingNotchTheme.MainPanel.listRowHorizontalInset)
-                    LazyVStack(spacing: MeetingNotchTheme.MainPanel.rowSpacing) {
-                        ForEach(day.tasks) { task in
-                            TaskRowView(
-                                task: task,
-                                now: Date(),
-                                isOverdue: false,
-                                onRequestDelete: { taskPendingDeletion = task }
-                            )
+            VStack(alignment: .leading, spacing: Crenel.Space.l) {
+                ForEach(presentation.history) { day in
+                    VStack(alignment: .leading, spacing: Crenel.Space.xxs) {
+                        CrenelSectionHeader(title: Self.historyTitle(for: day.day), count: day.tasks.count)
+                            .padding(.horizontal, Crenel.Space.xs)
+                            .padding(.bottom, Crenel.Space.xxs)
+                        VStack(spacing: 2) {
+                            ForEach(day.tasks) { task in
+                                row(task, now: Date(), isOverdue: false)
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+
+    // MARK: Footer
+
+    private func footer(_ presentation: TaskListPresentation) -> some View {
+        HStack(spacing: Crenel.Space.s) {
+            Button {
+                openTaskID = nil
+                pickerTaskID = nil
+                showsHistory.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    CrenelIcon(showsHistory ? .chevronLeft : .history, size: 13)
+                    Text(showsHistory ? "Görevler" : "Geçmiş")
+                }
+            }
+            .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
+
+            if showsHistory, !presentation.history.isEmpty {
+                Button {
+                    showsClearHistoryConfirmation = true
+                } label: {
+                    HStack(spacing: 6) {
+                        CrenelIcon(.trash, size: 13)
+                        Text("Temizle")
+                    }
+                }
+                .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
+            }
+
+            Spacer(minLength: Crenel.Space.s)
+
+            storageLabel
+        }
+        .padding(.top, Crenel.Space.xxs)
+    }
+
+    @ViewBuilder
+    private var storageLabel: some View {
+        switch appState.taskStorageStatus {
+        case .reminders:
+            HStack(spacing: 5) {
+                Circle().fill(Crenel.Palette.success).frame(width: 5, height: 5)
+                Text("Hatırlatıcılar ile eşitleniyor")
+            }
+            .crenelText(.caption, color: Crenel.Palette.textQuaternary)
+            .help("Görevler Apple Hatırlatıcılar’daki “Crenel” listesinde; iPhone ve Watch’ta da görünür.")
+        case .localDenied, .localAfterError, .localNotConnected:
+            Button {
+                actions.tasks.connectReminders()
+            } label: {
+                Text("Bu Mac’te saklanıyor")
+                    .crenelText(.caption, color: Crenel.Palette.textQuaternary)
+            }
+            .buttonStyle(.plain)
+            .help("Hatırlatıcılar izni verildiğinde görevler otomatik eşitlenir.")
+        case .localByChoice:
+            EmptyView()
+        }
+    }
+
+    // MARK: Helpers
+
+    private static func sectionTint(_ kind: TaskListPresentation.SectionKind) -> Color {
+        switch kind {
+        case .inProgress: Crenel.Palette.focus
+        case .blocked, .overdue: Crenel.Palette.danger
+        case .today: Crenel.Palette.tasks
+        default: Crenel.Palette.textTertiary
         }
     }
 
@@ -192,21 +229,6 @@ struct TasksView: View {
         return day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "tr_TR")))
     }
 
-    private func emptyState(assetName: String, text: String) -> some View {
-        HStack(spacing: MeetingNotchTheme.MainPanel.itemSpacing) {
-            Image(assetName)
-                .resizable()
-                .renderingMode(.template)
-                .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
-                .frame(width: 20, height: 20)
-            Text(text)
-                .font(MeetingNotchTheme.MainPanel.bodyFont)
-                .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .frame(minHeight: MeetingNotchTheme.MainPanel.rowHeight)
-    }
-
     private var deleteTaskAlertBinding: Binding<Bool> {
         Binding(
             get: { taskPendingDeletion != nil },
@@ -214,8 +236,348 @@ struct TasksView: View {
         )
     }
 
-    private var contentTransition: AnyTransition {
-        reduceMotion ? .opacity : .opacity.combined(with: .offset(y: -6))
+    private func motion(_ animation: Animation) -> Animation {
+        Crenel.Motion.resolve(animation, reduceMotion: reduceMotion)
+    }
+}
+
+// MARK: - Row
+
+private struct TaskRow: View {
+    let task: TaskItem
+    let now: Date
+    let isOverdue: Bool
+    let showsPicker: Bool
+    let onTogglePicker: () -> Void
+    let onPick: (TaskStatus) -> Void
+    let onOpen: () -> Void
+    let onRequestDelete: () -> Void
+
+    @Environment(\.crenelActions) private var actions
+    @State private var hovering = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Crenel.Space.s) {
+            HStack(alignment: .firstTextBaseline, spacing: Crenel.Space.m) {
+                Button(action: onTogglePicker) {
+                    TaskStateGlyph(status: task.status, tint: ringTint, size: 17)
+                        .frame(width: 24, height: 24)
+                        .contentShape(Circle())
+                        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
+                }
+                .buttonStyle(.plain)
+                .help("Durumu değiştir")
+                .accessibilityLabel("Durum: \(task.status.title)")
+                .accessibilityHint("Durum seçeneklerini açar")
+
+                Button(action: onOpen) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(task.title)
+                            .crenelText(.body, color: task.isCompleted ? Crenel.Palette.textTertiary : Crenel.Palette.textPrimary)
+                            .strikethrough(task.isCompleted, color: Crenel.Palette.textTertiary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        TaskMetaLine(task: task, now: now, isOverdue: isOverdue)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Görev kartını açar")
+
+                if hovering, !task.isCompleted {
+                    Button {
+                        onPick(.completed)
+                    } label: {
+                        CrenelIcon(.check, size: 13, weight: 2.2)
+                    }
+                    .buttonStyle(CrenelIconButtonStyle(diameter: 24, tint: Crenel.Palette.success))
+                    .help("Bitti olarak işaretle")
+                    .accessibilityLabel("Bitti")
+                    .transition(.opacity.combined(with: .scale(scale: 0.8)))
+                }
+            }
+
+            if showsPicker {
+                TaskStatePicker(current: task.status, onSelect: onPick)
+                    .padding(.leading, 36)
+                    .transition(.crenelRise)
+            }
+        }
+        .padding(.horizontal, Crenel.Space.s)
+        .padding(.vertical, Crenel.Space.s + 1)
+        .background {
+            RoundedRectangle(cornerRadius: Crenel.Radius.m, style: .continuous)
+                .fill(hovering || showsPicker ? Crenel.Palette.layer1 : .clear)
+        }
+        .onHover { hovering = $0 }
+        .animation(Crenel.Motion.snappy, value: hovering)
+        .contextMenu { contextActions }
+    }
+
+    private var ringTint: Color {
+        if isOverdue { return Crenel.Palette.danger }
+        switch task.priority {
+        case .high: return Crenel.Palette.record
+        case .medium: return Crenel.Palette.tasks
+        case .low: return Crenel.Palette.dictation
+        case .none: return Crenel.Palette.textTertiary
+        }
+    }
+
+    @ViewBuilder
+    private var contextActions: some View {
+        ForEach(TaskStatus.allCases) { status in
+            Button(status.title) { actions.tasks.setStatus(task, status) }
+                .disabled(status == task.status)
+        }
+        Divider()
+        if !task.isCompleted {
+            Button("Bugüne al") {
+                actions.tasks.reschedule(task, Calendar.current.startOfDay(for: Date()), false)
+            }
+            Button("Yarına ertele") { actions.tasks.postponeToTomorrow(task) }
+        }
+        if task.isArchived {
+            Button("Listeye geri al") { actions.tasks.restore(task) }
+        } else if task.isCompleted {
+            Button("Listeden kaldır") { actions.tasks.archive(task) }
+        }
+        Divider()
+        Button("Sil", role: .destructive, action: onRequestDelete)
+    }
+}
+
+private struct TaskMetaLine: View {
+    let task: TaskItem
+    let now: Date
+    let isOverdue: Bool
+    @Environment(\.crenelActions) private var actions
+
+    var body: some View {
+        let due = TaskDueFormatter.label(for: task, now: now)
+        if due != nil || task.recurrence != nil || task.priority != .none || task.sourceMeetingID != nil || task.notes != nil {
+            HStack(spacing: Crenel.Space.s) {
+                if let due {
+                    meta(task.dueHasTime ? .clock : .calendar, due,
+                         color: isOverdue ? Crenel.Palette.danger : Crenel.Palette.textTertiary)
+                }
+                if let recurrence = task.recurrence {
+                    meta(.history, recurrence.displayText)
+                }
+                if task.priority != .none {
+                    meta(.flag, task.priority.shortText,
+                         color: task.priority == .high ? Crenel.Palette.record : Crenel.Palette.textTertiary)
+                }
+                if task.notes?.isEmpty == false {
+                    CrenelIcon(.copy, size: 10.5, weight: 2)
+                        .foregroundStyle(Crenel.Palette.textQuaternary)
+                        .help("Notu var")
+                }
+                if let meetingID = task.sourceMeetingID {
+                    Button {
+                        actions.tasks.openSourceMeeting(meetingID)
+                    } label: {
+                        meta(.waveform, "Toplantı", color: Crenel.Palette.calendar)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Görevin geldiği toplantıyı aç")
+                }
+            }
+            .lineLimit(1)
+        }
+    }
+
+    private func meta(_ glyph: CrenelGlyph, _ text: String, color: Color = Crenel.Palette.textTertiary) -> some View {
+        HStack(spacing: 4) {
+            CrenelIcon(glyph, size: 10.5, weight: 2)
+            Text(text)
+        }
+        .crenelText(.caption, color: color)
+    }
+}
+
+// MARK: - Detail card
+
+/// The task opened in place: title, state, date, priority, notes. Edits save when the
+/// field loses focus or on Enter; nothing saves on every keystroke.
+private struct TaskDetailCard: View {
+    let task: TaskItem
+    let now: Date
+    let onClose: () -> Void
+    let onRequestDelete: () -> Void
+
+    @Environment(\.crenelActions) private var actions
+    @State private var title: String
+    @State private var notes: String
+    @FocusState private var focus: Field?
+
+    private enum Field { case title, notes }
+
+    init(task: TaskItem, now: Date, onClose: @escaping () -> Void, onRequestDelete: @escaping () -> Void) {
+        self.task = task
+        self.now = now
+        self.onClose = onClose
+        self.onRequestDelete = onRequestDelete
+        _title = State(initialValue: task.title)
+        _notes = State(initialValue: task.notes ?? "")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Crenel.Space.l) {
+            HStack(alignment: .top, spacing: Crenel.Space.m) {
+                TaskStateGlyph(status: task.status, tint: Crenel.Palette.textSecondary, size: 20)
+                    .padding(.top, 2)
+                TextField("Görev", text: $title, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .crenelText(.title)
+                    .lineLimit(1...4)
+                    .focused($focus, equals: .title)
+                    .onSubmit(commit)
+                Button(action: close) {
+                    CrenelIcon(.chevronDown, size: 14, weight: 2)
+                        .rotationEffect(.degrees(180))
+                }
+                .buttonStyle(CrenelIconButtonStyle(diameter: 26))
+                .keyboardShortcut(.cancelAction)
+                .help("Kartı kapat")
+                .accessibilityLabel("Kartı kapat")
+            }
+
+            TaskStatePicker(current: task.status) { actions.tasks.setStatus(task, $0) }
+
+            VStack(alignment: .leading, spacing: Crenel.Space.s) {
+                Text("Tarih").eyebrow()
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Crenel.Space.xs) {
+                        dateOption("Bugün", date: startOfDay(0))
+                        dateOption("Yarın", date: startOfDay(1))
+                        dateOption("Hafta sonu", date: nextWeekend)
+                        dateOption("Gelecek hafta", date: startOfDay(7))
+                        if task.dueDate != nil {
+                            Button("Tarihi kaldır") { actions.tasks.reschedule(task, nil, false) }
+                                .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
+                        }
+                    }
+                }
+                if let due = TaskDueFormatter.label(for: task, now: now) {
+                    HStack(spacing: 6) {
+                        CrenelIcon(task.dueHasTime ? .clock : .calendar, size: 12)
+                        Text(due)
+                        if let recurrence = task.recurrence {
+                            Text("·")
+                            Text(recurrence.displayText)
+                        }
+                    }
+                    .crenelText(.callout, color: Crenel.Palette.textSecondary)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: Crenel.Space.s) {
+                Text("Öncelik").eyebrow()
+                CrenelSegmented(
+                    selection: Binding(
+                        get: { task.priority },
+                        set: { actions.tasks.setPriority(task, $0) }
+                    ),
+                    items: [
+                        .init(value: TaskPriority.none, title: "Yok"),
+                        .init(value: .low, title: "Düşük"),
+                        .init(value: .medium, title: "Orta"),
+                        .init(value: .high, title: "Yüksek")
+                    ]
+                )
+            }
+
+            VStack(alignment: .leading, spacing: Crenel.Space.s) {
+                Text("Not").eyebrow()
+                TextField("Not ekle", text: $notes, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .crenelText(.body, color: Crenel.Palette.textSecondary)
+                    .lineLimit(2...8)
+                    .focused($focus, equals: .notes)
+                    .padding(Crenel.Space.m)
+                    .crenelSurface(Crenel.Palette.layer2, radius: Crenel.Radius.s, lit: false)
+            }
+
+            HStack(spacing: Crenel.Space.s) {
+                if let meetingID = task.sourceMeetingID {
+                    Button {
+                        actions.tasks.openSourceMeeting(meetingID)
+                    } label: {
+                        HStack(spacing: 6) {
+                            CrenelIcon(.waveform, size: 13)
+                            Text("Toplantıyı aç")
+                        }
+                    }
+                    .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.calendar), size: .small))
+                }
+                if task.isCompleted && !task.isArchived {
+                    Button("Listeden kaldır") { actions.tasks.archive(task); onClose() }
+                        .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .small))
+                }
+                Spacer()
+                Button(action: onRequestDelete) {
+                    HStack(spacing: 6) {
+                        CrenelIcon(.trash, size: 13)
+                        Text("Sil")
+                    }
+                }
+                .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.danger), size: .small))
+            }
+        }
+        .padding(Crenel.Space.l)
+        .crenelSurface(Crenel.Palette.layer1, radius: Crenel.Radius.l)
+        .padding(.vertical, Crenel.Space.xxs)
+        .onChange(of: focus) { previous, _ in
+            if previous != nil { commit() }
+        }
+        .onChange(of: task.title) { _, newValue in
+            if focus != .title { title = newValue }
+        }
+        .onDisappear(perform: commit)
+    }
+
+    private func dateOption(_ label: String, date: Date?) -> some View {
+        let isSelected = date.map { day in
+            task.dueDate.map { Calendar.current.isDate($0, inSameDayAs: day) } ?? false
+        } ?? false
+        return Button(label) {
+            if let date { actions.tasks.reschedule(task, date, false) }
+        }
+        .buttonStyle(CrenelButtonStyle(kind: isSelected ? .tinted(Crenel.Palette.tasks) : .secondary, size: .small))
+    }
+
+    private func startOfDay(_ offset: Int) -> Date? {
+        let calendar = Calendar.current
+        return calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now))
+    }
+
+    private var nextWeekend: Date? {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: now)
+        return calendar.nextDate(after: start, matching: DateComponents(weekday: 7), matchingPolicy: .nextTime)
+    }
+
+    private func close() {
+        commit()
+        onClose()
+    }
+
+    private func commit() {
+        var updated = task
+        var changed = false
+        if let normalized = TaskItem.normalizedTitle(title), normalized != task.title {
+            updated.title = normalized
+            changed = true
+        }
+        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let newNotes = trimmedNotes.isEmpty ? nil : trimmedNotes
+        if newNotes != task.notes {
+            updated.notes = newNotes
+            changed = true
+        }
+        if changed { actions.tasks.save(updated) }
     }
 }
 
@@ -234,14 +596,15 @@ struct TaskQuickAddField: View {
 
     var body: some View {
         let suggestions = currentSuggestions
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 4) {
-                TextField("Görev ekle — “yarın 15te raporu gönder”", text: $text)
-                    .font(MeetingNotchTheme.MainPanel.bodyFont)
-                    .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
+        VStack(alignment: .leading, spacing: Crenel.Space.s) {
+            HStack(spacing: Crenel.Space.s) {
+                CrenelIcon(.plus, size: 14, weight: 2)
+                    .foregroundStyle(focused ? Crenel.Palette.tasks : Crenel.Palette.textTertiary)
+                    .frame(width: 24, height: 24)
+
+                TextField("Görev ekle", text: $text, prompt: Text("Görev ekle — “yarın 15te raporu gönder”").foregroundStyle(Crenel.Palette.textTertiary))
                     .textFieldStyle(.plain)
-                    .padding(.leading, 8)
-                    .frame(height: 40)
+                    .crenelText(.body)
                     .focused($focused)
                     .onSubmit(submit)
                     .onKeyPress(.tab) {
@@ -257,31 +620,34 @@ struct TaskQuickAddField: View {
                     .accessibilityLabel("Yeni görev")
                     .accessibilityHint("Tarih yazarsanız öneri çıkar; Tab ile ekleyin.")
 
-                Button(action: submit) {
-                    Image("FigmaArrowUp")
-                        .resizable()
-                        .frame(width: 20, height: 20)
+                if canSubmit {
+                    Button(action: submit) {
+                        CrenelIcon(.chevronRight, size: 13, weight: 2.4)
+                            .rotationEffect(.degrees(-90))
+                    }
+                    .buttonStyle(CrenelIconButtonStyle(diameter: 26, tint: .black, fill: .white))
+                    .accessibilityLabel("Görevi ekle")
+                    .transition(.scale(scale: 0.6).combined(with: .opacity))
+                } else {
+                    CrenelKeyCap(label: "↵")
+                        .transition(.opacity)
                 }
-                .buttonStyle(TaskSubmitButtonStyle())
-                .disabled(!canSubmit)
-                .accessibilityLabel("Görevi ekle")
             }
-            .padding(4)
-            .frame(minHeight: 48)
-            .background(
-                MeetingNotchTheme.MainPanel.surface,
-                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .strokeBorder(
-                        focused ? MeetingNotchTheme.cyan : MeetingNotchTheme.hairline,
-                        lineWidth: focused ? 2 : 1
-                    )
-            )
+            .padding(.leading, Crenel.Space.xs)
+            .padding(.trailing, Crenel.Space.xs)
+            .frame(minHeight: 40)
+            .background {
+                RoundedRectangle(cornerRadius: Crenel.Radius.m, style: .continuous)
+                    .fill(focused ? Crenel.Palette.layer2 : Crenel.Palette.layer1)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: Crenel.Radius.m, style: .continuous)
+                    .strokeBorder(focused ? Crenel.Palette.tasks.opacity(0.5) : Crenel.Palette.hairline, lineWidth: 1)
+            }
+            .shadow(color: focused ? Crenel.Palette.tasks.opacity(0.18) : .clear, radius: 12)
 
             if !accepted.isEmpty || !suggestions.isEmpty {
-                HStack(spacing: 6) {
+                HStack(spacing: Crenel.Space.xs) {
                     ForEach(Array(accepted.enumerated()), id: \.offset) { index, kind in
                         TaskTokenChip(label: Self.label(for: kind), isAccepted: true) {
                             accepted.remove(at: index)
@@ -293,18 +659,22 @@ struct TaskQuickAddField: View {
                         }
                     }
                     if !suggestions.isEmpty {
-                        Text("⇥ ekle")
-                            .font(MeetingNotchTheme.metadataFont)
-                            .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
+                        HStack(spacing: 4) {
+                            CrenelKeyCap(label: "⇥")
+                            Text("ekle")
+                        }
+                        .crenelText(.caption, color: Crenel.Palette.textTertiary)
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 12)
-                .transition(.opacity)
+                .padding(.horizontal, Crenel.Space.s)
+                .transition(.crenelRise)
             }
         }
-        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: focused)
-        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: suggestions.map(\.id))
+        .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: focused)
+        .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: canSubmit)
+        .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: suggestions.map(\.id))
+        .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: accepted.count)
     }
 
     /// Suggestions of a kind the user already accepted are not offered again.
@@ -404,18 +774,16 @@ private struct TaskTokenChip: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Image(systemName: isAccepted ? "checkmark" : "plus")
-                    .font(.system(size: 9, weight: .bold))
-                Text(label)
-                    .lineLimit(1)
+                CrenelIcon(isAccepted ? .check : .plus, size: 9, weight: 2.6)
+                Text(label).lineLimit(1)
             }
-            .font(MeetingNotchTheme.metadataFont)
+            .font(.system(size: 11, weight: .semibold))
             .padding(.horizontal, 8)
             .frame(height: 22)
-            .foregroundStyle(isAccepted ? MeetingNotchTheme.MainPanel.primaryText : MeetingNotchTheme.cyan)
+            .foregroundStyle(isAccepted ? Crenel.Palette.textPrimary : Crenel.Palette.tasks)
             .background(
-                (isAccepted ? MeetingNotchTheme.MainPanel.surface : MeetingNotchTheme.cyan.opacity(0.12)),
-                in: Capsule()
+                isAccepted ? Crenel.Palette.layer3 : Crenel.Palette.tasks.opacity(0.14),
+                in: Capsule(style: .continuous)
             )
         }
         .buttonStyle(.plain)
@@ -424,345 +792,14 @@ private struct TaskTokenChip: View {
     }
 }
 
-// MARK: - Sections and rows
-
-private struct TaskSectionHeader: View {
-    let kind: TaskListPresentation.SectionKind
-    let count: Int
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Text(kind.title)
-            if count > 1 {
-                Text("\(count)").monospacedDigit()
-            }
+extension TaskPriority {
+    /// One-word label for metadata lines.
+    var shortText: String {
+        switch self {
+        case .none: ""
+        case .low: "Düşük"
+        case .medium: "Orta"
+        case .high: "Yüksek"
         }
-        .font(MeetingNotchTheme.MainPanel.smallFont)
-        .foregroundStyle(kind == .overdue ? MeetingNotchTheme.MainPanel.danger : MeetingNotchTheme.MainPanel.secondaryText)
-        .padding(.horizontal, MeetingNotchTheme.MainPanel.listRowHorizontalInset)
-        .padding(.top, 4)
-        .accessibilityAddTraits(.isHeader)
-    }
-}
-
-private struct TaskRowView: View {
-    let task: TaskItem
-    let now: Date
-    let isOverdue: Bool
-    let onRequestDelete: () -> Void
-
-    @Environment(\.crenelActions) private var actions
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @FocusState private var editorFocused: Bool
-    @State private var isEditing = false
-    @State private var isHovering = false
-    @State private var draftTitle: String
-
-    init(task: TaskItem, now: Date, isOverdue: Bool, onRequestDelete: @escaping () -> Void) {
-        self.task = task
-        self.now = now
-        self.isOverdue = isOverdue
-        self.onRequestDelete = onRequestDelete
-        _draftTitle = State(initialValue: task.title)
-    }
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            completionButton
-
-            if isEditing {
-                editingContent
-            } else {
-                titleContent
-            }
-
-            if !isEditing, !task.isCompleted, isHovering || task.status == .inProgress {
-                focusButton
-            }
-            actionsMenu
-        }
-        .padding(.vertical, 4)
-        .frame(maxWidth: .infinity, minHeight: 48, alignment: .center)
-        .padding(.horizontal, MeetingNotchTheme.MainPanel.listRowHorizontalInset)
-        .background(
-            isHovering ? MeetingNotchTheme.MainPanel.surface : .clear,
-            in: RoundedRectangle(cornerRadius: MeetingNotchTheme.MainPanel.compactRadius, style: .continuous)
-        )
-        .onHover { isHovering = $0 }
-        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: isHovering)
-        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: task.status)
-        .onChange(of: isEditing) { _, editing in editorFocused = editing }
-        .onChange(of: task.title) { _, newValue in
-            if !isEditing { draftTitle = newValue }
-        }
-        .contextMenu { taskActions }
-    }
-
-    private var completionButton: some View {
-        Button {
-            actions.tasks.setStatus(task, task.isCompleted ? .open : .completed)
-        } label: {
-            Image(statusAssetName)
-                .resizable()
-                .renderingMode(.template)
-                .foregroundStyle(statusTint)
-                .frame(width: 20, height: 20)
-                .frame(width: 40, height: 40)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .meetingControlFeedback(radius: 12)
-        .help(task.isCompleted ? "Tamamlanmadı olarak işaretle" : "Tamamlandı olarak işaretle")
-        .accessibilityLabel(task.isCompleted ? "Tamamlanmadı olarak işaretle" : "Tamamla")
-        .accessibilityValue(task.status.title)
-    }
-
-    private var focusButton: some View {
-        Button {
-            actions.tasks.setStatus(task, task.status == .inProgress ? .open : .inProgress)
-        } label: {
-            Image(systemName: task.status == .inProgress ? "pause.fill" : "play.fill")
-                .font(.system(size: 11, weight: .semibold))
-                .frame(width: 28, height: 28)
-                .foregroundStyle(task.status == .inProgress ? MeetingNotchTheme.cyan : MeetingNotchTheme.MainPanel.secondaryText)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .meetingControlFeedback(radius: 10)
-        .help(task.status == .inProgress ? "Çalışmayı bırak" : "Üzerinde çalış")
-        .accessibilityLabel(task.status == .inProgress ? "Çalışmayı bırak" : "Üzerinde çalış")
-        .transition(.opacity)
-    }
-
-    private var editingContent: some View {
-        HStack(spacing: 4) {
-            TextField("Görev", text: $draftTitle)
-                .font(MeetingNotchTheme.MainPanel.rowTitleFont)
-                .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
-                .focused($editorFocused)
-                .meetingFieldSurface(focused: editorFocused)
-                .onExitCommand(perform: cancelEdit)
-                .onSubmit(commitEdit)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var titleContent: some View {
-        Button {
-            guard !task.isCompleted else { return }
-            isEditing = true
-        } label: {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(task.title)
-                    .font(MeetingNotchTheme.MainPanel.rowTitleFont)
-                    .foregroundStyle(
-                        task.isCompleted
-                            ? MeetingNotchTheme.MainPanel.secondaryText
-                            : MeetingNotchTheme.MainPanel.primaryText
-                    )
-                    .strikethrough(task.isCompleted, color: MeetingNotchTheme.MainPanel.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if let metadata = metadataLine {
-                    metadata
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(task.isCompleted ? "" : "Düzenlemek için tıklayın")
-    }
-
-    private var metadataLine: (some View)? {
-        let dueLabel = TaskDueFormatter.label(for: task, now: now)
-        let hasMetadata = dueLabel != nil || task.recurrence != nil || task.priority != .none
-            || task.sourceMeetingID != nil || task.assignee != nil || task.status == .inProgress
-        guard hasMetadata else { return nil as AnyView? }
-        return AnyView(
-            HStack(spacing: 8) {
-                if task.status == .inProgress {
-                    Text("Çalışılıyor")
-                        .foregroundStyle(MeetingNotchTheme.cyan)
-                }
-                if let dueLabel {
-                    Label(dueLabel, systemImage: task.dueHasTime ? "clock" : "calendar")
-                        .labelStyle(.titleAndIcon)
-                        .foregroundStyle(isOverdue ? MeetingNotchTheme.MainPanel.danger : MeetingNotchTheme.MainPanel.secondaryText)
-                }
-                if let recurrence = task.recurrence {
-                    Label(recurrence.displayText, systemImage: "arrow.clockwise")
-                        .labelStyle(.titleAndIcon)
-                }
-                if task.priority != .none {
-                    Text(String(repeating: "!", count: task.priority.rawValue))
-                        .foregroundStyle(task.priority == .high ? MeetingNotchTheme.MainPanel.warning : MeetingNotchTheme.MainPanel.secondaryText)
-                        .accessibilityLabel(task.priority.displayText)
-                }
-                if let assignee = task.assignee {
-                    Label(assignee, systemImage: "person")
-                        .labelStyle(.titleAndIcon)
-                }
-                if let meetingID = task.sourceMeetingID {
-                    Button {
-                        actions.tasks.openSourceMeeting(meetingID)
-                    } label: {
-                        Label("Toplantı", systemImage: "waveform")
-                            .labelStyle(.titleAndIcon)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Görevin geldiği toplantıyı aç")
-                }
-            }
-            .font(MeetingNotchTheme.metadataFont)
-            .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
-            .lineLimit(1)
-        )
-    }
-
-    private var actionsMenu: some View {
-        Menu { taskActions } label: {
-            Image("FigmaMore")
-                .resizable()
-                .frame(width: 20, height: 20)
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .frame(width: 40, height: 40)
-        .meetingControlFeedback(radius: 12)
-        .accessibilityLabel("Görev seçenekleri")
-    }
-
-    @ViewBuilder
-    private var taskActions: some View {
-        if task.isArchived {
-            Button("Listeye geri al", systemImage: "arrow.uturn.backward") { actions.tasks.restore(task) }
-        } else if task.isCompleted {
-            Button("Tamamlanmadı", systemImage: "arrow.uturn.backward") { actions.tasks.setStatus(task, .open) }
-            Button("Listeden kaldır", systemImage: "archivebox") { actions.tasks.archive(task) }
-        } else {
-            if task.status == .inProgress {
-                Button("Çalışmayı bırak", systemImage: "pause") { actions.tasks.setStatus(task, .open) }
-            } else {
-                Button("Üzerinde çalış", systemImage: "play") { actions.tasks.setStatus(task, .inProgress) }
-            }
-            Button("Tamamla", systemImage: "checkmark") { actions.tasks.setStatus(task, .completed) }
-            Divider()
-            Button("Bugüne al", systemImage: "sun.max") {
-                actions.tasks.reschedule(task, Calendar.current.startOfDay(for: Date()), false)
-            }
-            Button("Yarına ertele", systemImage: "arrow.right") { actions.tasks.postponeToTomorrow(task) }
-            if task.dueDate != nil {
-                Button("Tarihi kaldır", systemImage: "calendar.badge.minus") {
-                    actions.tasks.reschedule(task, nil, false)
-                }
-            }
-            Menu("Öncelik", systemImage: "exclamationmark") {
-                ForEach(TaskPriority.allCases.reversed(), id: \.self) { priority in
-                    Button(priority.displayText) { actions.tasks.setPriority(task, priority) }
-                        .disabled(priority == task.priority)
-                }
-            }
-            Button("Düzenle", systemImage: "pencil") { isEditing = true }
-        }
-        Divider()
-        Button("Sil", systemImage: "trash", role: .destructive, action: onRequestDelete)
-    }
-
-    private var statusAssetName: String {
-        switch task.status {
-        case .open: "FigmaTaskTodo"
-        case .inProgress: "FigmaTaskProgress"
-        case .completed: "FigmaTaskCompleted"
-        }
-    }
-
-    private var statusTint: Color {
-        switch task.status {
-        case .open: isOverdue ? MeetingNotchTheme.MainPanel.danger : MeetingNotchTheme.secondaryText
-        case .inProgress: MeetingNotchTheme.cyan
-        case .completed: MeetingNotchTheme.success
-        }
-    }
-
-    private func commitEdit() {
-        guard let title = TaskItem.normalizedTitle(draftTitle) else { return }
-        actions.tasks.rename(task, title)
-        draftTitle = title
-        isEditing = false
-    }
-
-    private func cancelEdit() {
-        draftTitle = task.title
-        isEditing = false
-    }
-}
-
-private struct TaskNoticeRow: View {
-    let symbol: String
-    let text: String
-    let actionTitle: String?
-    let action: () -> Void
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
-            Text(text)
-                .font(MeetingNotchTheme.MainPanel.smallFont)
-                .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-            if let actionTitle {
-                Button(actionTitle, action: action)
-                    .buttonStyle(MeetingNotchActionButtonStyle())
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(
-            MeetingNotchTheme.MainPanel.surface.opacity(0.6),
-            in: RoundedRectangle(cornerRadius: MeetingNotchTheme.MainPanel.compactRadius, style: .continuous)
-        )
-    }
-}
-
-private struct TaskHeaderButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let isActive: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(MeetingNotchTheme.MainPanel.smallFont)
-            .foregroundStyle(isActive ? MeetingNotchTheme.MainPanel.primaryText : MeetingNotchTheme.MainPanel.counterText)
-            .padding(.horizontal, 10)
-            .frame(minWidth: 40, minHeight: 40)
-            .background(
-                MeetingNotchTheme.MainPanel.surface,
-                in: RoundedRectangle(cornerRadius: MeetingNotchTheme.MainPanel.compactRadius, style: .continuous)
-            )
-            .contentShape(Rectangle())
-            .meetingControlFeedback(radius: 12)
-            .opacity(configuration.isPressed ? 0.72 : 1)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
-private struct TaskSubmitButtonStyle: ButtonStyle {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .opacity(isEnabled ? (configuration.isPressed ? 0.78 : 1) : 0.38)
-            .frame(width: 40, height: 40)
-            .background(MeetingNotchTheme.MainPanel.primaryText, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .contentShape(Rectangle())
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

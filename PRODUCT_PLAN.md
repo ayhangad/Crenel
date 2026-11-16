@@ -170,6 +170,35 @@ hata kaydı olmadan çalıştı. Gerçek izinli cihaz kabulü C8'de.
 
 - [ ] Notch ve masaüstü tasarımının birlikte güncellenmesi.
 
+### C9 — Bütünsel deneyim yeniden yapımı (2026-11-16 kullanıcı kararı)
+
+Kullanıcı geri bildirimi: takvim izni verilemiyor; Hatırlatıcılar ayrıca Görevler'den
+bağlanıyor; "görevi başlat" anlamsız; satıra basınca metin düzenleme açılıyor; tasarım
+düz, sabit boyutlu, design system yok; notch akışkan değil. Karar: modüller tek tek
+ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch tek bir
+şekil olarak her amaca göre biçimlenir. C7'nin yerine geçer.
+
+- [x] Takvim/Hatırlatıcılar izninin Hardened Runtime altında sessizce reddedilmesini
+  düzeltmek (`com.apple.security.personal-information.calendars`), izin öncesi
+  uygulamayı öne almak. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Görev durumu: Yapılacak / Devam ediyor / Bloke / Bitti; "başlat" aksiyonu yok,
+  durum glifinden seçilir; satır dokunuşu detay kartı açar (satır içi metin düzenleme
+  yok); eski veri kayıpsız. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Tek onboarding: tüm izinler tek ekranda, "Hepsini aç"; Hatırlatıcılar varsayılan
+  depo ve izin verilince otomatik bağlanır; Görevler'de bağlantı çağrısı yok. Mevcut kullanıcılara bir defa gösterilir. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Design system: boşluk/tipografi/renk/radius/hareket token'ları, özel çizim ikonlar,
+  Metal shader'lar, ortak bileşenler. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Notch motoru: DynamicNotchKit yerine tek şekil, kompakt ↔ geniş yay morph'u,
+  içerik boyutuna göre esneyen yerleşim, hover/hit-test. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [ ] Notch yüzeylerinin yeni sistemle yeniden yapılması. — 🚧 Devam ediyor: 2026-11-16
+  - [x] Kompakt durumlar (dikte nokta küresi + seviye, kayıt, işleme, ajanda halkası,
+    devam eden görev), Bugün (ışıklı sıradaki etkinlik kartı + ajanda + görev özeti),
+    Görevler, canlı kayıt kartı, panel başlığı. — ✅ 2026-11-16 (ekran dışı render + test)
+  - [ ] Dikte için genişleyen "canlı" ara boyut (orb + canlı transkript).
+  - [ ] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
+    taşınması (şu an eski `MeetingNotchTheme` ile).
+  - [ ] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması.
+
 ## 2026-09-25 — Koyu tema parlaklık düzeltmesi
 
 - [x] Nötr yüzeyleri koyulaştırmak: arka plan #171717, sidebar #131313, kart #202020.

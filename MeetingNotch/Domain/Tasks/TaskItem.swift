@@ -1,10 +1,12 @@
 import Foundation
 
-/// Crenel tasks have three states. Earlier builds had five (backlog, todo, in progress,
-/// completed, blocked); legacy values decode into the closest new state.
+/// A task has one simple state: to do, in progress, blocked or done. There is no
+/// "start" ceremony; the user picks the state. Raw values stay compatible with every
+/// earlier build ("backlog" and "todo" decode as to do).
 enum TaskStatus: String, Codable, CaseIterable, Identifiable, Sendable {
     case open
     case inProgress
+    case blocked
     case completed
 
     var id: Self { self }
@@ -12,14 +14,16 @@ enum TaskStatus: String, Codable, CaseIterable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .open: "Yapılacak"
-        case .inProgress: "Üzerinde çalışılıyor"
-        case .completed: "Tamamlandı"
+        case .inProgress: "Devam ediyor"
+        case .blocked: "Bloke"
+        case .completed: "Bitti"
         }
     }
 
     init(legacyRawValue: String) {
         switch legacyRawValue {
         case "inProgress": self = .inProgress
+        case "blocked": self = .blocked
         case "completed": self = .completed
         default: self = .open
         }
@@ -103,7 +107,7 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
         guard newStatus != status else { return }
         status = newStatus
         switch newStatus {
-        case .open:
+        case .open, .blocked:
             startedAt = nil
             completedAt = nil
         case .inProgress:

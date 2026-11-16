@@ -5,6 +5,7 @@ import Foundation
 struct TaskListPresentation: Equatable, Sendable {
     enum SectionKind: String, CaseIterable, Sendable {
         case inProgress
+        case blocked
         case overdue
         case today
         case upcoming
@@ -13,7 +14,8 @@ struct TaskListPresentation: Equatable, Sendable {
 
         var title: String {
             switch self {
-            case .inProgress: "Üzerinde çalışılıyor"
+            case .inProgress: "Devam ediyor"
+            case .blocked: "Bloke"
             case .overdue: "Gecikmiş"
             case .today: "Bugün"
             case .upcoming: "Yaklaşan"
@@ -62,6 +64,10 @@ struct TaskListPresentation: Equatable, Sendable {
             }
             if task.status == .inProgress {
                 buckets[.inProgress, default: []].append(task)
+                continue
+            }
+            if task.status == .blocked {
+                buckets[.blocked, default: []].append(task)
                 continue
             }
             guard let due = task.dueDate else {

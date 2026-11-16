@@ -20,6 +20,8 @@ struct CrenelActions {
     struct TaskActions {
         var add: (TaskInputParseResult) -> Void = { _ in }
         var rename: (TaskItem, String) -> Void = { _, _ in }
+        /// Saves an edited task (title, notes, dates) from the detail card.
+        var save: (TaskItem) -> Void = { _ in }
         var setStatus: (TaskItem, TaskStatus) -> Void = { _, _ in }
         var reschedule: (TaskItem, Date?, Bool) -> Void = { _, _, _ in }
         var postponeToTomorrow: (TaskItem) -> Void = { _ in }

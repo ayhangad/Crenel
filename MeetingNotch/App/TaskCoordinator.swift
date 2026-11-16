@@ -137,15 +137,8 @@ final class TaskCoordinator {
             persist(next, operation: "advance-recurring-task")
             return
         }
+        // States are explicit: changing one task never silently changes another.
         var updated = task
-        if status == .inProgress {
-            // Only one task is "being worked on" at a time.
-            for other in appState.tasks where other.status == .inProgress && other.id != task.id {
-                var paused = other
-                paused.setStatus(.open, at: date)
-                persist(paused, operation: "pause-task")
-            }
-        }
         updated.setStatus(status, at: date)
         persist(updated, operation: "change-task-status")
     }

@@ -1,6 +1,6 @@
 import AppKit
+import EventKit
 import Combine
-import DynamicNotchKit
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -47,6 +47,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var meetingSessionCoordinator = MeetingSessionCoordinator()
     private lazy var meetingRepository: any MeetingRepository = FileMeetingRepository()
     private(set) lazy var taskCoordinator = TaskCoordinator.live(appState: appState)
+    private let notificationAuthorization = NotificationAuthorizationCache()
+    private(set) lazy var setupCoordinator: SetupCoordinator = {
+        let coordinator = SetupCoordinator(system: .live(
+            systemAudio: { [unowned self] in self.audioPermissionService.currentSnapshot().systemAudio },
+            requestSystemAudio: { [unowned self] in
+                let snapshot = await self.audioPermissionService.requestSystemAudioAccess()
+                self.appState.updateAudioCapturePermissions(snapshot)
+            },
+            requestAccessibility: { [unowned self] in self.requestAccessibilityAccess() },
+            requestInputMonitoring: { [unowned self] in self.dictationCoordinator.requestInputMonitoringAccess() },
+            notificationStatus: { [unowned self] in self.notificationAuthorization.current() }
+        ))
+        coordinator.onGranted = { [unowned self] capability in
+            self.capabilityGranted(capability)
+        }
+        return coordinator
+    }()
     private(set) lazy var dictationCoordinator: DictationCoordinator = {
         let coordinator = DictationCoordinator(appState: appState, taskCoordinator: taskCoordinator)
         coordinator.onListeningChange = { [weak self] listening in
@@ -139,10 +156,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     )
 
-    private lazy var notch: DynamicNotch<AnyView, AnyView, AnyView> = DynamicNotch(
-        hoverBehavior: NotchShadowPolicy.hoverBehavior
-    ) {
-        AnyView(
+    private lazy var notch = CrenelNotchController(
+        expanded: { [unowned self] in
+            AnyView(
             NotchPanelView(
                 onRequestCalendarAccess: { [weak self] in
                     self?.requestCalendarAccess()
@@ -184,19 +200,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 .environmentObject(self.appState)
                 .environment(\.crenelActions, self.crenelActions)
         )
-    } compactLeading: {
-        AnyView(
-            CompactLeadingView()
-                .environmentObject(self.appState)
-                .environment(\.crenelActions, self.crenelActions)
-        )
-    } compactTrailing: {
-        AnyView(
-            CompactTrailingView()
-                .environmentObject(self.appState)
-                .environment(\.crenelActions, self.crenelActions)
-        )
-    }
+        },
+        compact: { [unowned self] in
+            AnyView(
+                CrenelCompactView()
+                    .environmentObject(self.appState)
+                    .environment(\.crenelActions, self.crenelActions)
+            )
+        }
+    )
 
     private var desktopController: DesktopWindowController?
     private var desktopOpenObserver: NSObjectProtocol?
@@ -959,7 +971,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try? await self.appSettingsRepository.save(preferences)
             }
             self.applyRuntimePreferences(preferences)
-            if !preferences.hasCompletedOnboarding {
+            // Builds before the unified setup could leave Calendar/Reminders never asked
+            // (or silently refused); show the one-screen setup once to existing users too.
+            if !preferences.hasCompletedOnboarding || !UserDefaults.standard.bool(forKey: Self.unifiedSetupShownKey) {
                 self.presentOnboarding()
             }
         }
@@ -1022,6 +1036,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    static let unifiedSetupShownKey = "crenel.unifiedSetupShown"
+
     private func presentOnboarding() {
         if let onboardingWindowController {
             onboardingWindowController.showWindow(nil)
@@ -1030,21 +1046,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        let hasCompletedBefore = UserDefaults.standard.bool(forKey: Self.unifiedSetupShownKey)
         let rootView = OnboardingView(
-            onRequestMicrophoneAccess: { [weak self] in self?.requestMicrophoneAccess() },
-            onRequestSystemAudioAccess: { [weak self] in self?.requestSystemAudioAccess() },
-            onRequestAccessibilityAccess: { [weak self] in self?.requestAccessibilityAccess() },
-            onRequestCalendarAccess: { [weak self] in self?.requestCalendarAccess() },
-            onComplete: { [weak self] in self?.completeOnboarding() }
+            setup: setupCoordinator,
+            onComplete: { [weak self] in self?.completeOnboarding() },
+            initialStep: hasCompletedBefore ? .setup : .welcome
         )
         .environmentObject(appState)
         .environment(\.crenelActions, crenelActions)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "Crenel’e Hoş Geldiniz"
+        window.title = "Crenel"
         window.styleMask = [.titled, .closable, .fullSizeContentView]
-        window.setContentSize(NSSize(width: 600, height: 500))
-        window.minSize = NSSize(width: 600, height: 500)
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.isMovableByWindowBackground = true
+        window.backgroundColor = .black
+        window.setContentSize(NSSize(width: 560, height: 680))
         window.isReleasedWhenClosed = false
         window.center()
 
@@ -1060,6 +1078,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             do {
                 var preferences = (try? await self.appSettingsRepository.load()) ?? .default
                 preferences.hasCompletedOnboarding = true
+                UserDefaults.standard.set(true, forKey: Self.unifiedSetupShownKey)
+                self.setupCoordinator.refresh()
                 try await self.appSettingsRepository.save(preferences)
                 self.applyRuntimePreferences(preferences)
                 self.onboardingWindowController?.close()
@@ -1095,24 +1115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateNotchTransitionConfiguration() {
-        let profile = NotchMotionProfile.resolved(
-            reducesMotion: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        )
-        if profile.reducesMotion {
-            notch.transitionConfiguration = DynamicNotchTransitionConfiguration(
-                openingAnimation: .linear(duration: profile.openingDuration),
-                closingAnimation: .linear(duration: profile.closingDuration),
-                conversionAnimation: .linear(duration: profile.conversionDuration),
-                skipIntermediateHides: true
-            )
-        } else {
-            notch.transitionConfiguration = DynamicNotchTransitionConfiguration(
-                openingAnimation: .smooth(duration: profile.openingDuration),
-                closingAnimation: .smooth(duration: profile.closingDuration),
-                conversionAnimation: .smooth(duration: profile.conversionDuration),
-                skipIntermediateHides: true
-            )
-        }
+        // Motion follows the Reduce Motion setting inside the notch views themselves.
     }
 
     private func presentNotch(followPointer: Bool) {
@@ -1159,14 +1162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateNotchPanelPresentation(for screen: NSScreen) {
         let hasPhysicalNotch = notchScreenResolver.hasPhysicalNotch(screen)
-        let topInset = hasPhysicalNotch
-            ? screen.safeAreaInsets.top
-            : screen.frame.maxY - screen.visibleFrame.maxY
-        let viewport = NotchHostViewport(
-            screenFrameSize: screen.frame.size,
-            topInset: topInset,
-            hasPhysicalNotch: hasPhysicalNotch
-        )
+        let viewport = NotchHostViewport(screen: screen)
         appState.updateNotchPanelPresentation(
             availableSize: viewport.availableSize,
             hasPhysicalNotch: hasPhysicalNotch
@@ -1187,8 +1183,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func requestCalendarAccess() {
+        // A refused permission can no longer be prompted; send the user to the pane.
+        switch EKEventStore.authorizationStatus(for: .event) {
+        case .denied, .restricted, .writeOnly:
+            openCalendarPrivacySettings()
+            setupCoordinator.watch()
+            return
+        default:
+            break
+        }
+        // Accessory apps must come forward or the system prompt can stay hidden.
+        NSApp.activate()
         Task {
             await meetingMonitor.requestAccess()
+        }
+    }
+
+    /// A permission arrived (from onboarding, Settings or System Settings): connect the
+    /// feature that needed it. Nothing else has to be set up by hand.
+    private func capabilityGranted(_ capability: SetupCapability) {
+        switch capability {
+        case .calendar:
+            Task { await meetingMonitor.requestAccess() }
+        case .reminders:
+            Task { await taskCoordinator.activate(preferReminders: true) }
+        case .microphone, .systemAudio:
+            refreshAudioPermissions()
+        case .accessibility:
+            refreshAccessibilityPermission()
+        case .notifications:
+            Task { await meetingNotifications.refreshStatus() }
+        case .inputMonitoring:
+            dictationCoordinator.requestInputMonitoringAccess()
         }
     }
 
@@ -1214,6 +1240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             tasks: CrenelActions.TaskActions(
                 add: { tasks.add($0) },
                 rename: { tasks.rename($0, to: $1) },
+                save: { tasks.save($0) },
                 setStatus: { tasks.setStatus($0, to: $1) },
                 reschedule: { tasks.reschedule($0, to: $1, hasTime: $2) },
                 postponeToTomorrow: { tasks.postponeToTomorrow($0) },

@@ -52,6 +52,42 @@ değil) öğeler içindir. Kapalı notch geri sayımı `NotchAgendaStatus.resolv
 zamanlı öğelerden hesaplanır: 12 saatlik ufuk; süren öğe varsa sıradaki öğe başlamadan
 10 dk önce devralır; çakışan süren öğelerden en son başlayan gösterilir.
 
+### Notch motoru ve tasarım sistemi (2026-11-16, C9)
+
+DynamicNotchKit kaldırıldı. `Features/Notch/Engine/CrenelNotchController` ekranın üst
+ortasında kenarlıksız, etkinleştirmeyen tek bir `CrenelNotchPanel` (tüm Space'lerde,
+`.statusBar` seviyesinde) açar. `CrenelNotchRootView` tek bir `CrenelNotchShape` çizer
+(üstte dışa kıvrılan, altta yuvarlak; iki yarıçap da animasyonlu). Şeklin boyutu o anki
+içerikten gelir: içerik son boyutunda belirir, şekil onu kırparak yay animasyonuyla büyür
+veya küçülür; bu sayede kompakt ↔ açık geçişi notch'un kendisi biçim değiştiriyormuş gibi
+okunur. Kompakt içerik `NotchFlankLayout` ile kamera yuvasının iki yanına eşit genişlikte
+yerleşir; söyleyecek bir şey yoksa şekil tam donanım notch'u boyutundadır. Pencere fareyi
+yalnız görünen şeklin içinde alır (`ignoresMouseEvents` global/yerel fare izleyicileriyle
+güncellenir); hover bölgesi şekil + kamera yuvasıdır (notch'suz ekranda üst ortada 200 pt).
+API önceki kütüphaneyle aynıdır: `expand(on:)`, `compact(on:)`, `hide()`, `isHovering`.
+
+Tasarım dili `Features/Design/System/` altındadır: `CrenelTokens` (4 pt boşluk ızgarası,
+radius, katmanlı mürekkep yüzeyler, modül vurgu renkleri — takvim mor, görev kehribar,
+dikte gök mavisi, kayıt mercan —, yazı stilleri, hareket yayları ve geçişler),
+`CrenelIcons` (24 pt ızgarada tek çizgi ağırlığında kendi ikon seti; ürün ikonlarında SF
+Symbols kullanılmaz), `CrenelComponents` (yüzey, buton, segmentli kontrol, çip, halka, tuş,
+canlı görseller) ve `CrenelShaders.metal` (nokta küresi, aura ışığı, parıltı, kenar ışığı;
+SwiftUI `colorEffect`). Shader'ların temel dolgusu siyahtır; shader çalışmazsa yüzey boş
+mürekkep olarak kalır. Yeni yüzeyler eski `MeetingNotchTheme` yerine bu sistemi kullanır;
+eski tema masaüstü ve ayarlar yeniden yapılana kadar yaşar.
+
+### Kurulum ve izinler (C9)
+
+`SetupCoordinator` tüm izinleri (`SetupCapability`: takvim, hatırlatıcılar, mikrofon,
+bildirimler, sistem sesi, erişilebilirlik, girdi izleme) tek modelde okur. `request` hiç
+sorulmamış izinde uygulamayı öne alıp sistem penceresini, reddedilmiş izinde ilgili Sistem
+Ayarları bölmesini açar; `requestAll` sistem pencerelerini sırayla gösterip ilk manuel
+izin için Ayarlar'ı açar. Ayarlar'dan gelen izinler kısa süreli yoklamayla yakalanır.
+`onGranted` izni ilgili özelliğe bağlar: takvim → `MeetingMonitor.requestAccess`,
+hatırlatıcılar → `TaskCoordinator.activate(preferReminders: true)`. Hardened Runtime
+altında EventKit için `com.apple.security.personal-information.calendars` entitlement'ı
+zorunludur; yokken izin penceresi hiç çıkmadan reddedilir.
+
 ### Kapalı notch önceliği
 
 `NotchStatusResolver.compactStatus`: dikte (geçici, en yüksek) > toplantı akışı (kayıt,
@@ -60,11 +96,16 @@ toplantıysa) > üzerinde çalışılan görev > sakin takvim öğesi > açık g
 
 ### Görevler
 
-`TaskStatus`: `open`, `inProgress`, `completed`; eski beş durum çözümlemede eşlenir.
+`TaskStatus`: `open` (Yapılacak), `inProgress` (Devam ediyor), `blocked` (Bloke),
+`completed` (Bitti); eski `backlog`/`todo` değerleri Yapılacak olarak çözülür. "Başlatma"
+aksiyonu yoktur; durum, görev halkasından açılan seçiciden seçilir ve bir görevin durumunu
+değiştirmek başka görevi değiştirmez. Satıra dokunmak satır içi metin düzenleme yerine
+görev kartını açar (başlık, durum, tarih, öncelik, not). Bloke bilgisi Hatırlatıcılar'da
+karşılığı olmadığından yan dosyada (`isBlocked`) tutulur.
 Tamamlama arşivlemez: tamamlanan görev gün bitene kadar “Bugün tamamlananlar”da kalır,
 sonra Geçmiş'e geçer; `archive` yalnız tamamlanmış görevi listeden erken kaldırmak için
 kullanıcı aksiyonudur. Bölümler (`TaskListPresentation`) kullanıcı seçimi değildir: durum
-ve son tarihten türetilir. Aynı anda tek görev “üzerinde çalışılıyor” olur. Tekrarlayan
+ve son tarihten türetilir. Birden fazla görev aynı anda “devam ediyor” olabilir; kapalı notch en son başlatılanı gösterir. Tekrarlayan
 görev tamamlanınca tamamlanmış bir geçmiş kaydı oluşur ve görev sonraki tarihe ilerler.
 
 Depo: `TaskRepositoryRouter` tercihe ve izne göre Apple Hatırlatıcılar ya da yerel JSON

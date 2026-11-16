@@ -22,6 +22,7 @@ struct ReminderRecord: Equatable, Sendable {
 struct TaskSidecarEntry: Codable, Equatable, Sendable {
     var taskID: UUID
     var isInProgress: Bool = false
+    var isBlocked: Bool = false
     var startedAt: Date?
     var archivedAt: Date?
     var sortOrder: Double?
@@ -30,6 +31,29 @@ struct TaskSidecarEntry: Codable, Equatable, Sendable {
     var sourceActionID: UUID?
     var sourceTime: TimeInterval?
     var sourceSpeakerID: String?
+}
+
+extension TaskSidecarEntry {
+    private enum CodingKeys: String, CodingKey {
+        case taskID, isInProgress, isBlocked, startedAt, archivedAt, sortOrder, assignee
+        case sourceMeetingID, sourceActionID, sourceTime, sourceSpeakerID
+    }
+
+    // Sidecar files written before a field existed must still decode.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        taskID = try container.decode(UUID.self, forKey: .taskID)
+        isInProgress = try container.decodeIfPresent(Bool.self, forKey: .isInProgress) ?? false
+        isBlocked = try container.decodeIfPresent(Bool.self, forKey: .isBlocked) ?? false
+        startedAt = try container.decodeIfPresent(Date.self, forKey: .startedAt)
+        archivedAt = try container.decodeIfPresent(Date.self, forKey: .archivedAt)
+        sortOrder = try container.decodeIfPresent(Double.self, forKey: .sortOrder)
+        assignee = try container.decodeIfPresent(String.self, forKey: .assignee)
+        sourceMeetingID = try container.decodeIfPresent(UUID.self, forKey: .sourceMeetingID)
+        sourceActionID = try container.decodeIfPresent(UUID.self, forKey: .sourceActionID)
+        sourceTime = try container.decodeIfPresent(TimeInterval.self, forKey: .sourceTime)
+        sourceSpeakerID = try container.decodeIfPresent(String.self, forKey: .sourceSpeakerID)
+    }
 }
 
 enum ReminderTaskMapper {
@@ -59,6 +83,7 @@ enum ReminderTaskMapper {
         TaskSidecarEntry(
             taskID: task.id,
             isInProgress: task.status == .inProgress,
+            isBlocked: task.status == .blocked,
             startedAt: task.startedAt,
             archivedAt: task.archivedAt,
             sortOrder: task.sortOrder,
@@ -78,9 +103,16 @@ enum ReminderTaskMapper {
     ) -> TaskItem {
         let identifier = record.identifier ?? UUID().uuidString
         let createdAt = record.creationDate ?? fallbackCreationDate
-        let status: TaskStatus = record.isCompleted
-            ? .completed
-            : (sidecar?.isInProgress == true ? .inProgress : .open)
+        let status: TaskStatus
+        if record.isCompleted {
+            status = .completed
+        } else if sidecar?.isInProgress == true {
+            status = .inProgress
+        } else if sidecar?.isBlocked == true {
+            status = .blocked
+        } else {
+            status = .open
+        }
         let due = record.dueDateComponents.flatMap { dueDate(from: $0, calendar: calendar) }
 
         return TaskItem(
