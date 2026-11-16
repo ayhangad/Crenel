@@ -105,9 +105,10 @@ final class NotchPresentationTests: XCTestCase {
             NotchStatusResolver.compactStatus(
                 flow: .idle,
                 nextMeeting: meeting,
-                activeTaskCount: 4
+                activeTaskCount: 4,
+                now: startDate.addingTimeInterval(-300)
             ),
-            .upcoming(startDate: startDate)
+            .agenda(NotchAgendaStatus(item: meeting, phase: .upcoming(startsIn: 300)))
         )
         XCTAssertEqual(
             NotchStatusResolver.compactStatus(
@@ -567,10 +568,10 @@ final class NotchPresentationTests: XCTestCase {
             hasPhysicalNotch: true
         )
         tasksState.replaceTasks([
-            TaskItem(title: "Araştırma notlarını toparla", createdAt: now, status: .backlog),
-            TaskItem(title: "Toplantı gündemini paylaş", createdAt: now, status: .todo),
+            TaskItem(title: "Araştırma notlarını toparla", createdAt: now),
+            TaskItem(title: "Toplantı gündemini paylaş", createdAt: now, dueDate: now, dueHasTime: false),
             TaskItem(title: "Kayıt akışını gözden geçir", createdAt: now, status: .inProgress),
-            TaskItem(title: "Erişilebilirlik kontrolünü tamamla", createdAt: now, status: .blocked)
+            TaskItem(title: "Erişilebilirlik kontrolünü tamamla", createdAt: now, priority: .high)
         ])
 
         let cases: [(name: String, state: AppState, height: CGFloat)] = [
@@ -739,14 +740,12 @@ extension NotchPresentationTests {
                 let state = AppState()
                 if populated {
                     state.replaceTasks([
-                        TaskItem(title: "Müşteri görüşmesindeki tasarım kararlarını ve takip adımlarını ekip ile paylaş", status: .todo, assignee: "Deniz", dueDate: Date()),
+                        TaskItem(title: "Müşteri görüşmesindeki tasarım kararlarını ve takip adımlarını ekip ile paylaş", dueDate: Date(), assignee: "Deniz"),
                         TaskItem(title: "İzin ve mikrofon senaryolarını doğrula", status: .inProgress),
                         TaskItem(title: "Görsel kontrol matrisi tamamlandı", status: .completed)
                     ])
                 }
-                let view = TasksView(onAdd: { _ in }, onUpdate: { _, _ in }, onChangeStatus: { _, _ in },
-                    onArchive: { _ in }, onRestore: { _ in }, onDelete: { _ in }, onDeleteArchive: {},
-                    initiallyShowsArchive: archived).environmentObject(state)
+                let view = TasksView(initiallyShowsHistory: archived).environmentObject(state)
                 try auditRender(AnyView(ScrollView { view.padding(12) }.background(.black)),
                     name: "tasks-\(archived ? "archive" : "active")-\(populated ? "populated" : "empty")", size: CGSize(width: 600, height: 500))
             }

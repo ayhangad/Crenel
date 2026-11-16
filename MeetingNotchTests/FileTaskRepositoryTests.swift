@@ -49,7 +49,7 @@ final class FileTaskRepositoryTests: XCTestCase {
 
         let data = try Data(contentsOf: root.appending(path: "Tasks/tasks.json"))
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
-        XCTAssertEqual(json["schemaVersion"] as? Int, 2)
+        XCTAssertEqual(json["schemaVersion"] as? Int, 3)
     }
 
     func testSaveUpdatesExistingTaskWithoutChangingItsPosition() async throws {
@@ -189,7 +189,7 @@ final class FileTaskRepositoryTests: XCTestCase {
 
         let loaded = try await repository.loadAll()
         XCTAssertEqual(loaded.count, tasks.count)
-        XCTAssertTrue(loaded.allSatisfy(\.isArchived))
+        XCTAssertFalse(loaded.contains(where: \.isArchived))
         XCTAssertTrue(loaded.allSatisfy { $0.status == .completed })
     }
 
@@ -215,12 +215,13 @@ final class FileTaskRepositoryTests: XCTestCase {
         XCTAssertEqual(task.id, taskID)
         XCTAssertEqual(task.status, .completed)
         XCTAssertEqual(task.completedAt, completedAt)
-        XCTAssertEqual(task.archivedAt, completedAt)
+        // Completed tasks are no longer archived implicitly.
+        XCTAssertNil(task.archivedAt)
 
         let migratedData = try Data(contentsOf: root.appending(path: "Tasks/tasks.json"))
         let migratedJSON = try XCTUnwrap(
             JSONSerialization.jsonObject(with: migratedData) as? [String: Any]
         )
-        XCTAssertEqual(migratedJSON["schemaVersion"] as? Int, 2)
+        XCTAssertEqual(migratedJSON["schemaVersion"] as? Int, 3)
     }
 }

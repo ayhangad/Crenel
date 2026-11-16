@@ -21,13 +21,6 @@ struct NotchPanelView: View {
     let onRetryStoredMeeting: (StoredMeeting) -> Void
     let onOpenRecovery: () -> Void
     let onTogglePin: () -> Void
-    let onAddTask: (String) -> Void
-    let onUpdateTask: (TaskItem, String) -> Void
-    let onChangeTaskStatus: (TaskItem, TaskStatus) -> Void
-    let onArchiveTask: (TaskItem) -> Void
-    let onRestoreTask: (TaskItem) -> Void
-    let onDeleteTask: (TaskItem) -> Void
-    let onDeleteArchive: () -> Void
     let onRelaunchApplication: () -> Void
     let analysisActions: MeetingAnalysisActions
 
@@ -50,13 +43,6 @@ struct NotchPanelView: View {
         onRetryStoredMeeting: @escaping (StoredMeeting) -> Void = { _ in },
         onOpenRecovery: @escaping () -> Void = {},
         onTogglePin: @escaping () -> Void = {},
-        onAddTask: @escaping (String) -> Void = { _ in },
-        onUpdateTask: @escaping (TaskItem, String) -> Void = { _, _ in },
-        onChangeTaskStatus: @escaping (TaskItem, TaskStatus) -> Void = { _, _ in },
-        onArchiveTask: @escaping (TaskItem) -> Void = { _ in },
-        onRestoreTask: @escaping (TaskItem) -> Void = { _ in },
-        onDeleteTask: @escaping (TaskItem) -> Void = { _ in },
-        onDeleteArchive: @escaping () -> Void = {},
         onRelaunchApplication: @escaping () -> Void = {},
         analysisActions: MeetingAnalysisActions = MeetingAnalysisActions()
     ) {
@@ -79,13 +65,6 @@ struct NotchPanelView: View {
         self.onRetryStoredMeeting = onRetryStoredMeeting
         self.onOpenRecovery = onOpenRecovery
         self.onTogglePin = onTogglePin
-        self.onAddTask = onAddTask
-        self.onUpdateTask = onUpdateTask
-        self.onChangeTaskStatus = onChangeTaskStatus
-        self.onArchiveTask = onArchiveTask
-        self.onRestoreTask = onRestoreTask
-        self.onDeleteTask = onDeleteTask
-        self.onDeleteArchive = onDeleteArchive
         self.onRelaunchApplication = onRelaunchApplication
     }
 
@@ -196,15 +175,7 @@ struct NotchPanelView: View {
                             )
                             .transition(panelContentTransition)
                         case .tasks:
-                            TasksView(
-                                onAdd: onAddTask,
-                                onUpdate: onUpdateTask,
-                                onChangeStatus: onChangeTaskStatus,
-                                onArchive: onArchiveTask,
-                                onRestore: onRestoreTask,
-                                onDelete: onDeleteTask,
-                                onDeleteArchive: onDeleteArchive
-                            )
+                            TasksView()
                             .transition(panelContentTransition)
                         }
                     }
@@ -496,12 +467,15 @@ private struct MeetingStatusView: View {
     }
 
     private var scheduledMeetings: [Meeting] {
-        var meetings = Array(appState.upcomingMeetings.prefix(3))
+        var timed = Array(appState.upcomingMeetings.filter { !$0.isAllDay }.prefix(3))
         if let nextMeeting = appState.nextMeeting,
-           !meetings.contains(where: { $0.id == nextMeeting.id }) {
-            meetings.insert(nextMeeting, at: 0)
+           !timed.contains(where: { $0.id == nextMeeting.id }) {
+            timed.insert(nextMeeting, at: 0)
         }
-        return Array(meetings.prefix(3))
+        let allDay = appState.upcomingMeetings
+            .filter { $0.isAllDay && Calendar.current.isDateInToday($0.startDate) }
+            .prefix(2)
+        return Array(timed.prefix(3)) + allDay
     }
 
     private var sectionTitle: String {
@@ -756,7 +730,7 @@ private struct MeetingStatusView: View {
         case .unavailable:
             "Google Meet ses köprüsü kullanılamıyor; kayıt başlamaz."
         case .waitingForMeetTab:
-            "Görüşme sekmesinde MeetingNotch Chrome uzantısına basın."
+            "Görüşme sekmesinde Crenel Chrome uzantısına basın."
         case .tabConnected:
             "Google Meet sekmesi güvenli biçimde bağlı."
         case .recording:
@@ -1271,11 +1245,12 @@ private struct FigmaWarningRow: View {
 
 private struct FigmaMeetingCountdownView: View {
     let startDate: Date
+    var endDate: Date?
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             let seconds = Int(startDate.timeIntervalSince(context.date))
-            Text(Self.text(seconds: seconds))
+            Text(Self.text(seconds: seconds, remaining: endDate.map { $0.timeIntervalSince(context.date) }))
                 .font(MeetingNotchTheme.MainPanel.bodyFont.monospacedDigit())
                 .foregroundStyle(
                     seconds <= 600
@@ -1283,12 +1258,15 @@ private struct FigmaMeetingCountdownView: View {
                         : MeetingNotchTheme.MainPanel.secondaryText
                 )
                 .lineLimit(1)
-                .accessibilityLabel("Toplantıya kalan süre \(Self.text(seconds: seconds))")
+                .accessibilityLabel("Kalan süre \(Self.text(seconds: seconds, remaining: endDate.map { $0.timeIntervalSince(context.date) }))")
         }
     }
 
-    private static func text(seconds: Int) -> String {
-        guard seconds > 0 else { return "Başladı" }
+    private static func text(seconds: Int, remaining: TimeInterval?) -> String {
+        guard seconds > 0 else {
+            guard let remaining, remaining > 0 else { return "Başladı" }
+            return "Sürüyor · \(NotchAgendaFormatter.durationText(remaining))"
+        }
         let minutes = Int(ceil(Double(seconds) / 60))
         guard minutes >= 60 else { return "\(minutes) dk kaldı" }
         let hours = minutes / 60
@@ -1300,6 +1278,7 @@ private struct FigmaMeetingCountdownView: View {
 }
 
 private struct UpcomingMeetingsView: View {
+    @Environment(\.crenelActions) private var actions
     let meetings: [Meeting]
     let onOpen: (URL) -> Void
 
@@ -1310,19 +1289,19 @@ private struct UpcomingMeetingsView: View {
                     Button {
                         if let url = meeting.meetingURL {
                             onOpen(url)
+                        } else {
+                            actions.openInCalendar(meeting)
                         }
                     } label: {
                         HStack(alignment: .top, spacing: MeetingNotchTheme.MainPanel.itemSpacing) {
-                            Image("FigmaVideo")
-                                .resizable()
-                                .frame(width: 20, height: 20)
+                            AgendaKindIcon(item: meeting)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(meeting.title)
                                     .font(MeetingNotchTheme.MainPanel.rowTitleFont)
                                     .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
                                     .lineLimit(1)
-                                Text(meeting.startDate.formatted(date: .abbreviated, time: .shortened))
+                                Text(AgendaRowText.subtitle(for: meeting))
                                     .font(MeetingNotchTheme.MainPanel.bodyFont.monospacedDigit())
                                     .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
                                     .lineLimit(1)
@@ -1332,16 +1311,25 @@ private struct UpcomingMeetingsView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(NotchRowButtonStyle())
-                    .disabled(meeting.meetingURL == nil)
-                    .accessibilityLabel("\(meeting.title), \(meeting.startDate.formatted(date: .abbreviated, time: .shortened)), toplantıya katıl")
+                    .accessibilityLabel(AgendaRowText.accessibilityLabel(for: meeting))
 
-                    FigmaMeetingCountdownView(startDate: meeting.startDate)
+                    if meeting.responseStatus == .pending {
+                        Text("Yanıt bekliyor")
+                            .font(MeetingNotchTheme.metadataFont)
+                            .foregroundStyle(MeetingNotchTheme.MainPanel.warning)
+                            .lineLimit(1)
+                    } else if !meeting.isAllDay {
+                        FigmaMeetingCountdownView(startDate: meeting.startDate, endDate: meeting.endDate)
+                    }
 
                     Menu {
                         if let url = meeting.meetingURL {
                             Button("Toplantıya katıl", systemImage: "video.fill") {
                                 onOpen(url)
                             }
+                        }
+                        Button("Takvim’de aç", systemImage: "calendar") {
+                            actions.openInCalendar(meeting)
                         }
                     } label: {
                         Image("FigmaMore")
@@ -1352,8 +1340,7 @@ private struct UpcomingMeetingsView: View {
                     .menuIndicator(.hidden)
                     .frame(width: 40, height: 40)
                     .meetingControlFeedback(radius: 12)
-                    .disabled(meeting.meetingURL == nil)
-                    .accessibilityLabel("Toplantı seçenekleri")
+                    .accessibilityLabel(meeting.isMeetingLike ? "Toplantı seçenekleri" : "Etkinlik seçenekleri")
                 }
                 .padding(.vertical, 8)
                 .frame(
@@ -1361,8 +1348,29 @@ private struct UpcomingMeetingsView: View {
                     minHeight: MeetingNotchTheme.MainPanel.rowHeight,
                     alignment: .top
                 )
+                .opacity(meeting.isSuggestion || meeting.responseStatus == .tentative ? 0.72 : 1)
             }
         }
+    }
+}
+
+private struct AgendaKindIcon: View {
+    let item: Meeting
+
+    var body: some View {
+        Group {
+            if item.kind == .onlineMeeting {
+                Image("FigmaVideo").resizable()
+            } else {
+                Image(systemName: item.isMeetingLike ? "person.2" : "calendar")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(2)
+                    .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
+            }
+        }
+        .frame(width: 20, height: 20)
+        .accessibilityHidden(true)
     }
 }
 
@@ -1664,6 +1672,13 @@ struct CompactLeadingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 5)) { context in
+            content(now: context.date)
+        }
+    }
+
+    @ViewBuilder
+    private func content(now: Date) -> some View {
         let presentation = MeetingFlowPresentation(
             state: appState.meetingFlow,
             nextMeeting: appState.nextMeeting,
@@ -1674,11 +1689,17 @@ struct CompactLeadingView: View {
             nextMeeting: appState.nextMeeting,
             activeTaskCount: appState.activeTaskCount,
             meetingDetection: appState.meetingSessionDetection,
-            microphoneGate: appState.meetingMicrophoneGate
+            microphoneGate: appState.meetingMicrophoneGate,
+            agendaItems: appState.upcomingMeetings,
+            focusedTask: appState.focusedTask,
+            dictation: appState.dictationState,
+            now: now
         )
 
         Group {
             switch status {
+            case .dictation(let dictation):
+                CompactDictationIcon(state: dictation)
             case .recording(let recording):
                 HStack(spacing: 4) {
                     Circle()
@@ -1697,6 +1718,16 @@ struct CompactLeadingView: View {
                         clientID: recording.clientID
                     )
                 )
+            case .agenda(let agenda):
+                CompactAgendaIcon(status: agenda)
+            case .focus(let task):
+                Image("FigmaTaskProgress")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 15, height: 15)
+                    .foregroundStyle(MeetingNotchTheme.cyan)
+                    .accessibilityLabel("Üzerinde çalışılan görev: \(task.title)")
             case .tasks:
                 Image("FigmaTasks").resizable().renderingMode(.template)
                     .frame(width: 16, height: 16).foregroundStyle(MeetingNotchTheme.secondaryText)
@@ -1749,16 +1780,29 @@ struct CompactTrailingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        TimelineView(.periodic(from: .now, by: 5)) { context in
+            content(now: context.date)
+        }
+    }
+
+    @ViewBuilder
+    private func content(now: Date) -> some View {
         let status = NotchStatusResolver.compactStatus(
             flow: appState.meetingFlow,
             nextMeeting: appState.nextMeeting,
             activeTaskCount: appState.activeTaskCount,
             meetingDetection: appState.meetingSessionDetection,
-            microphoneGate: appState.meetingMicrophoneGate
+            microphoneGate: appState.meetingMicrophoneGate,
+            agendaItems: appState.upcomingMeetings,
+            focusedTask: appState.focusedTask,
+            dictation: appState.dictationState,
+            now: now
         )
 
         Group {
             switch status {
+            case .dictation(let dictation):
+                CompactDictationTrailing(state: dictation, level: appState.dictationLevel)
             case .recording(let recording):
                 HStack(spacing: 5) {
                     Image(
@@ -1816,8 +1860,16 @@ struct CompactTrailingView: View {
                     .frame(width: 16, height: 16)
                     .foregroundStyle(MeetingNotchTheme.MainPanel.danger)
                     .accessibilityLabel("İşlem hatası")
-            case .upcoming(let startDate):
-                CompactMeetingCountdownView(startDate: startDate)
+            case .agenda(let agenda):
+                CompactAgendaCountdownView(status: agenda)
+            case .focus(let task):
+                Text(NotchAgendaFormatter.durationText(max(60, now.timeIntervalSince(task.startedAt ?? now))))
+                    .font(MeetingNotchTheme.metadataFont.monospacedDigit())
+                    .foregroundStyle(MeetingNotchTheme.cyan)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .help(task.title)
+                    .accessibilityLabel("\(task.title), \(NotchAgendaFormatter.durationText(max(60, now.timeIntervalSince(task.startedAt ?? now)))) süredir")
             case .tasks(let count):
                 HStack(spacing: 4) {
                     Image("FigmaTasks")
@@ -1864,26 +1916,165 @@ private extension NotchCompactStatus.ProcessingStage {
     }
 }
 
-private struct CompactMeetingCountdownView: View {
-    let startDate: Date
+private struct CompactDictationIcon: View {
+    let state: DictationState
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { context in
-            let seconds = max(0, Int(startDate.timeIntervalSince(context.date)))
-            Text(Self.text(seconds: seconds))
-                .font(MeetingNotchTheme.metadataFont.monospacedDigit())
-                .foregroundStyle(
-                    seconds > 60
-                        ? MeetingNotchTheme.MainPanel.warning
-                        : MeetingNotchTheme.MainPanel.danger
-                )
+        Image(systemName: symbol)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(tint)
+            .frame(width: 18, height: 18)
+            .contentTransition(.symbolEffect(.replace))
+            .accessibilityLabel(DictationStatusText.title(for: state))
+    }
+
+    private var symbol: String {
+        switch state {
+        case .listening: "mic.fill"
+        case .transcribing, .refining, .inserting: "text.cursor"
+        case .inserted: "checkmark"
+        case .failed: "exclamationmark.triangle.fill"
+        case .idle: "mic"
         }
     }
 
-    private static func text(seconds: Int) -> String {
-        guard seconds > 0 else { return "Şimdi" }
-        if seconds < 60 { return "<1 dk" }
-        return "\(Int(ceil(Double(seconds) / 60))) dk"
+    private var tint: Color {
+        switch state {
+        case .failed: MeetingNotchTheme.MainPanel.warning
+        case .inserted: MeetingNotchTheme.MainPanel.success
+        default: MeetingNotchTheme.cyan
+        }
+    }
+}
+
+private struct CompactDictationTrailing: View {
+    let state: DictationState
+    let level: Float
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Group {
+            switch state {
+            case .listening:
+                DictationLevelBars(level: level, reduceMotion: reduceMotion)
+            case .transcribing, .refining, .inserting:
+                HStack(spacing: 4) {
+                    ProgressView().controlSize(.mini).scaleEffect(0.7)
+                        .frame(width: 12, height: 12).accessibilityHidden(true)
+                    Text(DictationStatusText.title(for: state))
+                }
+                .font(MeetingNotchTheme.metadataFont)
+                .foregroundStyle(MeetingNotchTheme.cyan)
+            case .inserted:
+                Text("Eklendi")
+                    .font(MeetingNotchTheme.metadataFont)
+                    .foregroundStyle(MeetingNotchTheme.MainPanel.success)
+            case .failed(let failure):
+                Text(DictationStatusText.short(for: failure))
+                    .font(MeetingNotchTheme.metadataFont)
+                    .foregroundStyle(MeetingNotchTheme.MainPanel.warning)
+                    .help(failure.message)
+            case .idle:
+                EmptyView()
+            }
+        }
+        .lineLimit(1)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct DictationLevelBars: View {
+    let level: Float
+    let reduceMotion: Bool
+    private let weights: [CGFloat] = [0.55, 0.85, 1, 0.8, 0.5]
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 2) {
+            ForEach(weights.indices, id: \.self) { index in
+                Capsule()
+                    .fill(MeetingNotchTheme.cyan)
+                    .frame(width: 2.5, height: barHeight(weights[index]))
+            }
+        }
+        .frame(width: 24, height: 14)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.08), value: level)
+        .accessibilityLabel("Dinleniyor")
+    }
+
+    private func barHeight(_ weight: CGFloat) -> CGFloat {
+        let normalized = CGFloat(min(max(level, 0), 1))
+        return max(3, 14 * weight * max(0.18, normalized))
+    }
+}
+
+enum DictationStatusText {
+    static func title(for state: DictationState) -> String {
+        switch state {
+        case .idle: "Dikte hazır"
+        case .listening: "Dinleniyor"
+        case .transcribing: "Yazılıyor"
+        case .refining: "Düzenleniyor"
+        case .inserting: "Ekleniyor"
+        case .inserted(let summary): summary.message
+        case .failed(let failure): failure.message
+        }
+    }
+
+    static func short(for failure: DictationFailure) -> String {
+        switch failure {
+        case .noFocusedTextField: "Panoda"
+        case .speechAssetsDownloading, .speechAssetsMissing: "Model iniyor"
+        case .accessibilityPermissionMissing, .inputMonitoringPermissionMissing, .microphonePermissionDenied: "İzin gerekli"
+        case .tooShort, .noSpeechDetected: "Ses yok"
+        default: "Olmadı"
+        }
+    }
+}
+
+private extension NotchAgendaStatus {
+    var tint: Color {
+        switch urgency {
+        case .imminent: MeetingNotchTheme.MainPanel.danger
+        case .soon: MeetingNotchTheme.MainPanel.warning
+        case .calm: MeetingNotchTheme.MainPanel.secondaryText
+        }
+    }
+}
+
+private struct CompactAgendaIcon: View {
+    let status: NotchAgendaStatus
+
+    var body: some View {
+        Group {
+            if status.item.kind == .onlineMeeting {
+                Image("FigmaVideo")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Image(systemName: status.item.isMeetingLike ? "person.2" : "calendar")
+                    .resizable()
+                    .scaledToFit()
+                    .fontWeight(.medium)
+            }
+        }
+        .frame(width: 15, height: 15)
+        .foregroundStyle(status.tint)
+        .accessibilityLabel(status.item.isMeetingLike ? "Toplantı" : "Etkinlik")
+    }
+}
+
+private struct CompactAgendaCountdownView: View {
+    let status: NotchAgendaStatus
+
+    var body: some View {
+        Text(NotchAgendaFormatter.compactText(for: status))
+            .font(MeetingNotchTheme.metadataFont.monospacedDigit())
+            .foregroundStyle(status.tint)
+            .lineLimit(1)
+            .fixedSize()
+            .contentTransition(.numericText())
+            .accessibilityLabel(NotchAgendaFormatter.accessibilityText(for: status))
     }
 }
 

@@ -16,10 +16,8 @@ packages:
 
 settings:
   base:
-    MACOSX_DEPLOYMENT_TARGET: 14.4
+    MACOSX_DEPLOYMENT_TARGET: 26.0
     SWIFT_VERSION: 5.0
-    MEETINGNOTCH_GOOGLE_CLIENT_ID: ""
-    MEETINGNOTCH_GOOGLE_CLIENT_SECRET: ""
   configs:
     Debug:
       SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
@@ -32,7 +30,7 @@ targets:
   MeetingNotchBrowserAudioHost:
     type: tool
     platform: macOS
-    deploymentTarget: "14.4"
+    deploymentTarget: "26.0"
     sources:
       - path: MeetingNotchBrowserAudioHost
       - path: MeetingNotch/Services/BrowserAudio/BrowserAudioProtocol.swift
@@ -48,7 +46,7 @@ targets:
   MeetingNotch:
     type: application
     platform: macOS
-    deploymentTarget: "14.4"
+    deploymentTarget: "26.0"
     sources:
       - path: MeetingNotch
         excludes:
@@ -56,21 +54,23 @@ targets:
     info:
       path: MeetingNotch/Info.plist
       properties:
-        CFBundleDisplayName: MeetingNotch
+        CFBundleDisplayName: Crenel
         LSApplicationCategoryType: public.app-category.productivity
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSUIElement: true
-        GoogleOAuthClientID: $(MEETINGNOTCH_GOOGLE_CLIENT_ID)
-        GoogleOAuthClientSecret: $(MEETINGNOTCH_GOOGLE_CLIENT_SECRET)
-        NSMicrophoneUsageDescription: MeetingNotch toplantılarda sesinizi kaydetmek için mikrofon erişimi kullanır.
-        NSAudioCaptureUsageDescription: MeetingNotch toplantının sistem sesini kaydetmek için ses yakalama erişimi kullanır.
-        NSCalendarsUsageDescription: MeetingNotch yaklaşan çevrim içi toplantıları göstermek için takvim erişimi kullanır.
-        NSCalendarsFullAccessUsageDescription: MeetingNotch yaklaşan çevrim içi toplantıları göstermek için takvim erişimi kullanır.
+        NSMicrophoneUsageDescription: Crenel dikte ve toplantı kaydı için mikrofon erişimi kullanır.
+        NSAudioCaptureUsageDescription: Crenel toplantının sistem sesini kaydetmek için ses yakalama erişimi kullanır.
+        NSCalendarsUsageDescription: Crenel yaklaşan toplantı ve etkinlikleri notch'ta göstermek için takvim erişimi kullanır.
+        NSCalendarsFullAccessUsageDescription: Crenel yaklaşan toplantı ve etkinlikleri notch'ta göstermek için takvim erişimi kullanır.
+        NSRemindersUsageDescription: Crenel görevlerinizi Apple Hatırlatıcılar'da saklamak ve cihazlarınız arasında senkronlamak için hatırlatıcı erişimi kullanır.
+        NSRemindersFullAccessUsageDescription: Crenel görevlerinizi Apple Hatırlatıcılar'da saklamak ve cihazlarınız arasında senkronlamak için hatırlatıcı erişimi kullanır.
+        NSSpeechRecognitionUsageDescription: Crenel dikte ettiğiniz konuşmayı cihaz üzerinde yazıya çevirmek için konuşma tanıma kullanır.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: gad.MeetingNotch
-        PRODUCT_NAME: MeetingNotch
+        PRODUCT_NAME: Crenel
+        PRODUCT_MODULE_NAME: MeetingNotch
         DEVELOPMENT_TEAM: 37G38FM2D2
         MARKETING_VERSION: 0.1.0
         CURRENT_PROJECT_VERSION: 1
@@ -97,12 +97,14 @@ targets:
   MeetingNotchTests:
     type: bundle.unit-test
     platform: macOS
-    deploymentTarget: "14.4"
+    deploymentTarget: "26.0"
     sources:
       - path: MeetingNotchTests
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: gad.MeetingNotchTests
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Crenel.app/Contents/MacOS/Crenel
+        BUNDLE_LOADER: $(TEST_HOST)
         DEVELOPMENT_TEAM: 37G38FM2D2
         GENERATE_INFOPLIST_FILE: YES
         ENABLE_APP_SANDBOX: NO

@@ -5,6 +5,103 @@ Bu belge ürün vizyonunu uygulama yapısına dönüştüren yaşayan mimari reh
 `project-overview.md` dosyasıdır. Teknik detaylar ürün deneyimi gerektirdiğinde
 değiştirilebilir.
 
+## 2026-11-16 — Crenel mimarisi (güncel)
+
+Bu bölüm aşağıdaki eski kararların takvim, görev ve yapay zekâ ile ilgili kısımlarının
+yerine geçer. Ürün adı Crenel'dir; Swift modül adı, bundle kimliği, Keychain servisleri ve
+`Application Support/MeetingNotch` veri klasörü, izinler ve kullanıcı verisi kaybolmasın diye
+yayın hazırlığına (C6) kadar korunur. `project.yml`: `PRODUCT_NAME: Crenel`,
+`PRODUCT_MODULE_NAME: MeetingNotch`, test hedefinin `TEST_HOST` değeri Crenel.app'tir.
+Minimum sistem macOS 26'dır.
+
+### Katmanlar
+
+```text
+App/
+  AppDelegate          Yaşam döngüsü ve bağlantılar (incelmesi hedeflenir)
+  TaskCoordinator      Görev aksiyonları, Hatırlatıcılar/yerel depo, dış değişiklikleri izleme
+  DictationCoordinator Dikte motoru ↔ tercihler, agent, görevler, AppState
+Domain/
+  Tasks/               TaskItem (3 durum), TaskInputParser, TaskListPresentation, tekrar kuralı
+  Dictation/           DictationState, tetik ayarları, DictationRefinement sözleşmesi
+  Agent/               AgentPreferences, LanguageModelProvider sözleşmesi
+  NotchAgenda          Geri sayım çözümü, biçimlendirme, Takvim deep link
+Services/
+  Dictation/           CGEventTap tetik, bellek içi ses, SpeechAnalyzer, imlece yazma
+  Agent/               Foundation Models / OpenAI / Anthropic sağlayıcıları, DictationRefiner
+Infrastructure/Persistence/Reminders/
+  EventKitReminderStore, ReminderTaskMapping, RemindersTaskRepository, TaskRepositoryRouter
+Features/Shared/CrenelActions  Yeni özelliklerin aksiyonları (SwiftUI environment)
+```
+
+Yeni özellik aksiyonları view init'lerine closure olarak eklenmez; kökte
+`.environment(\.crenelActions, …)` ile verilir. View'lar AppKit/EventKit/Keychain çağırmaz.
+
+### Takvim
+
+Tek kaynak EventKit'tir; Google OAuth sağlayıcısı kaldırıldı. Google/Exchange hesapları
+macOS İnternet Hesapları üzerinden gelir. Eski sürümden kalan Google refresh token'ı
+“Tüm verileri sil” akışında `LegacyGoogleCalendarCleanup` ile silinir.
+`EventKitMeetingProvider` iptal edilmemiş ve kullanıcının reddetmediği tüm etkinlikleri
+`Meeting` olarak döndürür: `kind` (`onlineMeeting` link var, `meeting` başka katılımcı var,
+`event` kişisel), `isAllDay`, `responseStatus` (`pending` = yanıt bekleyen davet),
+`isSuggestion` (belgelenmemiş `EKCalendarType` 5, Siri önerileri), takvim adı/rengi ve
+`eventIdentifier`. Eski JSON'lar migration gerektirmeden çözülür. Kayıt teklifi, hatırlatma
+akışı ve “katıl” bildirimleri yalnız `isReminderCandidate` (toplantı, tüm gün değil, öneri
+değil) öğeler içindir. Kapalı notch geri sayımı `NotchAgendaStatus.resolve` ile tüm
+zamanlı öğelerden hesaplanır: 12 saatlik ufuk; süren öğe varsa sıradaki öğe başlamadan
+10 dk önce devralır; çakışan süren öğelerden en son başlayan gösterilir.
+
+### Kapalı notch önceliği
+
+`NotchStatusResolver.compactStatus`: dikte (geçici, en yüksek) > toplantı akışı (kayıt,
+işleme, tamamlandı, hata, hatırlatma) > yaklaşan/süren takvim öğesi (yakınsa veya süren
+toplantıysa) > üzerinde çalışılan görev > sakin takvim öğesi > açık görev sayısı > boş.
+
+### Görevler
+
+`TaskStatus`: `open`, `inProgress`, `completed`; eski beş durum çözümlemede eşlenir.
+Tamamlama arşivlemez: tamamlanan görev gün bitene kadar “Bugün tamamlananlar”da kalır,
+sonra Geçmiş'e geçer; `archive` yalnız tamamlanmış görevi listeden erken kaldırmak için
+kullanıcı aksiyonudur. Bölümler (`TaskListPresentation`) kullanıcı seçimi değildir: durum
+ve son tarihten türetilir. Aynı anda tek görev “üzerinde çalışılıyor” olur. Tekrarlayan
+görev tamamlanınca tamamlanmış bir geçmiş kaydı oluşur ve görev sonraki tarihe ilerler.
+
+Depo: `TaskRepositoryRouter` tercihe ve izne göre Apple Hatırlatıcılar ya da yerel JSON
+seçer; izin yoksa sessizce yerelde çalışır, UI bağlantı teklif eder. Hatırlatıcılar'da
+uygulamaya ait “Crenel” listesi kullanılır. Başlık, not, son tarih (saatli/gün düzeyi),
+öncelik (EventKit 1/5/9), tekrar kuralı, tamamlandı ve alarm (saatli görevlerde) Hatırlatıcılar'da;
+görev kimliği, üzerinde çalışılıyor, sıralama, arşiv ve toplantı kaynağı
+`Tasks/reminders-sidecar.json` yan dosyasında, hatırlatıcı kimliğine bağlı tutulur.
+Dışarıda (iPhone, Siri) oluşturulan hatırlatıcı, kimliğinden türetilen kararlı UUID alır.
+Toplantı kaynağı ayrıca `crenel://meeting/<id>` URL'si olarak yazılır. Yerel görevler
+ilk bağlantıda bir defa taşınır (açık + son 30 gün tamamlanan); yerel dosya yedek olarak
+değiştirilmeden kalır. `EKEventStoreChanged` 250 ms birleştirilerek yeniden yükleme yapar.
+Akıllı giriş `TaskInputParser` kurallı, deterministik ve yerel çalışır (Türkçe/İngilizce);
+öneriler yazarken gösterilir, Tab ile kabul edilir, Enter düz kaydeder.
+
+### Dikte
+
+Tetik `CGEventTap` (yalnız dinler; Input Monitoring izni) ile Fn/sağ ⌥/sağ ⌘ basılı tut veya
+aç-kapa; Esc iptal. Ses `AVAudioEngine` ile bellekte kalır, diske yazılmaz.
+`SpeechAnalyzer` + `SpeechTranscriber` (yoksa `DictationTranscriber`) cihazda çalışır;
+model `AssetInventory` ile indirilir. Metin önce Accessibility ile seçili metin alanına
+yazılır; olmazsa pano + ⌘V ve pano geri yüklenir; odakta alan yoksa panoda bırakılır.
+Güvenli (şifre) alanlara asla yazılmaz. Geçmiş yalnız bellekte tutulur (son 20).
+Toplantı kaydı sürerken dikte dinlemeye başlarsa toplantı mikrofon gate'i kapatılır ve
+dikte bitince geri açılır; dikte sesi toplantı kaydına girmez.
+
+### Agent
+
+`LanguageModelProvider`: cihazdaki Apple Foundation Models (varsayılan), OpenAI (mevcut
+Keychain anahtarı) veya Anthropic (ayrı Keychain servisi). `DictationRefiner` önce
+deterministik temizlik ve niyet tespiti yapar (“görev ekle …” → görev), sonra modelle
+temizler. Transkript sınırlandırılmış veri olarak verilir; model araç kullanamaz ve
+transkriptteki talimatları yürütmez. Komut modu bilinçli istisnadır: seçili metin varken
+kullanıcının sözlü komutu talimattır, seçili metin yine veri olarak sınırlandırılır. Süre
+bütçesi (cihaz 2.5 sn, bulut 4 sn), aşırı uzun/alakasız çıktı veya hata durumunda
+deterministik sonuca düşülür; komut başarısızsa seçili metin değiştirilmez.
+
 ## Masaüstü ve notch birlikte çalışma sözleşmesi
 
 Açılışta yalnız notch başlatılır; masaüstü pencere otomatik restore edilmez.
@@ -92,7 +189,7 @@ okur. Kayıt tamamlandı durumu ile `summaryNeedsAttention` birbirinden ayrıdı
 - `MeetingNotch.xcodeproj/project.pbxproj` elle düzenlenmez.
 - Proje değişikliklerinden sonra kök dizinde `xcodegen generate` çalıştırılır.
 - DynamicNotchKit sürümü `project.yml` içinde sabit bir alt sınırla tanımlanır.
-- Minimum sistem sürümü macOS 14.4'tür.
+- Minimum sistem sürümü macOS 26'dır (Crenel kararı, 2026-11-16).
 - Uygulama `LSUIElement` agent olarak çalışır ve App Sandbox kapalıdır. V1 dağıtımı
   Developer ID imzası ve notarization ile doğrudan yapılır; Mac App Store hedeflenmez.
 - Debug uygulaması sabit development team ile Apple Development imzası taşır; bu kimlik

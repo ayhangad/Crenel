@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.crenelActions) private var crenelActions
 
     let onRequestMicrophoneAccess: () -> Void
     let onRequestSystemAudioAccess: () -> Void
@@ -19,6 +20,8 @@ struct OnboardingView: View {
         case browserAudio
         case accessibility
         case calendar
+        case reminders
+        case dictation
         case cloud
     }
 
@@ -41,7 +44,7 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("MEETINGNOTCH").tracking(1.6)
+                Text("CRENEL").tracking(1.6)
                 Spacer()
                 Text("\(step.rawValue + 1) / \(Step.allCases.count)").monospacedDigit()
             }
@@ -71,9 +74,9 @@ struct OnboardingView: View {
                 case .welcome:
                     onboardingContent(
                         assetName: "FigmaVoice",
-                        title: "Toplantılarınız, kaybolmadan",
-                        detail: "Toplantılarınızı kaydedin. Notlar ve görevler tek yerde kalsın.",
-                        callout: "Kaydı notch üzerinden başlatabilirsiniz."
+                        title: "Notch’unuzdaki yardımcı",
+                        detail: "Takviminiz, görevleriniz, dikte ve toplantı kayıtlarınız notch’ta. Her izin isteğe bağlıdır; vermediğiniz özellik sessizce kapalı kalır.",
+                        callout: "İstediğiniz zaman Ayarlar’dan değiştirebilirsiniz."
                     )
                 case .microphone:
                     onboardingContent(
@@ -108,16 +111,34 @@ struct OnboardingView: View {
                 case .calendar:
                     onboardingContent(
                         assetName: "FigmaRecentCheck",
-                        title: "Yaklaşan toplantıları kaçırmayın",
-                        detail: "Toplantılarınızı notch’ta görün ve hatırlatma alın. Takvim bağlantısı isteğe bağlıdır.",
+                        title: "Sıradaki etkinlik, bir bakışta",
+                        detail: "Apple Takvim’deki toplantı ve etkinlikleriniz notch’ta; kapalıyken bile kalan süre görünür. Google takvimleri için hesabı Sistem Ayarları › İnternet Hesapları’na ekleyin.",
                         callout: calendarStatus
+                    )
+                case .reminders:
+                    onboardingContent(
+                        systemIcon: "checklist",
+                        title: "Görevler her cihazınızda",
+                        detail: "Görevler Apple Hatırlatıcılar’daki “Crenel” listesinde saklanır; iPhone ve Watch’ta da görünür, saatli görevlerin bildirimini Apple gönderir.",
+                        callout: appState.taskStorageStatus.isReminders
+                            ? "Hatırlatıcılar bağlı."
+                            : "İzin vermezseniz görevler yalnız bu Mac’te tutulur."
+                    )
+                case .dictation:
+                    onboardingContent(
+                        systemIcon: "waveform",
+                        title: "Fn’ye basılı tutun, konuşun",
+                        detail: "Konuşmanız cihazda yazıya çevrilir ve imlecin olduğu yere yazılır. Kısayolu dinlemek için Girdi İzleme izni gerekir.",
+                        callout: appState.dictationAvailability == .ready
+                            ? "Dikte hazır."
+                            : "Fn bundan sonra yalnızca dikte için çalışır. Klavye dilini ⌃Boşluk ile değiştirebilirsiniz."
                     )
                 case .cloud:
                     onboardingContent(
                         systemIcon: "lock.shield",
-                        title: "Sesinizden, toplantı notlarına",
-                        detail: "Kayıt tamamlandığında ses, konuşmacı ayrımlı transkript için ElevenLabs Scribe v2’ye yüklenir. OpenAI anahtarınızı bağladığınızda transkript metni, özet ve kişi bazlı görevler için OpenAI’ye gönderilir.",
-                        callout: "API anahtarlarınızı Ayarlar’dan bağlayın."
+                        title: "Ne cihazda kalır, ne gider",
+                        detail: "Dikte ve agent varsayılan olarak cihazda çalışır. Toplantı kaydı tamamlandığında ses, konuşmacı ayrımlı transkript için ElevenLabs’e yüklenir; OpenAI veya Anthropic anahtarı bağlarsanız metin onlara gönderilir.",
+                        callout: "Anahtarlarınızı Ayarlar › Yapay zekâ’dan bağlayın."
                     )
                 }
             }
@@ -254,8 +275,12 @@ struct OnboardingView: View {
             "Devam Et"
         case .calendar:
             "Takvime İzin Ver"
+        case .reminders:
+            appState.taskStorageStatus.isReminders ? "Devam et" : "Hatırlatıcılar’a bağla"
+        case .dictation:
+            appState.dictationAvailability == .ready ? "Devam et" : "İzin ver ve devam et"
         case .cloud:
-            "Anladım, MeetingNotch’u Aç"
+            "Anladım, Crenel’i Aç"
         }
     }
 
@@ -276,6 +301,12 @@ struct OnboardingView: View {
             move(to: Step.calendar.rawValue)
         case .calendar:
             onRequestCalendarAccess()
+            move(to: Step.reminders.rawValue)
+        case .reminders:
+            if !appState.taskStorageStatus.isReminders { crenelActions.tasks.connectReminders() }
+            move(to: Step.dictation.rawValue)
+        case .dictation:
+            if appState.dictationAvailability != .ready { crenelActions.dictation.requestInputMonitoring() }
             move(to: Step.cloud.rawValue)
         case .cloud:
             onComplete()
@@ -309,7 +340,7 @@ struct OnboardingView: View {
         case .unavailable:
             "Tarayıcı ses köprüsü kullanılamıyor; Google Meet kaydı güvenli olarak başlamaz."
         case .waitingForMeetTab:
-            "Köprü hazır. Görüşme sekmesinde MeetingNotch uzantı düğmesine basın."
+            "Köprü hazır. Görüşme sekmesinde Crenel uzantı düğmesine basın."
         case .tabConnected:
             "Google Meet sekmesi bağlı; kayıt başlatılabilir."
         case .recording:

@@ -3,7 +3,6 @@ import Foundation
 @MainActor
 final class AppState: ObservableObject {
     @Published var isCalendarEnabled = true
-    @Published var calendarConnection = CalendarConnectionKind.macOS
     enum PanelTab: String, CaseIterable, Identifiable {
         case meetings = "Toplantılar"
         case tasks = "Görevler"
@@ -38,6 +37,12 @@ final class AppState: ObservableObject {
     @Published private(set) var recordingRecoverySummary: RecordingRecoverySummary?
     @Published private(set) var processingJobs: [ProcessingJob] = []
     @Published private(set) var tasks: [TaskItem] = []
+    @Published private(set) var taskStorageStatus: TaskStorageStatus = .localNotConnected
+    @Published private(set) var dictationState: DictationState = .idle
+    @Published private(set) var dictationLevel: Float = 0
+    @Published private(set) var dictationPartialTranscript = ""
+    @Published private(set) var dictationHistory: [DictationHistoryEntry] = []
+    @Published private(set) var dictationAvailability: DictationAvailability = .disabled
     @Published private(set) var presentedMeetingDetail: MeetingDetailContent?
     @Published private(set) var meetingSessionDetection: MeetingSessionDetectionSnapshot?
     @Published private(set) var meetingLifecyclePrompt: MeetingLifecyclePrompt?
@@ -361,18 +366,43 @@ final class AppState: ObservableObject {
 
     var activeTasks: [TaskItem] {
         tasks
-            .filter { !$0.isArchived }
+            .filter(\.isActive)
             .sorted { $0.createdAt < $1.createdAt }
     }
 
-    var archivedTasks: [TaskItem] {
-        tasks
-            .filter(\.isArchived)
-            .sorted { ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) }
+    func taskPresentation(now: Date = Date(), calendar: Calendar = .current) -> TaskListPresentation {
+        TaskListPresentation(tasks: tasks, now: now, calendar: calendar)
     }
 
-    func activeTaskCount(for status: TaskStatus) -> Int {
-        activeTasks.lazy.filter { $0.status == status }.count
+    /// The task the user marked as being worked on, shown in the closed notch.
+    var focusedTask: TaskItem? {
+        tasks
+            .filter { $0.status == .inProgress && !$0.isArchived }
+            .max { ($0.startedAt ?? .distantPast) < ($1.startedAt ?? .distantPast) }
+    }
+
+    func updateTaskStorageStatus(_ status: TaskStorageStatus) {
+        taskStorageStatus = status
+    }
+
+    func updateDictationState(_ state: DictationState) {
+        dictationState = state
+    }
+
+    func updateDictationLevel(_ level: Float) {
+        dictationLevel = level
+    }
+
+    func updateDictationPartialTranscript(_ text: String) {
+        dictationPartialTranscript = text
+    }
+
+    func updateDictationHistory(_ history: [DictationHistoryEntry]) {
+        dictationHistory = history
+    }
+
+    func updateDictationAvailability(_ availability: DictationAvailability) {
+        dictationAvailability = availability
     }
 
     var completedMeeting: StoredMeeting? {
@@ -457,6 +487,6 @@ final class AppState: ObservableObject {
     }
 
     private func refreshTaskCount() {
-        activeTaskCount = tasks.lazy.filter { !$0.isArchived }.count
+        activeTaskCount = tasks.lazy.filter(\.isActive).count
     }
 }

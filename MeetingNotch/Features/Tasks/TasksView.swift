@@ -1,53 +1,33 @@
 import SwiftUI
 
+/// One flat task list. Sections follow from state and due date; the user only types.
 struct TasksView: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.crenelActions) private var actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var newTaskTitle = ""
-    @FocusState private var newTaskFocused: Bool
-    @State private var showsArchive = false
+    @State private var showsHistory: Bool
     @State private var taskPendingDeletion: TaskItem?
-    @State private var showsDeleteArchiveConfirmation = false
+    @State private var showsClearHistoryConfirmation = false
 
-    let onAdd: (String) -> Void
-    let onUpdate: (TaskItem, String) -> Void
-    let onChangeStatus: (TaskItem, TaskStatus) -> Void
-    let onArchive: (TaskItem) -> Void
-    let onRestore: (TaskItem) -> Void
-    let onDelete: (TaskItem) -> Void
-    let onDeleteArchive: () -> Void
-
-    init(
-        onAdd: @escaping (String) -> Void,
-        onUpdate: @escaping (TaskItem, String) -> Void,
-        onChangeStatus: @escaping (TaskItem, TaskStatus) -> Void,
-        onArchive: @escaping (TaskItem) -> Void,
-        onRestore: @escaping (TaskItem) -> Void,
-        onDelete: @escaping (TaskItem) -> Void,
-        onDeleteArchive: @escaping () -> Void,
-        initiallyShowsArchive: Bool = false
-    ) {
-        self.onAdd = onAdd
-        self.onUpdate = onUpdate
-        self.onChangeStatus = onChangeStatus
-        self.onArchive = onArchive
-        self.onRestore = onRestore
-        self.onDelete = onDelete
-        self.onDeleteArchive = onDeleteArchive
-        _showsArchive = State(initialValue: initiallyShowsArchive)
+    init(initiallyShowsHistory: Bool = false) {
+        _showsHistory = State(initialValue: initiallyShowsHistory)
     }
 
     var body: some View {
-        LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.MainPanel.contentSpacing) {
-            header
+        TimelineView(.everyMinute) { context in
+            let presentation = appState.taskPresentation(now: context.date)
+            LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.MainPanel.contentSpacing) {
+                header(presentation)
 
-            if showsArchive {
-                archiveContent
-                    .transition(contentTransition)
-            } else {
-                addField
-                activeContent
-                    .transition(contentTransition)
+                if showsHistory {
+                    historyContent(presentation)
+                        .transition(contentTransition)
+                } else {
+                    TaskQuickAddField(onSubmit: actions.tasks.add)
+                    storageNotice
+                    activeContent(presentation, now: context.date)
+                        .transition(contentTransition)
+                }
             }
         }
         .alert(
@@ -55,162 +35,161 @@ struct TasksView: View {
             isPresented: deleteTaskAlertBinding,
             presenting: taskPendingDeletion
         ) { task in
-            Button("Sil", role: .destructive) { onDelete(task) }
+            Button("Sil", role: .destructive) { actions.tasks.delete(task) }
             Button("Vazgeç", role: .cancel) {}
         } message: { task in
-            Text("“\(task.title)” kalıcı olarak silinecek.")
+            Text(appState.taskStorageStatus.isReminders
+                 ? "“\(task.title)” Hatırlatıcılar’dan ve tüm cihazlarınızdan silinecek."
+                 : "“\(task.title)” kalıcı olarak silinecek.")
         }
-        .alert("Arşiv temizlensin mi?", isPresented: $showsDeleteArchiveConfirmation) {
-            Button("Tümünü Sil", role: .destructive, action: onDeleteArchive)
+        .alert("Geçmiş temizlensin mi?", isPresented: $showsClearHistoryConfirmation) {
+            Button("Tümünü Sil", role: .destructive, action: actions.tasks.clearHistory)
             Button("Vazgeç", role: .cancel) {}
         } message: {
-            Text("\(appState.archivedTasks.count) arşivlenmiş görev kalıcı olarak silinecek.")
+            Text("Tamamlanan görevler kalıcı olarak silinecek.")
         }
-        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: showsArchive)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.2), value: showsHistory)
     }
 
-    private var header: some View {
+    // MARK: Header
+
+    private func header(_ presentation: TaskListPresentation) -> some View {
         HStack(spacing: 8) {
-            Text(showsArchive ? "Arşiv" : "Yapılacaklar")
+            Text(showsHistory ? "Tamamlananlar" : "Görevler")
                 .font(MeetingNotchTheme.MainPanel.sectionTitleFont)
                 .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
                 .lineLimit(1)
 
+            if !showsHistory, appState.taskStorageStatus.isReminders {
+                Image(systemName: "icloud")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
+                    .help("Apple Hatırlatıcılar’daki “Crenel” listesiyle senkronlanıyor")
+                    .accessibilityLabel("Hatırlatıcılar ile senkronlanıyor")
+            }
+
             Spacer(minLength: 8)
 
-            if !showsArchive {
-                ViewThatFits(in: .horizontal) {
-                    statusSummary
-                    Text("\(appState.activeTasks.count)").font(MeetingNotchTheme.metadataFont)
-                        .foregroundStyle(MeetingNotchTheme.secondaryText)
-                }
+            if !showsHistory, presentation.activeCount > 0 {
+                Text("\(presentation.activeCount)")
+                    .font(MeetingNotchTheme.metadataFont.monospacedDigit())
+                    .foregroundStyle(MeetingNotchTheme.MainPanel.counterText)
+                    .accessibilityLabel("\(presentation.activeCount) açık görev")
             }
 
             Button {
-                showsArchive.toggle()
+                showsHistory.toggle()
             } label: {
-                if showsArchive {
-                    HStack(spacing: 4) {
-                        Image("FigmaTasks")
-                            .resizable()
-                            .renderingMode(.template)
-                            .frame(width: 16, height: 16)
-                        Text("Görevler")
-                    }
-                } else {
-                    HStack(spacing: 0) {
-                        Text("\(appState.archivedTasks.count)")
-                            .padding(.horizontal, 2)
-                        Image("FigmaArchive")
-                            .resizable()
-                            .renderingMode(.template)
-                            .frame(width: 16, height: 16)
-                    }
-                }
-            }
-            .buttonStyle(FigmaTaskArchiveButtonStyle(isActive: showsArchive))
-            .help(showsArchive ? "Aktif görevlere dön" : "Görev arşivini aç")
-            .accessibilityLabel(showsArchive ? "Aktif görevlere dön" : "Görev arşivini aç")
-        }
-    }
-
-    private var statusSummary: some View {
-        HStack(spacing: 8) {
-            ForEach(TaskStatus.allCases.filter { $0 != .completed && statusCount(for: $0) > 0 }) { status in
-                let count = statusCount(for: status)
-                HStack(spacing: 0) {
-                    Text("\(count)")
-                        .padding(.horizontal, 2)
-                    Image(status.figmaAssetName)
+                HStack(spacing: 4) {
+                    Image(showsHistory ? "FigmaTasks" : "FigmaArchive")
                         .resizable()
+                        .renderingMode(.template)
                         .frame(width: 16, height: 16)
+                    Text(showsHistory ? "Görevler" : "Geçmiş")
                 }
-                .font(MeetingNotchTheme.MainPanel.smallFont.monospacedDigit())
-                .foregroundStyle(MeetingNotchTheme.MainPanel.counterText)
-                .opacity(count == 0 ? 0.62 : 1)
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(status.title): \(count)")
             }
+            .buttonStyle(TaskHeaderButtonStyle(isActive: showsHistory))
+            .help(showsHistory ? "Görevlere dön" : "Tamamlanan görevleri göster")
+            .accessibilityLabel(showsHistory ? "Görevlere dön" : "Tamamlanan görevleri göster")
         }
     }
 
-    private var addField: some View {
-        HStack(spacing: 4) {
-            TextField("Yeni görev ekle", text: $newTaskTitle)
-                .font(MeetingNotchTheme.MainPanel.bodyFont)
-                .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
-                .textFieldStyle(.plain)
-                .padding(.leading, 8)
-                .frame(height: 40)
-                .focused($newTaskFocused)
-                .onSubmit(addTask)
-                .accessibilityLabel("Yeni görev başlığı")
-
-            Button(action: addTask) {
-                Image("FigmaArrowUp")
-                    .resizable()
-                    .frame(width: 20, height: 20)
-            }
-            .buttonStyle(FigmaTaskSubmitButtonStyle())
-            .disabled(!canAdd)
-            .accessibilityLabel("Yeni görev ekle")
-        }
-        .padding(4)
-        .frame(minHeight: 48)
-        .background(
-            MeetingNotchTheme.MainPanel.surface,
-            in: RoundedRectangle(
-                cornerRadius: 24,
-                style: .continuous
-            )
-        )
-        .overlay(RoundedRectangle(cornerRadius: 24).strokeBorder(
-            newTaskFocused ? MeetingNotchTheme.cyan : MeetingNotchTheme.hairline, lineWidth: newTaskFocused ? 2 : 1))
-        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: newTaskFocused)
-    }
+    // MARK: Storage
 
     @ViewBuilder
-    private var activeContent: some View {
-        if appState.activeTasks.isEmpty {
-            emptyState(assetName: "FigmaTaskCompleted", text: "Aktif görev yok")
-        } else {
-            taskList(appState.activeTasks)
+    private var storageNotice: some View {
+        switch appState.taskStorageStatus {
+        case .localNotConnected:
+            TaskNoticeRow(
+                symbol: "icloud",
+                text: "Görevleriniz iPhone ve Watch’ta da görünsün",
+                actionTitle: "Hatırlatıcılar’a bağla",
+                action: actions.tasks.connectReminders
+            )
+        case .localDenied:
+            TaskNoticeRow(
+                symbol: "lock",
+                text: "Hatırlatıcılar izni kapalı; görevler bu Mac’te tutuluyor. Sistem Ayarları › Gizlilik › Hatırlatıcılar’dan açabilirsiniz.",
+                actionTitle: nil,
+                action: {}
+            )
+        case .localAfterError(let message):
+            TaskNoticeRow(
+                symbol: "exclamationmark.triangle",
+                text: message,
+                actionTitle: "Tekrar dene",
+                action: actions.tasks.connectReminders
+            )
+        case .reminders, .localByChoice:
+            EmptyView()
         }
     }
 
-    private var archiveContent: some View {
-        VStack(alignment: .leading, spacing: MeetingNotchTheme.MainPanel.contentSpacing) {
-            HStack(spacing: 8) {
-                Text("Arşivlenmiş görevler")
-                    .font(MeetingNotchTheme.MainPanel.rowTitleFont)
-                    .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
+    // MARK: Active list
 
-                Spacer(minLength: 8)
-
-                if !appState.archivedTasks.isEmpty {
-                    Menu {
-                        Button("Arşivi temizle", systemImage: "trash", role: .destructive) {
-                            showsDeleteArchiveConfirmation = true
+    @ViewBuilder
+    private func activeContent(_ presentation: TaskListPresentation, now: Date) -> some View {
+        if presentation.isEmpty {
+            emptyState(assetName: "FigmaTaskCompleted", text: "Yapılacak bir şey yok. Yazıp Enter’a basın.")
+        } else {
+            ForEach(presentation.sections) { section in
+                VStack(alignment: .leading, spacing: 2) {
+                    TaskSectionHeader(kind: section.kind, count: section.tasks.count)
+                    LazyVStack(spacing: MeetingNotchTheme.MainPanel.rowSpacing) {
+                        ForEach(section.tasks) { task in
+                            TaskRowView(
+                                task: task,
+                                now: now,
+                                isOverdue: section.kind == .overdue,
+                                onRequestDelete: { taskPendingDeletion = task }
+                            )
                         }
-                    } label: {
-                        Image("FigmaMore")
-                            .resizable()
-                            .frame(width: 20, height: 20)
                     }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .frame(width: 40, height: 40)
-                    .meetingControlFeedback(radius: 12)
-                    .accessibilityLabel("Arşiv seçenekleri")
                 }
             }
+        }
+    }
 
-            if appState.archivedTasks.isEmpty {
-                emptyState(assetName: "FigmaArchive", text: "Arşiv boş")
-            } else {
-                taskList(appState.archivedTasks)
+    // MARK: History
+
+    @ViewBuilder
+    private func historyContent(_ presentation: TaskListPresentation) -> some View {
+        if presentation.history.isEmpty {
+            emptyState(assetName: "FigmaArchive", text: "Henüz geçmiş yok. Tamamlanan görevler gün bitince buraya taşınır.")
+        } else {
+            HStack {
+                Spacer()
+                Button("Geçmişi temizle", systemImage: "trash") {
+                    showsClearHistoryConfirmation = true
+                }
+                .buttonStyle(MeetingNotchActionButtonStyle())
+            }
+            ForEach(presentation.history) { day in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Self.historyTitle(for: day.day))
+                        .font(MeetingNotchTheme.MainPanel.smallFont)
+                        .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
+                        .padding(.horizontal, MeetingNotchTheme.MainPanel.listRowHorizontalInset)
+                    LazyVStack(spacing: MeetingNotchTheme.MainPanel.rowSpacing) {
+                        ForEach(day.tasks) { task in
+                            TaskRowView(
+                                task: task,
+                                now: Date(),
+                                isOverdue: false,
+                                onRequestDelete: { taskPendingDeletion = task }
+                            )
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private static func historyTitle(for day: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(day) { return "Bugün" }
+        if calendar.isDateInYesterday(day) { return "Dün" }
+        return day.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "tr_TR")))
     }
 
     private func emptyState(assetName: String, text: String) -> some View {
@@ -220,39 +199,12 @@ struct TasksView: View {
                 .renderingMode(.template)
                 .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
                 .frame(width: 20, height: 20)
-
             Text(text)
                 .font(MeetingNotchTheme.MainPanel.bodyFont)
                 .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(minHeight: MeetingNotchTheme.MainPanel.rowHeight)
-    }
-
-    private func taskList(_ tasks: [TaskItem]) -> some View {
-        LazyVStack(spacing: MeetingNotchTheme.MainPanel.rowSpacing) {
-            ForEach(tasks) { task in
-                TaskRowView(
-                    task: task,
-                    onUpdate: onUpdate,
-                    onChangeStatus: { onChangeStatus(task, $0) },
-                    onArchive: { onArchive(task) },
-                    onRestore: { onRestore(task) },
-                    onDelete: { taskPendingDeletion = task }
-                )
-            }
-        }
-    }
-
-    private func statusCount(for status: TaskStatus) -> Int {
-        if status == .completed {
-            return appState.archivedTasks.filter { $0.status == .completed }.count
-        }
-        return appState.activeTaskCount(for: status)
-    }
-
-    private var canAdd: Bool {
-        TaskItem.normalizedTitle(newTaskTitle) != nil
     }
 
     private var deleteTaskAlertBinding: Binding<Bool> {
@@ -265,49 +217,258 @@ struct TasksView: View {
     private var contentTransition: AnyTransition {
         reduceMotion ? .opacity : .opacity.combined(with: .offset(y: -6))
     }
+}
 
-    private func addTask() {
-        guard let title = TaskItem.normalizedTitle(newTaskTitle) else { return }
-        onAdd(title)
-        newTaskTitle = ""
-        newTaskFocused = true
+// MARK: - Quick add
+
+/// Single-line capture. Detected dates, repeats and priorities appear as suggestions
+/// under the field while typing; Tab accepts them, Enter saves (with or without them).
+struct TaskQuickAddField: View {
+    let onSubmit: (TaskInputParseResult) -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @FocusState private var focused: Bool
+    @State private var text = ""
+    @State private var accepted: [TaskInputSuggestion.Kind] = []
+    private let parser = TaskInputParser()
+
+    var body: some View {
+        let suggestions = currentSuggestions
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                TextField("Görev ekle — “yarın 15te raporu gönder”", text: $text)
+                    .font(MeetingNotchTheme.MainPanel.bodyFont)
+                    .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
+                    .textFieldStyle(.plain)
+                    .padding(.leading, 8)
+                    .frame(height: 40)
+                    .focused($focused)
+                    .onSubmit(submit)
+                    .onKeyPress(.tab) {
+                        guard !suggestions.isEmpty else { return .ignored }
+                        acceptAll(suggestions)
+                        return .handled
+                    }
+                    .onKeyPress(.escape) {
+                        guard !text.isEmpty || !accepted.isEmpty else { return .ignored }
+                        reset()
+                        return .handled
+                    }
+                    .accessibilityLabel("Yeni görev")
+                    .accessibilityHint("Tarih yazarsanız öneri çıkar; Tab ile ekleyin.")
+
+                Button(action: submit) {
+                    Image("FigmaArrowUp")
+                        .resizable()
+                        .frame(width: 20, height: 20)
+                }
+                .buttonStyle(TaskSubmitButtonStyle())
+                .disabled(!canSubmit)
+                .accessibilityLabel("Görevi ekle")
+            }
+            .padding(4)
+            .frame(minHeight: 48)
+            .background(
+                MeetingNotchTheme.MainPanel.surface,
+                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 24)
+                    .strokeBorder(
+                        focused ? MeetingNotchTheme.cyan : MeetingNotchTheme.hairline,
+                        lineWidth: focused ? 2 : 1
+                    )
+            )
+
+            if !accepted.isEmpty || !suggestions.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(Array(accepted.enumerated()), id: \.offset) { index, kind in
+                        TaskTokenChip(label: Self.label(for: kind), isAccepted: true) {
+                            accepted.remove(at: index)
+                        }
+                    }
+                    ForEach(suggestions) { suggestion in
+                        TaskTokenChip(label: suggestion.label, isAccepted: false) {
+                            accept(suggestion)
+                        }
+                    }
+                    if !suggestions.isEmpty {
+                        Text("⇥ ekle")
+                            .font(MeetingNotchTheme.metadataFont)
+                            .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 12)
+                .transition(.opacity)
+            }
+        }
+        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: focused)
+        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: suggestions.map(\.id))
+    }
+
+    /// Suggestions of a kind the user already accepted are not offered again.
+    private var currentSuggestions: [TaskInputSuggestion] {
+        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
+        let acceptedKinds = Set(accepted.map(Self.kindKey))
+        return parser.suggestions(for: text, now: Date())
+            .filter { !acceptedKinds.contains(Self.kindKey($0.kind)) }
+    }
+
+    private var canSubmit: Bool {
+        TaskItem.normalizedTitle(text) != nil
+    }
+
+    /// Ranges come from the text the suggestion was computed for; never apply a stale one.
+    private func isCurrent(_ suggestion: TaskInputSuggestion) -> Bool {
+        suggestion.range.upperBound <= text.endIndex
+            && String(text[suggestion.range]) == suggestion.matchedText
+    }
+
+    private func accept(_ suggestion: TaskInputSuggestion) {
+        guard isCurrent(suggestion) else { return }
+        accepted.append(suggestion.kind)
+        var remaining = text
+        remaining.removeSubrange(suggestion.range)
+        text = remaining
+            .replacingOccurrences(of: "  ", with: " ")
+            .trimmingCharacters(in: .whitespaces)
+    }
+
+    private func acceptAll(_ suggestions: [TaskInputSuggestion]) {
+        // Remove later ranges first so earlier indices stay valid.
+        for suggestion in suggestions.sorted(by: { $0.range.lowerBound > $1.range.lowerBound }) where isCurrent(suggestion) {
+            accepted.append(suggestion.kind)
+            text.removeSubrange(suggestion.range)
+        }
+        text = text
+            .replacingOccurrences(of: "  ", with: " ")
+            .trimmingCharacters(in: .whitespaces)
+    }
+
+    private func submit() {
+        guard let title = TaskItem.normalizedTitle(text) else { return }
+        var result = TaskInputParseResult(
+            title: title,
+            dueDate: nil,
+            dueHasTime: false,
+            recurrence: nil,
+            priority: .none
+        )
+        for kind in accepted {
+            switch kind {
+            case .due(let date, let hasTime):
+                result.dueDate = date
+                result.dueHasTime = hasTime
+            case .recurrence(let recurrence):
+                result.recurrence = recurrence
+            case .priority(let priority):
+                result.priority = priority
+            }
+        }
+        onSubmit(result)
+        reset()
+        focused = true
+    }
+
+    private func reset() {
+        text = ""
+        accepted = []
+    }
+
+    private static func kindKey(_ kind: TaskInputSuggestion.Kind) -> Int {
+        switch kind {
+        case .due: 0
+        case .recurrence: 1
+        case .priority: 2
+        }
+    }
+
+    private static func label(for kind: TaskInputSuggestion.Kind) -> String {
+        switch kind {
+        case .due(let date, let hasTime):
+            TaskDueFormatter.label(due: date, hasTime: hasTime, now: Date())
+        case .recurrence(let recurrence):
+            recurrence.displayText
+        case .priority(let priority):
+            priority.displayText
+        }
+    }
+}
+
+private struct TaskTokenChip: View {
+    let label: String
+    let isAccepted: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: isAccepted ? "checkmark" : "plus")
+                    .font(.system(size: 9, weight: .bold))
+                Text(label)
+                    .lineLimit(1)
+            }
+            .font(MeetingNotchTheme.metadataFont)
+            .padding(.horizontal, 8)
+            .frame(height: 22)
+            .foregroundStyle(isAccepted ? MeetingNotchTheme.MainPanel.primaryText : MeetingNotchTheme.cyan)
+            .background(
+                (isAccepted ? MeetingNotchTheme.MainPanel.surface : MeetingNotchTheme.cyan.opacity(0.12)),
+                in: Capsule()
+            )
+        }
+        .buttonStyle(.plain)
+        .help(isAccepted ? "Kaldırmak için tıklayın" : "Eklemek için tıklayın veya Tab’a basın")
+        .accessibilityLabel(isAccepted ? "\(label), eklendi. Kaldır" : "\(label) öner. Ekle")
+    }
+}
+
+// MARK: - Sections and rows
+
+private struct TaskSectionHeader: View {
+    let kind: TaskListPresentation.SectionKind
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(kind.title)
+            if count > 1 {
+                Text("\(count)").monospacedDigit()
+            }
+        }
+        .font(MeetingNotchTheme.MainPanel.smallFont)
+        .foregroundStyle(kind == .overdue ? MeetingNotchTheme.MainPanel.danger : MeetingNotchTheme.MainPanel.secondaryText)
+        .padding(.horizontal, MeetingNotchTheme.MainPanel.listRowHorizontalInset)
+        .padding(.top, 4)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
 private struct TaskRowView: View {
     let task: TaskItem
-    let onUpdate: (TaskItem, String) -> Void
-    let onChangeStatus: (TaskStatus) -> Void
-    let onArchive: () -> Void
-    let onRestore: () -> Void
-    let onDelete: () -> Void
+    let now: Date
+    let isOverdue: Bool
+    let onRequestDelete: () -> Void
 
+    @Environment(\.crenelActions) private var actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var editorFocused: Bool
     @State private var isEditing = false
     @State private var isHovering = false
     @State private var draftTitle: String
 
-    init(
-        task: TaskItem,
-        onUpdate: @escaping (TaskItem, String) -> Void,
-        onChangeStatus: @escaping (TaskStatus) -> Void,
-        onArchive: @escaping () -> Void,
-        onRestore: @escaping () -> Void,
-        onDelete: @escaping () -> Void
-    ) {
+    init(task: TaskItem, now: Date, isOverdue: Bool, onRequestDelete: @escaping () -> Void) {
         self.task = task
-        self.onUpdate = onUpdate
-        self.onChangeStatus = onChangeStatus
-        self.onArchive = onArchive
-        self.onRestore = onRestore
-        self.onDelete = onDelete
+        self.now = now
+        self.isOverdue = isOverdue
+        self.onRequestDelete = onRequestDelete
         _draftTitle = State(initialValue: task.title)
     }
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
-            statusMenu
+            completionButton
 
             if isEditing {
                 editingContent
@@ -315,24 +476,21 @@ private struct TaskRowView: View {
                 titleContent
             }
 
+            if !isEditing, !task.isCompleted, isHovering || task.status == .inProgress {
+                focusButton
+            }
             actionsMenu
         }
-        .padding(.vertical, 8)
-        .frame(
-            maxWidth: .infinity,
-            minHeight: MeetingNotchTheme.MainPanel.rowHeight,
-            alignment: .top
-        )
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, minHeight: 48, alignment: .center)
         .padding(.horizontal, MeetingNotchTheme.MainPanel.listRowHorizontalInset)
         .background(
             isHovering ? MeetingNotchTheme.MainPanel.surface : .clear,
-            in: RoundedRectangle(
-                cornerRadius: MeetingNotchTheme.MainPanel.compactRadius,
-                style: .continuous
-            )
+            in: RoundedRectangle(cornerRadius: MeetingNotchTheme.MainPanel.compactRadius, style: .continuous)
         )
         .onHover { isHovering = $0 }
         .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: isHovering)
+        .animation(MeetingNotchMotion.interaction(reduceMotion: reduceMotion), value: task.status)
         .onChange(of: isEditing) { _, editing in editorFocused = editing }
         .onChange(of: task.title) { _, newValue in
             if !isEditing { draftTitle = newValue }
@@ -340,95 +498,128 @@ private struct TaskRowView: View {
         .contextMenu { taskActions }
     }
 
-    private var statusMenu: some View {
-        Menu {
-            ForEach(TaskStatus.allCases) { status in
-                Button(status.title, systemImage: status.symbolName) {
-                    onChangeStatus(status)
-                }
-                .disabled(status == task.status)
-            }
+    private var completionButton: some View {
+        Button {
+            actions.tasks.setStatus(task, task.isCompleted ? .open : .completed)
         } label: {
-            Image(task.status.figmaAssetName)
-                .resizable().renderingMode(.template).foregroundStyle(task.status.tint)
+            Image(statusAssetName)
+                .resizable()
+                .renderingMode(.template)
+                .foregroundStyle(statusTint)
                 .frame(width: 20, height: 20)
                 .frame(width: 40, height: 40)
                 .contentShape(Rectangle())
         }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .frame(width: 40, height: 40)
+        .buttonStyle(.plain)
         .meetingControlFeedback(radius: 12)
-        .help("Durum: \(task.status.title)")
-        .accessibilityLabel("Görev durumu")
+        .help(task.isCompleted ? "Tamamlanmadı olarak işaretle" : "Tamamlandı olarak işaretle")
+        .accessibilityLabel(task.isCompleted ? "Tamamlanmadı olarak işaretle" : "Tamamla")
         .accessibilityValue(task.status.title)
+    }
+
+    private var focusButton: some View {
+        Button {
+            actions.tasks.setStatus(task, task.status == .inProgress ? .open : .inProgress)
+        } label: {
+            Image(systemName: task.status == .inProgress ? "pause.fill" : "play.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 28, height: 28)
+                .foregroundStyle(task.status == .inProgress ? MeetingNotchTheme.cyan : MeetingNotchTheme.MainPanel.secondaryText)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .meetingControlFeedback(radius: 10)
+        .help(task.status == .inProgress ? "Çalışmayı bırak" : "Üzerinde çalış")
+        .accessibilityLabel(task.status == .inProgress ? "Çalışmayı bırak" : "Üzerinde çalış")
+        .transition(.opacity)
     }
 
     private var editingContent: some View {
         HStack(spacing: 4) {
-            TextField("Görev başlığı", text: $draftTitle)
+            TextField("Görev", text: $draftTitle)
                 .font(MeetingNotchTheme.MainPanel.rowTitleFont)
                 .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
                 .focused($editorFocused)
                 .meetingFieldSurface(focused: editorFocused)
                 .onExitCommand(perform: cancelEdit)
                 .onSubmit(commitEdit)
-
-            Button(action: cancelEdit) {
-                Image("FigmaStop")
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 16, height: 16)
-            }
-            .buttonStyle(MeetingNotchIconButtonStyle())
-            .accessibilityLabel("Düzenlemeyi iptal et")
-
-            Button(action: commitEdit) {
-                Image("FigmaRecentCheck")
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 16, height: 16)
-            }
-            .buttonStyle(
-                MeetingNotchIconButtonStyle(
-                    tint: MeetingNotchTheme.MainPanel.success,
-                    isActive: true
-                )
-            )
-            .disabled(TaskItem.normalizedTitle(draftTitle) == nil)
-            .accessibilityLabel("Düzenlemeyi kaydet")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var titleContent: some View {
         Button {
+            guard !task.isCompleted else { return }
             isEditing = true
         } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(task.title)
                     .font(MeetingNotchTheme.MainPanel.rowTitleFont)
-                    .foregroundStyle(MeetingNotchTheme.MainPanel.primaryText)
+                    .foregroundStyle(
+                        task.isCompleted
+                            ? MeetingNotchTheme.MainPanel.secondaryText
+                            : MeetingNotchTheme.MainPanel.primaryText
+                    )
+                    .strikethrough(task.isCompleted, color: MeetingNotchTheme.MainPanel.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                if task.assignee != nil || task.dueDate != nil {
-                    Text([task.assignee, task.dueDate.map { "Son tarih: " + $0.formatted(date: .abbreviated, time: .omitted) }].compactMap { $0 }.joined(separator: " · "))
-                        .font(.caption).foregroundStyle(MeetingNotchTheme.secondaryText)
+                if let metadata = metadataLine {
+                    metadata
                 }
-                Text(metadataText)
-                    .font(MeetingNotchTheme.metadataFont)
-                    .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
-                    .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help("Düzenlemek için tıklayın")
+        .help(task.isCompleted ? "" : "Düzenlemek için tıklayın")
+    }
+
+    private var metadataLine: (some View)? {
+        let dueLabel = TaskDueFormatter.label(for: task, now: now)
+        let hasMetadata = dueLabel != nil || task.recurrence != nil || task.priority != .none
+            || task.sourceMeetingID != nil || task.assignee != nil || task.status == .inProgress
+        guard hasMetadata else { return nil as AnyView? }
+        return AnyView(
+            HStack(spacing: 8) {
+                if task.status == .inProgress {
+                    Text("Çalışılıyor")
+                        .foregroundStyle(MeetingNotchTheme.cyan)
+                }
+                if let dueLabel {
+                    Label(dueLabel, systemImage: task.dueHasTime ? "clock" : "calendar")
+                        .labelStyle(.titleAndIcon)
+                        .foregroundStyle(isOverdue ? MeetingNotchTheme.MainPanel.danger : MeetingNotchTheme.MainPanel.secondaryText)
+                }
+                if let recurrence = task.recurrence {
+                    Label(recurrence.displayText, systemImage: "arrow.clockwise")
+                        .labelStyle(.titleAndIcon)
+                }
+                if task.priority != .none {
+                    Text(String(repeating: "!", count: task.priority.rawValue))
+                        .foregroundStyle(task.priority == .high ? MeetingNotchTheme.MainPanel.warning : MeetingNotchTheme.MainPanel.secondaryText)
+                        .accessibilityLabel(task.priority.displayText)
+                }
+                if let assignee = task.assignee {
+                    Label(assignee, systemImage: "person")
+                        .labelStyle(.titleAndIcon)
+                }
+                if let meetingID = task.sourceMeetingID {
+                    Button {
+                        actions.tasks.openSourceMeeting(meetingID)
+                    } label: {
+                        Label("Toplantı", systemImage: "waveform")
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Görevin geldiği toplantıyı aç")
+                }
+            }
+            .font(MeetingNotchTheme.metadataFont)
+            .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
+            .lineLimit(1)
+        )
     }
 
     private var actionsMenu: some View {
@@ -446,36 +637,59 @@ private struct TaskRowView: View {
 
     @ViewBuilder
     private var taskActions: some View {
-        Menu("Durumu değiştir", systemImage: task.status.symbolName) {
-            ForEach(TaskStatus.allCases) { status in
-                Button(status.title, systemImage: status.symbolName) {
-                    onChangeStatus(status)
-                }
-                .disabled(status == task.status)
-            }
-        }
-
         if task.isArchived {
-            Button("Aktife geri al", systemImage: "arrow.uturn.backward", action: onRestore)
+            Button("Listeye geri al", systemImage: "arrow.uturn.backward") { actions.tasks.restore(task) }
+        } else if task.isCompleted {
+            Button("Tamamlanmadı", systemImage: "arrow.uturn.backward") { actions.tasks.setStatus(task, .open) }
+            Button("Listeden kaldır", systemImage: "archivebox") { actions.tasks.archive(task) }
         } else {
-            Button("Arşivle", systemImage: "archivebox", action: onArchive)
-            Button("Düzenle", systemImage: "pencil") {
-                isEditing = true
+            if task.status == .inProgress {
+                Button("Çalışmayı bırak", systemImage: "pause") { actions.tasks.setStatus(task, .open) }
+            } else {
+                Button("Üzerinde çalış", systemImage: "play") { actions.tasks.setStatus(task, .inProgress) }
             }
+            Button("Tamamla", systemImage: "checkmark") { actions.tasks.setStatus(task, .completed) }
+            Divider()
+            Button("Bugüne al", systemImage: "sun.max") {
+                actions.tasks.reschedule(task, Calendar.current.startOfDay(for: Date()), false)
+            }
+            Button("Yarına ertele", systemImage: "arrow.right") { actions.tasks.postponeToTomorrow(task) }
+            if task.dueDate != nil {
+                Button("Tarihi kaldır", systemImage: "calendar.badge.minus") {
+                    actions.tasks.reschedule(task, nil, false)
+                }
+            }
+            Menu("Öncelik", systemImage: "exclamationmark") {
+                ForEach(TaskPriority.allCases.reversed(), id: \.self) { priority in
+                    Button(priority.displayText) { actions.tasks.setPriority(task, priority) }
+                        .disabled(priority == task.priority)
+                }
+            }
+            Button("Düzenle", systemImage: "pencil") { isEditing = true }
         }
-
         Divider()
-        Button("Görevi sil", systemImage: "trash", role: .destructive, action: onDelete)
+        Button("Sil", systemImage: "trash", role: .destructive, action: onRequestDelete)
     }
 
-    private var metadataText: String {
-        let date = task.archivedAt ?? task.createdAt
-        return "\(task.status.title) · \(date.formatted(date: .abbreviated, time: .omitted)) · \(date.formatted(date: .omitted, time: .shortened))"
+    private var statusAssetName: String {
+        switch task.status {
+        case .open: "FigmaTaskTodo"
+        case .inProgress: "FigmaTaskProgress"
+        case .completed: "FigmaTaskCompleted"
+        }
+    }
+
+    private var statusTint: Color {
+        switch task.status {
+        case .open: isOverdue ? MeetingNotchTheme.MainPanel.danger : MeetingNotchTheme.secondaryText
+        case .inProgress: MeetingNotchTheme.cyan
+        case .completed: MeetingNotchTheme.success
+        }
     }
 
     private func commitEdit() {
         guard let title = TaskItem.normalizedTitle(draftTitle) else { return }
-        onUpdate(task, title)
+        actions.tasks.rename(task, title)
         draftTitle = title
         isEditing = false
     }
@@ -486,71 +700,59 @@ private struct TaskRowView: View {
     }
 }
 
-private extension TaskStatus {
-    var tint: Color {
-        switch self {
-        case .backlog, .todo: MeetingNotchTheme.secondaryText
-        case .inProgress: MeetingNotchTheme.cyan
-        case .completed: MeetingNotchTheme.success
-        case .blocked: MeetingNotchTheme.warning
-        }
-    }
+private struct TaskNoticeRow: View {
+    let symbol: String
+    let text: String
+    let actionTitle: String?
+    let action: () -> Void
 
-    var symbolName: String {
-        switch self {
-        case .backlog: "tray"
-        case .todo: "circle"
-        case .inProgress: "circle.lefthalf.filled"
-        case .completed: "checkmark.circle.fill"
-        case .blocked: "exclamationmark.octagon.fill"
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
+            Text(text)
+                .font(MeetingNotchTheme.MainPanel.smallFont)
+                .foregroundStyle(MeetingNotchTheme.MainPanel.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+            if let actionTitle {
+                Button(actionTitle, action: action)
+                    .buttonStyle(MeetingNotchActionButtonStyle())
+            }
         }
-    }
-
-    var figmaAssetName: String {
-        switch self {
-        case .backlog: "FigmaTaskBacklog"
-        case .todo: "FigmaTaskTodo"
-        case .inProgress: "FigmaTaskProgress"
-        case .completed: "FigmaTaskCompleted"
-        case .blocked: "FigmaTaskBlocked"
-        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(
+            MeetingNotchTheme.MainPanel.surface.opacity(0.6),
+            in: RoundedRectangle(cornerRadius: MeetingNotchTheme.MainPanel.compactRadius, style: .continuous)
+        )
     }
 }
 
-private struct FigmaTaskArchiveButtonStyle: ButtonStyle {
+private struct TaskHeaderButtonStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
     let isActive: Bool
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(MeetingNotchTheme.MainPanel.smallFont.monospacedDigit())
-            .foregroundStyle(
-                isActive
-                    ? MeetingNotchTheme.MainPanel.primaryText
-                    : MeetingNotchTheme.MainPanel.counterText
-            )
+            .font(MeetingNotchTheme.MainPanel.smallFont)
+            .foregroundStyle(isActive ? MeetingNotchTheme.MainPanel.primaryText : MeetingNotchTheme.MainPanel.counterText)
             .padding(.horizontal, 10)
             .frame(minWidth: 40, minHeight: 40)
             .background(
                 MeetingNotchTheme.MainPanel.surface,
-                in: RoundedRectangle(
-                    cornerRadius: MeetingNotchTheme.MainPanel.compactRadius,
-                    style: .continuous
-                )
+                in: RoundedRectangle(cornerRadius: MeetingNotchTheme.MainPanel.compactRadius, style: .continuous)
             )
             .contentShape(Rectangle())
             .meetingControlFeedback(radius: 12)
             .opacity(configuration.isPressed ? 0.72 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: 0.12),
-                value: configuration.isPressed
-            )
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
-private struct FigmaTaskSubmitButtonStyle: ButtonStyle {
+private struct TaskSubmitButtonStyle: ButtonStyle {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isEnabled) private var isEnabled
 
@@ -558,15 +760,9 @@ private struct FigmaTaskSubmitButtonStyle: ButtonStyle {
         configuration.label
             .opacity(isEnabled ? (configuration.isPressed ? 0.78 : 1) : 0.38)
             .frame(width: 40, height: 40)
-            .background(
-                MeetingNotchTheme.MainPanel.primaryText,
-                in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-            )
+            .background(MeetingNotchTheme.MainPanel.primaryText, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
             .contentShape(Rectangle())
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
-            .animation(
-                reduceMotion ? nil : .easeOut(duration: 0.12),
-                value: configuration.isPressed
-            )
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

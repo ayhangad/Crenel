@@ -1,8 +1,8 @@
+import CoreGraphics
 import EventKit
 import Foundation
 
 protocol CalendarMeetingProviding: Sendable {
-    func selectSource(_ kind: CalendarConnectionKind) async
     func selectCalendars(_ ids: [String]?) async
     func authorizationState() async -> CalendarAccessState
     func requestAccess() async throws -> Bool
@@ -10,7 +10,6 @@ protocol CalendarMeetingProviding: Sendable {
 }
 
 extension CalendarMeetingProviding {
-    func selectSource(_ kind: CalendarConnectionKind) async {}
     func selectCalendars(_ ids: [String]?) async {}
 }
 
@@ -80,40 +79,57 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
     }
 
     private func isRelevantEvent(_ event: EKEvent) -> Bool {
-        guard !event.isAllDay, event.status != .canceled else { return false }
+        guard event.status != .canceled else { return false }
+        return CalendarEventClassifier.isVisible(
+            responseStatus: currentUserParticipantStatus(event)
+        )
+    }
 
-        let currentUserDeclined = event.attendees?
-            .first(where: \.isCurrentUser)?
-            .participantStatus == .declined
-
-        return !currentUserDeclined
+    private func currentUserParticipantStatus(_ event: EKEvent) -> EKParticipantStatus? {
+        event.attendees?.first(where: \.isCurrentUser)?.participantStatus
     }
 
     private func makeMeeting(from event: EKEvent) -> Meeting? {
-        guard let meetingURL = urlMatcher.firstMeetingURL(
+        guard let startDate = event.startDate, let endDate = event.endDate else { return nil }
+        let meetingURL = urlMatcher.firstMeetingURL(
             explicitURL: event.url,
             location: event.location,
             notes: event.notes
-        ) else {
-            return nil
-        }
+        )
+        let otherAttendeeCount = event.attendees?.filter { !$0.isCurrentUser }.count ?? 0
+        let kind = CalendarEventClassifier.kind(
+            hasMeetingURL: meetingURL != nil,
+            otherAttendeeCount: otherAttendeeCount
+        )
 
-        let occurrence = event.occurrenceDate ?? event.startDate
+        let occurrence = event.occurrenceDate ?? startDate
         let sourceIdentifier = [
             event.calendar.calendarIdentifier,
             event.eventIdentifier ?? "event",
-            String(occurrence?.timeIntervalSince1970 ?? 0)
+            String(occurrence.timeIntervalSince1970)
         ].joined(separator: "|")
 
         return Meeting(
             id: MeetingStableIdentifier.uuid(for: sourceIdentifier),
             title: event.title?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
-                ?? "İsimsiz Toplantı",
-            startDate: event.startDate,
-            endDate: event.endDate,
+                ?? (kind == .event ? "İsimsiz Etkinlik" : "İsimsiz Toplantı"),
+            startDate: startDate,
+            endDate: endDate,
             meetingURL: meetingURL,
             calendarIdentifier: event.calendar.calendarIdentifier,
-            externalIdentifier: sourceIdentifier
+            externalIdentifier: sourceIdentifier,
+            kind: kind,
+            isAllDay: event.isAllDay,
+            responseStatus: CalendarEventClassifier.responseStatus(
+                currentUserParticipantStatus(event)
+            ),
+            location: event.location?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty,
+            calendarTitle: event.calendar.title,
+            calendarColorHex: event.calendar.cgColor.flatMap(CalendarEventClassifier.hexColor),
+            isSuggestion: CalendarEventClassifier.isSuggestionCalendar(
+                typeRawValue: event.calendar.type.rawValue
+            ),
+            eventIdentifier: event.eventIdentifier
         )
     }
 
@@ -175,5 +191,45 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
 private extension String {
     var nonEmpty: String? {
         isEmpty ? nil : self
+    }
+}
+
+/// Pure EventKit-to-domain rules, kept separate so they can be unit tested.
+enum CalendarEventClassifier {
+    /// `EKCalendarType` 5 is the undocumented "Siri Suggestions" calendar, which holds
+    /// events Siri found in Mail and Messages.
+    static let siriSuggestionsCalendarTypeRawValue = 5
+
+    static func kind(hasMeetingURL: Bool, otherAttendeeCount: Int) -> CalendarItemKind {
+        if hasMeetingURL { return .onlineMeeting }
+        return otherAttendeeCount > 0 ? .meeting : .event
+    }
+
+    static func isVisible(responseStatus: EKParticipantStatus?) -> Bool {
+        responseStatus != .declined
+    }
+
+    static func responseStatus(_ status: EKParticipantStatus?) -> CalendarResponseStatus {
+        switch status {
+        case .accepted, .completed, .delegated, .inProcess: .accepted
+        case .tentative: .tentative
+        case .pending: .pending
+        case .declined, .unknown, .none: .none
+        @unknown default: .none
+        }
+    }
+
+    static func isSuggestionCalendar(typeRawValue: Int) -> Bool {
+        typeRawValue == siriSuggestionsCalendarTypeRawValue
+    }
+
+    static func hexColor(_ color: CGColor) -> String? {
+        guard let rgb = color.converted(
+            to: CGColorSpace(name: CGColorSpace.sRGB)!,
+            intent: .defaultIntent,
+            options: nil
+        ), let components = rgb.components, components.count >= 3 else { return nil }
+        let channels = components.prefix(3).map { Int((min(max($0, 0), 1) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", channels[0], channels[1], channels[2])
     }
 }

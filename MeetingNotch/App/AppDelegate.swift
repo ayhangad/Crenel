@@ -42,12 +42,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let browserAudioBroker = BrowserAudioStreamBroker()
     private lazy var browserAudioIPCServer = BrowserAudioIPCServer(broker: browserAudioBroker)
     private let launchAtLoginService: any LaunchAtLoginServicing = LaunchAtLoginService()
-    private let googleCalendar = GoogleCalendarProvider()
-    private lazy var calendarRouter = CalendarProviderRouter(google: googleCalendar)
-    private lazy var meetingMonitor = MeetingMonitor(provider: calendarRouter)
+    private let calendarProvider = EventKitMeetingProvider()
+    private lazy var meetingMonitor = MeetingMonitor(provider: calendarProvider)
     private lazy var meetingSessionCoordinator = MeetingSessionCoordinator()
     private lazy var meetingRepository: any MeetingRepository = FileMeetingRepository()
-    private let taskRepository: any TaskRepository = FileTaskRepository()
+    private(set) lazy var taskCoordinator = TaskCoordinator.live(appState: appState)
+    private(set) lazy var dictationCoordinator: DictationCoordinator = {
+        let coordinator = DictationCoordinator(appState: appState, taskCoordinator: taskCoordinator)
+        coordinator.onListeningChange = { [weak self] listening in
+            self?.dictationListeningChanged(listening)
+        }
+        return coordinator
+    }()
+    /// True while dictation has closed the meeting microphone gate.
+    private var dictationClosedMeetingMicrophone = false
+    private var appliedTaskStorage: TaskStorageBackend?
+    private var agentResolutionTask: Task<Void, Never>?
     private let appSettingsRepository: any AppSettingsRepository = UserDefaultsAppSettingsRepository()
     private let apiKeyRepository: any APIKeyRepository = KeychainAPIKeyRepository()
     private let openAIKeys: any APIKeyRepository = KeychainAPIKeyRepository(service: KeychainAPIKeyRepository.openAIService)
@@ -56,10 +66,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         queue: processingQueue,
         meetingRepository: meetingRepository,
         settingsRepository: appSettingsRepository,
-        transcriptionService: ElevenLabsTranscriptionService(
-            apiKeyRepository: apiKeyRepository
+        transcriptionService: MeetingTranscriptionRouter(
+            preferences: { [appSettingsRepository] in
+                ((try? await appSettingsRepository.load()) ?? .default).crenel.meetingProcessing
+            },
+            elevenLabs: ElevenLabsTranscriptionService(apiKeyRepository: apiKeyRepository)
         ),
-        summaryService: OpenAIMeetingSummaryService(keys: openAIKeys),
+        summaryService: MeetingSummaryRouter(
+            preferences: { [appSettingsRepository] in
+                ((try? await appSettingsRepository.load()) ?? .default).crenel.meetingProcessing
+            },
+            agentPreferences: { [appSettingsRepository] in
+                await AgentProviderResolver.resolve(((try? await appSettingsRepository.load()) ?? .default).crenel.agent)
+            },
+            openAI: OpenAIMeetingSummaryService(keys: openAIKeys)
+        ),
         onEvent: { [weak self] event in
             await self?.handleTranscriptionProcessingEvent(event)
         }
@@ -157,29 +178,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onRetryStoredMeeting: { [weak self] meeting in self?.retryProcessing(meeting) },
                 onOpenRecovery: { [weak self] in self?.openRecoveryDirectory() },
                 onTogglePin: { [weak self] in self?.toggleNotchPin() },
-                onAddTask: { [weak self] title in self?.addTask(title: title) },
-                onUpdateTask: { [weak self] task, title in self?.updateTask(task, title: title) },
-                onChangeTaskStatus: { [weak self] task, status in
-                    self?.changeTaskStatus(task, to: status)
-                },
-                onArchiveTask: { [weak self] task in self?.archiveTask(task) },
-                onRestoreTask: { [weak self] task in self?.restoreTask(task) },
-                onDeleteTask: { [weak self] task in self?.deleteTask(task) },
-                onDeleteArchive: { [weak self] in self?.deleteTaskArchive() },
                 onRelaunchApplication: { [weak self] in self?.relaunchApplication() },
                 analysisActions: self.meetingAnalysisActions
             )
                 .environmentObject(self.appState)
+                .environment(\.crenelActions, self.crenelActions)
         )
     } compactLeading: {
         AnyView(
             CompactLeadingView()
                 .environmentObject(self.appState)
+                .environment(\.crenelActions, self.crenelActions)
         )
     } compactTrailing: {
         AnyView(
             CompactTrailingView()
                 .environmentObject(self.appState)
+                .environment(\.crenelActions, self.crenelActions)
         )
     }
 
@@ -227,8 +242,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onSaveTranscriptionSettings: self.saveTranscriptionSettings,
                 onDeleteTranscriptionAPIKey: self.deleteTranscriptionAPIKey,
                 openAISettings: self.openAISettingsActions,
+                crenelSettings: self.crenelSettingsActions,
                 notificationService: self.meetingNotifications,
-                googleCalendarActions: self.googleCalendarActions,
                 initialCategory: category
             )
             .environmentObject(self.appState)
@@ -269,7 +284,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshAudioPermissions()
         refreshAccessibilityPermission()
         loadStoredMeetings()
-        loadTasks()
         startPeriodicRetentionCleanup()
         loadInitialPreferences()
 
@@ -281,6 +295,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         launchPendingRelaunchIfNeeded()
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            // Fn's own system action must work again while Crenel is not running.
+            FnKeySystemActionGuard().update(dictationEnabled: false, trigger: .fnHold)
+        }
         reminderPresentationTask?.cancel()
         recordingTask?.cancel()
         terminationCleanupTask?.cancel()
@@ -421,6 +439,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         presentNotch(followPointer: true)
     }
 
+    /// Words dictated into another app during a meeting recording must not end up in the
+    /// meeting audio: the meeting microphone gate closes while dictation listens.
+    private func dictationListeningChanged(_ listening: Bool) {
+        if listening {
+            guard appState.meetingFlow.isRecording,
+                  appState.meetingMicrophoneGate?.permitsAudio == true else { return }
+            recordingCoordinator.setManualMicrophoneState(.closed)
+            dictationClosedMeetingMicrophone = true
+        } else if dictationClosedMeetingMicrophone {
+            dictationClosedMeetingMicrophone = false
+            guard appState.meetingFlow.isRecording else { return }
+            recordingCoordinator.setManualMicrophoneState(.open)
+        }
+    }
+
     func toggleMeetingMicrophoneGate() {
         guard appState.meetingFlow.isRecording,
               let gate = appState.meetingMicrophoneGate else { return }
@@ -540,8 +573,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             isCalendarEnabled: preferences.isCalendarEnabled,
             launchAtLogin: launchAtLoginService.isConfigured,
             meetingRetentionPolicy: preferences.meetingRetentionPolicy,
-            selectedCalendarIDs: preferences.selectedCalendarIDs,
-            calendarConnection: preferences.calendarConnection
+            selectedCalendarIDs: preferences.selectedCalendarIDs
         )
     }
 
@@ -584,7 +616,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences.reminderLeadTime = snapshot.reminderLeadTime
             preferences.isCalendarEnabled = snapshot.isCalendarEnabled
             preferences.selectedCalendarIDs = snapshot.selectedCalendarIDs
-            preferences.calendarConnection = snapshot.calendarConnection
             preferences.launchAtLogin = snapshot.launchAtLogin
             preferences.meetingRetentionPolicy = snapshot.meetingRetentionPolicy
             try await appSettingsRepository.save(preferences)
@@ -641,9 +672,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         meetingNotifications.update(meetings: [], leadTime: notificationLeadTime, enabled: false)
         var keychainDeletionFailed = false
-        do { try await googleCalendar.disconnect() }
+        do { try await LegacyGoogleCalendarCleanup.removeStoredGrant() }
         catch { keychainDeletionFailed = true }
         do { try await openAIKeys.deleteAPIKey() }
+        catch { keychainDeletionFailed = true }
+        do { try await KeychainAPIKeyRepository(service: KeychainAPIKeyRepository.anthropicService).deleteAPIKey() }
         catch { keychainDeletionFailed = true }
         do {
             try await apiKeyRepository.deleteAPIKey()
@@ -715,33 +748,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    var googleCalendarActions: GoogleCalendarSettingsActions {
-        GoogleCalendarSettingsActions(configured: GoogleCalendarConfiguration.bundled.isConfigured,
-            connected: { [weak self] in await self?.googleCalendar.authorizationState() == .authorized },
-            connect: { [weak self] in
-                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
-                do {
-                    _ = try await self.googleCalendar.requestAccess()
-                    var preferences = try await self.appSettingsRepository.load()
-                    preferences.calendarConnection = .google
-                    preferences.isCalendarEnabled = true
-                    preferences.selectedCalendarIDs = nil
-                    try await self.appSettingsRepository.save(preferences)
-                    self.applyRuntimePreferences(preferences)
-                    return .succeeded(message: "Google Calendar bağlandı. Takvimleriniz yenileniyor.")
-                } catch { return .failed(message: (error as? GoogleCalendarError)?.errorDescription ?? "Google bağlantısı tamamlanamadı.") }
+    var crenelSettingsActions: CrenelSettingsActions {
+        let anthropicKeys = KeychainAPIKeyRepository(service: KeychainAPIKeyRepository.anthropicService)
+        return CrenelSettingsActions(
+            load: { [weak self] in await self?.loadCrenelPreferences() ?? .default },
+            save: { [weak self] preferences in
+                await self?.saveCrenelPreferences(preferences) ?? .failed(message: "Uygulama kapanıyor.")
             },
-            disconnect: { [weak self] in
-                guard let self else { return .failed(message: "Uygulama kapanıyor.") }
+            hasAnthropicKey: { ((try? await anthropicKeys.apiKey()) ?? nil) != nil },
+            saveAnthropicKey: { [weak self] key in
+                let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return .failed(message: "Anahtar boş olamaz.") }
                 do {
-                    try await self.googleCalendar.disconnect()
-                    var preferences = try await self.appSettingsRepository.load()
-                    preferences.calendarConnection = .macOS
-                    preferences.selectedCalendarIDs = nil
-                    try await self.appSettingsRepository.save(preferences)
-                    self.applyRuntimePreferences(preferences)
-                    return .succeeded(message: "Google bağlantısı bu Mac’ten kaldırıldı. Sistem takvimlerine dönüldü.")
-                } catch { return .failed(message: "Google bağlantısı kaldırılamadı.") }
+                    try await anthropicKeys.saveAPIKey(trimmed)
+                    await self?.reapplyAgentProvider()
+                    return .succeeded(message: "Anthropic anahtarı Keychain’e kaydedildi.")
+                } catch {
+                    return .failed(message: "Anahtar kaydedilemedi.")
+                }
+            },
+            deleteAnthropicKey: { [weak self] in
+                do {
+                    try await anthropicKeys.deleteAPIKey()
+                    await self?.reapplyAgentProvider()
+                    return .succeeded(message: "Anthropic anahtarı kaldırıldı.")
+                } catch {
+                    return .failed(message: "Anahtar kaldırılamadı.")
+                }
+            },
+            onDeviceModelStatus: {
+                if case .unavailable(let reason) = FoundationModelsProvider().availability {
+                    return reason.message
+                }
+                return nil
             }
         )
     }
@@ -754,6 +793,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 do {
                     try await OpenAIMeetingSummaryService(keys: self.openAIKeys).validate(apiKey: key)
                     try await self.openAIKeys.saveAPIKey(key)
+                    await self.reapplyAgentProvider()
                     return .succeeded(message: "OpenAI bağlandı. Yeni toplantılar otomatik özetlenecek.")
                 } catch {
                     return .failed(message: (error as? MeetingAnalysisError)?.errorDescription ?? "Anahtar Keychain’e kaydedilemedi.")
@@ -762,6 +802,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             disconnect: { [weak self] in
                 do {
                     try await self?.openAIKeys.deleteAPIKey()
+                    await self?.reapplyAgentProvider()
                     return .succeeded(message: "OpenAI bağlantısı kaldırıldı. Kayıtlarınız korundu.")
                 } catch { return .failed(message: "Anahtar kaldırılamadı.") }
             }
@@ -794,7 +835,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         meetingMonitor.onMeetingsChange = { [weak self] meetings in
             guard let self else { return }
             self.appState.updateUpcomingMeetings(meetings)
-            self.meetingNotifications.update(meetings: meetings, leadTime: self.notificationLeadTime, enabled: self.calendarEnabled)
+            self.meetingNotifications.update(meetings: meetings.filter(\.isReminderCandidate), leadTime: self.notificationLeadTime, enabled: self.calendarEnabled)
         }
 
         meetingMonitor.onSnapshotChange = { [weak self] snapshot, shouldPresent in
@@ -928,14 +969,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         calendarEnabled = preferences.isCalendarEnabled
         notificationLeadTime = preferences.reminderLeadTime
         appState.isCalendarEnabled = preferences.isCalendarEnabled
-        appState.calendarConnection = preferences.calendarConnection ?? .macOS
         appState.updateSelectedMicrophoneID(preferences.selectedMicrophoneID)
         meetingMonitor.configure(
             isEnabled: preferences.isCalendarEnabled,
             reminderLeadTime: preferences.reminderLeadTime,
-            selectedCalendarIDs: preferences.selectedCalendarIDs,
-            connectionKind: preferences.calendarConnection ?? .macOS
+            selectedCalendarIDs: preferences.selectedCalendarIDs
         )
+        applyCrenelPreferences(preferences)
+    }
+
+    private func applyCrenelPreferences(_ preferences: AppPreferences) {
+        dictationCoordinator.apply(preferences.crenel, microphoneID: preferences.selectedMicrophoneID)
+        if preferences.crenel.agent.provider == .automatic {
+            agentResolutionTask?.cancel()
+            agentResolutionTask = Task { [weak self] in
+                var crenel = preferences.crenel
+                crenel.agent = await AgentProviderResolver.resolve(crenel.agent)
+                guard !Task.isCancelled else { return }
+                self?.dictationCoordinator.apply(crenel, microphoneID: preferences.selectedMicrophoneID)
+            }
+        }
+        let storage = preferences.crenel.taskStorage
+        if appliedTaskStorage == nil {
+            appliedTaskStorage = storage
+            taskCoordinator.start(preferReminders: storage == .reminders)
+        } else if appliedTaskStorage != storage {
+            appliedTaskStorage = storage
+            Task { await self.taskCoordinator.activate(preferReminders: storage == .reminders) }
+        }
+    }
+
+    /// A key was added or removed: `.automatic` may now resolve to a different provider.
+    private func reapplyAgentProvider() async {
+        let preferences = (try? await appSettingsRepository.load()) ?? .default
+        applyCrenelPreferences(preferences)
+    }
+
+    func loadCrenelPreferences() async -> CrenelPreferences {
+        ((try? await appSettingsRepository.load()) ?? .default).crenel
+    }
+
+    func saveCrenelPreferences(_ crenel: CrenelPreferences) async -> SettingsActionResult {
+        do {
+            var preferences = (try? await appSettingsRepository.load()) ?? .default
+            preferences.crenel = crenel
+            try await appSettingsRepository.save(preferences)
+            applyCrenelPreferences(preferences)
+            return .succeeded(message: nil)
+        } catch {
+            AppLogger.persistenceFailed(operation: "save-crenel-settings", error: error)
+            return .failed(message: "Ayarlar kaydedilemedi. Tekrar deneyin.")
+        }
     }
 
     private func presentOnboarding() {
@@ -954,9 +1038,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onComplete: { [weak self] in self?.completeOnboarding() }
         )
         .environmentObject(appState)
+        .environment(\.crenelActions, crenelActions)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "MeetingNotch’a Hoş Geldiniz"
+        window.title = "Crenel’e Hoş Geldiniz"
         window.styleMask = [.titled, .closable, .fullSizeContentView]
         window.setContentSize(NSSize(width: 600, height: 500))
         window.minSize = NSSize(width: 600, height: 500)
@@ -1118,6 +1203,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let url = URL(
             string: "x-apple.systempreferences:com.apple.Internet-Accounts-Settings.extension"
         ) else { return }
+        NSWorkspace.shared.open(url)
+    }
+
+    var crenelActions: CrenelActions {
+        let tasks = taskCoordinator
+        return CrenelActions(
+            openInCalendar: { [weak self] item in self?.openInCalendar(item) },
+            openMeetingURL: { [weak self] url in self?.openMeetingURL(url) },
+            tasks: CrenelActions.TaskActions(
+                add: { tasks.add($0) },
+                rename: { tasks.rename($0, to: $1) },
+                setStatus: { tasks.setStatus($0, to: $1) },
+                reschedule: { tasks.reschedule($0, to: $1, hasTime: $2) },
+                postponeToTomorrow: { tasks.postponeToTomorrow($0) },
+                setPriority: { tasks.setPriority($0, to: $1) },
+                archive: { tasks.archive($0) },
+                restore: { tasks.restore($0) },
+                delete: { tasks.delete($0) },
+                clearHistory: { tasks.clearHistory() },
+                connectReminders: { tasks.connectReminders() },
+                openSourceMeeting: { [weak self] meetingID in self?.openStoredMeeting(id: meetingID) }
+            ),
+            dictation: CrenelActions.DictationActions(
+                toggleHandsFree: { [weak self] in self?.dictationCoordinator.toggleHandsFree() },
+                cancel: { [weak self] in self?.dictationCoordinator.cancel() },
+                copyLast: { [weak self] in self?.dictationCoordinator.copyLastDictation() },
+                requestInputMonitoring: { [weak self] in self?.dictationCoordinator.requestInputMonitoringAccess() },
+                prepareSpeechAssets: { [weak self] in self?.dictationCoordinator.prepareSpeechAssets() }
+            )
+        )
+    }
+
+    private func openStoredMeeting(id: UUID) {
+        guard let meeting = appState.storedMeetings.first(where: { $0.id == id }) else { return }
+        appState.selectedTab = .meetings
+        openStoredMeeting(meeting)
+    }
+
+    func openInCalendar(_ item: Meeting) {
+        guard let url = CalendarAppLink.url(for: item) else { return }
         NSWorkspace.shared.open(url)
     }
 
@@ -1299,88 +1424,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func loadTasks() {
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                try await self.taskRepository.prepare()
-                self.appState.replaceTasks(try await self.taskRepository.loadAll())
-            } catch {
-                AppLogger.persistenceFailed(operation: "load-tasks", error: error)
-            }
-        }
-    }
-
-    func addTask(title: String) {
-        guard let title = TaskItem.normalizedTitle(title) else { return }
-        persistTask(TaskItem(title: title), operation: "add-task")
-    }
-
-    func updateTask(_ task: TaskItem, title: String) {
-        guard let title = TaskItem.normalizedTitle(title) else { return }
-        var updated = task
-        updated.title = title
-        persistTask(updated, operation: "update-task")
-    }
-
-    func changeTaskStatus(_ task: TaskItem, to status: TaskStatus) {
-        var updated = task
-        updated.setStatus(status)
-        persistTask(updated, operation: "change-task-status")
-    }
-
-    func archiveTask(_ task: TaskItem) {
-        var updated = task
-        updated.archive()
-        persistTask(updated, operation: "archive-task")
-    }
-
-    func restoreTask(_ task: TaskItem) {
-        var updated = task
-        updated.restore()
-        persistTask(updated, operation: "restore-task")
-    }
-
-    private func persistTask(_ task: TaskItem, operation: String) {
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                try await self.taskRepository.save(task)
-                self.appState.upsertTask(task)
-            } catch {
-                AppLogger.persistenceFailed(operation: operation, error: error)
-            }
-        }
-    }
-
-    func deleteTask(_ task: TaskItem) {
-        Task { [weak self] in
-            guard let self else { return }
-            do {
-                try await self.taskRepository.delete(id: task.id)
-                self.appState.removeTask(id: task.id)
-            } catch {
-                AppLogger.persistenceFailed(operation: "delete-task", error: error)
-            }
-        }
-    }
-
-    func deleteTaskArchive() {
-        let archived = appState.archivedTasks
-        guard !archived.isEmpty else { return }
-        Task { [weak self] in
-            guard let self else { return }
-            for task in archived {
-                do {
-                    try await self.taskRepository.delete(id: task.id)
-                    self.appState.removeTask(id: task.id)
-                } catch {
-                    AppLogger.persistenceFailed(operation: "delete-task-archive", error: error)
-                }
-            }
-        }
-    }
-
     private func startPeriodicRetentionCleanup() {
         retentionCleanupTask?.cancel()
         retentionCleanupTask = Task { [weak self] in
@@ -1434,11 +1477,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 defer { self.editingMeetingIDs.remove(meetingID) }
                 do {
                     let meeting = try await self.meetingRepository.renameSpeaker(meetingID: meetingID, speakerID: speakerID, name: name)
-                    for var task in try await self.taskRepository.loadAll() where task.sourceMeetingID == meetingID && task.sourceSpeakerID == speakerID {
+                    for var task in try await self.taskCoordinator.repository.loadAll() where task.sourceMeetingID == meetingID && task.sourceSpeakerID == speakerID {
                         task.assignee = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : String(name.prefix(100))
-                        try await self.taskRepository.save(task)
+                        try await self.taskCoordinator.repository.save(task)
                     }
-                    self.loadTasks()
+                    await self.taskCoordinator.reload()
                     if self.appState.presentedMeetingDetail?.id == meetingID { self.openStoredMeeting(meeting) }
                     return .succeeded(message: "Konuşmacı güncellendi.")
                 } catch { return .failed(message: "Konuşmacı kaydedilemedi. Tekrar deneyin.") }
@@ -1451,8 +1494,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                           let current = stored.summary?.actionItems.first(where: { $0.id == action.id }) else {
                         return .failed(message: "Görevin kaynağı değişti. Toplantıyı yeniden açın.")
                     }
-                    _ = try await self.taskRepository.importAction(current, meetingID: meetingID)
-                    self.loadTasks()
+                    _ = try await self.taskCoordinator.repository.importAction(current, meetingID: meetingID)
+                    await self.taskCoordinator.reload()
                     return .succeeded(message: "Görev listenize eklendi.")
                 } catch { return .failed(message: "Görev kaydedilemedi. Tekrar deneyin.") }
             }
@@ -1695,7 +1738,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return AppFailure(
                 category: .recording,
                 title: "Google Meet sesi güvenli ayrılamadı",
-                message: "MeetingNotch gizlilik için global ses kaydına geçmedi ve hiçbir kayıt başlatmadı. Güvenli fallback olarak görüşmeye kayıtsız devam edin veya Zoom masaüstü istemcisini kullanın.",
+                message: "Crenel gizlilik için global ses kaydına geçmedi ve hiçbir kayıt başlatmadı. Güvenli fallback olarak görüşmeye kayıtsız devam edin veya Zoom masaüstü istemcisini kullanın.",
                 recoveryAction: .dismiss
             )
         case .sourceDidNotProduceAudio(let source), .sourceFailed(let source, _):

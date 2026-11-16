@@ -22,11 +22,13 @@ enum NotchCompactStatus: Equatable {
         case summarizing
     }
 
+    case dictation(DictationState)
     case recording(RecordingStatus)
     case processing(ProcessingStage)
     case completed
     case failed
-    case upcoming(startDate: Date)
+    case agenda(NotchAgendaStatus)
+    case focus(TaskItem)
     case tasks(count: Int)
     case idle
 }
@@ -37,8 +39,16 @@ struct NotchStatusResolver {
         nextMeeting: Meeting?,
         activeTaskCount: Int,
         meetingDetection: MeetingSessionDetectionSnapshot? = nil,
-        microphoneGate: MeetingMicrophoneGate? = nil
+        microphoneGate: MeetingMicrophoneGate? = nil,
+        agendaItems: [Meeting] = [],
+        focusedTask: TaskItem? = nil,
+        dictation: DictationState = .idle,
+        now: Date = Date()
     ) -> NotchCompactStatus {
+        // Dictation is short-lived and needs immediate feedback, so it wins over everything.
+        if dictation != .idle {
+            return .dictation(dictation)
+        }
         switch flow {
         case .recording(let startedAt):
             return .recording(
@@ -63,16 +73,37 @@ struct NotchStatusResolver {
         case .failed:
             return .failed
         case .upcomingMeeting(let meeting):
-            return .upcoming(startDate: meeting.startDate)
+            return .agenda(Self.agendaStatus(for: meeting, now: now))
         case .idle, .cancelled:
-            if let nextMeeting {
-                return .upcoming(startDate: nextMeeting.startDate)
+            let candidates = agendaItems + (nextMeeting.map { [$0] } ?? [])
+            let agenda = NotchAgendaStatus.resolve(items: candidates, now: now)
+            // A task being worked on wins over calm calendar items, but an item about to
+            // start (or a meeting in progress) still takes the notch.
+            if let focusedTask {
+                if let agenda, agenda.urgency != .calm || (agenda.item.isMeetingLike && agenda.phase.isOngoing) {
+                    return .agenda(agenda)
+                }
+                return .focus(focusedTask)
+            }
+            if let agenda {
+                return .agenda(agenda)
             }
             if activeTaskCount > 0 {
                 return .tasks(count: activeTaskCount)
             }
             return .idle
         }
+    }
+
+    private static func agendaStatus(for meeting: Meeting, now: Date) -> NotchAgendaStatus {
+        let startsIn = meeting.startDate.timeIntervalSince(now)
+        if startsIn > 0 {
+            return NotchAgendaStatus(item: meeting, phase: .upcoming(startsIn: startsIn))
+        }
+        return NotchAgendaStatus(
+            item: meeting,
+            phase: .ongoing(remaining: max(0, meeting.endDate.timeIntervalSince(now)))
+        )
     }
 }
 

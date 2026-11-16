@@ -118,7 +118,7 @@ final class MeetingMonitorTests: XCTestCase {
 
         await monitor.refresh()
 
-        XCTAssertEqual(accessState, .failed("Yaklaşan toplantılar okunamadı."))
+        XCTAssertEqual(accessState, .failed("Yaklaşan etkinlikler okunamadı."))
         XCTAssertTrue(meetings.isEmpty)
         XCTAssertNil(reminder?.nextMeeting)
     }

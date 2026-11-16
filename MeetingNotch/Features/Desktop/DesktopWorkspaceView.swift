@@ -44,7 +44,7 @@ final class DesktopWindowController: NSWindowController, NSWindowDelegate {
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)
         super.init(window: window)
-        window.title = "MeetingNotch"
+        window.title = "Crenel"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.toolbar = NSToolbar(identifier: "MeetingNotchWorkspace")
@@ -55,6 +55,7 @@ final class DesktopWindowController: NSWindowController, NSWindowDelegate {
         window.appearance = NSAppearance(named: .darkAqua)
         let hostingView = NSHostingView(rootView:
             DesktopWorkspaceView(delegate: delegate, navigation: navigation)
+                .environment(\.crenelActions, delegate.crenelActions)
                 .environmentObject(delegate.appState))
         hostingView.sizingOptions = []
         window.contentView = hostingView
@@ -105,10 +106,7 @@ struct DesktopWorkspaceView: View {
                             Text("Görevler").font(MeetingNotchTheme.pageTitleFont)
                         }
                         ScrollView {
-                            TasksView(onAdd: delegate.addTask, onUpdate: delegate.updateTask,
-                                onChangeStatus: delegate.changeTaskStatus, onArchive: delegate.archiveTask,
-                                onRestore: delegate.restoreTask, onDelete: delegate.deleteTask,
-                                onDeleteArchive: delegate.deleteTaskArchive)
+                            TasksView()
                                 .padding(20)
                                 .background(MeetingNotchTheme.surface.opacity(0.4), in: RoundedRectangle(cornerRadius: 24))
                         }
@@ -137,7 +135,7 @@ struct DesktopWorkspaceView: View {
                     .frame(width: 36, height: 36)
                     .background(MeetingNotchTheme.surface, in: RoundedRectangle(cornerRadius: 12))
                     .accessibilityHidden(true)
-                Text("MeetingNotch").font(.system(size: 15, weight: .semibold))
+                Text("Crenel").font(.system(size: 15, weight: .semibold))
             }.padding(.horizontal, 4).padding(.top, 12)
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(DesktopSection.allCases) { section in

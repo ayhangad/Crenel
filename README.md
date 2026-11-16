@@ -1,29 +1,43 @@
-# MeetingNotch
+# Crenel
 
-MeetingNotch, macOS notch çevresinde Dynamic Island benzeri çalışan bir toplantı
-kayıt uygulamasıdır. Hedef V1, desteklenen istemcide toplantının başlangıç/bitişini
-yerel sinyallerle algılar; toplantı process sesini ve yalnız meeting mikrofonu açıkken
-kullanıcının sesini kaydeder. ElevenLabs Scribe v2 konuşmacı ayrımlı transkript üretir;
-OpenAI tüm transkriptten başlık, özet, kararlar ve kaynak gösteren görevler çıkarır.
-Kullanıcı her iki servisi kendi API anahtarlarıyla bağlar.
+Crenel, notch içinden kontrol edilen, açık kaynak, minimal bir macOS Apple yardımcısıdır.
+Adı, sur dişleri arasındaki çentikten (*crenel*) gelir. Dört şeyi tek yüzeyde toplar:
 
-Güncel kapsam [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) içindeki
-“2026-09-14 — Hibrit ürünleştirme” bölümündedir. Güncel build;
-gerçek meeting session detector, Zoom private process tap, fail-closed microphone gate ve
-görünür manuel fallback'i içerir. Google Meet/Chrome için kullanıcı gesture'ıyla yalnız
-aktif görüşme sekmesini alan MV3 extension, native messaging helper ve kullanıcıya özel
-uygulama IPC hattı bulunur; köprü bağlı değilse sistem sesi kaydı bilinçli olarak başlatılmaz.
+- **Takvim:** Apple Takvim’deki (iCloud, Google, Exchange hesapları dahil) toplantı ve
+  etkinlikler notch’ta görünür. Notch kapalıyken sağ tarafta sıradaki etkinliğe kalan
+  süre ya da süren etkinliğin bitmesine kalan süre yazar. Mailden gelen davetler
+  “Yanıt bekliyor” olarak işaretlenir.
+- **Akıllı dikte:** Fn (🌐) tuşunu basılı tutup konuşun; metin imlecin olduğu uygulamaya
+  yazılır. Ses cihazda yazıya çevrilir ve diske yazılmaz. Agent (cihazdaki Apple modeli
+  ya da kendi OpenAI/Anthropic anahtarınız) metni temizler; seçili metni sesli komutla
+  düzenler; “görev ekle …” ile görev oluşturur.
+- **Görevler:** Tek satır yazıp Enter’a basın. “yarın 15te”, “next Monday”, “her pazartesi”,
+  “acil” gibi ifadeler yazarken öneri olarak çıkar, Tab ile eklenir. Görevler Apple
+  Hatırlatıcılar’daki “Crenel” listesinde saklanır ve iPhone/Watch’ta da görünür.
+- **Toplantı kaydı:** Desteklenen istemcide (Zoom, Google Meet/Chrome) yalnız toplantı sesi
+  ve yalnız toplantı mikrofonu açıkken kullanıcının sesi kaydedilir; konuşmacı ayrımlı
+  transkript ve özet üretilir. Kayıtlar yerelde kalır.
+
+Güncel kapsam ve ilerleme [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) içindeki
+“2026-11-16 — Crenel” bölümündedir.
 
 ## Masaüstü çalışma alanı
 
 Uygulama ilk açıldığında notch çalışır. Notch’taki pencere düğmesi veya menü çubuğundaki
-**MeetingNotch’u Aç** ile masaüstünü açın. Uygulama çalışırken Finder’dan yeniden açmak da
-aynı pencereyi öne getirir. Pencere kapatıldığında notch ve varsa kayıt çalışmayı sürdürür.
+**Crenel** menüsüyle masaüstünü açın. Pencere kapatıldığında notch ve varsa kayıt çalışmayı
+sürdürür. Ayarlar bu pencerenin içindedir: **Genel, Dikte, Görevler, Yapay zekâ, Takvim,
+Kayıt, Veri**.
 
-Sol menüden toplantı arşivini arayabilir, toplantı detayını açabilir ve görevleri yönetebilirsiniz.
-Ayarlar bu pencerenin içindedir: **Genel, Yapay zekâ, Takvim, Kayıt, Veri**.
-Genel ve takvim değişikliklerini ilgili Kaydet düğmesiyle kaydedin; servis anahtarları ayrı
-Doğrula/Bağla aksiyonuyla kaydedilir. Notch’taki bağlantı düğmeleri doğrudan ilgili kategoriye gider.
+## İzinler
+
+| İzin | Neden | Vermezseniz |
+|---|---|---|
+| Takvim | Etkinlikleri ve geri sayımı göstermek | Takvim bölümü boş kalır |
+| Hatırlatıcılar | Görevleri senkronlamak | Görevler yalnız bu Mac’te tutulur |
+| Mikrofon | Dikte ve toplantı kaydı | Dikte ve kayıt çalışmaz |
+| Girdi İzleme | Dikte kısayolunu (Fn) dinlemek | Kısayol çalışmaz |
+| Erişilebilirlik | Metni imlece yazmak, toplantı mute durumunu okumak | Dikte metni panoya kopyalanır |
+| Ses yakalama | Toplantının sistem sesini kaydetmek | Toplantı sesi kaydedilmez |
 
 ## Belgeler
 
@@ -36,7 +50,7 @@ Doğrula/Bağla aksiyonuyla kaydedilir. Notch’taki bağlantı düğmeleri doğ
 
 ## Gereksinimler
 
-- macOS 14.4+
+- macOS 26+
 - Güncel Xcode
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) 2.45.4+
 
@@ -50,7 +64,7 @@ brew install xcodegen
 
 ```sh
 xcodegen generate
-open MeetingNotch.xcodeproj
+open MeetingNotch.xcodeproj   # ürün adı Crenel; proje dosyası adı geçiş sürecinde korunuyor
 ```
 
 `project.yml` Xcode projesinin tek yapılandırma kaynağıdır.
@@ -64,21 +78,24 @@ toplantı hatırlatmaları imlecin bulunduğu ekranda gösterilir; notch olmayan
 içerik floating panel olarak açılır. Genişletilmiş paneldeki pin düğmesi paneli hover
 sonrasında da açık tutar.
 
-## Takvim ve Google toplantıları
+## Takvim: Apple Takvim, Google ve mail davetleri
 
-MeetingNotch Gmail gelen kutusunu okumaz. Varsayılan bağlantı, bu Mac’teki takvimleri
-EventKit ile okur. Google, iCloud ve Exchange hesapları için:
+Crenel takvimleri yalnızca Apple’ın EventKit altyapısıyla okur; ayrı Google girişi yoktur.
+Gmail gelen kutusunu da okumaz.
 
-1. Sistem Ayarları > İnternet Hesapları'nda Google hesabını ekleyip Takvim'i etkinleştirin.
-2. MeetingNotch > Ayarlar > Takvim Bağlantısı'nda entegrasyonu açıp ayarları kaydedin.
-3. `Takvime İzin Ver` ile macOS tam takvim erişimini onaylayın ve `Şimdi Yenile`e basın.
+1. Google, Exchange veya Outlook takvimleri için Sistem Ayarları › İnternet Hesapları’nda
+   hesabı ekleyip **Takvimler**’i açın. iCloud takvimleri kendiliğinden gelir.
+2. Crenel’de takvim iznini verin. Ayarlar › Takvim kaynak türlerini ve takvim sayısını gösterir;
+   Google kaynağı görünmüyorsa **Hesapları Aç** düğmesi İnternet Hesapları’nı açar.
+3. Mailden gelen davetler: Gmail davetleri Google Calendar’ın “Davetleri takvime ekle” ayarı
+   açıksa takvime düşer; iCloud/Exchange davetleri Takvim’e yanıt bekleyen davet olarak gelir.
+   Crenel bunları “Yanıt bekliyor” diye işaretler. Apple Mail’in bulduğu etkinlikler (Siri
+   önerileri) soluk ve “Mail’den öneri” olarak gösterilir.
 
-Aynı bölüm Google/iCloud/Exchange/CalDAV kaynak türlerini, okunabilir takvim sayısını,
-taranan etkinlikleri, eşleşen çevrim içi toplantıları ve son yenilemeyi gösterir. Google
-kaynağı görünmüyorsa `Hesapları Aç`; izin reddedilmişse `Takvim İznini Aç`; sorgu hatasında
-`Tekrar Dene` doğru Sistem Ayarları veya yenileme yoluna gider. Etkinliğin URL, konum ya da
-not alanında bulunan Zoom, Google Meet ve Microsoft Teams linkleri desteklenir; Google ve
-Outlook yönlendirme linkleri, HTML/percent encoding ve şemasız linkler normalize edilir.
+Linkli toplantılar (Zoom, Google Meet, Microsoft Teams), katılımcılı toplantılar ve kişisel
+etkinlikler ayrı simgelerle gösterilir. Kayıt teklifi ve “katıl” bildirimleri yalnız
+toplantılar içindir; kişisel etkinlikler ve tüm gün etkinlikleri yalnız listede ve geri
+sayımda görünür. Reddedilen ve iptal edilen etkinlikler gizlenir.
 
 İzlenecek takvimleri Ayarlar’da seçip kaydedebilirsiniz. Bildirim iznini ayrıca açınca
 seçtiğiniz süre ve bir dakika önce macOS bildirimi gelir; bildirimin katıl/ertele
@@ -132,7 +149,7 @@ iki ayrı ham M4A kaynak dosyası, ortak timeline'a birleştirilmiş okunabilir 
 sürümlü `metadata.json` ile kalıcı arşive atomik olarak taşınır:
 
 ```text
-~/Library/Application Support/MeetingNotch/Meetings/<session-id>/
+~/Library/Application Support/MeetingNotch/Meetings/<session-id>/   (klasör adı geçiş sürecinde korunuyor)
 ```
 
 Yarım kalan yazımlar ve bozuk metadata kayıtları veri kaybını önlemek için `Recovery`
@@ -169,7 +186,7 @@ veya süresiz olarak seçilebilir.
 
 ## Transkripsiyon ve işleme kuyruğu
 
-MeetingNotch V1 canlı transkript üretmez. Kayıt durdurulduktan ve birleşik M4A güvenle
+Crenel toplantılar için canlı transkript üretmez (dikte ise canlı ve cihaz üzerindedir). Kayıt durdurulduktan ve birleşik M4A güvenle
 saklandıktan sonra arka plan kuyruğu sesi ElevenLabs bulutundaki `scribe_v2` modeline
 gönderir. Kayıt sırasında ağ gerekmez; upload/transkripsiyon hatasında ses korunur ve
 toplantı tekrar işlenebilir.
@@ -218,3 +235,7 @@ Konuşmacılar detay ekranından adlandırılabilir. Adlar transkripte, Markdown
 görevlere yansır. Aksiyonlar sorumlu, tarih ve kaynaktaki ses zamanıyla gösterilir;
 “Görevlere ekle” aynı aksiyonu ikinci kez oluşturmaz. AI çıktısı kullanıcı tarafından
 kontrol edilmelidir; kaynak bağlantısı doğrulama için sunulur.
+
+## Lisans
+
+MIT — ayrıntılar için [LICENSE](LICENSE).

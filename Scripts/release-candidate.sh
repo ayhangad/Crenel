@@ -61,7 +61,7 @@ xcodebuild -exportArchive \
     -exportPath "${export_path}" \
     -exportOptionsPlist QA/ExportOptions.plist
 
-app_path="${export_path}/MeetingNotch.app"
+app_path="${export_path}/Crenel.app"
 browser_host_path="${app_path}/Contents/Library/LaunchServices/MeetingNotchBrowserAudioHost"
 if [[ ! -x "${browser_host_path}" ]]; then
     print -u2 "FAIL: browser audio native host uygulama paketinde yok."

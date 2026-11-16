@@ -37,7 +37,7 @@ struct BrowserAudioNativeHostInstaller {
         let manifestURL = directory.appending(path: "\(Self.hostName).json")
         let manifest: [String: Any] = [
             "name": Self.hostName,
-            "description": "MeetingNotch Google Meet tab audio bridge",
+            "description": "Crenel Google Meet tab audio bridge",
             "path": executableURL.path,
             "type": "stdio",
             "allowed_origins": [BrowserAudioProtocol.expectedExtensionOrigin]

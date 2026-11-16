@@ -11,7 +11,6 @@ struct GeneralSettingsSnapshot: Equatable, Sendable {
     var launchAtLogin: Bool
     var meetingRetentionPolicy: MeetingRetentionPolicy
     var selectedCalendarIDs: [String]? = nil
-    var calendarConnection: CalendarConnectionKind? = nil
 
     static let `default` = GeneralSettingsSnapshot(
         reminderLeadTime: 10 * 60,
@@ -94,8 +93,8 @@ struct AppPreferences: Codable, Equatable, Sendable {
     var transcription: TranscriptionSettings
     var meetingRetentionPolicy: MeetingRetentionPolicy
     var selectedCalendarIDs: [String]? = nil
-    var calendarConnection: CalendarConnectionKind? = nil
     var hasCompletedOnboarding: Bool
+    var crenel: CrenelPreferences = .default
 
     init(
         reminderLeadTime: TimeInterval,
@@ -124,14 +123,13 @@ struct AppPreferences: Codable, Equatable, Sendable {
         // V1 öncesi belgelerde transkripsiyon ayarları bu anahtar altında tutuluyordu.
         case provider
         case meetingRetentionPolicy
-        case calendarConnection
         case selectedCalendarIDs
         case hasCompletedOnboarding
+        case crenel
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        calendarConnection = try container.decodeIfPresent(CalendarConnectionKind.self, forKey: .calendarConnection)
         selectedCalendarIDs = try container.decodeIfPresent([String].self, forKey: .selectedCalendarIDs)
         reminderLeadTime = try container.decode(TimeInterval.self, forKey: .reminderLeadTime)
         isCalendarEnabled = try container.decode(Bool.self, forKey: .isCalendarEnabled)
@@ -155,11 +153,11 @@ struct AppPreferences: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .hasCompletedOnboarding
         ) ?? false
+        crenel = (try? container.decodeIfPresent(CrenelPreferences.self, forKey: .crenel)) ?? .default
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(calendarConnection, forKey: .calendarConnection)
         try container.encodeIfPresent(selectedCalendarIDs, forKey: .selectedCalendarIDs)
         try container.encode(reminderLeadTime, forKey: .reminderLeadTime)
         try container.encode(isCalendarEnabled, forKey: .isCalendarEnabled)
@@ -168,6 +166,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
         try container.encode(transcription, forKey: .transcription)
         try container.encode(meetingRetentionPolicy, forKey: .meetingRetentionPolicy)
         try container.encode(hasCompletedOnboarding, forKey: .hasCompletedOnboarding)
+        try container.encode(crenel, forKey: .crenel)
     }
 
     static let `default` = AppPreferences(
@@ -179,4 +178,37 @@ struct AppPreferences: Codable, Equatable, Sendable {
         meetingRetentionPolicy: .keepForever,
         hasCompletedOnboarding: false
     )
+}
+
+/// Settings for the Crenel features. Each field decodes independently so a newer or
+/// partial document never resets the others.
+struct CrenelPreferences: Codable, Equatable, Sendable {
+    var taskStorage: TaskStorageBackend = .reminders
+    var dictationEnabled = true
+    var dictationTrigger: DictationTriggerSettings = .default
+    var dictationLanguage: DictationLanguage = .automatic
+    var dictationVocabulary: [String] = []
+    var agent: AgentPreferences = .default
+    var meetingProcessing: MeetingProcessingPreferences = MeetingProcessingPreferences()
+
+    static let `default` = CrenelPreferences()
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case taskStorage, dictationEnabled, dictationTrigger, dictationLanguage
+        case dictationVocabulary, agent, meetingProcessing
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let fallback = CrenelPreferences.default
+        taskStorage = (try? container.decodeIfPresent(TaskStorageBackend.self, forKey: .taskStorage)) ?? fallback.taskStorage
+        dictationEnabled = (try? container.decodeIfPresent(Bool.self, forKey: .dictationEnabled)) ?? fallback.dictationEnabled
+        dictationTrigger = (try? container.decodeIfPresent(DictationTriggerSettings.self, forKey: .dictationTrigger)) ?? fallback.dictationTrigger
+        dictationLanguage = (try? container.decodeIfPresent(DictationLanguage.self, forKey: .dictationLanguage)) ?? fallback.dictationLanguage
+        dictationVocabulary = (try? container.decodeIfPresent([String].self, forKey: .dictationVocabulary)) ?? fallback.dictationVocabulary
+        agent = (try? container.decodeIfPresent(AgentPreferences.self, forKey: .agent)) ?? fallback.agent
+        meetingProcessing = (try? container.decodeIfPresent(MeetingProcessingPreferences.self, forKey: .meetingProcessing)) ?? fallback.meetingProcessing
+    }
 }

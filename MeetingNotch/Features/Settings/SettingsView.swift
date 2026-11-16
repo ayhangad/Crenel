@@ -29,10 +29,9 @@ struct SettingsView: View {
     ) async -> TranscriptionSettingsSaveResult
     let onDeleteTranscriptionAPIKey: () async -> SettingsActionResult
 
-    var googleCalendarActions = GoogleCalendarSettingsActions()
-    @State private var calendarConnection = CalendarConnectionKind.macOS
     var notificationService: MeetingNotificationService?
     var openAISettings = OpenAISettingsActions()
+    var crenelSettings = CrenelSettingsActions()
 
     @State private var reminderLeadTime: TimeInterval = 10 * 60
     @State private var isCalendarEnabled = true
@@ -101,14 +100,14 @@ struct SettingsView: View {
             .succeeded()
         },
         openAISettings: OpenAISettingsActions = OpenAISettingsActions(),
+        crenelSettings: CrenelSettingsActions = CrenelSettingsActions(),
         notificationService: MeetingNotificationService? = nil,
-        googleCalendarActions: GoogleCalendarSettingsActions = GoogleCalendarSettingsActions(),
         initialCategory: SettingsCategory = .general
     ) {
         _category = State(initialValue: initialCategory)
-        self.googleCalendarActions = googleCalendarActions
         self.notificationService = notificationService
         self.openAISettings = openAISettings
+        self.crenelSettings = crenelSettings
         self.onRequestMicrophoneAccess = onRequestMicrophoneAccess
         self.onRequestSystemAudioAccess = onRequestSystemAudioAccess
         self.onRequestAccessibilityAccess = onRequestAccessibilityAccess
@@ -158,6 +157,8 @@ struct SettingsView: View {
             LazyVStack(alignment: .leading, spacing: MeetingNotchTheme.sectionSpacing) {
                 switch category {
                 case .general: generalContent
+                case .dictation: DictationSettingsView(actions: crenelSettings)
+                case .tasks: TaskStorageSettingsView(actions: crenelSettings)
                 case .ai: aiContent
                 case .calendar: calendarContent
                 case .recording: recordingContent
@@ -206,7 +207,7 @@ struct SettingsView: View {
             Button("Vazgeç", role: .cancel) {}
             Button("Kalıcı Olarak Sil", role: .destructive) { deleteAllData() }
         } message: {
-            Text("Toplantılar, ses kayıtları, transkriptler, görevler, ayarlar ve Keychain’deki ElevenLabs ve OpenAI anahtarları kalıcı olarak silinecek. Bu işlem geri alınamaz.")
+            Text("Toplantılar, ses kayıtları, transkriptler, bu Mac’teki görevler, ayarlar ve Keychain’deki ElevenLabs, OpenAI ve Anthropic anahtarları kalıcı olarak silinecek. Apple Hatırlatıcılar’daki görevleriniz silinmez. Bu işlem geri alınamaz.")
         }
     }
 
@@ -231,6 +232,7 @@ struct SettingsView: View {
 
     @ViewBuilder private var aiContent: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 300), spacing: 16, alignment: .top)], alignment: .leading, spacing: 16) {
+                AgentSettingsView(actions: crenelSettings)
                 OpenAISettingsView(actions: openAISettings)
 
                 settingsSection(
@@ -283,23 +285,6 @@ struct SettingsView: View {
     @ViewBuilder private var calendarContent: some View {
                 if let notificationService {
                     MeetingNotificationSettingsView(service: notificationService)
-                }
-                if googleCalendarActions.configured {
-                GoogleCalendarSettingsView(actions: googleCalendarActions)
-                    .onChange(of: appState.calendarConnection) { _, kind in
-                        calendarConnection = kind
-                        selectedCalendarIDs = nil
-                        isCalendarEnabled = appState.isCalendarEnabled
-                    }
-                }
-                Picker("Takvim kaynağı", selection: Binding(
-                    get: { calendarConnection },
-                    set: { calendarConnection = $0; selectedCalendarIDs = nil }
-                )) {
-                    Text("Bu Mac’in takvimleri").tag(CalendarConnectionKind.macOS)
-                    if googleCalendarActions.configured {
-                        Text("Google Calendar").tag(CalendarConnectionKind.google)
-                    }
                 }
                 calendarSettingsSection
                 if let calendars = appState.calendarIntegrationSnapshot?.calendars, !calendars.isEmpty {
@@ -565,7 +550,6 @@ struct SettingsView: View {
         reminderLeadTime = snapshot.reminderLeadTime
         isCalendarEnabled = snapshot.isCalendarEnabled
         selectedCalendarIDs = snapshot.selectedCalendarIDs
-        calendarConnection = snapshot.calendarConnection ?? .macOS
         launchAtLogin = snapshot.launchAtLogin
         retentionDays = snapshot.meetingRetentionPolicy.days
         isLoadingGeneralSettings = false
@@ -597,8 +581,7 @@ struct SettingsView: View {
             isCalendarEnabled: isCalendarEnabled,
             launchAtLogin: launchAtLogin,
             meetingRetentionPolicy: policy,
-            selectedCalendarIDs: selectedCalendarIDs,
-            calendarConnection: calendarConnection
+            selectedCalendarIDs: selectedCalendarIDs
         )
 
         Task {
@@ -968,6 +951,8 @@ private struct AccessibilityPermissionRow: View {
 
 enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
     case general = "Genel"
+    case dictation = "Dikte"
+    case tasks = "Görevler"
     case ai = "Yapay zekâ"
     case calendar = "Takvim"
     case recording = "Kayıt"
@@ -976,6 +961,8 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
     var symbol: String {
         switch self {
         case .general: "slider.horizontal.3"
+        case .dictation: "waveform"
+        case .tasks: "checklist"
         case .ai: "text.badge.checkmark"
         case .calendar: "calendar"
         case .recording: "mic"

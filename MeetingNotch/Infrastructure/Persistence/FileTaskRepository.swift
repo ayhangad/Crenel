@@ -12,10 +12,7 @@ extension TaskRepository {
     func importAction(_ action: ActionItem, meetingID: UUID) async throws -> TaskItem {
         let id = MeetingStableIdentifier.uuid(for: "\(meetingID)|\(action.id)")
         if let existing = try await loadAll().first(where: { $0.id == id }) { return existing }
-        let task = TaskItem(id: id, title: action.title, status: .todo,
-            assignee: action.assignee, dueDate: action.dueDate,
-            sourceMeetingID: meetingID, sourceActionID: action.id, sourceTime: action.sourceTime,
-            sourceSpeakerID: action.speakerID)
+        let task = TaskItem.imported(from: action, id: id, meetingID: meetingID)
         try await save(task)
         return task
     }
@@ -44,7 +41,7 @@ enum TaskRepositoryError: LocalizedError, Equatable {
 
 actor FileTaskRepository: TaskRepository {
     private struct StoreDocument: Codable {
-        static let currentSchemaVersion = 2
+        static let currentSchemaVersion = 3
 
         var schemaVersion: Int
         var tasks: [TaskItem]
@@ -119,10 +116,7 @@ actor FileTaskRepository: TaskRepository {
     func importAction(_ action: ActionItem, meetingID: UUID) async throws -> TaskItem {
         let id = MeetingStableIdentifier.uuid(for: "\(meetingID)|\(action.id)")
         if let existing = try loadAll().first(where: { $0.id == id }) { return existing }
-        let task = TaskItem(id: id, title: action.title, status: .todo,
-            assignee: action.assignee, dueDate: action.dueDate,
-            sourceMeetingID: meetingID, sourceActionID: action.id, sourceTime: action.sourceTime,
-            sourceSpeakerID: action.speakerID)
+        let task = TaskItem.imported(from: action, id: id, meetingID: meetingID)
         try save(task)
         return task
     }

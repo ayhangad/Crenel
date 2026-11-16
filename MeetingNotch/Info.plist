@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>MeetingNotch</string>
+	<string>Crenel</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -20,21 +20,23 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>GoogleOAuthClientID</key>
-	<string>$(MEETINGNOTCH_GOOGLE_CLIENT_ID)</string>
-	<key>GoogleOAuthClientSecret</key>
-	<string>$(MEETINGNOTCH_GOOGLE_CLIENT_SECRET)</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>MeetingNotch toplantının sistem sesini kaydetmek için ses yakalama erişimi kullanır.</string>
+	<string>Crenel toplantının sistem sesini kaydetmek için ses yakalama erişimi kullanır.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>MeetingNotch yaklaşan çevrim içi toplantıları göstermek için takvim erişimi kullanır.</string>
+	<string>Crenel yaklaşan toplantı ve etkinlikleri notch'ta göstermek için takvim erişimi kullanır.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>MeetingNotch yaklaşan çevrim içi toplantıları göstermek için takvim erişimi kullanır.</string>
+	<string>Crenel yaklaşan toplantı ve etkinlikleri notch'ta göstermek için takvim erişimi kullanır.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>MeetingNotch toplantılarda sesinizi kaydetmek için mikrofon erişimi kullanır.</string>
+	<string>Crenel dikte ve toplantı kaydı için mikrofon erişimi kullanır.</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>Crenel görevlerinizi Apple Hatırlatıcılar'da saklamak ve cihazlarınız arasında senkronlamak için hatırlatıcı erişimi kullanır.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>Crenel görevlerinizi Apple Hatırlatıcılar'da saklamak ve cihazlarınız arasında senkronlamak için hatırlatıcı erişimi kullanır.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Crenel dikte ettiğiniz konuşmayı cihaz üzerinde yazıya çevirmek için konuşma tanıma kullanır.</string>
 </dict>
 </plist>

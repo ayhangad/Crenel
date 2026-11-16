@@ -303,10 +303,9 @@ final class AppStateTests: XCTestCase {
         state.upsertTask(completed)
 
         XCTAssertEqual(state.activeTasks.map(\.id), [second.id])
-        XCTAssertEqual(state.archivedTasks.map(\.id), [first.id])
+        // Completing does not archive: the task stays visible until the day ends.
+        XCTAssertFalse(completed.isArchived)
         XCTAssertEqual(state.activeTaskCount, 1)
-        XCTAssertEqual(state.activeTaskCount(for: .backlog), 1)
-        XCTAssertEqual(state.activeTaskCount(for: .completed), 0)
 
         state.removeTask(id: second.id)
         XCTAssertEqual(state.activeTaskCount, 0)

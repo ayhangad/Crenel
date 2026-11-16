@@ -141,7 +141,7 @@ enum CalendarEmptyPresentation {
         case .failed: return "Takvim yenilenemedi"
         case .authorized:
             guard let snapshot else { return "Takvimler okunuyor" }
-            return snapshot.readableCalendarCount == 0 ? "Bu Mac’te bağlı takvim bulunamadı" : "Yaklaşan çevrim içi toplantı yok"
+            return snapshot.readableCalendarCount == 0 ? "Bu Mac’te bağlı takvim bulunamadı" : "Bugün başka etkinlik yok"
         }
     }
 }

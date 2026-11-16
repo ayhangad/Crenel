@@ -61,9 +61,9 @@ final class DomainModelTests: XCTestCase {
         let decoded = try JSONDecoder().decode(TaskItem.self, from: data)
 
         XCTAssertEqual(decoded.id, id)
-        XCTAssertTrue(decoded.isArchived)
+        XCTAssertFalse(decoded.isArchived)
         XCTAssertEqual(decoded.status, .completed)
-        XCTAssertEqual(decoded.archivedAt, decoded.completedAt)
+        XCTAssertEqual(decoded.completedAt, Date(timeIntervalSince1970: 2_000))
     }
 
     func testTaskStatusAndArchiveHaveSeparateLifecycles() {
@@ -82,10 +82,12 @@ final class DomainModelTests: XCTestCase {
         task.setStatus(.completed, at: completionDate)
         XCTAssertEqual(task.status, .completed)
         XCTAssertEqual(task.completedAt, completionDate)
-        XCTAssertEqual(task.archivedAt, completionDate)
+        // Crenel: completing never archives.
+        XCTAssertNil(task.archivedAt)
 
+        task.archive(at: completionDate)
         task.restore()
-        XCTAssertEqual(task.status, .todo)
+        XCTAssertEqual(task.status, .open)
         XCTAssertNil(task.completedAt)
         XCTAssertFalse(task.isArchived)
     }

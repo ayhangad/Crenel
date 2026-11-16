@@ -39,7 +39,7 @@ final class DesktopWorkspaceTests: XCTestCase {
             meeting("Haftalık ekip toplantısı")
         ])
         delegate.appState.replaceTasks([
-            TaskItem(title: "Teklif dosyasını paylaş", status: .todo, assignee: "Ayşe"),
+            TaskItem(title: "Teklif dosyasını paylaş", assignee: "Ayşe"),
             TaskItem(title: "Yeni onboarding tasarımını tamamla", status: .inProgress, assignee: "Deniz")
         ])
         let navigation = DesktopNavigation()

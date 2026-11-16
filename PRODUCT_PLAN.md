@@ -22,6 +22,154 @@ uygun görevi seçmeli ve çalışmanın durumunu yine bu dosyada güncellemelid
 - Plan sıralıdır. Bir fazın çıkış kriterleri tamamlanmadan ona bağımlı sonraki faz
   tamamlanmış sayılmaz.
 
+## 2026-11-16 — Crenel: Apple yardımcısı (güncel öncelik)
+
+Bu bölüm aşağıdaki tüm eski öncelik kararlarının (V1 odak kararı, "toplantı-first",
+"tek bulut API", "yeni görev özelliği geliştirilmez", "cihaz üstü transkripsiyon ve canlı
+transkript kapsam dışı") yerine geçer. Eski checklist'ler geçmiş kanıt olarak korunur.
+
+### Ürün tanımı
+
+Crenel, notch içinden kontrol edilen, açık kaynak, minimal bir macOS Apple yardımcısıdır.
+Ad: *crenel*, sur dişleri arasındaki çentik (notch). Dört yetenek tek notch yüzeyinde
+birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
+
+1. **Takvim yardımcısı** — Yaklaşan toplantı ve etkinlikler doğrudan Apple Takvim'den
+   (EventKit) okunur. Kapalı notch'un sağında kalan süre ("12 dk", başladıktan sonra
+   "25 dk kaldı") görünür. Google/Exchange/iCloud hesapları macOS İnternet Hesapları
+   üzerinden gelir; ayrı Google OAuth kaldırılır. E-posta davetleri (Gmail'in takvime
+   eklediği davetler, iCloud/Exchange bekleyen davetleri) yanıt bekliyor olarak gösterilir.
+2. **Akıllı dikte** — Kısayol (basılı tut veya aç/kapa, Fn/Globe desteği) ile konuşma,
+   imlecin olduğu uygulamaya yazılır. Ses cihazda yazıya çevrilir (Apple SpeechAnalyzer);
+   kayıt diske yazılmaz. Agent metni temizler, noktalar, uygulamaya göre üslup uygular.
+3. **Toplantı kaydı** — Mevcut güvenli kayıt, transkript ve özet akışı korunur; kayıtlar
+   yerelde kalır. Yerel transkripsiyon seçeneği eklenir.
+4. **Görevler** — Tek liste, tek satır giriş. Yazarken altta tarih/tekrar/öncelik önerisi
+   çıkar; Tab ile kabul edilir, Enter düz kaydeder. Görevler Apple Hatırlatıcılar'da
+   uygulamaya ait tek listede saklanır; "üzerinde çalışılıyor" ve sıralama gibi Mac'e özel
+   bilgiler yerel yan dosyada tutulur. İzin yoksa yerel dosya yedek depo olur. Tamamlanan
+   görev otomatik arşivlenmez; gün boyunca üstü çizili kalır, sonra Tamamlananlar'a geçer.
+
+### Kararlar
+
+- Minimum sistem macOS 26. SpeechAnalyzer ve Foundation Models doğrudan kullanılır.
+- Dikte yerel çalışır. Agent sağlayıcısı: yerel Apple Foundation Models (varsayılan),
+  kullanıcının kendi OpenAI veya Anthropic anahtarı (isteğe bağlı, Keychain'de).
+- Toplantı transkripsiyonu: ElevenLabs (mevcut) veya yerel SpeechAnalyzer.
+- Takvim tek kaynak: EventKit. Google OAuth kodu ve ayarları kaldırılır.
+- Görev deposu: Apple Hatırlatıcılar (EventKit reminders) + yerel yan veri; izin yoksa
+  yerel JSON. Eski görevler bir defalık taşınır, eski dosya yedek olarak bırakılır.
+- Tasarım son aşamada kullanıcıyla birlikte güncellenir. O zamana kadar yeni yüzeyler mevcut
+  `MeetingNotchTheme` diline uyar.
+- Ad değişimi: görünen ad ve ürün adı Crenel olur. Bundle kimliği, Keychain servisleri ve
+  veri klasörü, macOS izinleri ve kullanıcı verisi kaybolmasın diye yayın hazırlığına kadar
+  korunur. Kod içi `MeetingNotch` adlandırması kademeli olarak değişir.
+
+### C0 — Kapsam ve temel
+
+- [x] Crenel ürün kapsamını, kararları ve faz planını belgelemek.
+- [x] macOS 26 hedefi, Crenel görünen adı, Hatırlatıcılar/konuşma/Input Monitoring izin
+  metinlerini `project.yml` üzerinden uygulamak. — ✅ 2026-11-16
+- [x] Mimari belgeye Crenel katmanlarını (Dictation, Agent, Reminders, takvim
+  sınıflandırması) eklemek. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+
+### C1 — Apple Takvim yardımcısı
+
+- [x] EventKit sağlayıcısının tüm etkinlikleri (linksiz, fiziksel, tüm gün) okuması;
+  toplantı/etkinlik/tüm gün sınıflandırması; reddedilen ve "boş" etkinlikleri gizlemek,
+  yanıt bekleyen daveti işaretlemek. — ✅ 2026-11-16
+- [x] Kapalı notch'ta sıradaki etkinlik geri sayımı ve süren etkinlikte kalan süre. — ✅ 2026-11-16
+- [x] Notch Bugün görünümünde günün kalan etkinlikleri; katıl / Takvim'de aç aksiyonları. — ✅ 2026-11-16
+- [x] Google OAuth sağlayıcısını, ayarlarını ve Info.plist anahtarlarını kaldırmak;
+  hesap yoksa İnternet Hesapları kısayolunu göstermek. — ✅ 2026-11-16
+- [x] Sınıflandırma, geri sayım ve kaldırma için testler. — ✅ 2026-11-16
+
+### C2 — Görevler yeniden tasarımı
+
+- [x] Görev modelini sadeleştirmek: açık / üzerinde çalışılıyor / tamamlandı; son tarih,
+  tekrar, öncelik, kaynak toplantı. Eski 5 durumlu veriyi kayıpsız taşımak. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Türkçe/İngilizce akıllı giriş çözümleyicisi (tarih, saat, göreli gün, tekrar,
+  öncelik) ve kapsamlı testleri. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Yazarken alt satırda öneri; Tab kabul, Enter düz kayıt. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Apple Hatırlatıcılar deposu (uygulama listesi, alarm, tekrar, öncelik, deep link)
+  + yerel yan veri; izin yoksa yerel JSON yedeği; eski görevleri taşıma. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Tamamlananların gün sonuna kadar görünmesi, Tamamlananlar geçmişi, erteleme,
+  üzerinde çalışılan görevin kapalı notch'ta görünmesi. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Toplantı aksiyonunu göreve aktarmanın yeni modele uyarlanması. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+
+### C3 — Akıllı dikte
+
+- [x] Dikte kısayolu: basılı tut / aç-kapa; Fn/Globe ve değiştirici tuş desteği
+  (CGEventTap); ayarlardan seçim. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Bellek içi mikrofon akışı ve yerel SpeechAnalyzer transkripsiyonu; dil seçimi. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] İmlece yazma: Accessibility ile doğrudan, olmazsa panoya kopyala + ⌘V ve panoyu
+  geri yükleme. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Notch dikte görünümü: dinleme, işleniyor, eklendi; ses seviyesi. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Toplantı kaydı sırasında dikte politikası: kayıt mikrofonunu bozmadan dikte
+  kullanılabilir, dikte sesi toplantı kaydına girmez. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Yerelde dikte geçmişi (son N kayıt, kopyala/yeniden ekle) ve kişisel sözlük. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+
+### C4 — Agent
+
+- [x] Sağlayıcı soyutlaması: Foundation Models, OpenAI, Anthropic; anahtarlar Keychain'de. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Dikte temizleme: dolgu sözcükleri, noktalama, kendini düzeltme; uygulamaya göre
+  üslup (Mail, Slack/Messages, kod editörü). — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Komut modu: seçili metni sesle dönüştürme ("daha kısa yap"). — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Dikteyle görev ekleme ("görev ekle ...") ve akıllı giriş çözümleyicisine bağlama. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Agent yokken veya hata olduğunda ham metne güvenli düşüş. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Varsayılan ve önerilen sağlayıcı "Otomatik": tek API anahtarı yeter (önce Anthropic
+  Claude Haiku, yoksa OpenAI); anahtar yoksa cihazdaki Apple modeli. Anthropic varsayılan
+  modeli `claude-haiku-5-5`. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [ ] Sonra: isteyen kullanıcı Ayarlar'dan bilgisayarındaki Claude Code veya Codex
+  oturumunu sağlayıcı olarak seçebilsin (API anahtarı gerekmeden).
+
+### C3.1 — Dikte düzeltmeleri (2026-11-16 kararları)
+
+- [x] Fn dikte tuşuyken macOS "🌐 tuşuna basınca" ayarı Crenel tarafından "Hiçbir şey
+  yapma"ya alınır; kullanıcının eski değeri saklanır, dikte kapanınca, tuş değişince veya
+  uygulama kapanınca geri yüklenir. Kullanıcı başka kısayol seçebilir. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] İmlece yazmada uygulama listesi kaldırıldı: doğrudan yazma yalnızca sonucu
+  doğrulanabildiğinde, aksi her durumda ⌘V + pano geri yükleme. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+
+### C5 — Toplantı iyileştirmeleri
+
+- [x] Yerel SpeechAnalyzer toplantı transkripsiyonu seçeneği. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [x] Özet için agent sağlayıcısını (yerel / OpenAI / Anthropic) kullanmak. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
+- [ ] Karar (2026-11-16): aksiyon maddeleri yalnızca kullanıcının kendisine yöneltilenler;
+  başkalarının aksiyonları ilk sürümde gösterilmez. Kişi ayrımı için ek efor yok.
+
+### C6 — Açık kaynak ve yayın hazırlığı
+
+- [x] LICENSE: MIT (kullanıcı kararı 2026-11-16). — ✅ 2026-11-16
+- [ ] Katkı rehberi (CONTRIBUTING).
+- [x] README'nin Crenel kapsamıyla yenilenmesi. — ✅ 2026-11-16
+- [ ] `project.yml` içindeki kişisel `DEVELOPMENT_TEAM` değerinin katkıcıların kendi
+  takımını verebileceği yerel bir ayara taşınması.
+- [ ] Bundle kimliği, veri klasörü ve Keychain servislerinin Crenel'e taşınması (migration).
+
+### C8 — Gerçek cihaz kabulü
+
+Otomatik testler gerçek izinleri, EventKit/Hatırlatıcılar hesaplarını, event tap'i,
+SpeechAnalyzer modelini ve başka uygulamalara yazmayı çalıştıramaz. Bunlar elle doğrulanır.
+
+- [ ] Takvim: iCloud + İnternet Hesapları'ndan Google; Gmail daveti, iCloud daveti,
+  Siri önerisi; kapalı notch geri sayımı ve süren etkinlikte kalan süre.
+- [ ] Hatırlatıcılar: ilk bağlantı ve yerel görev taşıma; iPhone'da ekle/tamamla → notch;
+  saatli görev bildirimi; tekrarlayan görev tamamlama.
+- [ ] Dikte: Fn basılı tut / çift dokunuş; Türkçe ve İngilizce model indirme; Notes, Mail,
+  Slack, Chrome, VS Code, Terminal'e yazma; şifre alanında reddetme; Esc iptal.
+- [ ] Agent: cihazda model, OpenAI ve Anthropic anahtarıyla temizlik ve komut modu.
+- [ ] Toplantı kaydı sırasında dikte: dikte sesi kayda girmiyor, gate geri açılıyor.
+
+Doğrulama (2026-11-16): `xcodebuild test` 488 test, 4 opt-in test atlandı, 0 hata.
+Yeni ekranlar (görevler, notch etkinlik listesi, kapalı notch geri sayımı/dikte, Ayarlar ›
+Dikte/Görevler/Yapay zekâ) ekran dışı render ile incelendi; Debug uygulaması açıldı ve
+hata kaydı olmadan çalıştı. Gerçek izinli cihaz kabulü C8'de.
+
+### C7 — Tasarım (kullanıcıyla birlikte, en son)
+
+- [ ] Notch ve masaüstü tasarımının birlikte güncellenmesi.
+
 ## 2026-09-25 — Koyu tema parlaklık düzeltmesi
 
 - [x] Nötr yüzeyleri koyulaştırmak: arka plan #171717, sidebar #131313, kart #202020.

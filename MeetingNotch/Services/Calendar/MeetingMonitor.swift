@@ -14,7 +14,6 @@ final class MeetingMonitor {
     private let now: () -> Date
     private var isEnabled = true
     private var selectedCalendarIDs: [String]?
-    private var connectionKind = CalendarConnectionKind.macOS
     private var configurationVersion = 0
     private var reminderLeadTime: TimeInterval
     private var pollingTask: Task<Void, Never>?
@@ -36,8 +35,7 @@ final class MeetingMonitor {
         self.now = now
     }
 
-    func configure(isEnabled: Bool, reminderLeadTime: TimeInterval, selectedCalendarIDs: [String]? = nil, connectionKind: CalendarConnectionKind = .macOS) {
-        self.connectionKind = connectionKind
+    func configure(isEnabled: Bool, reminderLeadTime: TimeInterval, selectedCalendarIDs: [String]? = nil) {
         configurationVersion += 1
         self.selectedCalendarIDs = selectedCalendarIDs
         self.isEnabled = isEnabled
@@ -81,7 +79,7 @@ final class MeetingMonitor {
             guard let self else { return }
             while !Task.isCancelled {
                 await self.refresh()
-                try? await Task.sleep(for: .seconds(self.connectionKind == .google ? max(120, self.refreshInterval) : self.refreshInterval))
+                try? await Task.sleep(for: .seconds(self.refreshInterval))
             }
         }
     }
@@ -127,7 +125,6 @@ final class MeetingMonitor {
         }
 
         let version = configurationVersion
-        await provider.selectSource(connectionKind)
         await provider.selectCalendars(selectedCalendarIDs)
         let accessState = await provider.authorizationState()
         guard isEnabled, version == configurationVersion else { return }
@@ -155,15 +152,17 @@ final class MeetingMonitor {
                 calendars: result.calendars
             ))
             onMeetingsChange?(result.meetings.filter { $0.endDate > currentDate })
+            // Recording offers and reminders are for meetings; personal events and
+            // all-day items only appear in the agenda and the notch countdown.
             publish(.evaluate(
-                meetings: result.meetings,
+                meetings: result.meetings.filter(\.isReminderCandidate),
                 now: currentDate,
                 reminderLeadTime: reminderLeadTime
             ))
         } catch {
             guard isEnabled, version == configurationVersion else { return }
             onIntegrationSnapshotChange?(nil)
-            onAccessStateChange?(.failed((error as? GoogleCalendarError)?.errorDescription ?? "Yaklaşan toplantılar okunamadı."))
+            onAccessStateChange?(.failed("Yaklaşan etkinlikler okunamadı."))
             onMeetingsChange?([])
             publish(MeetingReminderSnapshot(nextMeeting: nil, level: .none, secondsUntilStart: nil))
         }
