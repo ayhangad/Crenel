@@ -70,12 +70,17 @@ final class CrenelNotchController: ObservableObject {
 
     // MARK: Presentation
 
+    /// When true the notch never shows (the design proposal preview owns the notch).
+    var isSuppressed = false
+
     func expand(on screen: NSScreen) async {
+        guard !isSuppressed else { return }
         prepare(on: screen)
         set(.expanded)
     }
 
     func compact(on screen: NSScreen) async {
+        guard !isSuppressed else { return }
         prepare(on: screen)
         set(.compact)
         resignInput()

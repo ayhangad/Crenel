@@ -304,6 +304,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task {
             let screen = resolvedActiveNotchScreen(preferPhysicalNotch: true)
             if ProposalPreviewController.isEnabled {
+                notch.isSuppressed = true
+                await notch.hide()
                 let preview = ProposalPreviewController(screen: screen)
                 proposalPreview = preview
                 preview.show()
