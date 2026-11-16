@@ -24,15 +24,17 @@ enum Hud {
 
     enum Size {
         /// Two-line list row.
-        static let row: CGFloat = 58
+        static let row: CGFloat = 48
         static let icon: CGFloat = 14
         static let smallIcon: CGFloat = 12
-        static let panelWidth: CGFloat = 580
-        /// Distance from the panel edge to text. Hover fills bleed `rowInset` beyond it.
-        static let panelInset: CGFloat = 36
-        static let rowInset: CGFloat = 14
-        static let corner: CGFloat = 10
-        static let control: CGFloat = 32
+        static let panelWidth: CGFloat = 490
+        /// Distance from the panel frame to text (includes the 12 pt top-corner flare of
+        /// the open notch). Hover fills bleed `rowInset` beyond the text, leaving 8 pt
+        /// to the notch wall.
+        static let panelInset: CGFloat = 30
+        static let rowInset: CGFloat = 10
+        static let corner: CGFloat = 9
+        static let control: CGFloat = 28
     }
 
     // MARK: Colour — one neutral grey scale; colour means state
@@ -84,11 +86,11 @@ enum Hud {
 
         var font: Font {
             switch self {
-            case .title: .custom(Face.semibold, fixedSize: 17)
-            case .body: .custom(Face.medium, fixedSize: 14)
-            case .label: .custom(Face.medium, fixedSize: 13)
-            case .meta: .custom(Face.regular, fixedSize: 12.5)
-            case .value: .custom(Face.medium, fixedSize: 14)
+            case .title: .custom(Face.semibold, fixedSize: 15)
+            case .body: .custom(Face.medium, fixedSize: 13.5)
+            case .label: .custom(Face.medium, fixedSize: 12.5)
+            case .meta: .custom(Face.regular, fixedSize: 12)
+            case .value: .custom(Face.medium, fixedSize: 13.5)
             case .display: .custom(Face.semibold, fixedSize: 22)
             }
         }

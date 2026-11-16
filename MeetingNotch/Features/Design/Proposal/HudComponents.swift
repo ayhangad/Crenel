@@ -10,8 +10,8 @@ struct HudGroupHeader: View {
         Text(title)
             .hud(.label, Hud.Ink.text3)
             .padding(.horizontal, Hud.Size.rowInset)
-            .frame(height: 28, alignment: .bottom)
-            .padding(.bottom, Hud.Space.x2)
+            .frame(height: 22, alignment: .bottom)
+            .padding(.bottom, Hud.Space.x1)
     }
 }
 
@@ -215,8 +215,8 @@ struct HudTabs<Tab: Hashable>: View {
                         }
                     }
                     .foregroundStyle(isSelected ? Hud.Ink.text1 : Hud.Ink.text3)
-                    .padding(.horizontal, 14)
-                    .frame(height: 30)
+                    .padding(.horizontal, 12)
+                    .frame(height: 26)
                     .background {
                         if isSelected {
                             Capsule().fill(Hud.Ink.selected)

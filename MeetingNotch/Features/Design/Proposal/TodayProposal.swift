@@ -42,8 +42,12 @@ final class ProposalNotchModel: ObservableObject {
     @Published var tasks: [ProposalTask]
     @Published var compact: ProposalCompact
     @Published var levels: [Double] = [0.3, 0.6, 0.9, 0.5, 0.25]
+    /// Titles used before, for inline completion while typing a task.
+    @Published var history: [String] = ["Haftalık raporu yaz", "Faturayı öde", "Spor salonu", "Sprint planlaması"]
     /// For static renders: which row shows the hover highlight.
     var forcedHover: AnyHashable?
+    /// For static renders: text shown in the task input instead of a live field.
+    var staticInput: String?
 
     init(isOpen: Bool = false, tab: ProposalTab = .today, now: Date, events: [ProposalEvent],
          tasks: [ProposalTask], compact: ProposalCompact = .nextMeeting) {
@@ -135,27 +139,42 @@ struct ProposalPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: hardware.height)
-            HudTabs(items: [
-                .init(tab: .today, glyph: .calendar, title: "Bugün"),
-                .init(tab: .tasks, glyph: .queue, title: "Görevler", badge: model.tasks.filter { $0.state != .completed }.count)
-            ], selection: $model.tab)
-            .padding(.top, Hud.Space.x4)
+            toolbar.padding(.top, Hud.Space.x2)
 
             ZStack(alignment: .top) {
                 switch model.tab {
                 case .today:
                     ProposalToday(model: model)
-                        .transition(.opacity.combined(with: .offset(x: -18)))
+                        .transition(.opacity.combined(with: .offset(x: -14)))
                 case .tasks:
                     ProposalTasks(model: model)
-                        .transition(.opacity.combined(with: .offset(x: 18)))
+                        .transition(.opacity.combined(with: .offset(x: 14)))
                 }
             }
-            .padding(.top, Hud.Space.x7)
+            .padding(.top, Hud.Space.x4)
         }
         .padding(.horizontal, Hud.Size.panelInset - Hud.Size.rowInset)
-        .padding(.bottom, Hud.Space.x5)
+        .padding(.bottom, Hud.Space.x3)
         .frame(width: Hud.Size.panelWidth)
+    }
+
+    /// Tabs centred; tools on both sides, so the row is one toolbar.
+    private var toolbar: some View {
+        ZStack {
+            HudTabs(items: [
+                .init(tab: .today, glyph: .calendar, title: "Bugün"),
+                .init(tab: .tasks, glyph: .queue, title: "Görevler", badge: model.tasks.filter { $0.state != .completed }.count)
+            ], selection: $model.tab)
+            HStack(spacing: 2) {
+                Button {} label: { HudIcon(.history) }
+                    .buttonStyle(HudButtonStyle(kind: .icon)).help("Geçmiş")
+                Spacer()
+                Button {} label: { HudIcon(.window) }
+                    .buttonStyle(HudButtonStyle(kind: .icon)).help("Pencerede aç")
+                Button {} label: { HudIcon(.pin) }
+                    .buttonStyle(HudButtonStyle(kind: .icon)).help("Açık tut")
+            }
+        }
     }
 }
 
@@ -177,16 +196,15 @@ struct ProposalToday: View {
             if let focus {
                 ProposalFocus(event: focus, now: model.now)
                     .hudGlide(focus.id, hovered: $hovered, in: glide, forced: model.forcedHover)
-                    .padding(.bottom, Hud.Space.x4)
+                    .padding(.bottom, Hud.Space.x3)
             }
             if !today.isEmpty {
                 group("Bugün", today)
             }
             if !later.isEmpty {
                 group("Sonra", later)
-                    .padding(.top, today.isEmpty ? 0 : Hud.Space.x5)
+                    .padding(.top, today.isEmpty ? 0 : Hud.Space.x3)
             }
-            footer.padding(.top, Hud.Space.x6)
         }
     }
 
@@ -197,18 +215,6 @@ struct ProposalToday: View {
                 ProposalEventRow(event: event, now: model.now)
                     .hudGlide(event.id, hovered: $hovered, in: glide, forced: model.forcedHover)
             }
-        }
-    }
-
-    private var footer: some View {
-        HStack(spacing: Hud.Space.x1) {
-            Button {} label: {
-                HStack(spacing: 8) { HudIcon(.history, size: Hud.Size.smallIcon); Text("Geçmiş") }
-            }
-            .buttonStyle(HudButtonStyle(kind: .ghost))
-            Spacer()
-            Button {} label: { HudIcon(.window) }.buttonStyle(HudButtonStyle(kind: .icon))
-            Button {} label: { HudIcon(.pin) }.buttonStyle(HudButtonStyle(kind: .icon))
         }
     }
 }
@@ -255,10 +261,10 @@ struct ProposalFocus: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top, spacing: Hud.Space.x3 + 2) {
+            HStack(alignment: .top, spacing: Hud.Space.x3) {
                 ProposalKindIcon(venue: event.venue, tint: isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
                     .padding(.top, 3)
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 5) {
                     HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
                         Text(event.title).hud(.title).lineLimit(1)
                         Spacer(minLength: Hud.Space.x2)
@@ -271,15 +277,15 @@ struct ProposalFocus: View {
                         Text(secondaryValue).hud(.meta, Hud.Ink.text3)
                     }
                     if isNear || isLive {
-                        HudSegmentMeter(segments: 32, progress: progress, tint: isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
-                            .padding(.top, Hud.Space.x3)
+                        HudSegmentMeter(segments: 28, progress: progress, tint: isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
+                            .padding(.top, Hud.Space.x2)
                             .transition(.opacity)
                     }
                 }
             }
         }
         .padding(.horizontal, Hud.Size.rowInset)
-        .padding(.vertical, Hud.Space.x3 + 2)
+        .padding(.vertical, Hud.Space.x3)
     }
 
     private var primaryValue: String {
@@ -307,9 +313,9 @@ struct ProposalEventRow: View {
     let now: Date
 
     var body: some View {
-        HStack(alignment: .top, spacing: Hud.Space.x3 + 2) {
+        HStack(alignment: .top, spacing: Hud.Space.x3) {
             ProposalKindIcon(venue: event.venue).padding(.top, 2)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
                     Text(event.title).hud(.body).lineLimit(1)
                     Spacer(minLength: Hud.Space.x2)
@@ -330,7 +336,7 @@ struct ProposalEventRow: View {
     }
 }
 
-// MARK: - Tasks (to show tab switching)
+// MARK: - Tasks
 
 struct ProposalTasks: View {
     @ObservedObject var model: ProposalNotchModel
@@ -339,6 +345,8 @@ struct ProposalTasks: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            ProposalTaskInput(model: model)
+                .padding(.bottom, Hud.Space.x2)
             ForEach(model.tasks) { task in
                 HStack(spacing: Hud.Space.x3) {
                     HudStateMark(state: task.state)
@@ -351,18 +359,138 @@ struct ProposalTasks: View {
                     }
                 }
                 .padding(.horizontal, Hud.Size.rowInset)
-                .frame(height: 46)
+                .frame(height: 38)
                 .hudGlide(task.id, hovered: $hovered, in: glide)
+                .transition(.asymmetric(insertion: .opacity.combined(with: .offset(y: -8)), removal: .opacity))
             }
-            HStack {
-                Button {} label: {
-                    HStack(spacing: 7) { HudIcon(.plus, size: Hud.Size.smallIcon); Text("Yeni görev") }
-                }
-                .buttonStyle(HudButtonStyle(kind: .ghost))
-                Spacer()
-            }
-            .padding(.top, Hud.Space.x5)
         }
+        .animation(Hud.Motion.glide, value: model.tasks)
+    }
+}
+
+/// Type and press Return. While typing, dates, repeats and priority are recognised
+/// live and shown as chips; a known title is completed inline (Tab accepts). When
+/// nothing is recognised yet, quick picks offer the common dates.
+struct ProposalTaskInput: View {
+    @ObservedObject var model: ProposalNotchModel
+    @State private var text = ""
+    @FocusState private var focused: Bool
+    private let parser = TaskInputParser()
+
+    private var current: String { model.staticInput ?? text }
+    private var suggestions: [TaskInputSuggestion] { parser.suggestions(for: current, now: model.now) }
+
+    /// Inline completion from titles used before.
+    private var completion: String? {
+        let typed = current
+        guard typed.count >= 2 else { return nil }
+        let lower = typed.lowercased(with: Locale(identifier: "tr_TR"))
+        return model.history.first { $0.lowercased(with: Locale(identifier: "tr_TR")).hasPrefix(lower) && $0.count > typed.count }
+            .map { String($0.dropFirst(typed.count)) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Hud.Space.x3) {
+                HudIcon(.plus).foregroundStyle(current.isEmpty ? Hud.Ink.text3 : Hud.Ink.text1)
+                ZStack(alignment: .leading) {
+                    // Ghost completion sits behind the field, aligned to the typed text.
+                    (Text(current).foregroundColor(.clear) + Text(completion ?? "").foregroundColor(Hud.Ink.text4))
+                        .font(Hud.Style.body.font)
+                        .lineLimit(1)
+                    if let staticInput = model.staticInput {
+                        Text(staticInput.isEmpty ? "Görev ekle" : staticInput)
+                            .hud(.body, staticInput.isEmpty ? Hud.Ink.text3 : Hud.Ink.text1)
+                            .lineLimit(1)
+                    } else {
+                        TextField("", text: $text, prompt: Text("Görev ekle").foregroundColor(Hud.Ink.text3))
+                            .textFieldStyle(.plain)
+                            .font(Hud.Style.body.font)
+                            .foregroundStyle(Hud.Ink.text1)
+                            .focused($focused)
+                            .onSubmit(add)
+                            .onKeyPress(.tab) {
+                                guard let completion else { return .ignored }
+                                text += completion
+                                return .handled
+                            }
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, Hud.Size.rowInset)
+            .frame(height: 40)
+            .background(RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous).fill(Hud.Ink.hover))
+
+            // Below the field: what was recognised, or quick picks while nothing is.
+            if !current.isEmpty {
+                HStack(spacing: 4) {
+                    if suggestions.isEmpty {
+                        ForEach(["bugün", "yarın", "!!"], id: \.self) { pick in
+                            Button {
+                                text = current.trimmingCharacters(in: .whitespaces) + " " + pick
+                            } label: {
+                                chip(pick == "!!" ? "Öncelikli" : pick.capitalized(with: Locale(identifier: "tr_TR")),
+                                     glyph: pick == "!!" ? .bell : .calendar, tint: Hud.Ink.text3, dashed: true)
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.opacity)
+                        }
+                    } else {
+                        ForEach(suggestions) { suggestion in
+                            chip(suggestion.label, glyph: glyph(for: suggestion.kind), tint: tint(for: suggestion.kind))
+                                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                        }
+                    }
+                }
+                .animation(Hud.Motion.glide, value: suggestions.map(\.id))
+                .padding(.horizontal, Hud.Size.rowInset)
+                .padding(.top, Hud.Space.x2)
+                .transition(.opacity.combined(with: .offset(y: -4)))
+            }
+        }
+        .animation(Hud.Motion.change, value: current.isEmpty)
+        .animation(Hud.Motion.change, value: suggestions.isEmpty)
+    }
+
+    private func chip(_ label: String, glyph: HudGlyph, tint: Color, dashed: Bool = false) -> some View {
+        HStack(spacing: 5) {
+            HudIcon(glyph, size: 11)
+            Text(label).font(Hud.Style.meta.font)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .frame(height: 22)
+        .background {
+            if dashed {
+                Capsule().strokeBorder(Hud.Ink.track, lineWidth: 1)
+            } else {
+                Capsule().fill(Hud.Ink.selected)
+            }
+        }
+    }
+
+    private func glyph(for kind: TaskInputSuggestion.Kind) -> HudGlyph {
+        switch kind {
+        case .due: .calendar
+        case .recurrence: .history
+        case .priority: .bell
+        }
+    }
+
+    private func tint(for kind: TaskInputSuggestion.Kind) -> Color {
+        if case .priority = kind { return Hud.Ink.signal }
+        return Hud.Ink.text1
+    }
+
+    private func add() {
+        let accepted = suggestions
+        let result = parser.apply(accepted, to: text)
+        guard !result.title.isEmpty else { return }
+        let due = result.dueDate.map { parser.dueLabel(for: $0, hasTime: result.dueHasTime, now: model.now) }
+        model.tasks.insert(ProposalTask(title: result.title, state: .open, due: due), at: 0)
+        if !model.history.contains(result.title) { model.history.append(result.title) }
+        text = ""
     }
 }
 

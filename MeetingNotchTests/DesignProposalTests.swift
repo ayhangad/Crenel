@@ -35,7 +35,18 @@ final class DesignProposalTests: XCTestCase {
 
         let tasks = ProposalNotchModel.sample(now: now, isOpen: true)
         tasks.tab = .tasks
+        tasks.staticInput = ""
         try export(scene(tasks), name: "tasks")
+
+        let typing = ProposalNotchModel.sample(now: now, isOpen: true)
+        typing.tab = .tasks
+        typing.staticInput = "Tasarım dosyalarını gönder yarın 10:00 !!"
+        try export(scene(typing), name: "tasks-typing")
+
+        let completing = ProposalNotchModel.sample(now: now, isOpen: true)
+        completing.tab = .tasks
+        completing.staticInput = "Fat"
+        try export(scene(completing), name: "tasks-completion")
 
         let states: [ProposalCompact] = [
             .nextMeeting, .recording(started: now.addingTimeInterval(-754)), .dictation, .processing(step: 2), .tasks
