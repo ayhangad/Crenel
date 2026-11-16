@@ -1,43 +1,76 @@
 import SwiftUI
 
+// MARK: - The crenel corner
+
+/// A rectangle whose corners are cut in pixel steps — the crenel, Crenel's shape for
+/// every control and card.
+struct PixelCornerShape: InsettableShape {
+    /// Size of one step.
+    var step: CGFloat = Crenel.Radius.step
+    /// Number of steps per corner.
+    var steps: Int = 2
+    var inset: CGFloat = 0
+
+    func inset(by amount: CGFloat) -> PixelCornerShape {
+        var copy = self
+        copy.inset += amount
+        return copy
+    }
+
+    func path(in fullRect: CGRect) -> Path {
+        let rect = fullRect.insetBy(dx: inset, dy: inset)
+        let cut = min(step * CGFloat(steps), rect.width / 2, rect.height / 2)
+        let s = cut / CGFloat(max(1, steps))
+        var path = Path()
+        func corner(_ start: CGPoint, dx: CGFloat, dy: CGFloat, horizontalFirst: Bool) {
+            var point = start
+            for _ in 0..<steps {
+                if horizontalFirst {
+                    point.x += dx * s; path.addLine(to: point)
+                    point.y += dy * s; path.addLine(to: point)
+                } else {
+                    point.y += dy * s; path.addLine(to: point)
+                    point.x += dx * s; path.addLine(to: point)
+                }
+            }
+        }
+        // Top edge, left to right, then each corner stepping inward-out.
+        path.move(to: CGPoint(x: rect.minX + cut, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - cut, y: rect.minY))
+        corner(CGPoint(x: rect.maxX - cut, y: rect.minY), dx: 1, dy: 1, horizontalFirst: false)
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - cut))
+        corner(CGPoint(x: rect.maxX, y: rect.maxY - cut), dx: -1, dy: 1, horizontalFirst: true)
+        path.addLine(to: CGPoint(x: rect.minX + cut, y: rect.maxY))
+        corner(CGPoint(x: rect.minX + cut, y: rect.maxY), dx: -1, dy: -1, horizontalFirst: false)
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + cut))
+        corner(CGPoint(x: rect.minX, y: rect.minY + cut), dx: 1, dy: -1, horizontalFirst: true)
+        path.closeSubpath()
+        return path
+    }
+}
+
 // MARK: - Surfaces
 
-/// A layered surface lit from above: a fill plus a hairline whose top edge catches light.
 private struct CrenelSurfaceModifier: ViewModifier {
     var fill: Color
-    var radius: CGFloat
-    var lit: Bool
+    var stroke: Color
+    var steps: Int
 
     func body(content: Content) -> some View {
         content
-            .background {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(fill)
-            }
-            .overlay {
-                if lit {
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [Crenel.Palette.highlight, Crenel.Palette.hairline.opacity(0.4)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ),
-                            lineWidth: 1
-                        )
-                        .allowsHitTesting(false)
-                }
-            }
+            .background(PixelCornerShape(steps: steps).fill(fill))
+            .overlay(PixelCornerShape(steps: steps).stroke(stroke, lineWidth: 1).allowsHitTesting(false))
     }
 }
 
 extension View {
+    /// A pixel-cornered panel with a 1 pt outline.
     func crenelSurface(
         _ fill: Color = Crenel.Palette.layer1,
-        radius: CGFloat = Crenel.Radius.l,
-        lit: Bool = true
+        stroke: Color = Crenel.Palette.hairline,
+        steps: Int = 3
     ) -> some View {
-        modifier(CrenelSurfaceModifier(fill: fill, radius: radius, lit: lit))
+        modifier(CrenelSurfaceModifier(fill: fill, stroke: stroke, steps: steps))
     }
 }
 
@@ -45,15 +78,15 @@ extension View {
 
 struct CrenelButtonStyle: ButtonStyle {
     enum Kind: Equatable {
-        /// Solid white pill: the one primary action on a surface.
+        /// Solid light block: the one primary action on a surface.
         case primary
-        /// Solid accent pill.
+        /// Solid colour block.
         case accent(Color)
-        /// Quiet raised pill.
+        /// Outlined block.
         case secondary
-        /// Tinted glass pill.
+        /// Colour-tinted block.
         case tinted(Color)
-        /// Text only, gains a surface on hover.
+        /// Text only; gains a surface on hover.
         case ghost
     }
 
@@ -62,25 +95,25 @@ struct CrenelButtonStyle: ButtonStyle {
 
         var height: CGFloat {
             switch self {
-            case .small: 26
-            case .regular: 32
-            case .large: 40
+            case .small: 24
+            case .regular: 30
+            case .large: 38
             }
         }
 
         var padding: CGFloat {
             switch self {
-            case .small: 10
-            case .regular: 14
-            case .large: 20
+            case .small: 8
+            case .regular: 12
+            case .large: 18
             }
         }
 
         var font: Font {
             switch self {
-            case .small: .system(size: 11.5, weight: .semibold)
-            case .regular: .system(size: 12.5, weight: .semibold)
-            case .large: .system(size: 13.5, weight: .semibold)
+            case .small: .system(size: 11.5, weight: .semibold, design: .monospaced)
+            case .regular: .system(size: 12.5, weight: .semibold, design: .monospaced)
+            case .large: .system(size: 13.5, weight: .semibold, design: .monospaced)
             }
         }
     }
@@ -108,26 +141,22 @@ private struct CrenelButtonBody: View {
             .foregroundStyle(foreground)
             .padding(.horizontal, size.padding)
             .frame(minHeight: size.height)
-            .background(background, in: Capsule(style: .continuous))
+            .background(PixelCornerShape().fill(background))
             .overlay {
                 if kind == .secondary {
-                    Capsule(style: .continuous)
-                        .strokeBorder(Crenel.Palette.hairline, lineWidth: 1)
+                    PixelCornerShape().stroke(hovering ? Crenel.Palette.textTertiary : Crenel.Palette.stroke, lineWidth: 1)
                 }
             }
-            .contentShape(Capsule(style: .continuous))
-            .brightness(hovering && isEnabled ? 0.06 : 0)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.95 : 1)
-            .opacity(isEnabled ? 1 : 0.4)
+            .contentShape(PixelCornerShape())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
             .onHover { hovering = $0 }
-            .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: configuration.isPressed)
-            .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: hovering)
+            .animation(Crenel.Motion.resolve(Crenel.Motion.fade, reduceMotion: reduceMotion), value: hovering)
     }
 
     private var foreground: Color {
         switch kind {
-        case .primary: .black
-        case .accent: .white
+        case .primary: Crenel.Palette.ink
+        case .accent: Crenel.Palette.ink
         case .secondary: Crenel.Palette.textPrimary
         case .tinted(let color): color
         case .ghost: hovering ? Crenel.Palette.textPrimary : Crenel.Palette.textSecondary
@@ -136,30 +165,30 @@ private struct CrenelButtonBody: View {
 
     private var background: Color {
         switch kind {
-        case .primary: .white
-        case .accent(let color): color
-        case .secondary: Crenel.Palette.layer2
-        case .tinted(let color): color.opacity(0.16)
+        case .primary: hovering ? .white : Crenel.Palette.textPrimary
+        case .accent(let color): hovering ? color.opacity(0.88) : color
+        case .secondary: hovering ? Crenel.Palette.layer2 : .clear
+        case .tinted(let color): color.opacity(hovering ? 0.22 : 0.14)
         case .ghost: hovering ? Crenel.Palette.layer2 : .clear
         }
     }
 }
 
-/// Round icon-only button.
+/// Square icon-only button.
 struct CrenelIconButtonStyle: ButtonStyle {
-    var diameter: CGFloat = 30
+    var diameter: CGFloat = 28
     var tint: Color = Crenel.Palette.textSecondary
     var fill: Color? = nil
     var isActive = false
 
     func makeBody(configuration: Configuration) -> some View {
-        CrenelIconButtonBody(configuration: configuration, diameter: diameter, tint: tint, fill: fill, isActive: isActive)
+        CrenelIconButtonBody(configuration: configuration, side: diameter, tint: tint, fill: fill, isActive: isActive)
     }
 }
 
 private struct CrenelIconButtonBody: View {
     let configuration: ButtonStyleConfiguration
-    let diameter: CGFloat
+    let side: CGFloat
     let tint: Color
     let fill: Color?
     let isActive: Bool
@@ -169,66 +198,66 @@ private struct CrenelIconButtonBody: View {
 
     var body: some View {
         configuration.label
-            .foregroundStyle(isActive || hovering ? activeForeground : tint)
-            .frame(width: diameter, height: diameter)
-            .background {
-                Circle().fill(backgroundFill)
-            }
-            .contentShape(Circle())
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.9 : 1)
-            .opacity(isEnabled ? 1 : 0.35)
+            .foregroundStyle(hovering && fill == nil && !isActive ? Crenel.Palette.textPrimary : tint)
+            .frame(width: side, height: side)
+            .background(PixelCornerShape().fill(backgroundFill))
+            .contentShape(PixelCornerShape())
+            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.35)
             .onHover { hovering = $0 }
-            .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: configuration.isPressed)
-            .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: hovering)
-    }
-
-    private var activeForeground: Color {
-        fill == nil ? (isActive ? tint : Crenel.Palette.textPrimary) : tint
+            .animation(Crenel.Motion.resolve(Crenel.Motion.fade, reduceMotion: reduceMotion), value: hovering)
     }
 
     private var backgroundFill: Color {
-        if let fill { return hovering ? fill.opacity(0.9) : fill }
-        if isActive { return tint.opacity(0.18) }
+        if let fill { return hovering ? fill.opacity(0.85) : fill }
+        if isActive { return tint.opacity(0.16) }
         return hovering ? Crenel.Palette.layer2 : .clear
     }
 }
 
 // MARK: - Row
 
-/// A list row that lights up on hover; the whole row is the hit target.
+/// A list row that only changes colour under the pointer. No movement, no resizing.
 struct CrenelRowStyle: ButtonStyle {
-    var radius: CGFloat = Crenel.Radius.m
     var isSelected = false
 
     func makeBody(configuration: Configuration) -> some View {
-        CrenelRowBody(configuration: configuration, radius: radius, isSelected: isSelected)
+        CrenelRowBody(configuration: configuration, isSelected: isSelected)
     }
 }
 
 private struct CrenelRowBody: View {
     let configuration: ButtonStyleConfiguration
-    let radius: CGFloat
     let isSelected: Bool
     @State private var hovering = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         configuration.label
-            .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .background {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(isSelected ? Crenel.Palette.layer2 : (hovering ? Crenel.Palette.layer1 : .clear))
-            }
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.985 : 1)
+            .contentShape(Rectangle())
+            .background(PixelCornerShape().fill(isSelected ? Crenel.Palette.layer2 : (hovering ? Crenel.Palette.layer1 : .clear)))
+            .opacity(configuration.isPressed ? 0.8 : 1)
             .onHover { hovering = $0 }
-            .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: hovering)
-            .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: configuration.isPressed)
+            .animation(Crenel.Motion.resolve(Crenel.Motion.fade, reduceMotion: reduceMotion), value: hovering)
+    }
+}
+
+/// Hover highlight for rows that are not buttons.
+struct CrenelHoverHighlight: ViewModifier {
+    var isActive = false
+    @State private var hovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        content
+            .background(PixelCornerShape().fill(isActive ? Crenel.Palette.layer2 : (hovering ? Crenel.Palette.layer1 : .clear)))
+            .onHover { hovering = $0 }
+            .animation(Crenel.Motion.resolve(Crenel.Motion.fade, reduceMotion: reduceMotion), value: hovering)
     }
 }
 
 // MARK: - Segmented control
 
-/// A pill segmented control whose highlight slides between items.
+/// Text tabs; the selected one sits on a lit block that glides between items.
 struct CrenelSegmented<Value: Hashable>: View {
     struct Item: Identifiable {
         let value: Value
@@ -241,6 +270,7 @@ struct CrenelSegmented<Value: Hashable>: View {
     @Binding var selection: Value
     let items: [Item]
     var compact = false
+    var tint: Color = Crenel.Palette.brand
     @Namespace private var namespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var hovered: Value?
@@ -250,41 +280,36 @@ struct CrenelSegmented<Value: Hashable>: View {
             ForEach(items) { item in
                 let isSelected = item.value == selection
                 Button {
-                    withAnimation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion)) {
+                    withAnimation(Crenel.Motion.resolve(Crenel.Motion.slide, reduceMotion: reduceMotion)) {
                         selection = item.value
                     }
                 } label: {
                     HStack(spacing: 6) {
                         if let glyph = item.glyph {
-                            CrenelIcon(glyph, size: 14)
+                            CrenelIcon(glyph, size: 9)
                         }
                         if !compact || isSelected {
-                            Text(item.title)
-                                .font(.system(size: 12.5, weight: .semibold))
-                                .transition(.opacity.combined(with: .scale(scale: 0.9, anchor: .leading)))
+                            Text(item.title.lowercased(with: Locale(identifier: "tr_TR")))
                         }
                         if let badge = item.badge, badge > 0 {
                             Text("\(badge)")
-                                .font(.system(size: 10.5, weight: .semibold, design: .rounded).monospacedDigit())
-                                .foregroundStyle(isSelected ? Crenel.Palette.textPrimary : Crenel.Palette.textTertiary)
+                                .foregroundStyle(isSelected ? tint.opacity(0.7) : Crenel.Palette.textQuaternary)
                         }
                     }
+                    .font(.system(size: 12.5, weight: .semibold, design: .monospaced))
                     .foregroundStyle(
-                        isSelected
-                            ? Crenel.Palette.textPrimary
-                            : (hovered == item.value ? Crenel.Palette.textSecondary : Crenel.Palette.textTertiary)
+                        isSelected ? tint : (hovered == item.value ? Crenel.Palette.textSecondary : Crenel.Palette.textTertiary)
                     )
-                    .padding(.horizontal, 12)
-                    .frame(height: 28)
+                    .padding(.horizontal, 10)
+                    .frame(height: 26)
                     .background {
                         if isSelected {
-                            Capsule(style: .continuous)
-                                .fill(Crenel.Palette.layer3)
-                                .overlay(Capsule(style: .continuous).strokeBorder(Crenel.Palette.hairline))
+                            PixelCornerShape()
+                                .fill(tint.opacity(0.14))
                                 .matchedGeometryEffect(id: "segment", in: namespace)
                         }
                     }
-                    .contentShape(Capsule())
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .onHover { hovered = $0 ? item.value : (hovered == item.value ? nil : hovered) }
@@ -292,13 +317,11 @@ struct CrenelSegmented<Value: Hashable>: View {
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
-        .padding(2)
-        .background(Crenel.Palette.layer1, in: Capsule(style: .continuous))
-        .animation(Crenel.Motion.resolve(Crenel.Motion.snappy, reduceMotion: reduceMotion), value: hovered)
+        .animation(Crenel.Motion.resolve(Crenel.Motion.fade, reduceMotion: reduceMotion), value: hovered)
     }
 }
 
-// MARK: - Chip
+// MARK: - Chip and key cap
 
 struct CrenelChip: View {
     let title: String
@@ -307,68 +330,31 @@ struct CrenelChip: View {
     var filled = false
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             if let glyph {
-                CrenelIcon(glyph, size: 11, weight: 2)
+                CrenelIcon(glyph, size: 9)
             }
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
                 .lineLimit(1)
         }
         .foregroundStyle(tint)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 6)
         .frame(height: 20)
-        .background(tint.opacity(filled ? 0.18 : 0.10), in: Capsule(style: .continuous))
+        .background(PixelCornerShape(step: 1.5).fill(tint.opacity(filled ? 0.2 : 0.12)))
     }
 }
 
-// MARK: - Progress ring
-
-struct CrenelProgressRing: View {
-    var progress: Double
-    var tint: Color
-    var lineWidth: CGFloat = 3
-    var track: Color = Crenel.Palette.layer3
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        ZStack {
-            Circle().stroke(track, lineWidth: lineWidth)
-            Circle()
-                .trim(from: 0, to: max(0.001, min(1, progress)))
-                .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .shadow(color: tint.opacity(0.55), radius: lineWidth * 1.4)
-        }
-        .padding(lineWidth / 2)
-        .animation(Crenel.Motion.resolve(.smooth(duration: 0.6), reduceMotion: reduceMotion), value: progress)
-    }
-}
-
-// MARK: - Key cap
-
-/// A physical-looking key for shortcuts ("⌥ Space").
 struct CrenelKeyCap: View {
     let label: String
-    var large = false
 
     var body: some View {
         Text(label)
-            .font(.system(size: large ? 26 : 10.5, weight: large ? .medium : .semibold, design: .rounded))
-            .foregroundStyle(large ? Color.black.opacity(0.85) : Crenel.Palette.textSecondary)
-            .padding(.horizontal, large ? 0 : 6)
-            .frame(minWidth: large ? 64 : 18, minHeight: large ? 64 : 18)
-            .background {
-                RoundedRectangle(cornerRadius: large ? 16 : 5, style: .continuous)
-                    .fill(large ? Color.white : Crenel.Palette.layer2)
-                    .shadow(color: .black.opacity(large ? 0.5 : 0), radius: 0, y: large ? 4 : 0)
-            }
-            .overlay {
-                if !large {
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .strokeBorder(Crenel.Palette.hairline)
-                }
-            }
+            .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Crenel.Palette.textTertiary)
+            .padding(.horizontal, 5)
+            .frame(minWidth: 18, minHeight: 18)
+            .overlay(PixelCornerShape(step: 1.5).stroke(Crenel.Palette.stroke, lineWidth: 1))
     }
 }
 
@@ -384,14 +370,12 @@ struct CrenelSectionHeader<Trailing: View>: View {
         HStack(spacing: 6) {
             Text(title).eyebrow(color: tint)
             if let count {
-                Text("\(count)")
-                    .font(.system(size: 10.5, weight: .semibold, design: .rounded).monospacedDigit())
-                    .foregroundStyle(Crenel.Palette.textQuaternary)
+                Text("\(count)").crenelText(.eyebrow, color: Crenel.Palette.textQuaternary)
             }
             Spacer(minLength: 8)
             trailing
         }
-        .padding(.horizontal, Crenel.Space.xxs)
+        .frame(height: 20)
     }
 }
 
@@ -401,148 +385,152 @@ extension CrenelSectionHeader where Trailing == EmptyView {
     }
 }
 
-// MARK: - Living visuals (shaders)
+// MARK: - Meters and signals
 
-/// The dot orb: Crenel's signature "alive" visual for listening, recording and setup.
-struct CrenelOrb: View {
-    var top: Color = .white
-    var bottom: Color = Crenel.Palette.record
-    var level: Double = 0
-    var density: Double = 16
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var start = Date()
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 60, paused: reduceMotion)) { context in
-            let time = Float(context.date.timeIntervalSince(start))
-            GeometryReader { proxy in
-                Rectangle()
-                    .fill(Color.black.opacity(0.001))
-                    .colorEffect(
-                        ShaderLibrary.crenelDotOrb(
-                            .float2(proxy.size),
-                            .float(time),
-                            .color(top),
-                            .color(bottom),
-                            .float(Float(max(0, min(1, level)))),
-                            .float(Float(density))
-                        )
-                    )
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Soft drifting light behind hero content.
-struct CrenelAura: View {
+/// Progress as a row of pixel blocks.
+struct CrenelPixelMeter: View {
+    var progress: Double
     var tint: Color
-    var intensity: Double = 0.55
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var start = Date()
+    var segments = 10
+    var height: CGFloat = 6
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
-            let time = Float(context.date.timeIntervalSince(start))
-            GeometryReader { proxy in
+        let lit = Int((min(1, max(0, progress)) * Double(segments)).rounded())
+        HStack(spacing: 2) {
+            ForEach(0..<segments, id: \.self) { index in
                 Rectangle()
-                    .fill(Color.black.opacity(0.001))
-                    .colorEffect(
-                        ShaderLibrary.crenelAura(
-                            .float2(proxy.size),
-                            .float(time),
-                            .color(tint),
-                            .float(Float(intensity))
-                        )
-                    )
+                    .fill(index < lit ? tint : Crenel.Palette.layer3)
+                    .frame(height: height)
             }
         }
-        .allowsHitTesting(false)
+        .animation(.easeOut(duration: 0.2), value: lit)
         .accessibilityHidden(true)
     }
 }
 
-private struct ShimmerModifier: ViewModifier {
+/// The voice meter: columns of pixel blocks rising like merlons on a wall.
+struct CrenelMerlonMeter: View {
+    var level: Double
+    var tint: Color
+    var columns = 5
+    var rows = 4
+    var pixel: CGFloat = 3
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.09)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            HStack(alignment: .bottom, spacing: pixel * 0.67) {
+                ForEach(0..<columns, id: \.self) { column in
+                    let shape = [0.6, 0.9, 1.0, 0.85, 0.55, 0.8, 0.95][column % 7]
+                    let wobble = reduceMotion ? 1 : (0.7 + 0.3 * abs(sin(t * 7 + Double(column) * 1.7)))
+                    let height = max(1, Int((min(1, level * 1.4) * shape * wobble * Double(rows)).rounded(.up)))
+                    VStack(spacing: pixel * 0.33) {
+                        ForEach((0..<rows).reversed(), id: \.self) { row in
+                            Rectangle()
+                                .fill(row < height ? tint : tint.opacity(0.16))
+                                .frame(width: pixel, height: pixel)
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A braille spinner for work in progress.
+struct CrenelSpinner: View {
+    var tint: Color = Crenel.Palette.textSecondary
+    private static let frames = Array("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.08)) { context in
+            let index = reduceMotion ? 0 : Int(context.date.timeIntervalSinceReferenceDate / 0.08) % Self.frames.count
+            Text(String(Self.frames[index]))
+                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                .foregroundStyle(tint)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// A pixel that blinks in hard steps, like a cursor — the recording light.
+struct CrenelBlink: View {
+    var glyph: CrenelGlyph = .record
+    var tint: Color = Crenel.Palette.record
+    var size: CGFloat = 13.5
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 0.6)) { context in
+            let on = reduceMotion || Int(context.date.timeIntervalSinceReferenceDate / 0.6) % 2 == 0
+            CrenelIcon(glyph, size: size)
+                .foregroundStyle(tint.opacity(on ? 1 : 0.28))
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// Small status dot.
+struct CrenelDot: View {
+    var color: Color
+    var size: CGFloat = 6
+
+    var body: some View {
+        Rectangle().fill(color).frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+// MARK: - Edge light
+
+private struct BeamModifier<S: Shape>: ViewModifier {
     var active: Bool
+    var tint: Color
+    var level: Double
+    var speed: Double
+    var lineWidth: CGFloat
+    var shape: S
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var start = Date()
 
     func body(content: Content) -> some View {
-        if active && !reduceMotion {
-            TimelineView(.animation(minimumInterval: 1 / 60)) { context in
-                let time = Float(context.date.timeIntervalSince(start))
-                content.visualEffect { view, proxy in
-                    view.colorEffect(
-                        ShaderLibrary.crenelShimmer(.float2(proxy.size), .float(time), .float(0.85))
-                    )
+        content.overlay {
+            if active {
+                TimelineView(.animation(minimumInterval: 1 / 60, paused: reduceMotion)) { context in
+                    let time = Float(context.date.timeIntervalSince(start))
+                    shape
+                        .stroke(Color.white, lineWidth: lineWidth)
+                        .visualEffect { view, proxy in
+                            view.colorEffect(ShaderLibrary.crenelBeam(
+                                .float2(proxy.size),
+                                .float(time),
+                                .color(tint),
+                                .float(Float(speed)),
+                                .float(Float(max(0, min(1, level))))
+                            ))
+                        }
                 }
+                .allowsHitTesting(false)
+                .transition(.opacity)
             }
-        } else {
-            content
         }
     }
 }
 
 extension View {
-    /// Sweeps a highlight across the view while work is in progress.
-    func crenelShimmer(_ active: Bool = true) -> some View {
-        modifier(ShimmerModifier(active: active))
-    }
-}
-
-/// A breathing status dot.
-struct CrenelPulseDot: View {
-    var color: Color
-    var size: CGFloat = 7
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var animating = false
-
-    var body: some View {
-        Circle()
-            .fill(color)
-            .frame(width: size, height: size)
-            .background {
-                Circle()
-                    .fill(color.opacity(0.5))
-                    .scaleEffect(animating ? 2.4 : 1)
-                    .opacity(animating ? 0 : 0.8)
-            }
-            .shadow(color: color.opacity(0.8), radius: 4)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) {
-                    animating = true
-                }
-            }
-            .accessibilityHidden(true)
-    }
-}
-
-/// Live level bars that rise like battlements.
-struct CrenelLevelBars: View {
-    var level: Double
-    var tint: Color
-    var barCount = 5
-    var height: CGFloat = 14
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            HStack(alignment: .center, spacing: 2.5) {
-                ForEach(0..<barCount, id: \.self) { index in
-                    let phase = sin(t * 9 + Double(index) * 1.3) * 0.5 + 0.5
-                    let shape = [0.55, 0.85, 1.0, 0.8, 0.5][index % 5]
-                    let value = max(0.18, min(1, level * shape * (0.65 + 0.35 * phase) + 0.12))
-                    Capsule()
-                        .fill(tint)
-                        .frame(width: 3, height: height * value)
-                }
-            }
-            .frame(height: height)
-        }
-        .animation(.smooth(duration: 0.12), value: level)
-        .accessibilityHidden(true)
+    /// Light travelling along the edge of `shape` while `active`.
+    func crenelBeam<S: Shape>(
+        _ active: Bool,
+        tint: Color,
+        level: Double = 0.3,
+        speed: Double = 0.45,
+        lineWidth: CGFloat = 1.5,
+        shape: S
+    ) -> some View {
+        modifier(BeamModifier(active: active, tint: tint, level: level, speed: speed, lineWidth: lineWidth, shape: shape))
     }
 }
 
@@ -555,20 +543,19 @@ struct CrenelEmptyState: View {
     var tint: Color = Crenel.Palette.textTertiary
 
     var body: some View {
-        VStack(spacing: Crenel.Space.s) {
-            CrenelIcon(glyph, size: 22)
+        HStack(alignment: .top, spacing: Crenel.Space.m) {
+            CrenelIcon(glyph, size: 18)
                 .foregroundStyle(tint)
-                .frame(width: 44, height: 44)
-                .background(tint.opacity(0.1), in: Circle())
-            Text(title).crenelText(.bodyEmphasis)
-            if let detail {
-                Text(detail)
-                    .crenelText(.callout, color: Crenel.Palette.textTertiary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).crenelText(.bodyEmphasis)
+                if let detail {
+                    Text(detail)
+                        .crenelText(.callout, color: Crenel.Palette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, Crenel.Space.xl)
+        .padding(.vertical, Crenel.Space.m)
     }
 }

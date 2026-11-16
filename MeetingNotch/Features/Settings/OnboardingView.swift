@@ -23,7 +23,7 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            Color.black
+            Crenel.Palette.ink
             switch step {
             case .welcome:
                 welcome
@@ -34,6 +34,7 @@ struct OnboardingView: View {
             }
         }
         .frame(width: 560, height: 680)
+        .background(Crenel.Palette.ink)
         .environment(\.colorScheme, .dark)
         .preferredColorScheme(.dark)
         .animation(Crenel.Motion.resolve(Crenel.Motion.morph, reduceMotion: reduceMotion), value: step)
@@ -44,24 +45,26 @@ struct OnboardingView: View {
     private var welcome: some View {
         VStack(spacing: Crenel.Space.xxl) {
             Spacer(minLength: 0)
-            CrenelOrb(top: .white, bottom: Crenel.Palette.calendar, level: 0.25, density: 18)
-                .frame(width: 220, height: 220)
+            WelcomeMark()
             VStack(spacing: Crenel.Space.m) {
-                CrenelIcon(.logo, size: 30)
+                Text("crenel")
+                    .font(.system(size: 28, weight: .bold, design: .monospaced))
                     .foregroundStyle(Crenel.Palette.textPrimary)
-                Text("Notch’unuzda yaşayan yardımcı")
-                    .crenelText(.title)
-                    .font(.system(size: 26, weight: .semibold))
-                Text("Takvim, görevler, dikte ve toplantı kaydı — hepsi tek bir yerde, tek seferde kurulur.")
-                    .crenelText(.body, color: Crenel.Palette.textSecondary)
+                Text("notch’unuzdaki yardımcı.\ntakvim, görevler, dikte ve toplantı kaydı — tek seferde kurulur.")
+                    .crenelText(.callout, color: Crenel.Palette.textSecondary)
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 380)
+                    .lineSpacing(3)
+                    .frame(maxWidth: 400)
             }
             Spacer(minLength: 0)
             Button {
                 step = .setup
             } label: {
-                Text("Başlayalım").frame(minWidth: 180)
+                HStack(spacing: Crenel.Space.s) {
+                    Text("başlayalım")
+                    CrenelIcon(.chevronRight, size: 9)
+                }
+                .frame(minWidth: 160)
             }
             .buttonStyle(CrenelButtonStyle(kind: .primary, size: .large))
             .keyboardShortcut(.defaultAction)
@@ -75,11 +78,11 @@ struct OnboardingView: View {
     private var setupScreen: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: Crenel.Space.s) {
-                Text("Kurulum").eyebrow(color: Crenel.Palette.calendar)
-                Text("Crenel’e ihtiyacı olanı verin")
-                    .font(.system(size: 22, weight: .semibold))
+                Text("kurulum").eyebrow(color: Crenel.Palette.brand)
+                Text("crenel’e ihtiyacı olanı verin")
+                    .font(.system(size: 20, weight: .bold, design: .monospaced))
                     .foregroundStyle(Crenel.Palette.textPrimary)
-                Text("Hepsi isteğe bağlı. Vermediğiniz izin yalnız o özelliği kapatır; diğerleri çalışır.")
+                Text("hepsi isteğe bağlı. vermediğiniz izin yalnız o özelliği kapatır.")
                     .crenelText(.callout, color: Crenel.Palette.textTertiary)
             }
             .padding(.horizontal, Crenel.Space.xxl)
@@ -88,12 +91,12 @@ struct OnboardingView: View {
 
             ScrollView {
                 VStack(spacing: Crenel.Space.l) {
-                    group("Plan", [.calendar, .reminders, .notifications])
-                    group("Ses", [.microphone, .systemAudio])
-                    group("Klavye", [.inputMonitoring, .accessibility])
+                    group("plan", [.calendar, .reminders, .notifications])
+                    group("ses", [.microphone, .systemAudio])
+                    group("klavye", [.inputMonitoring, .accessibility])
                     HStack(alignment: .top, spacing: Crenel.Space.s) {
-                        CrenelIcon(.shield, size: 14)
-                        Text("Dikte ve agent cihazda çalışır. Toplantı sesi yalnız transkript için, siz kayıt başlattığınızda işlenir.")
+                        CrenelIcon(.shield, size: 9)
+                        Text("dikte ve agent cihazda çalışır. toplantı sesi yalnız siz kayıt başlattığınızda, transkript için işlenir.")
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .crenelText(.caption, color: Crenel.Palette.textTertiary)
@@ -108,20 +111,20 @@ struct OnboardingView: View {
                 progressSummary
                 Spacer()
                 if setup.allGranted {
-                    Button("Crenel’i aç", action: onComplete)
+                    Button("crenel’i aç", action: onComplete)
                         .buttonStyle(CrenelButtonStyle(kind: .primary, size: .large))
                         .keyboardShortcut(.defaultAction)
                 } else {
-                    Button("Şimdilik bu kadar", action: onComplete)
+                    Button("şimdilik bu kadar", action: onComplete)
                         .buttonStyle(CrenelButtonStyle(kind: .ghost, size: .large))
                     Button {
                         Task { await setup.requestAll() }
                     } label: {
                         HStack(spacing: Crenel.Space.s) {
                             if setup.isRunningAll {
-                                ProgressView().controlSize(.small).tint(.black)
+                                CrenelSpinner(tint: Crenel.Palette.ink)
                             }
-                            Text("Hepsini aç")
+                            Text("hepsini aç")
                         }
                     }
                     .buttonStyle(CrenelButtonStyle(kind: .primary, size: .large))
@@ -146,8 +149,8 @@ struct OnboardingView: View {
         let granted = SetupCapability.allCases.filter { setup.grant(for: $0) == .granted }.count
         let total = SetupCapability.allCases.count
         return HStack(spacing: Crenel.Space.s) {
-            CrenelProgressRing(progress: Double(granted) / Double(total), tint: Crenel.Palette.success, lineWidth: 2.5)
-                .frame(width: 18, height: 18)
+            CrenelPixelMeter(progress: Double(granted) / Double(total), tint: Crenel.Palette.success, segments: total, height: 6)
+                .frame(width: 70)
             Text("\(granted)/\(total) hazır")
                 .crenelText(.caption, color: Crenel.Palette.textSecondary)
         }
@@ -164,11 +167,11 @@ struct OnboardingView: View {
                         Task { await setup.request(capability) }
                     }
                     if index < capabilities.count - 1 {
-                        Rectangle().fill(Crenel.Palette.hairline).frame(height: 1).padding(.leading, 56)
+                        Rectangle().fill(Crenel.Palette.hairline).frame(height: 1).padding(.leading, 48)
                     }
                 }
             }
-            .crenelSurface(Crenel.Palette.layer1, radius: Crenel.Radius.l)
+            .crenelSurface()
         }
     }
 }
@@ -180,34 +183,34 @@ private struct SetupRow: View {
 
     var body: some View {
         HStack(spacing: Crenel.Space.m) {
-            CrenelIcon(capability.glyph, size: 16)
+            CrenelIcon(capability.glyph, size: 13.5)
                 .foregroundStyle(grant == .granted ? Crenel.Palette.success : Crenel.Palette.textPrimary)
-                .frame(width: 32, height: 32)
-                .background((grant == .granted ? Crenel.Palette.success : Color.white).opacity(0.08), in: Circle())
+                .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
-                Text(capability.title).crenelText(.bodyEmphasis)
-                Text(capability.detail).crenelText(.caption, color: Crenel.Palette.textTertiary)
+                Text(capability.title.lowercased(with: Locale(identifier: "tr_TR"))).crenelText(.bodyEmphasis)
+                Text(capability.detail.lowercased(with: Locale(identifier: "tr_TR")))
+                    .crenelText(.caption, color: Crenel.Palette.textTertiary)
                     .lineLimit(1)
             }
             Spacer(minLength: Crenel.Space.s)
             switch grant {
             case .granted:
-                HStack(spacing: 4) {
-                    CrenelIcon(.check, size: 12, weight: 2.4)
-                    Text("Hazır")
+                HStack(spacing: 6) {
+                    CrenelIcon(.check, size: 9)
+                    Text("hazır")
                 }
                 .crenelText(.callout, color: Crenel.Palette.success)
-                .transition(.scale(scale: 0.8).combined(with: .opacity))
+                .transition(.crenelPixel)
                 .accessibilityLabel("\(capability.title) hazır")
             case .notAsked:
-                Button(capability.usesSystemPrompt ? "İzin ver" : "Aç", action: action)
+                Button(capability.usesSystemPrompt ? "izin ver" : "aç", action: action)
                     .buttonStyle(CrenelButtonStyle(kind: .secondary, size: .small))
                     .accessibilityLabel("\(capability.title) iznini ver")
             case .blocked:
                 Button(action: action) {
-                    HStack(spacing: 4) {
-                        Text("Ayarlar’da aç")
-                        CrenelIcon(.arrowUpRight, size: 10, weight: 2.2)
+                    HStack(spacing: 6) {
+                        Text("ayarlar’da aç")
+                        CrenelIcon(.arrowUpRight, size: 9)
                     }
                 }
                 .buttonStyle(CrenelButtonStyle(kind: .tinted(Crenel.Palette.warning), size: .small))
@@ -216,6 +219,32 @@ private struct SetupRow: View {
             }
         }
         .padding(.horizontal, Crenel.Space.m)
-        .padding(.vertical, Crenel.Space.m)
+        .frame(minHeight: 52)
+    }
+}
+
+/// The crenel mark resolving pixel by pixel inside a frame of travelling light.
+private struct WelcomeMark: View {
+    @State private var shown = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            PixelCornerShape(step: 4, steps: 3)
+                .fill(Crenel.Palette.layer1)
+            if shown {
+                CrenelIcon(.logo, size: 90)
+                    .foregroundStyle(Crenel.Palette.brand)
+                    .transition(.crenelPixel)
+            }
+        }
+        .frame(width: 180, height: 180)
+        .crenelBeam(true, tint: Crenel.Palette.brand, level: 0.4, speed: 0.35, lineWidth: 1.5, shape: PixelCornerShape(step: 4, steps: 3))
+        .onAppear {
+            withAnimation(Crenel.Motion.resolve(.easeOut(duration: 0.9).delay(0.15), reduceMotion: reduceMotion)) {
+                shown = true
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

@@ -253,9 +253,10 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(MeetingNotchTheme.MainPanel.contentSpacing, 12)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.rowSpacing, 4)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.itemSpacing, 10)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.panelRadius, 24)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.surfaceRadius, 22)
-        XCTAssertEqual(MeetingNotchTheme.MainPanel.capsuleRadius, 16)
+        // Crenel geometry (C9): tight radii, pixel-stepped controls.
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.panelRadius, 12)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.surfaceRadius, 8)
+        XCTAssertEqual(MeetingNotchTheme.MainPanel.capsuleRadius, 6)
         XCTAssertGreaterThanOrEqual(MeetingNotchTheme.MainPanel.tabHeight, 40)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.rowHeight, 58)
         XCTAssertEqual(MeetingNotchTheme.MainPanel.iconSize, 20)
@@ -269,10 +270,6 @@ final class NotchPresentationTests: XCTestCase {
         )
         XCTAssertGreaterThanOrEqual(MeetingNotchTheme.activeTabFillOpacity, 0.10)
         XCTAssertGreaterThan(MeetingNotchTheme.surfaceRadius, MeetingNotchTheme.controlRadius)
-        XCTAssertGreaterThanOrEqual(
-            MeetingNotchTheme.surfaceRadius - MeetingNotchTheme.controlRadius,
-            MeetingNotchTheme.tabBarPadding
-        )
     }
 
     func testEveryApplicationSurfaceUsesTheFigmaGeometrySystem() {
@@ -290,7 +287,7 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(MeetingNotchTheme.surfaceRadius, MeetingNotchTheme.MainPanel.surfaceRadius)
         XCTAssertEqual(MeetingNotchTheme.controlRadius, MeetingNotchTheme.MainPanel.capsuleRadius)
         XCTAssertEqual(MeetingNotchTheme.iconSize, MeetingNotchTheme.MainPanel.iconSize)
-        XCTAssertGreaterThanOrEqual(MeetingNotchTheme.controlHeight, 40)
+        XCTAssertGreaterThanOrEqual(MeetingNotchTheme.controlHeight, 30)
     }
 
     @MainActor

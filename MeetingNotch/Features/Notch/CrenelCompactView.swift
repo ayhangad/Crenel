@@ -24,10 +24,10 @@ struct CrenelCompactView: View {
             NotchFlankLayout(gap: metrics.hasPhysicalNotch ? metrics.hardware.width + 12 : 14) {
                 leading(status, now: now)
                     .id(status.identity)
-                    .transition(.crenelMorph(anchor: .center))
+                    .transition(.crenelPixel)
                 trailing(status, now: now)
                     .id(status.identity)
-                    .transition(.crenelMorph(anchor: .center))
+                    .transition(.crenelPixel)
             }
             .padding(.horizontal, 18)
             .frame(height: metrics.hardware.height)
@@ -42,14 +42,10 @@ struct CrenelCompactView: View {
         switch status {
         case .dictation(let state):
             switch state {
-            case .listening, .transcribing, .refining, .inserting:
-                CrenelOrb(
-                    top: .white,
-                    bottom: Crenel.Palette.dictation,
-                    level: state.isListening ? Double(appState.dictationLevel) : 0.1,
-                    density: 9
-                )
-                .frame(width: 22, height: 22)
+            case .listening:
+                CrenelMerlonMeter(level: Double(appState.dictationLevel), tint: Crenel.Palette.dictation, columns: 5, rows: 4, pixel: 3)
+            case .transcribing, .refining, .inserting:
+                CrenelSpinner(tint: Crenel.Palette.dictation)
             case .inserted:
                 glyph(.check, Crenel.Palette.success)
             case .failed:
@@ -58,44 +54,32 @@ struct CrenelCompactView: View {
                 EmptyView()
             }
         case .recording(let recording):
-            HStack(spacing: 7) {
-                CrenelPulseDot(color: Crenel.Palette.record, size: 7)
-                CrenelIcon(recording.microphoneState == .open ? .mic : .micOff, size: 14)
+            HStack(spacing: 8) {
+                CrenelBlink(tint: Crenel.Palette.record, size: 13.5)
+                CrenelIcon(recording.microphoneState == .open ? .mic : .micOff, size: 13.5)
                     .foregroundStyle(recording.microphoneState == .open ? Crenel.Palette.textPrimary : Crenel.Palette.textTertiary)
                     .accessibilityLabel(NotchAccessibilityContract.microphoneGateLabel(recording.microphoneState))
             }
         case .processing(let stage):
             if case .uploading(let progress) = stage {
-                CrenelProgressRing(progress: progress, tint: Crenel.Palette.dictation, lineWidth: 2.4)
-                    .frame(width: 16, height: 16)
+                CrenelPixelMeter(progress: progress, tint: Crenel.Palette.agent, segments: 6, height: 5)
+                    .frame(width: 44)
             } else {
-                glyph(.waveform, Crenel.Palette.dictation)
-                    .crenelShimmer()
+                CrenelSpinner(tint: Crenel.Palette.agent)
             }
         case .completed:
             glyph(.check, Crenel.Palette.success)
         case .failed:
             glyph(.warning, Crenel.Palette.danger)
         case .agenda(let agenda):
-            HStack(spacing: 7) {
-                CrenelProgressRing(progress: agenda.ringProgress(now: now), tint: agenda.tint, lineWidth: 2.4)
-                    .frame(width: 16, height: 16)
-                Text(agenda.item.title)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(Crenel.Palette.textPrimary)
-                    .lineLimit(1)
-                    .frame(maxWidth: 120, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: false)
+            HStack(spacing: 8) {
+                glyph(agenda.item.kind == .onlineMeeting ? .video : .calendar, agenda.tint)
+                label(agenda.item.title)
             }
         case .focus(let task):
-            HStack(spacing: 7) {
-                TaskStateGlyph(status: .inProgress, size: 15)
-                Text(task.title)
-                    .font(.system(size: 12.5, weight: .semibold))
-                    .foregroundStyle(Crenel.Palette.textPrimary)
-                    .lineLimit(1)
-                    .frame(maxWidth: 120, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: false)
+            HStack(spacing: 8) {
+                TaskStateGlyph(status: .inProgress, size: 13.5)
+                label(task.title)
             }
         case .tasks:
             glyph(.tasks, Crenel.Palette.tasks)
@@ -112,14 +96,13 @@ struct CrenelCompactView: View {
         case .dictation(let state):
             switch state {
             case .listening:
-                CrenelLevelBars(level: Double(appState.dictationLevel), tint: Crenel.Palette.dictation, height: 14)
+                value("dinliyor", Crenel.Palette.dictation)
             case .transcribing, .refining, .inserting:
-                value(DictationStatusText.title(for: state), Crenel.Palette.dictation)
-                    .crenelShimmer()
+                value(DictationStatusText.title(for: state).lowercased(with: Locale(identifier: "tr_TR")), Crenel.Palette.dictation)
             case .inserted:
-                value("Eklendi", Crenel.Palette.success)
+                value("eklendi", Crenel.Palette.success)
             case .failed(let failure):
-                value(DictationStatusText.short(for: failure), Crenel.Palette.warning)
+                value(DictationStatusText.short(for: failure).lowercased(with: Locale(identifier: "tr_TR")), Crenel.Palette.warning)
                     .help(failure.message)
             case .idle:
                 EmptyView()
@@ -130,15 +113,14 @@ struct CrenelCompactView: View {
                 .accessibilityLabel(NotchAccessibilityContract.recordingDurationLabel(Self.elapsed(now.timeIntervalSince(recording.startedAt))))
         case .processing(let stage):
             if case .uploading(let progress) = stage {
-                value(progress.formatted(.percent.precision(.fractionLength(0))), Crenel.Palette.dictation)
+                value(progress.formatted(.percent.precision(.fractionLength(0))), Crenel.Palette.agent)
             } else {
-                value(stage.shortTitle, Crenel.Palette.dictation)
-                    .crenelShimmer()
+                value(stage.shortTitle.lowercased(with: Locale(identifier: "tr_TR")), Crenel.Palette.agent)
             }
         case .completed:
-            value("Hazır", Crenel.Palette.success)
+            value("hazır", Crenel.Palette.success)
         case .failed:
-            value("Hata", Crenel.Palette.danger)
+            value("hata", Crenel.Palette.danger)
         case .agenda(let agenda):
             value(NotchAgendaFormatter.compactText(for: agenda), agenda.tint)
                 .contentTransition(.numericText())
@@ -156,8 +138,17 @@ struct CrenelCompactView: View {
     // MARK: Pieces
 
     private func glyph(_ glyph: CrenelGlyph, _ tint: Color) -> some View {
-        CrenelIcon(glyph, size: 15, weight: 2)
+        CrenelIcon(glyph, size: 13.5)
             .foregroundStyle(tint)
+    }
+
+    private func label(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12.5, weight: .semibold, design: .monospaced))
+            .foregroundStyle(Crenel.Palette.textPrimary)
+            .lineLimit(1)
+            .frame(maxWidth: 130, alignment: .leading)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     private func value(_ text: String, _ tint: Color) -> some View {

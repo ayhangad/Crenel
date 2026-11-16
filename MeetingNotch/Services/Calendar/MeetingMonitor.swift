@@ -93,6 +93,10 @@ final class MeetingMonitor {
         timeZoneChangeTask = nil
     }
 
+    /// How far ahead the agenda reads. A day was too short: with nothing in the next
+    /// 24 hours the notch looked disconnected even though access was fine.
+    static let agendaHorizon: TimeInterval = 7 * 24 * 60 * 60
+
     func requestAccess() async {
         onAccessStateChange?(.requesting)
 
@@ -141,7 +145,7 @@ final class MeetingMonitor {
         do {
             let result = try await provider.query(
                 from: currentDate.addingTimeInterval(-60 * 60),
-                to: currentDate.addingTimeInterval(24 * 60 * 60)
+                to: currentDate.addingTimeInterval(Self.agendaHorizon)
             )
             guard isEnabled, version == configurationVersion else { return }
             onIntegrationSnapshotChange?(CalendarIntegrationSnapshot(

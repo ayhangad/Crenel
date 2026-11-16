@@ -147,8 +147,8 @@ struct NotchPanelView: View {
         // Clear the menu-bar band (and camera housing) the notch starts under, and keep
         // content inside the flared walls of the shape.
         .padding(.top, notchMetrics.topInset + Crenel.Space.s)
-        .padding(.horizontal, Crenel.Space.xxl)
-        .padding(.bottom, Crenel.Space.xl)
+        .padding(.horizontal, Crenel.Space.xl + Crenel.Space.xxs)
+        .padding(.bottom, Crenel.Space.l)
         .frame(width: layout.width)
         .meetingNotchPanelAppearance(
             hasPhysicalNotch: appState.notchPanelHasPhysicalNotch
@@ -226,8 +226,8 @@ private struct NotchPanelHeader: View {
 
     var body: some View {
         HStack(spacing: Crenel.Space.m) {
-            CrenelIcon(.logo, size: 20)
-                .foregroundStyle(Crenel.Palette.textPrimary)
+            CrenelIcon(.logo, size: 18)
+                .foregroundStyle(Crenel.Palette.brand)
                 .accessibilityLabel("Crenel")
 
             CrenelSegmented(
@@ -255,18 +255,16 @@ private struct NotchPanelHeader: View {
             Button {
                 NotificationCenter.default.post(name: .openDesktopWorkspace, object: nil)
             } label: {
-                CrenelIcon(.window, size: 15)
+                CrenelIcon(.window, size: 13.5)
             }
             .buttonStyle(CrenelIconButtonStyle())
             .help("Masaüstü çalışma alanını aç")
             .accessibilityLabel("Masaüstü çalışma alanını aç")
 
             Button(action: onTogglePin) {
-                CrenelIcon(.pin, size: 15)
-                    .rotationEffect(.degrees(appState.isNotchPinned ? 0 : 35))
+                CrenelIcon(.pin, size: 13.5)
             }
             .buttonStyle(CrenelIconButtonStyle(tint: appState.isNotchPinned ? Crenel.Palette.focus : Crenel.Palette.textSecondary, isActive: appState.isNotchPinned))
-            .animation(Crenel.Motion.bouncy, value: appState.isNotchPinned)
             .help(appState.isNotchPinned ? "Paneli serbest bırak" : "Paneli açık tut")
             .accessibilityLabel(appState.isNotchPinned ? "Panel sabitlemesini kaldır" : "Paneli açık tut")
             .accessibilityValue(appState.isNotchPinned ? "Açık tutuluyor" : "Serbest")
@@ -291,7 +289,6 @@ private struct FigmaGateButtonStyle: ButtonStyle {
             .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.72 : 1)
             .meetingControlFeedback(radius: 16, restingBorder: false)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.12),
                 value: configuration.isPressed
@@ -304,7 +301,6 @@ private struct NotchTabButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.12),
                 value: configuration.isPressed
@@ -394,15 +390,11 @@ private struct MeetingStatusView: View {
     }
 
     private var scheduledMeetings: [Meeting] {
-        var timed = Array(appState.upcomingMeetings.filter { !$0.isAllDay }.prefix(3))
-        if let nextMeeting = appState.nextMeeting,
-           !timed.contains(where: { $0.id == nextMeeting.id }) {
-            timed.insert(nextMeeting, at: 0)
+        var items = appState.upcomingMeetings.filter { !$0.isAllDay || Calendar.current.isDateInToday($0.startDate) }
+        if let nextMeeting = appState.nextMeeting, !items.contains(where: { $0.id == nextMeeting.id }) {
+            items.insert(nextMeeting, at: 0)
         }
-        let allDay = appState.upcomingMeetings
-            .filter { $0.isAllDay && Calendar.current.isDateInToday($0.startDate) }
-            .prefix(2)
-        return Array(timed.prefix(3)) + allDay
+        return items.sorted { $0.startDate < $1.startDate }
     }
 
     private var sectionTitle: String {
@@ -466,20 +458,12 @@ private struct MeetingStatusView: View {
 
     private func recordingSurface(startedAt: Date) -> some View {
         VStack(alignment: .leading, spacing: Crenel.Space.m) {
-            VStack(alignment: .leading, spacing: Crenel.Space.l) {
-                HStack(alignment: .center, spacing: Crenel.Space.l) {
-                    CrenelOrb(
-                        top: .white,
-                        bottom: Crenel.Palette.record,
-                        level: Double(max(appState.recordingCaptureStatus.microphone.level, appState.recordingCaptureStatus.systemAudio.level)),
-                        density: 14
-                    )
-                    .frame(width: 64, height: 64)
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            CrenelPulseDot(color: Crenel.Palette.record, size: 6)
-                            Text("Kaydediliyor").eyebrow(color: Crenel.Palette.record)
+            VStack(alignment: .leading, spacing: Crenel.Space.m) {
+                HStack(alignment: .center, spacing: Crenel.Space.m) {
+                    VStack(alignment: .leading, spacing: Crenel.Space.xxs) {
+                        HStack(spacing: Crenel.Space.s) {
+                            CrenelBlink(tint: Crenel.Palette.record, size: 9)
+                            Text("kaydediliyor").eyebrow(color: Crenel.Palette.record)
                         }
                         TimelineView(.periodic(from: .now, by: 1)) { context in
                             Text(CrenelCompactView.elapsed(context.date.timeIntervalSince(startedAt)))
@@ -488,27 +472,30 @@ private struct MeetingStatusView: View {
                                 .accessibilityLabel(NotchAccessibilityContract.recordingDurationLabel(CrenelCompactView.elapsed(context.date.timeIntervalSince(startedAt))))
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Spacer(minLength: Crenel.Space.s)
 
                     if let gate = appState.meetingMicrophoneGate {
                         Button(action: onToggleMeetingMicrophone) {
-                            CrenelIcon(gate.permitsAudio ? .mic : .micOff, size: 17)
+                            HStack(spacing: 6) {
+                                CrenelIcon(gate.permitsAudio ? .mic : .micOff, size: 9)
+                                Text(gate.state == .open ? "mik açık" : "mik kapalı")
+                            }
                         }
-                        .buttonStyle(CrenelIconButtonStyle(
-                            diameter: 44,
-                            tint: gate.state == .open ? Crenel.Palette.textPrimary : (gate.state == .unknown ? Crenel.Palette.warning : Crenel.Palette.textTertiary),
-                            fill: Crenel.Palette.layer2
+                        .buttonStyle(CrenelButtonStyle(
+                            kind: gate.state == .unknown ? .tinted(Crenel.Palette.warning) : (gate.state == .open ? .tinted(Crenel.Palette.success) : .secondary),
+                            size: .regular
                         ))
                         .help("Toplantı mikrofonunu aç veya gizlilik için kapat (⌥⌘M)")
                         .accessibilityLabel(NotchAccessibilityContract.microphoneGateLabel(gate.state))
                     }
 
                     Button(action: onStopRecording) {
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .fill(Crenel.Palette.record)
-                            .frame(width: 16, height: 16)
+                        HStack(spacing: 6) {
+                            CrenelIcon(.stop, size: 9)
+                            Text("durdur")
+                        }
                     }
-                    .buttonStyle(CrenelIconButtonStyle(diameter: 44, tint: Crenel.Palette.record, fill: Crenel.Palette.record.opacity(0.18)))
+                    .buttonStyle(CrenelButtonStyle(kind: .accent(Crenel.Palette.record), size: .regular))
                     .contextMenu {
                         Button("Kaydı sil", role: .destructive) { showsCancelConfirmation = true }
                     }
@@ -520,7 +507,7 @@ private struct MeetingStatusView: View {
 
                 if let gate = appState.meetingMicrophoneGate {
                     HStack(spacing: 6) {
-                        Text(gate.state == .open ? "Sesiniz kayda dahil ediliyor" : (gate.state == .unknown ? "Mikrofon durumu bilinmiyor; güvenli olarak kapalı" : "Sesiniz kayda dahil edilmiyor"))
+                        Text(gate.state == .open ? "sesiniz kayda dahil" : (gate.state == .unknown ? "mikrofon durumu bilinmiyor · güvenli kapalı" : "sesiniz kayda dahil değil"))
                         Spacer(minLength: 4)
                         CrenelKeyCap(label: "⌥⌘M")
                     }
@@ -528,14 +515,7 @@ private struct MeetingStatusView: View {
                 }
             }
             .padding(Crenel.Space.l)
-            .background {
-                ZStack {
-                    RoundedRectangle(cornerRadius: Crenel.Radius.l, style: .continuous).fill(Crenel.Palette.layer1)
-                    CrenelAura(tint: Crenel.Palette.record, intensity: 0.5)
-                        .clipShape(RoundedRectangle(cornerRadius: Crenel.Radius.l, style: .continuous))
-                }
-            }
-            .crenelSurface(.clear)
+            .crenelSurface(Crenel.Palette.layer1, stroke: Crenel.Palette.record.opacity(0.35))
 
             ForEach(recordingWarnings, id: \.self) { warning in
                 FigmaWarningRow(text: warning, isCritical: true)
@@ -597,9 +577,7 @@ private struct MeetingStatusView: View {
             }
 
             if let progress = presentation.progress {
-                ProgressView(value: progress)
-                    .progressViewStyle(.linear)
-                    .tint(presentation.color)
+                CrenelPixelMeter(progress: progress, tint: Crenel.Palette.agent, segments: 24, height: 5)
                     .accessibilityLabel("İşlem ilerlemesi")
             }
 
@@ -607,14 +585,8 @@ private struct MeetingStatusView: View {
                 actionArea
             }
         }
-        .padding(16)
-        .background(
-            MeetingNotchTheme.MainPanel.surface,
-            in: RoundedRectangle(
-                cornerRadius: MeetingNotchTheme.MainPanel.surfaceRadius,
-                style: .continuous
-            )
-        )
+        .padding(Crenel.Space.l)
+        .crenelSurface()
     }
 
     private var googleMeetBridgeStatusText: String {
@@ -679,9 +651,7 @@ private struct MeetingStatusView: View {
                 .font(MeetingNotchTheme.dataFont.monospacedDigit())
                 .foregroundStyle(MeetingNotchTheme.MainPanel.cyan)
         case .preparingRecording, .finalizingAudio, .transcribing, .summarizing:
-            ProgressView()
-                .controlSize(.mini)
-                .tint(MeetingNotchTheme.MainPanel.cyan)
+            CrenelSpinner(tint: Crenel.Palette.agent)
                 .accessibilityLabel("İşleme devam ediyor")
         default:
             EmptyView()
@@ -1146,22 +1116,17 @@ private struct CaptureSourcesView: View {
 
     private func source(_ title: String, glyph: CrenelGlyph, status: AudioSourceStatus) -> some View {
         HStack(spacing: Crenel.Space.s) {
-            CrenelIcon(glyph, size: 13)
+            CrenelIcon(glyph, size: 9)
                 .foregroundStyle(sourceColor(status.connectionState))
             Text(title)
                 .crenelText(.caption, color: Crenel.Palette.textSecondary)
                 .lineLimit(1)
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Crenel.Palette.layer3)
-                    Capsule()
-                        .fill(sourceColor(status.connectionState) == Crenel.Palette.textSecondary ? Crenel.Palette.record : sourceColor(status.connectionState))
-                        .frame(width: proxy.size.width * CGFloat(min(max(status.level, 0), 1)))
-                }
-            }
-            .frame(height: 4)
-            .animation(Crenel.Motion.resolve(.smooth(duration: 0.12), reduceMotion: reduceMotion), value: status.level)
-            .accessibilityHidden(true)
+            CrenelPixelMeter(
+                progress: Double(min(max(status.level, 0), 1)),
+                tint: sourceColor(status.connectionState) == Crenel.Palette.textSecondary ? Crenel.Palette.record : sourceColor(status.connectionState),
+                segments: 14,
+                height: 5
+            )
         }
         .frame(maxWidth: .infinity, minHeight: 16)
         .accessibilityElement(children: .combine)
@@ -1244,7 +1209,6 @@ private struct NotchRowButtonStyle: ButtonStyle {
         configuration.label
             .contentShape(Rectangle())
             .opacity(configuration.isPressed ? 0.72 : 1)
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.96 : 1)
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.12),
                 value: configuration.isPressed

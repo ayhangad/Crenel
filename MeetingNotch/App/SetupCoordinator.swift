@@ -99,6 +99,9 @@ final class SetupCoordinator: ObservableObject {
 
     /// Called when a capability becomes granted, so its feature can connect itself.
     var onGranted: (SetupCapability) -> Void = { _ in }
+    /// Called after a system prompt closes; brings the setup window back to the front
+    /// (macOS returns focus to the previously active app otherwise).
+    var onReturnFromSystem: () -> Void = {}
 
     private let system: SetupSystem
     private var watchTask: Task<Void, Never>?
@@ -138,6 +141,7 @@ final class SetupCoordinator: ObservableObject {
             NSApp.activate()
             await system.request(capability)
             refresh()
+            onReturnFromSystem()
             if !capability.usesSystemPrompt { watch() }
         }
     }

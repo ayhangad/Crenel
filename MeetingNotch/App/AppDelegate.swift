@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var workspaceSessionDidBecomeObservation: AnyCancellable?
     private var activeNotchScreen: NSScreen?
     private var onboardingWindowController: NSWindowController?
+    private var onboardingCloseObserver: NSObjectProtocol?
+    private var notchBeamObservation: AnyCancellable?
     let meetingNotifications = MeetingNotificationService()
     private var notificationLeadTime: TimeInterval = 600
     private var calendarEnabled = true
@@ -1068,8 +1070,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let controller = NSWindowController(window: window)
         onboardingWindowController = controller
+        onboardingCloseObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.onboardingDidClose() }
+        }
+        setupCoordinator.onReturnFromSystem = { [weak self] in self?.bringOnboardingToFront() }
+        // A menu-bar app's window falls behind other apps whenever focus moves (a
+        // permission prompt, a click elsewhere). While setup is open Crenel behaves like a
+        // regular app: it has a Dock icon, takes part in ⌘Tab and keeps its window.
+        NSApp.setActivationPolicy(.regular)
         controller.showWindow(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        bringOnboardingToFront()
+    }
+
+    private func bringOnboardingToFront() {
+        guard let window = onboardingWindowController?.window else { return }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate()
+    }
+
+    private func onboardingDidClose() {
+        if let onboardingCloseObserver {
+            NotificationCenter.default.removeObserver(onboardingCloseObserver)
+        }
+        onboardingCloseObserver = nil
+        onboardingWindowController = nil
+        setupCoordinator.onReturnFromSystem = {}
+        if desktopController?.window?.isVisible != true {
+            NSApp.setActivationPolicy(.accessory)
+        }
     }
 
     private func completeOnboarding() {
@@ -1083,7 +1113,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try await self.appSettingsRepository.save(preferences)
                 self.applyRuntimePreferences(preferences)
                 self.onboardingWindowController?.close()
-                self.onboardingWindowController = nil
             } catch {
                 AppLogger.persistenceFailed(operation: "complete-onboarding", error: error)
             }
@@ -1092,6 +1121,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func configureNotchInteraction() {
         updateNotchTransitionConfiguration()
+        notchBeamObservation = appState.$meetingFlow
+            .combineLatest(appState.$dictationState, appState.$dictationLevel)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] flow, dictation, level in
+                self?.notch.model.beam = NotchBeamPolicy.beam(flow: flow, dictation: dictation, level: Double(level))
+            }
         notchHoverObservation = notch.$isHovering
             .dropFirst()
             .removeDuplicates()

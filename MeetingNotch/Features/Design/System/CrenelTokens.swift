@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// Crenel's design language in one place. Every surface reads its spacing, type, colour,
-/// radius and motion from here; nothing hardcodes a magic number.
+/// Crenel's design language.
 ///
-/// The style: the notch is ink. Content sits on layered near-black surfaces lit from
-/// above by a hairline highlight. Each module owns one accent colour that tints its
-/// glyphs, rings and glows — calendar violet, tasks amber, dictation sky, recording
-/// coral. Type is quiet and tight; numbers are rounded and tabular.
+/// The notch is a small terminal made of light. Type is monospaced and set a little
+/// heavier than usual so it reads at a glance on black. Icons are drawn on a 9×9 pixel
+/// grid. Interactive pieces have stepped pixel corners — the crenel, the notch in a
+/// battlement — while the notch itself stays smooth like the hardware. Motion is quiet:
+/// colour fades, light travelling along an edge, content resolving pixel by pixel.
+/// Nothing bounces, grows or shifts layout under the pointer.
 enum Crenel {
     // MARK: Spacing — a 4 pt grid
 
@@ -25,55 +26,52 @@ enum Crenel {
     // MARK: Radius
 
     enum Radius {
-        static let xs: CGFloat = 6
-        static let s: CGFloat = 10
-        static let m: CGFloat = 14
-        static let l: CGFloat = 20
-        static let xl: CGFloat = 26
-        /// The expanded notch's bottom corners.
-        static let notch: CGFloat = 32
+        /// Pixel step of the crenel corner on controls.
+        static let step: CGFloat = 2
+        static let s: CGFloat = 6
+        static let m: CGFloat = 8
+        static let l: CGFloat = 12
+        /// The open notch's bottom corners.
+        static let notch: CGFloat = 26
     }
 
     // MARK: Colour
 
     enum Palette {
-        static let ink = Color.black
-        /// Cards and grouped content.
-        static let layer1 = Color(white: 0.068)
-        /// Raised controls, hovered rows.
-        static let layer2 = Color(white: 0.105)
-        /// Pressed controls, tracks.
-        static let layer3 = Color(white: 0.16)
+        static let ink = Color(red: 0.035, green: 0.035, blue: 0.05)
+        static let layer1 = Color(red: 0.075, green: 0.075, blue: 0.10)
+        static let layer2 = Color(red: 0.11, green: 0.11, blue: 0.145)
+        static let layer3 = Color(red: 0.155, green: 0.155, blue: 0.20)
 
-        static let hairline = Color.white.opacity(0.07)
-        static let stroke = Color.white.opacity(0.12)
-        static let highlight = Color.white.opacity(0.14)
+        static let hairline = Color(red: 0.16, green: 0.16, blue: 0.21)
+        static let stroke = Color(red: 0.23, green: 0.23, blue: 0.29)
 
-        static let textPrimary = Color.white.opacity(0.96)
-        static let textSecondary = Color.white.opacity(0.62)
-        static let textTertiary = Color.white.opacity(0.40)
-        static let textQuaternary = Color.white.opacity(0.24)
+        static let textPrimary = Color(red: 0.93, green: 0.92, blue: 0.95)
+        static let textSecondary = Color(red: 0.64, green: 0.63, blue: 0.70)
+        static let textTertiary = Color(red: 0.45, green: 0.44, blue: 0.52)
+        static let textQuaternary = Color(red: 0.32, green: 0.31, blue: 0.38)
 
-        // Module accents
-        static let calendar = Color(red: 0.58, green: 0.52, blue: 1.0)
-        static let tasks = Color(red: 1.0, green: 0.72, blue: 0.30)
-        static let dictation = Color(red: 0.36, green: 0.80, blue: 1.0)
-        static let record = Color(red: 1.0, green: 0.32, blue: 0.30)
-        static let agent = Color(red: 0.90, green: 0.56, blue: 1.0)
+        /// Crenel's own colour: an ember on the wall.
+        static let brand = Color(red: 1.0, green: 0.55, blue: 0.30)
 
-        // Semantic
-        static let success = Color(red: 0.25, green: 0.86, blue: 0.60)
-        static let warning = Color(red: 1.0, green: 0.77, blue: 0.30)
-        static let danger = Color(red: 1.0, green: 0.36, blue: 0.38)
-        static let focus = Color(red: 0.42, green: 0.66, blue: 1.0)
+        static let calendar = Color(red: 0.56, green: 0.70, blue: 1.0)
+        static let tasks = Color(red: 1.0, green: 0.82, blue: 0.40)
+        static let dictation = Color(red: 0.43, green: 0.91, blue: 0.85)
+        static let record = Color(red: 1.0, green: 0.36, blue: 0.48)
+        static let agent = Color(red: 0.78, green: 0.64, blue: 1.0)
+
+        static let success = Color(red: 0.48, green: 0.89, blue: 0.58)
+        static let warning = Color(red: 1.0, green: 0.78, blue: 0.36)
+        static let danger = Color(red: 1.0, green: 0.36, blue: 0.48)
+        static let focus = Color(red: 1.0, green: 0.82, blue: 0.40)
     }
 
-    // MARK: Type
+    // MARK: Type — monospaced throughout
 
     enum TextStyle {
-        /// Big rounded numerals (countdowns, timers).
+        /// Timers and big counts.
         case display
-        /// Rounded numerals inside rings and compact notch values.
+        /// Compact notch values and countdowns.
         case numeral
         case title
         case headline
@@ -81,29 +79,28 @@ enum Crenel {
         case bodyEmphasis
         case callout
         case caption
-        /// Uppercase section eyebrow.
+        /// Section labels: lowercase, quiet.
         case eyebrow
 
         var font: Font {
             switch self {
-            case .display: .system(size: 30, weight: .semibold, design: .rounded).monospacedDigit()
-            case .numeral: .system(size: 13, weight: .semibold, design: .rounded).monospacedDigit()
-            case .title: .system(size: 17, weight: .semibold)
-            case .headline: .system(size: 14, weight: .semibold)
-            case .body: .system(size: 13.5, weight: .regular)
-            case .bodyEmphasis: .system(size: 13.5, weight: .medium)
-            case .callout: .system(size: 12, weight: .medium)
-            case .caption: .system(size: 11, weight: .medium).monospacedDigit()
-            case .eyebrow: .system(size: 10.5, weight: .semibold)
+            case .display: .system(size: 30, weight: .semibold, design: .monospaced)
+            case .numeral: .system(size: 13, weight: .semibold, design: .monospaced)
+            case .title: .system(size: 16, weight: .semibold, design: .monospaced)
+            case .headline: .system(size: 14, weight: .semibold, design: .monospaced)
+            case .body: .system(size: 13, weight: .medium, design: .monospaced)
+            case .bodyEmphasis: .system(size: 13, weight: .semibold, design: .monospaced)
+            case .callout: .system(size: 12, weight: .medium, design: .monospaced)
+            case .caption: .system(size: 11.5, weight: .medium, design: .monospaced)
+            case .eyebrow: .system(size: 11.5, weight: .medium, design: .monospaced)
             }
         }
 
         var tracking: CGFloat {
             switch self {
-            case .display: -0.6
-            case .title: -0.2
-            case .eyebrow: 0.7
-            default: 0
+            case .display: -1
+            case .title, .headline: -0.3
+            default: -0.1
             }
         }
     }
@@ -111,14 +108,16 @@ enum Crenel {
     // MARK: Motion
 
     enum Motion {
-        /// The notch changing shape. Soft landing, no wobble.
-        static let morph = Animation.spring(response: 0.48, dampingFraction: 0.82)
-        /// Quick UI responses: hover, press, toggles.
-        static let snappy = Animation.spring(response: 0.26, dampingFraction: 0.86)
-        /// Playful confirmations: a task completing, a chip appearing.
-        static let bouncy = Animation.spring(response: 0.40, dampingFraction: 0.64)
-        /// Content swaps inside a stable frame.
-        static let gentle = Animation.smooth(duration: 0.32)
+        /// The notch changing shape: a soft landing, no overshoot.
+        static let morph = Animation.spring(response: 0.42, dampingFraction: 0.9)
+        /// Hover and state colour changes.
+        static let fade = Animation.easeOut(duration: 0.14)
+        /// Small in-place swaps (a row's state picker sliding in).
+        static let slide = Animation.smooth(duration: 0.22)
+        /// Kept for call sites that change values in place; same feel as `slide`.
+        static let snappy = slide
+        static let gentle = Animation.smooth(duration: 0.3)
+        static let bouncy = slide
 
         static func resolve(_ animation: Animation, reduceMotion: Bool) -> Animation {
             reduceMotion ? .linear(duration: 0.01) : animation
@@ -138,43 +137,50 @@ extension View {
 
 extension Text {
     func eyebrow(color: Color = Crenel.Palette.textTertiary) -> some View {
-        self.textCase(.uppercase).crenelText(.eyebrow, color: color)
+        self.textCase(.lowercase).crenelText(.eyebrow, color: color)
     }
 }
 
 // MARK: - Transitions
 
-private struct BlurScaleModifier: ViewModifier {
-    let blur: CGFloat
-    let scale: CGFloat
-    let opacity: Double
-    let anchor: UnitPoint
+/// Content resolving through a pixel dither (ordered 4×4 Bayer), Crenel's signature swap.
+private struct DitherModifier: ViewModifier, Animatable {
+    var progress: Double
+
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
 
     func body(content: Content) -> some View {
+        // At rest the effect is disabled (same view structure, so no state is lost): a
+        // lingering colour effect would cost a render pass and blank out AppKit-backed
+        // controls such as text fields.
+        let active = progress < 0.999
         content
-            .blur(radius: blur)
-            .scaleEffect(scale, anchor: anchor)
-            .opacity(opacity)
+            .visualEffect { view, _ in
+                view.colorEffect(
+                    ShaderLibrary.crenelDither(.float(Float(progress)), .float(3)),
+                    isEnabled: active
+                )
+            }
+            .opacity(progress <= 0.001 ? 0 : 1)
     }
 }
 
 extension AnyTransition {
-    /// Content dissolving through blur, the way the Dynamic Island swaps content.
-    static func crenelMorph(anchor: UnitPoint = .top) -> AnyTransition {
-        .modifier(
-            active: BlurScaleModifier(blur: 8, scale: 0.94, opacity: 0, anchor: anchor),
-            identity: BlurScaleModifier(blur: 0, scale: 1, opacity: 1, anchor: anchor)
-        )
+    /// Content dissolving pixel by pixel. Only for small shape-and-text content (glyphs,
+    /// the closed notch, chips): colour effects cannot render AppKit-backed controls, so
+    /// containers with text fields or scroll views must use `crenelMorph`.
+    static var crenelPixel: AnyTransition {
+        .modifier(active: DitherModifier(progress: 0), identity: DitherModifier(progress: 1))
     }
 
-    /// A row or chip arriving from slightly below.
-    static var crenelRise: AnyTransition {
-        .asymmetric(
-            insertion: .modifier(
-                active: BlurScaleModifier(blur: 4, scale: 0.97, opacity: 0, anchor: .top),
-                identity: BlurScaleModifier(blur: 0, scale: 1, opacity: 1, anchor: .top)
-            ).combined(with: .offset(y: 6)),
-            removal: .opacity.combined(with: .scale(scale: 0.98, anchor: .top))
-        )
+    /// Large content swaps (panels, pages): a quiet fade.
+    static func crenelMorph(anchor: UnitPoint = .top) -> AnyTransition {
+        .opacity
     }
+
+    /// Rows and chips: a plain fade, no movement.
+    static var crenelRise: AnyTransition { .opacity }
 }

@@ -1,44 +1,21 @@
 import SwiftUI
 
-/// The task's state drawn as one morphing ring: an empty ring (to do), a half-filled
-/// ring (in progress), a ring with a bar (blocked), a filled ring with a check (done).
+/// A task's state as a pixel box: empty (to do), half lit (in progress), crossed
+/// (blocked), lit with a check cut out (done).
 struct TaskStateGlyph: View {
     let status: TaskStatus
     var tint: Color = Crenel.Palette.textTertiary
-    var size: CGFloat = 18
+    var size: CGFloat = 13.5
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        let color = TaskStateGlyph.color(for: status, idle: tint)
-        ZStack {
-            Circle()
-                .strokeBorder(color, lineWidth: size * 0.1)
-                .opacity(status == .completed ? 0 : 1)
-
-            Circle()
-                .fill(color)
-                .scaleEffect(status == .completed ? 1 : 0.2)
-                .opacity(status == .completed ? 1 : 0)
-
-            PieSlice(fraction: status == .inProgress ? 0.5 : 0)
-                .fill(color)
-                .padding(size * 0.22)
-
-            Capsule()
-                .fill(color)
-                .frame(width: size * 0.5, height: size * 0.11)
-                .rotationEffect(.degrees(-45))
-                .scaleEffect(x: status == .blocked ? 1 : 0.01)
-                .opacity(status == .blocked ? 1 : 0)
-
-            CheckStroke()
-                .trim(from: 0, to: status == .completed ? 1 : 0)
-                .stroke(Color.black.opacity(0.85), style: StrokeStyle(lineWidth: size * 0.12, lineCap: .round, lineJoin: .round))
-                .padding(size * 0.26)
-        }
-        .frame(width: size, height: size)
-        .animation(Crenel.Motion.resolve(Crenel.Motion.bouncy, reduceMotion: reduceMotion), value: status)
-        .accessibilityHidden(true)
+        TaskStateShape(status: status)
+            .fill(TaskStateGlyph.color(for: status, idle: tint))
+            .frame(width: CrenelIcon.snapped(size), height: CrenelIcon.snapped(size))
+            .id(status)
+            .transition(.crenelPixel)
+            .animation(Crenel.Motion.resolve(.easeOut(duration: 0.18), reduceMotion: reduceMotion), value: status)
+            .accessibilityHidden(true)
     }
 
     static func color(for status: TaskStatus, idle: Color) -> Color {
@@ -51,75 +28,97 @@ struct TaskStateGlyph: View {
     }
 }
 
-private struct PieSlice: Shape {
-    var fraction: Double
+struct TaskStateShape: Shape {
+    let status: TaskStatus
 
-    var animatableData: Double {
-        get { fraction }
-        set { fraction = newValue }
+    static func bitmap(for status: TaskStatus) -> [String] {
+        switch status {
+        case .open: [
+            ".#######.",
+            "#.......#",
+            "#.......#",
+            "#.......#",
+            "#.......#",
+            "#.......#",
+            "#.......#",
+            "#.......#",
+            ".#######."]
+        case .inProgress: [
+            ".#######.",
+            "#.......#",
+            "#.###...#",
+            "#.###...#",
+            "#.###...#",
+            "#.###...#",
+            "#.###...#",
+            "#.......#",
+            ".#######."]
+        case .blocked: [
+            ".#######.",
+            "#.......#",
+            "#.....#.#",
+            "#....#..#",
+            "#...#...#",
+            "#..#....#",
+            "#.#.....#",
+            "#.......#",
+            ".#######."]
+        case .completed: [
+            ".#######.",
+            "#########",
+            "######.##",
+            "#####..##",
+            "#.##..###",
+            "##...####",
+            "###.#####",
+            "#########",
+            ".#######."]
+        }
     }
 
     func path(in rect: CGRect) -> Path {
-        var path = Path()
-        guard fraction > 0.001 else { return path }
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        path.move(to: center)
-        path.addArc(
-            center: center,
-            radius: min(rect.width, rect.height) / 2,
-            startAngle: .degrees(-90),
-            endAngle: .degrees(-90 + 360 * fraction),
-            clockwise: false
-        )
-        path.closeSubpath()
-        return path
+        PixelBitmap.path(pixels: PixelBitmap.pixels(Self.bitmap(for: status)), grid: 9, in: rect)
     }
 }
 
-private struct CheckStroke: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.midY + rect.height * 0.04))
-        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.38, y: rect.maxY - rect.height * 0.1))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.12))
-        return path
-    }
-}
-
-/// The state picker that unfolds from a task's glyph: four states, one tap.
+/// The four states laid out in a row. Used inside a task row (sliding in from the
+/// left, replacing the title) and in the task detail.
 struct TaskStatePicker: View {
     let current: TaskStatus
+    var showsShortcuts = false
     let onSelect: (TaskStatus) -> Void
     @State private var hovered: TaskStatus?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 2) {
-            ForEach(TaskStatus.allCases) { status in
+            ForEach(Array(TaskStatus.allCases.enumerated()), id: \.element) { index, status in
+                let isCurrent = status == current
                 Button {
                     onSelect(status)
                 } label: {
                     HStack(spacing: 6) {
-                        TaskStateGlyph(status: status, tint: Crenel.Palette.textSecondary, size: 14)
-                        Text(status.title)
-                            .font(.system(size: 11.5, weight: .semibold))
-                            .foregroundStyle(status == current ? Crenel.Palette.textPrimary : Crenel.Palette.textSecondary)
+                        TaskStateGlyph(status: status, tint: Crenel.Palette.textSecondary, size: 9)
+                        Text(status.title.lowercased(with: Locale(identifier: "tr_TR")))
+                        if showsShortcuts {
+                            Text("\(index + 1)").foregroundStyle(Crenel.Palette.textQuaternary)
+                        }
                     }
-                    .padding(.horizontal, 10)
-                    .frame(height: 28)
-                    .background {
-                        Capsule(style: .continuous)
-                            .fill(status == current ? Crenel.Palette.layer3 : (hovered == status ? Crenel.Palette.layer2 : .clear))
-                    }
-                    .contentShape(Capsule())
+                    .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(isCurrent ? TaskStateGlyph.color(for: status, idle: Crenel.Palette.textPrimary) : Crenel.Palette.textSecondary)
+                    .padding(.horizontal, 8)
+                    .frame(height: 24)
+                    .background(PixelCornerShape().fill(
+                        isCurrent ? Crenel.Palette.layer3 : (hovered == status ? Crenel.Palette.layer2 : .clear)
+                    ))
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .onHover { hovered = $0 ? status : (hovered == status ? nil : hovered) }
                 .accessibilityLabel(status.title)
-                .accessibilityAddTraits(status == current ? .isSelected : [])
+                .accessibilityAddTraits(isCurrent ? .isSelected : [])
             }
         }
-        .padding(2)
-        .background(Crenel.Palette.layer1, in: Capsule(style: .continuous))
-        .overlay(Capsule(style: .continuous).strokeBorder(Crenel.Palette.hairline))
+        .animation(Crenel.Motion.resolve(Crenel.Motion.fade, reduceMotion: reduceMotion), value: hovered)
     }
 }
