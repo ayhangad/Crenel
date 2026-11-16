@@ -14,14 +14,14 @@ bir döner (toplantı → kayıt → dikte → işleme → görevler).
 
 1. **Önce tasarım, sonra metin.** Bilgi konum, ikon ve renkle verilir; metin yalnızca
    başka hiçbir şey söyleyemediğinde. Etiket, açıklama, sayaç tekrarı yok.
-2. **Tek font, doğal aralık.** Yalnızca Inter: 16 semibold odak başlığı, 13.5 medium satır,
-   12.5 medium grup başlığı/buton, 12 regular ikincil. Harf aralığı artırılmaz, büyük harf
+2. **Tek font, doğal aralık.** Yalnızca Geist (OFL, uygulamaya gömülü): 17 semibold odak başlığı, 14 medium satır,
+   13 medium grup başlığı/buton, 12.5 regular ikincil. Harf aralığı artırılmaz, büyük harf
    yok. Rakamlar tabular (saatler kaymaz). Mono font kullanılmaz.
 3. **Tek gri skala.** Eşit kanallı saf griler (0.95 / 0.66 / 0.45 / 0.30) ve aynı beyazın
    düşük opaklıkları (hover 6 %, seçili 10 %). Renk yalnızca durum: amber = seni bekleyen,
    kırmızı = canlı / bloke, yeşil = onay.
 4. **Çizgi yok.** Gruplar boşlukla ayrılır; ayırıcı çizgi, noktalı çizgi, kenarlık yok.
-5. **Ferah ama kompakt.** 500 pt panel, 30 pt kenar boşluğu, iki satırlı 50 pt satır,
+5. **Ferah ama kompakt.** 580 pt panel, 36 pt kenar boşluğu, iki satırlı 58 pt satır,
    başlık–alt satır arası 5–6 pt, bloklar arası 24 pt.
 6. **Akışkanlık.**
    - Notch tek şekil: kapalı ↔ açık yay ile biçim değiştirir, içerik ölçekle ve opaklıkla
@@ -118,3 +118,12 @@ Soru: *Şu an ne üzerinde çalışıyorum, sırada ne var?*
 4. Kayıt, işleme, istemler, dikte şeridi.
 5. Masaüstü, toplantı detayı, kurulum, ayarlar.
 Her adımda tüm durumların render'ı alınıp kontrol edilir.
+
+## Revizyon 3 notları
+- Notch içeriğini her zaman kapsar ve taşanı keser: şekil yayla büyür, içerik içinde belirir.
+- Alt köşe yarıçapı açıkken 20, kapalıyken 10.
+- Kapalı notch içeriğe göre daralır/genişler; iki kulak eşit, içerik kulakta ortalı.
+- Etkinlik türü satırın solundaki ikonla: video (çevrimiçi), konum (yer), takvim (diğer).
+- Katıl ve kayıt butonları kaldırıldı: odak bloğuna tıklamak toplantıyı açar; kayıt,
+  toplantı algılanınca gelen teklif şeridinden başlar.
+- İşleme ikonu: yazılan sayfa (döküm üretiliyor).

@@ -5,7 +5,7 @@ import SwiftUI
 ///
 /// A compact tool, read in a glance. Information is carried by position, icon and
 /// colour before words: a line of text appears only when nothing else can say it.
-/// One typeface (Inter) at natural spacing, one neutral grey scale, one stroke icon
+/// One typeface (Geist) at natural spacing, one neutral grey scale, one stroke icon
 /// family. Colour only ever means state. Rows keep their size and insets in every
 /// state; motion is soft and continuous — highlights glide, shapes morph, nothing jumps.
 enum Hud {
@@ -24,15 +24,15 @@ enum Hud {
 
     enum Size {
         /// Two-line list row.
-        static let row: CGFloat = 50
+        static let row: CGFloat = 58
         static let icon: CGFloat = 14
         static let smallIcon: CGFloat = 12
-        static let panelWidth: CGFloat = 500
+        static let panelWidth: CGFloat = 580
         /// Distance from the panel edge to text. Hover fills bleed `rowInset` beyond it.
-        static let panelInset: CGFloat = 30
-        static let rowInset: CGFloat = 12
+        static let panelInset: CGFloat = 36
+        static let rowInset: CGFloat = 14
         static let corner: CGFloat = 10
-        static let control: CGFloat = 30
+        static let control: CGFloat = 32
     }
 
     // MARK: Colour — one neutral grey scale; colour means state
@@ -60,12 +60,12 @@ enum Hud {
         static let ok = Color(red: 0.42, green: 0.82, blue: 0.58)
     }
 
-    // MARK: Type — Inter only, natural tracking
+    // MARK: Type — Geist only, natural tracking
 
     enum Face {
-        static let regular = "Inter-Regular"
-        static let medium = "Inter-Medium"
-        static let semibold = "Inter-SemiBold"
+        static let regular = "Geist-Regular"
+        static let medium = "Geist-Medium"
+        static let semibold = "Geist-SemiBold"
     }
 
     enum Style {
@@ -84,11 +84,11 @@ enum Hud {
 
         var font: Font {
             switch self {
-            case .title: .custom(Face.semibold, fixedSize: 16)
-            case .body: .custom(Face.medium, fixedSize: 13.5)
-            case .label: .custom(Face.medium, fixedSize: 12.5)
-            case .meta: .custom(Face.regular, fixedSize: 12)
-            case .value: .custom(Face.medium, fixedSize: 13.5)
+            case .title: .custom(Face.semibold, fixedSize: 17)
+            case .body: .custom(Face.medium, fixedSize: 14)
+            case .label: .custom(Face.medium, fixedSize: 13)
+            case .meta: .custom(Face.regular, fixedSize: 12.5)
+            case .value: .custom(Face.medium, fixedSize: 14)
             case .display: .custom(Face.semibold, fixedSize: 22)
             }
         }
@@ -111,7 +111,7 @@ enum Hud {
 
     private static var fontsRegistered = false
 
-    /// Registers the bundled Inter faces with the process. Safe to call repeatedly.
+    /// Registers the bundled Geist faces with the process. Safe to call repeatedly.
     static func registerFonts(bundle: Bundle = .main) {
         guard !fontsRegistered else { return }
         fontsRegistered = true

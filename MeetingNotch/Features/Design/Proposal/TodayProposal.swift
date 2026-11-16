@@ -86,32 +86,43 @@ final class ProposalNotchModel: ObservableObject {
 
 // MARK: - Root: one shape that morphs between closed and open
 
+/// The notch is one shape that always contains its content. Content is laid out at its
+/// natural size; the shape's frame follows that size with a spring and clips whatever
+/// is still outside it, so opening reads as the notch growing, not content appearing.
 struct ProposalNotchView: View {
     @ObservedObject var model: ProposalNotchModel
     let hardware: CGSize
+    @State private var size: CGSize = .zero
 
     var body: some View {
+        let shape = CrenelNotchShape(topRadius: model.isOpen ? 12 : 6, bottomRadius: model.isOpen ? 20 : 10)
         ZStack(alignment: .top) {
             if model.isOpen {
                 ProposalPanel(model: model, hardware: hardware)
                     .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.94, anchor: .top)).animation(Hud.Motion.change.delay(0.06)),
-                        removal: .opacity.animation(.easeOut(duration: 0.12))
+                        insertion: .opacity.animation(.easeOut(duration: 0.24).delay(0.12)),
+                        removal: .opacity.animation(.easeOut(duration: 0.08))
                     ))
             } else {
                 ProposalCompactView(model: model, hardware: hardware)
                     .transition(.asymmetric(
-                        insertion: .opacity.animation(Hud.Motion.change.delay(0.1)),
-                        removal: .opacity.animation(.easeOut(duration: 0.1))
+                        insertion: .opacity.animation(.easeOut(duration: 0.2).delay(0.16)),
+                        removal: .opacity.animation(.easeOut(duration: 0.06))
                     ))
             }
         }
-        .background(alignment: .top) {
-            CrenelNotchShape(topRadius: model.isOpen ? 14 : 6, bottomRadius: model.isOpen ? 30 : 12)
-                .fill(Color.black)
+        .fixedSize()
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { newSize in
+            if size == .zero {
+                size = newSize
+            } else {
+                withAnimation(Hud.Motion.morph) { size = newSize }
+            }
         }
+        .frame(width: max(size.width, 1), height: max(size.height, 1), alignment: .top)
+        .background(shape.fill(Color.black))
+        .clipShape(shape)
         .animation(Hud.Motion.morph, value: model.isOpen)
-        .animation(Hud.Motion.morph, value: model.tab)
     }
 }
 
@@ -128,22 +139,22 @@ struct ProposalPanel: View {
                 .init(tab: .today, glyph: .calendar, title: "Bugün"),
                 .init(tab: .tasks, glyph: .queue, title: "Görevler", badge: model.tasks.filter { $0.state != .completed }.count)
             ], selection: $model.tab)
-            .padding(.top, Hud.Space.x3)
+            .padding(.top, Hud.Space.x4)
 
             ZStack(alignment: .top) {
                 switch model.tab {
                 case .today:
                     ProposalToday(model: model)
-                        .transition(.opacity.combined(with: .offset(x: -16)))
+                        .transition(.opacity.combined(with: .offset(x: -18)))
                 case .tasks:
                     ProposalTasks(model: model)
-                        .transition(.opacity.combined(with: .offset(x: 16)))
+                        .transition(.opacity.combined(with: .offset(x: 18)))
                 }
             }
-            .padding(.top, Hud.Space.x6)
+            .padding(.top, Hud.Space.x7)
         }
         .padding(.horizontal, Hud.Size.panelInset - Hud.Size.rowInset)
-        .padding(.bottom, Hud.Space.x4)
+        .padding(.bottom, Hud.Space.x5)
         .frame(width: Hud.Size.panelWidth)
     }
 }
@@ -165,16 +176,17 @@ struct ProposalToday: View {
         VStack(alignment: .leading, spacing: 0) {
             if let focus {
                 ProposalFocus(event: focus, now: model.now)
-                    .padding(.bottom, Hud.Space.x6)
+                    .hudGlide(focus.id, hovered: $hovered, in: glide, forced: model.forcedHover)
+                    .padding(.bottom, Hud.Space.x4)
             }
             if !today.isEmpty {
                 group("Bugün", today)
             }
             if !later.isEmpty {
                 group("Sonra", later)
-                    .padding(.top, today.isEmpty ? 0 : Hud.Space.x4)
+                    .padding(.top, today.isEmpty ? 0 : Hud.Space.x5)
             }
-            footer.padding(.top, Hud.Space.x5)
+            footer.padding(.top, Hud.Space.x6)
         }
     }
 
@@ -191,7 +203,7 @@ struct ProposalToday: View {
     private var footer: some View {
         HStack(spacing: Hud.Space.x1) {
             Button {} label: {
-                HStack(spacing: 7) { HudIcon(.history, size: Hud.Size.smallIcon); Text("Geçmiş") }
+                HStack(spacing: 8) { HudIcon(.history, size: Hud.Size.smallIcon); Text("Geçmiş") }
             }
             .buttonStyle(HudButtonStyle(kind: .ghost))
             Spacer()
@@ -201,7 +213,37 @@ struct ProposalToday: View {
     }
 }
 
-/// The next thing that needs you. No label: its size and colour say "next".
+/// What kind of event this is, as the row's leading icon: online, in a place, or a
+/// plain calendar entry.
+struct ProposalKindIcon: View {
+    let venue: ProposalEvent.Venue
+    var tint: Color = Hud.Ink.text3
+
+    var body: some View {
+        Group {
+            switch venue {
+            case .online: HudIcon(.video)
+            case .place: HudIcon(.place)
+            case .none: HudIcon(.calendar)
+            }
+        }
+        .foregroundStyle(tint)
+    }
+}
+
+extension ProposalEvent.Venue {
+    /// The shortest word for where it happens; nil for plain events.
+    var word: String? {
+        switch self {
+        case .none: nil
+        case .online(let service): service
+        case .place(let place): place
+        }
+    }
+}
+
+/// The next thing that needs you. No label and no buttons: its size and colour say
+/// "next"; clicking it opens the meeting.
 struct ProposalFocus: View {
     let event: ProposalEvent
     let now: Date
@@ -213,42 +255,31 @@ struct ProposalFocus: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
-                Text(event.title).hud(.title).lineLimit(1)
-                Spacer(minLength: Hud.Space.x2)
-                Text(primaryValue).hud(.title, isUrgent ? Hud.Ink.signal : Hud.Ink.text1)
-                    .contentTransition(.numericText(countsDown: true))
-            }
-            HStack(spacing: Hud.Space.x2) {
-                ProposalVenue(venue: event.venue)
-                Spacer(minLength: Hud.Space.x2)
-                Text(secondaryValue).hud(.meta, Hud.Ink.text3)
-            }
-            .padding(.top, 6)
-
-            if isNear || isLive {
-                HudSegmentMeter(segments: 30, progress: progress, tint: isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
-                    .padding(.top, Hud.Space.x4)
-
-                HStack(spacing: Hud.Space.x2) {
-                    if case .online = event.venue {
-                        Button {} label: {
-                            HStack(spacing: 7) { HudIcon(.video, size: Hud.Size.smallIcon); Text("Katıl") }
-                        }
-                        .buttonStyle(HudButtonStyle(kind: .primary))
+            HStack(alignment: .top, spacing: Hud.Space.x3 + 2) {
+                ProposalKindIcon(venue: event.venue, tint: isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
+                    .padding(.top, 3)
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
+                        Text(event.title).hud(.title).lineLimit(1)
+                        Spacer(minLength: Hud.Space.x2)
+                        Text(primaryValue).hud(.title, isUrgent ? Hud.Ink.signal : Hud.Ink.text1)
+                            .contentTransition(.numericText(countsDown: true))
                     }
-                    Button {} label: {
-                        HudIcon(.record, size: Hud.Size.icon).foregroundStyle(Hud.Ink.live)
+                    HStack(spacing: Hud.Space.x2) {
+                        Text(event.venue.word ?? "").hud(.meta, Hud.Ink.text3)
+                        Spacer(minLength: Hud.Space.x2)
+                        Text(secondaryValue).hud(.meta, Hud.Ink.text3)
                     }
-                    .buttonStyle(HudButtonStyle(kind: .iconFilled))
-                    .help("Kaydet  ⌘R")
-                    Spacer()
+                    if isNear || isLive {
+                        HudSegmentMeter(segments: 32, progress: progress, tint: isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
+                            .padding(.top, Hud.Space.x3)
+                            .transition(.opacity)
+                    }
                 }
-                .padding(.top, Hud.Space.x4)
-                .transition(.opacity)
             }
         }
         .padding(.horizontal, Hud.Size.rowInset)
+        .padding(.vertical, Hud.Space.x3 + 2)
     }
 
     private var primaryValue: String {
@@ -270,53 +301,32 @@ struct ProposalFocus: View {
     }
 }
 
-/// Two lines: title and start on top; venue and end (or day) below.
+/// Kind icon, then two lines: title and start on top; venue and end (or day) below.
 struct ProposalEventRow: View {
     let event: ProposalEvent
     let now: Date
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
-            HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
-                Text(event.title).hud(.body).lineLimit(1)
-                Spacer(minLength: Hud.Space.x2)
-                Text(ProposalFormat.clock(event.start)).hud(.value, Hud.Ink.text2)
-            }
-            HStack(spacing: Hud.Space.x2) {
-                ProposalVenue(venue: event.venue)
-                Spacer(minLength: Hud.Space.x2)
-                Text(Calendar.current.isDate(event.start, inSameDayAs: now)
-                     ? ProposalFormat.clock(event.end)
-                     : ProposalFormat.day(event.start, now: now))
-                    .hud(.meta, Hud.Ink.text3)
+        HStack(alignment: .top, spacing: Hud.Space.x3 + 2) {
+            ProposalKindIcon(venue: event.venue).padding(.top, 2)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
+                    Text(event.title).hud(.body).lineLimit(1)
+                    Spacer(minLength: Hud.Space.x2)
+                    Text(ProposalFormat.clock(event.start)).hud(.value, Hud.Ink.text2)
+                }
+                HStack(spacing: Hud.Space.x2) {
+                    Text(event.venue.word ?? "").hud(.meta, Hud.Ink.text3)
+                    Spacer(minLength: Hud.Space.x2)
+                    Text(Calendar.current.isDate(event.start, inSameDayAs: now)
+                         ? ProposalFormat.clock(event.end)
+                         : ProposalFormat.day(event.start, now: now))
+                        .hud(.meta, Hud.Ink.text3)
+                }
             }
         }
         .padding(.horizontal, Hud.Size.rowInset)
         .frame(height: Hud.Size.row)
-    }
-}
-
-/// Where a meeting happens, as an icon and the shortest possible word.
-struct ProposalVenue: View {
-    let venue: ProposalEvent.Venue
-
-    var body: some View {
-        switch venue {
-        case .none:
-            Color.clear.frame(width: 1, height: Hud.Size.smallIcon)
-        case .online(let service):
-            HStack(spacing: 6) {
-                HudIcon(.video, size: Hud.Size.smallIcon)
-                Text(service).font(Hud.Style.meta.font)
-            }
-            .foregroundStyle(Hud.Ink.text3)
-        case .place(let place):
-            HStack(spacing: 6) {
-                HudIcon(.place, size: Hud.Size.smallIcon)
-                Text(place).font(Hud.Style.meta.font)
-            }
-            .foregroundStyle(Hud.Ink.text3)
-        }
     }
 }
 
@@ -341,7 +351,7 @@ struct ProposalTasks: View {
                     }
                 }
                 .padding(.horizontal, Hud.Size.rowInset)
-                .frame(height: 40)
+                .frame(height: 46)
                 .hudGlide(task.id, hovered: $hovered, in: glide)
             }
             HStack {
@@ -358,17 +368,39 @@ struct ProposalTasks: View {
 
 // MARK: - Closed notch
 
+/// Places the two ears beside the camera housing. Both ears share one width — the
+/// wider content plus padding — and each content is centred in its ear, so the notch
+/// stays balanced and only as wide as the current state needs.
+struct ProposalEarsLayout: Layout {
+    var gap: CGFloat
+    var padding: CGFloat
+
+    private func side(_ subviews: Subviews) -> CGFloat {
+        subviews.map { $0.sizeThatFits(.unspecified).width }.max().map { $0 + padding * 2 } ?? 0
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard subviews.count == 2 else { return .zero }
+        let height = subviews.map { $0.sizeThatFits(.unspecified).height }.max() ?? 0
+        return CGSize(width: side(subviews) * 2 + gap, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 2 else { return }
+        let ear = side(subviews)
+        subviews[0].place(at: CGPoint(x: bounds.minX + ear / 2, y: bounds.midY), anchor: .center, proposal: .unspecified)
+        subviews[1].place(at: CGPoint(x: bounds.maxX - ear / 2, y: bounds.midY), anchor: .center, proposal: .unspecified)
+    }
+}
+
 struct ProposalCompactView: View {
     @ObservedObject var model: ProposalNotchModel
     let hardware: CGSize
-    /// Both ears keep one width in every state, so the closed notch never changes size
-    /// when its content changes.
-    static let ear: CGFloat = 70
 
     var body: some View {
-        NotchFlankLayout(gap: hardware.width + Hud.Space.x3) {
-            leading.frame(width: Self.ear, alignment: .leading).padding(.leading, Hud.Space.x4)
-            trailing.frame(width: Self.ear, alignment: .trailing).padding(.trailing, Hud.Space.x4)
+        ProposalEarsLayout(gap: hardware.width, padding: Hud.Space.x4) {
+            leading
+            trailing
         }
         .frame(height: hardware.height)
         .animation(Hud.Motion.change, value: model.compact)
@@ -381,7 +413,7 @@ struct ProposalCompactView: View {
         switch model.compact {
         case .nextMeeting:
             HStack(spacing: 7) {
-                HudIcon(.calendar, size: Hud.Size.smallIcon).foregroundStyle(Hud.Ink.text3)
+                if let next { ProposalKindIcon(venue: next.venue, tint: Hud.Ink.text3) }
                 Text(next.map { ProposalFormat.clock($0.start) } ?? "").hud(.label, Hud.Ink.text1)
             }
         case .recording(let started):
@@ -391,12 +423,12 @@ struct ProposalCompactView: View {
                     .contentTransition(.numericText())
             }
         case .dictation:
-            HudIcon(.mic, size: Hud.Size.smallIcon).foregroundStyle(Hud.Ink.text1)
+            HudIcon(.mic).foregroundStyle(Hud.Ink.text1)
         case .processing:
-            HudIcon(.spark, size: Hud.Size.smallIcon).foregroundStyle(Hud.Ink.text2)
+            HudIcon(.transcript).foregroundStyle(Hud.Ink.text2)
                 .phaseAnimator([0.45, 1.0]) { view, phase in view.opacity(phase) } animation: { _ in .easeInOut(duration: 0.9) }
         case .tasks:
-            HudIcon(.queue, size: Hud.Size.smallIcon).foregroundStyle(Hud.Ink.text2)
+            HudIcon(.queue).foregroundStyle(Hud.Ink.text2)
         case .idle:
             Color.clear.frame(width: 1, height: 1)
         }
