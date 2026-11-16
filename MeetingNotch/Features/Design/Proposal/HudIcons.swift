@@ -5,7 +5,7 @@ import SwiftUI
 /// circle or tile; they sit directly on the surface in the text colour of their row.
 enum HudGlyph: String, CaseIterable, Sendable {
     case calendar, queue, mic, video, window, pin, history, record, stop
-    case chevronRight, arrowRight, plus, close, spark, link, bell
+    case chevronRight, arrowRight, plus, close, spark, link, bell, place
 
     /// Strokes in 16×16 unit space.
     fileprivate func stroke(_ p: inout Path) {
@@ -66,6 +66,12 @@ enum HudGlyph: String, CaseIterable, Sendable {
             p.move(to: CGPoint(x: 13.5, y: 2.5)); p.addLine(to: CGPoint(x: 7.5, y: 8.5))
             p.move(to: CGPoint(x: 11, y: 10)); p.addLine(to: CGPoint(x: 11, y: 13.5)); p.addLine(to: CGPoint(x: 2.5, y: 13.5))
             p.addLine(to: CGPoint(x: 2.5, y: 5)); p.addLine(to: CGPoint(x: 6, y: 5))
+        case .place:
+            p.move(to: CGPoint(x: 8, y: 14.5))
+            p.addLine(to: CGPoint(x: 3.8, y: 8.6))
+            p.addArc(center: CGPoint(x: 8, y: 6.2), radius: 4.8, startAngle: .degrees(150), endAngle: .degrees(30), clockwise: false)
+            p.closeSubpath()
+            p.addRect(CGRect(x: 7, y: 5.2, width: 2, height: 2))
         case .bell:
             p.move(to: CGPoint(x: 2.5, y: 12)); p.addLine(to: CGPoint(x: 13.5, y: 12))
             p.move(to: CGPoint(x: 4, y: 12)); p.addLine(to: CGPoint(x: 4, y: 7))

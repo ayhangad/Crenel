@@ -4,67 +4,53 @@ Durum: öneri. Yalnızca **Bugün** ekranı ve kapalı notch durumları çizildi
 (`artifacts/ui-audit/proposal/`). Onaydan sonra aşağıdaki plana göre tüm ekranlara
 uygulanacak. Kod: `MeetingNotch/Features/Design/Proposal/`.
 
-## İlkeler
+## Canlı önizleme
 
-1. **Bir bakışta okunur araç.** Her ekran tek bir soruya cevap verir; cevaba hizmet
-   etmeyen öğe yoktur. "Bu olmasa ne kaybederiz?" sorusunun cevabı yoksa çıkar.
-2. **Renk = durum.** Arayüz nötr gri. Renk yalnızca anlam taşır:
-   - `signal` (amber): seni bekleyen şey — 10 dk içindeki toplantı, devam eden görev.
-   - `live` (kırmızı): canlı kayıt, bloke görev, hata.
-   - `ok` (yeşil): yalnızca bağlantı/izin onayı. Dekor olarak hiç kullanılmaz.
-   Takvim renkleri, kart gradyanları, renkli butonlar yok. Birincil eylem beyaz.
-3. **İki yazı.** Kelimeler Inter (13 medium satır, 15 semibold odak başlığı, 12 regular
-   ikincil). Sayılar, saatler ve küçük BÜYÜK HARF etiketler SF Mono (10 pt, +1.1 izleme).
-   Toplam beş stil; başka boyut yok.
-4. **Tek ikon ailesi.** 16 birim ızgara, 1.5 çizgi, kare uç, keskin köşe. İkon hiçbir
-   zaman daire ya da kutu içine alınmaz; satırın metin renginde, yüzeyde durur.
-   Görev için onay işareti yok: durum doluluk seviyesiyle anlatılır (boş · yarım · dolu,
-   bloke için çizgi).
-5. **HUD izleri, kostüm değil.** Yalnızca dört araç: mono büyük harf etiket, etiketi
-   değere bağlayan noktalı çizgi, segmentli gösterge (toplantıya kalan süre, ses seviyesi,
-   işlem adımı) ve klavye kısayolu ipuçları (`¹ ²`, `⌘R`). Piksel ikon, dither, tarama
-   çizgisi yok.
-6. **Hiçbir şey zıplamaz.** Satır 32 pt sabit, içerik girintisi her durumda aynı. Hover
-   yalnızca altına düz bir dolgu serer (opaklık 0 → 5.5 %, 120 ms). Ölçek, kenarlık,
-   kalınlık değişimi yok. Kapalı notch'ta iki kulak her durumda 64 pt — içerik değişince
-   notch genişliği değişmez.
-7. **Hareket tek eğri.** Yerinde değişimler `smooth 240 ms`; notch biçim değişimi
-   sönümlü yay (0.4 s, 0.92), taşma yok. Segmentler tek tek yanar.
+`open Crenel.app --args -CrenelProposal YES` — öneri gerçek notch konumunda çalışır
+(normal notch bu modda gösterilmez). Üzerine gelince açılır; kapalıyken durumlar 4 sn'de
+bir döner (toplantı → kayıt → dikte → işleme → görevler).
 
-## Yerleşim iskeleti (açık notch)
+## İlkeler (revizyon 2)
 
-- **Kulaklar:** sekmeler kamera yuvasının iki yanında — sol `Bugün¹`, sağ `Görevler² 3`.
-  Seçili sekme parlak ve altında 14 pt çizgi; ⌘1/⌘2 ile geçilir.
-- **Gövde:** 480 pt, 20 pt kenar boşluğu, tek sütun.
-- **Alt çubuk:** ince çizgi, solda hayalet buton (bağlama göre `Geçmiş` / `Tümü`),
-  sağda pencere ve sabitle ikonları.
+1. **Önce tasarım, sonra metin.** Bilgi konum, ikon ve renkle verilir; metin yalnızca
+   başka hiçbir şey söyleyemediğinde. Etiket, açıklama, sayaç tekrarı yok.
+2. **Tek font, doğal aralık.** Yalnızca Inter: 16 semibold odak başlığı, 13.5 medium satır,
+   12.5 medium grup başlığı/buton, 12 regular ikincil. Harf aralığı artırılmaz, büyük harf
+   yok. Rakamlar tabular (saatler kaymaz). Mono font kullanılmaz.
+3. **Tek gri skala.** Eşit kanallı saf griler (0.95 / 0.66 / 0.45 / 0.30) ve aynı beyazın
+   düşük opaklıkları (hover 6 %, seçili 10 %). Renk yalnızca durum: amber = seni bekleyen,
+   kırmızı = canlı / bloke, yeşil = onay.
+4. **Çizgi yok.** Gruplar boşlukla ayrılır; ayırıcı çizgi, noktalı çizgi, kenarlık yok.
+5. **Ferah ama kompakt.** 500 pt panel, 30 pt kenar boşluğu, iki satırlı 50 pt satır,
+   başlık–alt satır arası 5–6 pt, bloklar arası 24 pt.
+6. **Akışkanlık.**
+   - Notch tek şekil: kapalı ↔ açık yay ile biçim değiştirir, içerik ölçekle ve opaklıkla
+     gelir.
+   - Sekme seçimi ve satır hover'ı tek bir zemin olarak öğeler arasında kayar.
+   - Sekme içeriği yönlü kayarak değişir; geri sayımlar rakam rakam döner; kayıt noktası
+     nefes alır; ses çubukları seviyeyle yükselir; işleme adımı uzayarak ilerler.
+7. **Hiçbir şey zıplamaz.** Satır yüksekliği ve girintiler her durumda aynı; kapalı notch'un
+   iki kulağı her durumda 70 pt.
+
+## Yerleşim
+
+- **Sekmeler:** kameranın hemen altında ortalı; ikon + kelime, seçili sekmede kayan yumuşak
+  zemin. Numara yok.
+- **Gövde:** odak bloğu → `Bugün` → `Sonra` → alt çubuk (`Geçmiş` · pencere · sabitle).
 
 ## Ekranlar ve durumları
 
 ### 1. Kapalı notch (çizildi)
-| Durum | Sol kulak | Sağ kulak |
-|---|---|---|
-| Sıradaki toplantı (≤ 60 dk) | takvim ikonu + saat | kalan dk (≤ 10 dk amber) |
-| Kayıt | kırmızı nokta + süre | 5 sütunluk ses göstergesi |
-| Dikte | mikrofon | ses göstergesi |
-| İşleniyor | spark | adım adı + 5 segment |
-| Boşta, açık görev var | kuyruk ikonu | görev sayısı |
-| Hiçbir şey yok | — (donanım notch'u, genişlemez) | — |
-Hata: sağ kulakta kırmızı kısa metin; tıklayınca panel açılır.
+Sıradaki toplantı: takvim ikonu + saat | kalan dk (≤ 10 dk amber). Kayıt: nefes alan
+kırmızı nokta + süre | ses çubukları. Dikte: mikrofon | ses çubukları. İşleme: nabız atan
+spark | 4 adımlı ilerleme. Görevler: kuyruk ikonu | sayı. Boşta: donanım notch'u.
 
 ### 2. Bugün (çizildi)
-Soru: *Sıradaki ne, şimdi bir şey yapmam gerekiyor mu?*
-- **Odak bloğu** (kart değil): `SIRADAKİ ···· 8 DK`, başlık, `15:00–15:45 · Google Meet`.
-  60 dk içinde 24 segmentlik gösterge kalan süreyle boşalır; toplantı başlayınca
-  `ŞİMDİ ···· 33 DK KALDI` olur ve gösterge geçen süreyle dolar.
-  `Katıl` (beyaz) yalnızca link varsa ve ≤ 10 dk / canlıysa; `Kaydet ⌘R` hayalet.
-  Uzak toplantıda (bugün değil) gösterge ve butonlar yok, sadece `YARIN`.
-- **Ajanda:** günlere göre gruplu (`BUGÜN · 15 KAS PAZ ···· 1`), satır: mono saat ·
-  başlık · (link varsa video ikonu) · süre. Odak toplantı listede tekrar etmez.
-  Aynı başlık+saatteki etkinlikler tek satır (iki takvimden gelen kopyalar).
-- **Görevler ve son kayıtlar bu ekranda yok.** Geçmiş alt çubuktaki butonla açılır.
-- Boş durumlar: takvim bağlı değil → tek satır açıklama + `Takvimi bağla` hayalet;
-  7 günde hiç etkinlik yok → `Önümüzdeki 7 gün boş.` metni.
+- **Odak bloğu:** etiket yok. Solda başlık + mekân (ikon + tek kelime), sağda kalan süre
+  (amber) + saat aralığı. 60 dk içinde segmentli çubuk ve `Katıl` + kayıt butonu.
+  Uzaktaysa sağda saat + gün, çubuk ve buton yok.
+- **Gruplar:** yalnızca `Bugün` ve `Sonra`. Satır: başlık | başlangıç saati; alt satırda
+  mekân | bitiş saati (Bugün) ya da gün (Sonra).
 
 ### 3. Görevler
 Soru: *Şu an ne üzerinde çalışıyorum, sırada ne var?*

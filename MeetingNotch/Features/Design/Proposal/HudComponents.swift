@@ -1,54 +1,30 @@
 import SwiftUI
 
-// MARK: - Section label
+// MARK: - Group header
 
-/// MONO UPPERCASE label, a dotted leader, and an optional trailing value. Reads like an
-/// instrument legend; the leader ties the label to its value across the width.
-struct HudSectionLabel: View {
+/// A plain group title. No rule, no count, no letterspacing.
+struct HudGroupHeader: View {
     let title: String
-    var value: String?
-    var tint: Color = Hud.Ink.text3
 
     var body: some View {
-        HStack(spacing: Hud.Space.x2) {
-            Text(title.uppercased(with: Locale(identifier: "tr_TR"))).hud(.label, tint)
-            HudLeader()
-            if let value {
-                Text(value.uppercased(with: Locale(identifier: "tr_TR"))).hud(.label, tint == Hud.Ink.text3 ? Hud.Ink.text3 : tint)
-            }
-        }
-        .frame(height: Hud.Size.label)
-        .padding(.horizontal, Hud.Space.x2)
-    }
-}
-
-/// A dotted rule: 1 pt dots every 3 pt, centred on the text's x-height.
-struct HudLeader: View {
-    var color: Color = Hud.Ink.dot
-
-    var body: some View {
-        Canvas { context, size in
-            var x: CGFloat = 0
-            let y = (size.height / 2).rounded()
-            while x < size.width {
-                context.fill(Path(CGRect(x: x, y: y, width: 1, height: 1)), with: .color(color))
-                x += 3
-            }
-        }
-        .frame(height: 2)
-        .frame(maxWidth: .infinity)
+        Text(title)
+            .hud(.label, Hud.Ink.text3)
+            .padding(.horizontal, Hud.Size.rowInset)
+            .frame(height: 26, alignment: .bottom)
+            .padding(.bottom, Hud.Space.x1)
     }
 }
 
 // MARK: - Meters
 
-/// A segmented bar: discrete cells instead of a smooth fill, the HUD's way of showing
-/// quantity. Cells change one at a time with a short fade.
+/// A segmented bar: discrete cells instead of a smooth fill. The leading cell fades in
+/// partially, so progress moves continuously while still reading as steps.
 struct HudSegmentMeter: View {
     let segments: Int
-    let lit: Int
+    /// 0…1.
+    let progress: Double
     var tint: Color = Hud.Ink.text1
-    var height: CGFloat = 4
+    var height: CGFloat = 3
     var spacing: CGFloat = 2
 
     var body: some View {
@@ -56,34 +32,35 @@ struct HudSegmentMeter: View {
             let width = (proxy.size.width - spacing * CGFloat(segments - 1)) / CGFloat(segments)
             HStack(spacing: spacing) {
                 ForEach(0..<segments, id: \.self) { index in
-                    Rectangle()
-                        .fill(index < lit ? tint : Hud.Ink.line)
-                        .frame(width: max(1, width.rounded(.down)))
+                    let fill = min(1, max(0, progress * Double(segments) - Double(index)))
+                    ZStack {
+                        Capsule().fill(Hud.Ink.track)
+                        Capsule().fill(tint).opacity(fill)
+                    }
+                    .frame(width: max(1, width))
                 }
             }
         }
         .frame(height: height)
-        .animation(Hud.Motion.change, value: lit)
+        .animation(Hud.Motion.change, value: progress)
     }
 }
 
-/// A vertical level meter for voice: five cells per column, a few columns.
+/// A small voice meter: bars that rise with the level.
 struct HudLevelMeter: View {
     let levels: [Double]
     var tint: Color = Hud.Ink.text1
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 2) {
+        HStack(alignment: .center, spacing: 2) {
             ForEach(Array(levels.enumerated()), id: \.offset) { _, level in
-                VStack(spacing: 1.5) {
-                    ForEach((0..<4).reversed(), id: \.self) { cell in
-                        Rectangle()
-                            .fill(Double(cell) < level * 4 ? tint : Hud.Ink.line)
-                            .frame(width: 3, height: 2.5)
-                    }
-                }
+                Capsule()
+                    .fill(tint)
+                    .frame(width: 2.5, height: 3 + 11 * max(0, min(1, level)))
             }
         }
+        .frame(height: 14)
+        .animation(.spring(response: 0.18, dampingFraction: 0.7), value: levels)
     }
 }
 
@@ -96,10 +73,9 @@ struct HudStateMark: View {
 
     var body: some View {
         Canvas { context, canvas in
-            let inset: CGFloat = 1
-            let ring = CGRect(origin: .zero, size: canvas).insetBy(dx: inset, dy: inset)
+            let ring = CGRect(origin: .zero, size: canvas).insetBy(dx: 1, dy: 1)
             let line: CGFloat = 1.4
-            let inner = ring.insetBy(dx: 2.6, dy: 2.6)
+            let inner = ring.insetBy(dx: 2.7, dy: 2.7)
             let center = CGPoint(x: canvas.width / 2, y: canvas.height / 2)
             switch state {
             case .open:
@@ -113,43 +89,55 @@ struct HudStateMark: View {
                 context.fill(half, with: .color(Hud.Ink.signal))
             case .blocked:
                 context.stroke(Path(ellipseIn: ring), with: .color(Hud.Ink.live), lineWidth: line)
-                context.fill(Path(CGRect(x: inner.minX + 0.5, y: center.y - 0.8, width: inner.width - 1, height: 1.6)), with: .color(Hud.Ink.live))
+                context.fill(Path(roundedRect: CGRect(x: inner.minX + 0.5, y: center.y - 0.8, width: inner.width - 1, height: 1.6), cornerRadius: 0.8),
+                             with: .color(Hud.Ink.live))
             case .completed:
-                context.stroke(Path(ellipseIn: ring), with: .color(Hud.Ink.text3), lineWidth: line)
-                context.fill(Path(ellipseIn: inner), with: .color(Hud.Ink.text3))
+                context.stroke(Path(ellipseIn: ring), with: .color(Hud.Ink.text4), lineWidth: line)
+                context.fill(Path(ellipseIn: inner), with: .color(Hud.Ink.text4))
             }
         }
         .frame(width: size, height: size)
     }
 }
 
-// MARK: - Row
+// MARK: - Glide highlight
 
-/// The one list row. Fixed height, fixed insets; hover only lays a flat fill under it.
-struct HudRow<Content: View>: View {
-    var isEmphasised = false
-    @ViewBuilder let content: () -> Content
-    @State private var isHovering = false
-    var forceHover = false
+/// One hover highlight per list that glides between rows instead of each row fading
+/// its own fill. Rows report hover; the list owns the highlight.
+struct HudGlide: ViewModifier {
+    let id: AnyHashable
+    @Binding var hovered: AnyHashable?
+    let namespace: Namespace.ID
+    var forced: AnyHashable?
 
-    var body: some View {
-        HStack(spacing: Hud.Space.x3) { content() }
-            .padding(.horizontal, Hud.Space.x2)
-            .frame(height: Hud.Size.row)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
-                    .fill(isHovering || forceHover ? Hud.Ink.hover : .clear)
-            )
+    func body(content: Content) -> some View {
+        content
+            .background {
+                if (forced ?? hovered) == id {
+                    RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
+                        .fill(Hud.Ink.hover)
+                        .matchedGeometryEffect(id: "hud.glide", in: namespace)
+                }
+            }
             .contentShape(Rectangle())
-            .onHover { hovering in withAnimation(Hud.Motion.hover) { isHovering = hovering } }
+            .onHover { inside in
+                withAnimation(Hud.Motion.glide) {
+                    if inside { hovered = id } else if hovered == id { hovered = nil }
+                }
+            }
+    }
+}
+
+extension View {
+    func hudGlide(_ id: AnyHashable, hovered: Binding<AnyHashable?>, in namespace: Namespace.ID, forced: AnyHashable? = nil) -> some View {
+        modifier(HudGlide(id: id, hovered: hovered, namespace: namespace, forced: forced))
     }
 }
 
 // MARK: - Buttons
 
 struct HudButtonStyle: ButtonStyle {
-    enum Kind { case primary, ghost, icon }
+    enum Kind { case primary, ghost, icon, iconFilled }
     var kind: Kind = .ghost
 
     func makeBody(configuration: Configuration) -> some View {
@@ -164,20 +152,23 @@ private struct HudButtonBody: View {
 
     var body: some View {
         configuration.label
-            .font(kind == .primary ? Hud.Style.bodyStrong.font : Hud.Style.body.font)
+            .font(Hud.Style.label.font)
             .foregroundStyle(foreground)
-            .padding(.horizontal, kind == .icon ? 0 : 10)
-            .frame(width: kind == .icon ? 26 : nil, height: 26)
+            .padding(.horizontal, isIcon ? 0 : 12)
+            .frame(width: isIcon ? Hud.Size.control : nil, height: Hud.Size.control)
             .background(
-                RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous).fill(background)
+                RoundedRectangle(cornerRadius: Hud.Size.corner - 2, style: .continuous).fill(background)
             )
             .contentShape(Rectangle())
             .onHover { hovering in withAnimation(Hud.Motion.hover) { isHovering = hovering } }
     }
 
+    private var isIcon: Bool { kind == .icon || kind == .iconFilled }
+
     private var foreground: Color {
         switch kind {
         case .primary: .black
+        case .iconFilled: Hud.Ink.text1
         case .ghost: isHovering ? Hud.Ink.text1 : Hud.Ink.text2
         case .icon: isHovering ? Hud.Ink.text1 : Hud.Ink.text3
         }
@@ -185,48 +176,59 @@ private struct HudButtonBody: View {
 
     private var background: Color {
         switch kind {
-        case .primary: configuration.isPressed ? Hud.Ink.text2 : Hud.Ink.text1
+        case .primary: configuration.isPressed ? Hud.Ink.text2 : (isHovering ? Color(white: 1) : Hud.Ink.text1)
         case .ghost, .icon: configuration.isPressed ? Hud.Ink.press : (isHovering ? Hud.Ink.hover : .clear)
+        case .iconFilled: configuration.isPressed ? Hud.Ink.press : (isHovering ? Hud.Ink.selected : Hud.Ink.hover)
         }
     }
 }
 
-/// A keyboard hint shown next to an action, e.g. ⌘R.
-struct HudKeyHint: View {
-    let keys: String
+// MARK: - Tabs
 
-    var body: some View {
-        Text(keys).hud(.label, Hud.Ink.text4).tracking(0.4)
+/// Centred switcher under the camera housing. Each tab is an icon and a word; the
+/// selection is a soft plate that glides between them.
+struct HudTabs<Tab: Hashable>: View {
+    struct Item {
+        let tab: Tab
+        let glyph: HudGlyph
+        let title: String
+        var badge: Int?
     }
-}
 
-// MARK: - Tabs in the notch ears
-
-/// A tab label set in the space beside the camera housing. The selected tab is bright
-/// with a short rule beneath; the shortcut number sits as a superscript.
-struct HudEarTab: View {
-    let title: String
-    let key: String
-    var count: Int?
-    let isSelected: Bool
+    let items: [Item]
+    @Binding var selection: Tab
+    @Namespace private var namespace
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            (Text(title).font(Hud.Style.bodyStrong.font).tracking(Hud.Style.bodyStrong.tracking)
-                .foregroundColor(isSelected ? Hud.Ink.text1 : Hud.Ink.text3)
-             + Text("\u{2009}\(key)").font(Hud.Style.key.font).baselineOffset(5)
-                .foregroundColor(isSelected ? Hud.Ink.text3 : Hud.Ink.text4))
-            if let count {
-                Text("\(count)").hud(.numeral, Hud.Ink.text3)
+        HStack(spacing: 2) {
+            ForEach(items, id: \.tab) { item in
+                let isSelected = item.tab == selection
+                Button {
+                    withAnimation(Hud.Motion.glide) { selection = item.tab }
+                } label: {
+                    HStack(spacing: 7) {
+                        HudIcon(item.glyph, size: Hud.Size.smallIcon)
+                        Text(item.title).font(Hud.Style.label.font)
+                        if let badge = item.badge {
+                            Text("\(badge)").font(Hud.Style.meta.font).monospacedDigit()
+                                .foregroundStyle(isSelected ? Hud.Ink.text2 : Hud.Ink.text4)
+                        }
+                    }
+                    .foregroundStyle(isSelected ? Hud.Ink.text1 : Hud.Ink.text3)
+                    .padding(.horizontal, 12)
+                    .frame(height: 28)
+                    .background {
+                        if isSelected {
+                            Capsule().fill(Hud.Ink.selected)
+                                .matchedGeometryEffect(id: "hud.tab", in: namespace)
+                        }
+                    }
+                    .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
             }
         }
-        .overlay(alignment: .bottomLeading) {
-            Rectangle()
-                .fill(Hud.Ink.text1)
-                .frame(width: 14, height: 1.5)
-                .offset(y: 7)
-                .opacity(isSelected ? 1 : 0)
-        }
-        .animation(Hud.Motion.change, value: isSelected)
+        .padding(2)
+        .background(Capsule().fill(Color(white: 1, opacity: 0.035)))
     }
 }

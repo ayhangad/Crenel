@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		015B00F3664CD0D14D9E9189 /* DictationRefinement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 658FB8DBF2CCBD0EF261212D /* DictationRefinement.swift */; };
 		0181F6266D7D71C552D680A3 /* KeychainAPIKeyRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 786F4E606F86DF4137CEB09D /* KeychainAPIKeyRepositoryTests.swift */; };
+		043E8C9DEB2F748A1BAC54EB /* ProposalPreviewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7844634A977A34F32928869E /* ProposalPreviewController.swift */; };
 		04BF1D1C1F143F1206198381 /* BrowserAudioSocketTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53958C6B0944FC9FAB97642 /* BrowserAudioSocketTransport.swift */; };
 		05C88E7EA349859FDBA6F448 /* ProcessingQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E45D3E82484C16004083FB52 /* ProcessingQueueTests.swift */; };
 		070D202BE710613AF844D42B /* TaskStateGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F1A12C013AC3B68A8A40A4 /* TaskStateGlyph.swift */; };
@@ -338,6 +339,7 @@
 		76BEBBD4444F2C4F788C2DB9 /* ProcessingJob.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingJob.swift; sourceTree = "<group>"; };
 		77C8460D18BEF516F14C3ED1 /* TextInsertionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInsertionTests.swift; sourceTree = "<group>"; };
 		77CC9EA975D3C6CFCAF3ED3F /* CoreAudioTapRecorder.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = CoreAudioTapRecorder.mm; sourceTree = "<group>"; };
+		7844634A977A34F32928869E /* ProposalPreviewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProposalPreviewController.swift; sourceTree = "<group>"; };
 		786F4E606F86DF4137CEB09D /* KeychainAPIKeyRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainAPIKeyRepositoryTests.swift; sourceTree = "<group>"; };
 		7A8D65521AE5DFA2EAD58D0F /* NotchPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchPresentationTests.swift; sourceTree = "<group>"; };
 		7CB7D3205E79BD4D12F4C4A6 /* NotchAgenda.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchAgenda.swift; sourceTree = "<group>"; };
@@ -557,6 +559,7 @@
 				35015005803DB35091D2221F /* HudComponents.swift */,
 				327BE7C6AB226F2D3C26B233 /* HudIcons.swift */,
 				C5F7A3B479E74E66F8F8E41F /* HudTokens.swift */,
+				7844634A977A34F32928869E /* ProposalPreviewController.swift */,
 				253B37D0E9124EA524776266 /* TodayProposal.swift */,
 			);
 			path = Proposal;
@@ -1265,6 +1268,7 @@
 				5E6810022CD3718F0669D3EA /* PrivacyCanaryFileAuditor.swift in Sources */,
 				CF3BD08CDE62252736F4506B /* ProcessingJob.swift in Sources */,
 				326FE3C37B671DC33CE1C3B0 /* ProcessingQueue.swift in Sources */,
+				043E8C9DEB2F748A1BAC54EB /* ProposalPreviewController.swift in Sources */,
 				90B1B70805C20EB0C146F434 /* RecordingCoordinator.swift in Sources */,
 				367A739AD88278F01B8E7A48 /* RecordingMeetingContext.swift in Sources */,
 				62CCBE08E783C47A04BBC9C5 /* RecordingRecovery.swift in Sources */,
