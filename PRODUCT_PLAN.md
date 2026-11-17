@@ -216,6 +216,13 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     `MeetingNotch/AppIcon.icon` (boş `AppIcon.appiconset` kaldırıldı), "hazır" lambası
     ikonun turkuazına çekildi. — ✅ 2026-11-17 (`ictool` render incelendi; Debug build
     başarılı, paket `AppIcon.icns` + `CFBundleIconName` içeriyor)
+  - [x] Prototipte üçüncü tur: köşeli ikon seti (Remix dilinde, pahlı köşeler; her ikonun
+    çizgi ve oyulmuş dolu hali, değiştirici rozetler, sistem parantezi), uyarı lambası ve
+    karosu, pahlı görev işaretleri; referans panolardan basılı bölgeler, ölçek sayıları,
+    yükselen bant, radyo ölçeği, nokta matrisi, kapsüller, kapasite ölçeği, mod
+    göstergesi, çerçeve ve onboarding sistem şeması. Her biri az yerde, mevcut bir satırın
+    yerine. — ✅ 2026-11-17 (112 durum headless tarayıcıda hatasız; şema ve izin
+    etkileşimi Playwright ile doğrulandı)
   - [ ] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
     uygulamaya geçirilmesi. — ⛔ Bloke: kullanıcı prototipi düzenliyor (2026-11-17)
 

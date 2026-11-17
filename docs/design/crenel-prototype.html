@@ -122,6 +122,58 @@
     .pri > i:nth-child(1) { height: 4px } .pri > i:nth-child(2) { height: 7px } .pri > i:nth-child(3) { height: 10px }
     .pri > i.on { background: currentColor; }
 
+    /* ── Telltales: an icon that lights. Unlit = line glyph as a ghost; lit = solid glyph in its colour, glowing.
+       paren = system/permission fault, drawn as angled brackets; data-mod adds a corner badge (! or ×). */
+    .tt { @apply relative inline-flex items-center justify-center flex-none w-4 h-4; color: rgba(255,255,255,.2); }
+    .tt.paren { @apply w-6; }
+    .tt > svg { @apply absolute; }
+    .tt > svg.p { width: 24px; height: 16px; }
+    .tt.g { color: #34e6cb; } .tt.a { color: #ffad33; } .tt.r { color: #ff5a47; } .tt.w { color: #f3f1ec; }
+    .tt.g > svg, .tt.a > svg, .tt.r > svg, .tt.w > svg { filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 65%, transparent)) drop-shadow(0 0 7px color-mix(in srgb, currentColor 22%, transparent)); }
+    /* Telltale tile: a lit square with the glyph cut out. Only for the two things that must not be missed. */
+    .ttile { @apply inline-flex items-center justify-center flex-none w-[18px] h-[18px] rounded-[3px]; color: #000; }
+    .ttile > svg { @apply w-3 h-3; }
+    .ttile.r { background: #ff5a47; box-shadow: 0 0 8px rgba(255,90,71,.55), 0 0 18px rgba(255,90,71,.18); }
+    .ttile.a { background: #ffad33; box-shadow: 0 0 8px rgba(255,173,51,.5), 0 0 18px rgba(255,173,51,.16); }
+    /* Annunciator: printed words; the chosen one lights, the rest stay as ghosts. */
+    .annun { @apply inline-flex items-center gap-3.5; }
+    .annun > span { @apply t-label transition-[color,text-shadow] duration-200; color: #3a3936; }
+    .annun > span:hover { color: #76736e; }
+    .annun > span.on { color: #f3f1ec; text-shadow: 0 0 8px rgba(243,241,236,.45); }
+    .annun > span .n { @apply ml-1; color: inherit; }
+    .annun > span.on .n { color: #ffad33; text-shadow: 0 0 8px rgba(255,173,51,.5); }
+    /* Ramp: a band that thickens as it rises; a printed red zone past the plan. */
+    .ramp svg { overflow: visible; display: block; }
+    .ramp .lit { filter: drop-shadow(0 0 2px rgba(243,241,236,.5)); }
+    /* Tuner scale under a waveform: fine ticks, labelled majors. */
+    .tuner { @apply relative h-[17px]; }
+    .tuner > i { @apply absolute top-0 w-px h-[3px]; background: #4c4a47; }
+    .tuner > i.M { @apply h-[5px]; background: #76736e; }
+    .tuner > b { @apply absolute top-[7px] -translate-x-1/2 t-micro font-medium; }
+    /* Dot matrix: a field of lamps, lit up to the value; a small triangle marks your usual. */
+    .dots { @apply relative grid gap-[3px]; grid-auto-flow: column; grid-template-rows: repeat(3, 4px); }
+    .dots > i { @apply block w-1 h-1 rounded-[1px]; background: rgba(255,255,255,.08); }
+    .dots > i.on { background: #f3f1ec; box-shadow: 0 0 4px rgba(243,241,236,.5); }
+    .dots-mark { @apply absolute -bottom-[7px] w-0 h-0 -translate-x-1/2; border: 3px solid transparent; border-bottom: 4px solid #76736e; border-top: 0; }
+    /* Capsules: whole things, filled when done, half when under way. */
+    .caps { @apply inline-flex gap-[3px]; }
+    .caps > i { @apply block w-3 h-[6px] rounded-full; background: rgba(255,255,255,.08); }
+    .caps > i.on { background: #f3f1ec; box-shadow: 0 0 5px rgba(243,241,236,.45); }
+    .caps > i.half { background: linear-gradient(90deg, #ffad33 50%, rgba(255,173,51,.14) 50%); box-shadow: 0 0 5px rgba(255,173,51,.35); }
+    /* Capacity: end-labelled scale with its glyph printed in the middle, a zone strip under the cells. */
+    .cap { @apply flex flex-col gap-[5px]; }
+    .zstrip { @apply flex h-[2px] gap-[2px]; }
+    .zstrip > i { @apply block h-full rounded-[1px]; }
+    /* Frame: a 1 px printed outline with its label inside, top-left. */
+    .frame { @apply relative rounded-[10px] px-3 pt-[22px] pb-2; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+    .frame > .fl { @apply absolute top-[7px] left-3 t-micro; color: #76736e; }
+    /* Schematic: a line drawing of the Mac; each part lights when its permission is on. */
+    .schem .pt { stroke: #2e2d2b; fill: none; transition: stroke .3s, filter .3s; }
+    .schem .pt.fill { fill: #2e2d2b; stroke: none; transition: fill .3s, filter .3s; }
+    .schem .pt.on { stroke: #34e6cb; filter: drop-shadow(0 0 2px rgba(52,230,203,.8)) drop-shadow(0 0 6px rgba(52,230,203,.3)); }
+    .schem .pt.fill.on { fill: #34e6cb; }
+    .schem .body { stroke: #4c4a47; fill: none; }
+
     /* ── Rows. Text never moves; one hover slab slides between rows of a list. */
     .slide { position: relative; }
     .slab { position: absolute; left: 0; right: 0; top: 0; height: 0; border-radius: 10px; background: rgba(255,255,255,.055);
@@ -257,7 +309,7 @@
     #nwrap::before, #nwrap::after { content: ''; position: absolute; top: 0; width: var(--rt); height: var(--rt); }
     #nwrap::before { left: calc(-1 * var(--rt)); background: radial-gradient(circle at 0 100%, transparent calc(var(--rt) - .5px), #000 var(--rt)); }
     #nwrap::after { right: calc(-1 * var(--rt)); background: radial-gradient(circle at 100% 100%, transparent calc(var(--rt) - .5px), #000 var(--rt)); }
-    #notch { position: relative; background: #000; overflow: hidden; border-radius: 0 0 var(--rb) var(--rb); width: 186px; height: 32px;
+    #notch { --surface: #000; position: relative; background: #000; overflow: hidden; border-radius: 0 0 var(--rb) var(--rb); width: 186px; height: 32px;
       transition: width .52s cubic-bezier(.3,1.16,.4,1), height .52s cubic-bezier(.3,1.16,.4,1); }
     #nc { position: absolute; top: 0; left: 50%; transform: translateX(-50%); transition: opacity .18s ease-out; }
     #nc.open { width: 480px; padding: 0 14px 16px; overflow-y: auto; }
@@ -269,6 +321,8 @@
     .ears > .ear.l { @apply justify-start pl-[14px] pr-2; }
     .ears > .ear.r { @apply justify-end pr-[14px] pl-2; }
     .ear-t { @apply max-w-[118px] truncate; }
+    .ears .tt:not(.paren) > svg.ico { width: 14px; height: 14px; }
+    .ears .ttile { width: 16px; height: 16px; } .ears .ttile > svg { width: 11px; height: 11px; }
     .peek { width: 440px; padding-bottom: 10px; }
     .peek > .ears { width: 100%; }
     .strip { @apply relative flex items-center gap-2.5 h-[38px] mx-2 pl-[10px] pr-1.5 rounded-[12px]; background: rgba(255,255,255,.055); }
@@ -290,6 +344,7 @@
     .lights { @apply absolute top-3.5 left-3.5 flex gap-2 z-10; }
     .lights > i { @apply block w-3 h-3 rounded-full bg-white/15; }
     .lights > i:first-child { @apply bg-[#ff5f57]; }
+    .sidebar { --surface: #080807; } .win { --surface: #0e0e0d; }
     .sidebar { @apply w-[224px] flex-none flex flex-col px-3 pb-3; background: #080807; box-shadow: inset -1px 0 0 rgba(255,255,255,.035); }
     .brand { @apply flex items-center gap-2.5 pl-1.5 pr-2 pt-[50px] pb-5; }
     .app-tile { @apply relative w-[26px] h-[26px] rounded-[7px] flex items-center justify-center flex-none; color: #14f0d4;
@@ -395,60 +450,84 @@
 </style>
 </head>
 <body>
-<!-- ═══ ICONS — 16 grid, 1.5 stroke, round ends. At most one filled "lamp" detail per glyph. ═══ -->
+<!-- ═══ ICONS — 16 grid, 1.5 stroke, square ends, mitred joins, 45° chamfers instead of round corners.
+     Every glyph has a line form (i-*, at rest) and, where it can light, a solid form (f-*, lit) with its
+     details cut out — like a dashboard telltale. Modifiers (mod-*) sit in the bottom-right slot. ═══ -->
 <svg width="0" height="0" style="position:absolute">
-  <symbol id="i-calendar" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.25" y="3.25" width="11.5" height="10.5" rx="2.5"/><path d="M2.25 6.75h11.5M5.25 1.75v2.5M10.75 1.75v2.5"/><rect x="9.25" y="9.25" width="2.25" height="2.25" rx=".6" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-queue" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2.75" width="3.5" height="3.5" rx="1" fill="currentColor" stroke="none"/><path d="M8 4.5h6M2.75 8.5h11.25M2.75 12.5h7.5"/></symbol>
-  <symbol id="i-mic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="1.75" width="5" height="7.75" rx="2.5"/><path d="M3 7.75a5 5 0 0 0 10 0M8 12.75v1.5"/></symbol>
-  <symbol id="i-micoff" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 6.5V4.25a2.5 2.5 0 0 0-4.9-.7M5.5 7v.25a2.5 2.5 0 0 0 4.1 1.9M3 7.75a5 5 0 0 0 8.2 3.85M13 7.75c0 .5-.07 1-.2 1.45M8 12.75v1.5M2.5 2.5l11 11"/></symbol>
-  <symbol id="i-speaker" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.25 6.25h2.25L7.75 3.5v9L4.5 9.75H2.25z"/><path d="M10.25 6.1a2.7 2.7 0 0 1 0 3.8M12.25 4.1a5.5 5.5 0 0 1 0 7.8"/></symbol>
-  <symbol id="i-video" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="4" width="9.25" height="8" rx="2.25"/><path d="M11 7.1l3.25-1.85v5.5L11 8.9"/></symbol>
-  <symbol id="i-window" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="2.75" width="12.5" height="10.5" rx="2.25"/><path d="M1.75 6.25h12.5"/><circle cx="4.25" cy="4.5" r=".7" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-pin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.75 2.25h4.5M6.75 2.25v3.5L4.5 8.75h7L9.25 5.75v-3.5M8 8.75v5"/></symbol>
-  <symbol id="i-history" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.75 8a5.25 5.25 0 1 0 1.55-3.72"/><path d="M2.5 2.25v2.5H5M8 5v3l2 1.5"/></symbol>
-  <symbol id="i-tape" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="3.25" width="12.5" height="9.5" rx="2"/><circle cx="5.25" cy="7.25" r="1.35"/><circle cx="10.75" cy="7.25" r="1.35"/><path d="M5.25 8.6h5.5M4.6 12.75l.9-1.75h5l.9 1.75"/></symbol>
-  <symbol id="i-repeat" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.75 7.25V6.5a2.25 2.25 0 0 1 2.25-2.25h8.25M11 2l2.25 2.25L11 6.5M13.25 8.75v.75a2.25 2.25 0 0 1-2.25 2.25H2.75M5 14l-2.25-2.25L5 9.5"/></symbol>
-  <symbol id="i-record" viewBox="0 0 16 16"><circle cx="8" cy="8" r="4" fill="currentColor"/></symbol>
-  <symbol id="i-stop" viewBox="0 0 16 16"><rect x="4.25" y="4.25" width="7.5" height="7.5" rx="1.6" fill="currentColor"/></symbol>
-  <symbol id="i-chevron-right" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.25 3.5L10.75 8l-4.5 4.5"/></symbol>
-  <symbol id="i-chevron-left" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.75 3.5L5.25 8l4.5 4.5"/></symbol>
-  <symbol id="i-chevron-down" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 6.25L8 10.75l4.5-4.5"/></symbol>
-  <symbol id="i-arrow-right" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.75 8h10.5M9 3.75L13.25 8 9 12.25"/></symbol>
-  <symbol id="i-plus" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2.75v10.5M2.75 8h10.5"/></symbol>
-  <symbol id="i-close" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></symbol>
-  <symbol id="i-spark" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 1.75c.4 3.4 2.85 5.85 6.25 6.25-3.4.4-5.85 2.85-6.25 6.25-.4-3.4-2.85-5.85-6.25-6.25C5.15 7.6 7.6 5.15 8 1.75z"/></symbol>
-  <symbol id="i-link" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.25 2.25h4.5v4.5M13.75 2.25l-6 6M11.75 9.5v3.25a1 1 0 0 1-1 1h-7.5a1 1 0 0 1-1-1v-7.5a1 1 0 0 1 1-1H6.5"/></symbol>
-  <symbol id="i-bell" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.75 11.25V7.5a4.25 4.25 0 0 1 8.5 0v3.75l1.25 1.25h-11z"/><path d="M6.5 14.25h3"/></symbol>
-  <symbol id="i-place" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 14.25s4.75-4.3 4.75-8a4.75 4.75 0 0 0-9.5 0c0 3.7 4.75 8 4.75 8z"/><circle cx="8" cy="6.25" r="1.6" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-transcript" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.25 2.75a1 1 0 0 1 1-1h5l3.5 3.5v8a1 1 0 0 1-1 1h-7.5a1 1 0 0 1-1-1z"/><path d="M9 1.75v3.5h3.75M5.75 8.25h4.5M5.75 11h2.75"/></symbol>
-  <symbol id="i-sliders" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 5h6.5M11.5 5H14M2 11h2M7 11h7"/><circle cx="10" cy="5" r="1.5"/><circle cx="5.5" cy="11" r="1.5"/></symbol>
-  <symbol id="i-shield" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 1.75l5.25 2v4.1c0 3.1-2.2 5.4-5.25 6.4-3.05-1-5.25-3.3-5.25-6.4v-4.1z"/></symbol>
-  <symbol id="i-warning" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7.13 2.5a1 1 0 0 1 1.74 0l5.4 9.5a1 1 0 0 1-.87 1.5H2.6a1 1 0 0 1-.87-1.5z"/><path d="M8 6.5v3"/><circle cx="8" cy="11.4" r=".75" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-people" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="5.25" r="2.5"/><path d="M1.75 13.75c.5-2.6 2.2-4 4.25-4s3.75 1.4 4.25 4M10.5 3a2.5 2.5 0 0 1 0 4.5M12 9.9c1.2.6 2 1.9 2.25 3.85"/></symbol>
-  <symbol id="i-keyboard" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3.75" width="13" height="8.5" rx="2"/><path d="M4.5 6.75h.01M7 6.75h.01M9.5 6.75h.01M12 6.75h.01M5 9.5h6"/></symbol>
-  <symbol id="i-copy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.25" y="5.25" width="8.5" height="8.5" rx="1.75"/><path d="M10.75 5.25V3.5a1.25 1.25 0 0 0-1.25-1.25H3.5A1.25 1.25 0 0 0 2.25 3.5v6c0 .7.55 1.25 1.25 1.25h1.75"/></symbol>
-  <symbol id="i-trash" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.25h11M6.25 4.25v-1.5h3.5v1.5M3.75 4.25l.75 9a1 1 0 0 0 1 .9h5a1 1 0 0 0 1-.9l.75-9"/></symbol>
-  <symbol id="i-more" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1.25" fill="currentColor"/><circle cx="8" cy="8" r="1.25" fill="currentColor"/><circle cx="12.5" cy="8" r="1.25" fill="currentColor"/></symbol>
-  <symbol id="i-play" viewBox="0 0 16 16"><path d="M5 3.4v9.2a.6.6 0 0 0 .92.5l7.2-4.6a.6.6 0 0 0 0-1l-7.2-4.6A.6.6 0 0 0 5 3.4z" fill="currentColor"/></symbol>
-  <symbol id="i-pause" viewBox="0 0 16 16"><rect x="4" y="3" width="2.75" height="10" rx=".8" fill="currentColor"/><rect x="9.25" y="3" width="2.75" height="10" rx=".8" fill="currentColor"/></symbol>
-  <symbol id="i-waveform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2.75 7v2M5.25 5v6M7.75 2.75v10.5M10.25 5.5v5M12.75 7v2"/></symbol>
-  <symbol id="i-search" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5l3 3"/></symbol>
-  <symbol id="i-archive" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="2.75" width="12.5" height="3.5" rx="1"/><path d="M2.75 6.25v6a1 1 0 0 0 1 1h8.5a1 1 0 0 0 1-1v-6M6.5 9h3"/></symbol>
-  <symbol id="i-accessibility" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="2.75" r="1.1" fill="currentColor" stroke="none"/><path d="M2.75 5.5h10.5M8 5.5v4M8 9.5l-2.5 4.75M8 9.5l2.5 4.75"/></symbol>
-  <symbol id="i-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2.75"/><path d="M8 1.75v1M8 13.25v1M1.75 8h1M13.25 8h1M3.6 3.6l.7.7M11.7 11.7l.7.7M3.6 12.4l.7-.7M11.7 4.3l.7-.7"/></symbol>
-  <symbol id="i-gauge" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 12.6a6.25 6.25 0 1 1 9.2 0"/><path d="M8 9l2.6-2.6"/><circle cx="8" cy="9" r="1.35" fill="currentColor" stroke="none"/></symbol>
-  <symbol id="i-clock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.5"/></symbol>
-  <symbol id="i-globe" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.25"/><path d="M1.75 8h12.5M8 1.75c1.7 1.75 2.5 3.85 2.5 6.25S9.7 12.5 8 14.25C6.3 12.5 5.5 10.4 5.5 8S6.3 3.5 8 1.75z"/></symbol>
-  <symbol id="i-share" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2.25M5.25 5L8 2.25 10.75 5M4.5 7.25h-.75a1.5 1.5 0 0 0-1.5 1.5v3.5a1.5 1.5 0 0 0 1.5 1.5h8.5a1.5 1.5 0 0 0 1.5-1.5v-3.5a1.5 1.5 0 0 0-1.5-1.5h-.75"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4.25 3.25H11.75L13.25 4.75V11.75L11.75 13.25H4.25L2.75 11.75V4.75Z"/><path d="M2.75 6.75H13.25M5.25 1.75V3.25M10.75 1.75V3.25"/><rect x="9.25" y="9.25" width="2.25" height="2.25" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><rect x="2" y="2.75" width="3.5" height="3.5" fill="currentColor" stroke="none"/><path d="M8.25 4.5H13.75M2.75 8.5H13.75M2.75 12.5H10.25"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M6.25 1.75H9.75L10.75 2.75V8.25L9.75 9.25H6.25L5.25 8.25V2.75Z"/><path d="M3.25 7V8.5L5.75 11.5H10.25L12.75 8.5V7M8 11.5V14.25M5.75 14.25H10.25"/></symbol>
+  <symbol id="i-micoff" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M6.25 1.75H9.75L10.75 2.75V8.25L9.75 9.25H6.25L5.25 8.25V2.75Z"/><path d="M3.25 7V8.5L5.75 11.5H10.25L12.75 8.5V7M8 11.5V14.25M5.75 14.25H10.25"/><path d="M2 2L14 14" fill="none" style="stroke:var(--surface,#000)" stroke-width="3.5" stroke-linecap="butt"/><path d="M2.75 2.75L13.25 13.25"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M1.75 5.75H4.5L8.25 2.5V13.5L4.5 10.25H1.75Z"/><path d="M10.75 6L11.75 8L10.75 10M12.75 3.75L14.25 8L12.75 12.25"/></symbol>
+  <symbol id="i-video" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3 4.25H9.25L10.25 5.25V10.75L9.25 11.75H3L2 10.75V5.25Z"/><path d="M10.25 7L14 4.75V11.25L10.25 9"/></symbol>
+  <symbol id="i-window" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M1.75 2.75H14.25V13.25H1.75ZM1.75 6.25H14.25"/><rect x="3.5" y="3.75" width="1.5" height="1.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.75 2.25H10.25M6.75 2.25V5.75L4.5 8.75H11.5L9.25 5.75V2.25M8 8.75V13.75"/></symbol>
+  <symbol id="i-history" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3 11L2.25 8L3 5L6 2.5H10L13 5L13.75 8L13 11L10 13.5H6.5"/><path d="M2.25 2.25V5H5M8 5.25V8.25L10.25 9.75"/></symbol>
+  <symbol id="i-tape" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.75 3.25H13.25L14.25 4.25V12.75H1.75V4.25Z"/><path d="M3.75 5.75H6.25V8.25H3.75ZM9.75 5.75H12.25V8.25H9.75ZM6.25 8.25H9.75M4.25 12.75L5.25 10.75H10.75L11.75 12.75"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.75 7.25V4.25H13.25M11 2L13.25 4.25L11 6.5M13.25 8.75V11.75H2.75M5 14L2.75 11.75L5 9.5"/></symbol>
+  <symbol id="i-record" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="4" fill="currentColor"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 16 16" fill="none"><rect x="4.25" y="4.25" width="7.5" height="7.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M6.25 3.5L10.75 8L6.25 12.5"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M9.75 3.5L5.25 8L9.75 12.5"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3.5 6.25L8 10.75L12.5 6.25"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.75 8H13M9 4L13 8L9 12"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 3V13M3 8H13"/></symbol>
+  <symbol id="i-close" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4.25 4.25L11.75 11.75M11.75 4.25L4.25 11.75"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 1.75L9.5 6.5L14.25 8L9.5 9.5L8 14.25L6.5 9.5L1.75 8L6.5 6.5Z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M9.75 2.25H13.75V6.25M13.25 2.75L7.75 8.25M11.75 9.75V13.75H2.25V4.25H6.25"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3.75 11.25V6.5L6 3.25H10L12.25 6.5V11.25L13.5 12.5H2.5Z"/><path d="M6.75 14.25H9.25"/></symbol>
+  <symbol id="i-place" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 14.25L3.25 9V5.25L5.75 2.25H10.25L12.75 5.25V9Z"/><rect x="7" y="5.25" width="2" height="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-transcript" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3.25 1.75H9.5L12.75 5V14.25H3.25Z"/><path d="M9.25 1.75V5.25H12.75M5.75 8.25H10.25M5.75 11H8.5"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2 5H7M11.5 5H14M2 11H3.5M8 11H14M7 3.25H10.5V6.75H7ZM3.75 9.25H7.25V12.75H3.75Z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 1.75L13.25 3.75V8L8 14.25L2.75 8V3.75Z"/></symbol>
+  <symbol id="i-warning" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 2.25L14.25 13.25H1.75Z"/><path d="M8 6.75V9"/><rect x="7.25" y="10.5" width="1.5" height="1.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-people" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4.75 2.5H7.25L8.25 3.5V6L7.25 7H4.75L3.75 6V3.5ZM1.75 13.75V11.75L3.75 9.75H8.25L10.25 11.75V13.75M10.75 2.5H11.75L12.75 3.5V6L11.75 7H10.75M12 9.75L14.25 11.75V13.75"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.5 3.75H13.5L14.5 4.75V11.25L13.5 12.25H2.5L1.5 11.25V4.75Z"/><path d="M4.5 6.75H4.51M7 6.75H7.01M9.5 6.75H9.51M12 6.75H12.01M5.25 9.5H10.75"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.25 5.25H13.75V13.75H5.25ZM10.75 5.25V2.25H2.25V10.75H5.25"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.5 4.25H13.5M6.25 4.25V2.25H9.75V4.25M3.75 4.25L4.5 14H11.5L12.25 4.25M6.75 7V11M9.25 7V11"/></symbol>
+  <symbol id="i-more" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="7.25" width="2" height="2" fill="currentColor" stroke="none"/><rect x="7" y="7.25" width="2" height="2" fill="currentColor" stroke="none"/><rect x="11.5" y="7.25" width="2" height="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-play" viewBox="0 0 16 16" fill="none"><path d="M4.5 2.75V13.25L13 8Z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 16 16" fill="none"><rect x="4" y="3" width="2.75" height="10" fill="currentColor" stroke="none"/><rect x="9.25" y="3" width="2.75" height="10" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-waveform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.75 7V9M5.25 5V11M7.75 2.75V13.25M10.25 5.5V10.5M12.75 7V9"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4.75 2.25H8.25L10.75 4.75V8.25L8.25 10.75H4.75L2.25 8.25V4.75ZM10.5 10.5L13.75 13.75"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M1.75 2.75H14.25V6.25H1.75ZM2.75 6.25V13.25H13.25V6.25M6.5 9H9.5"/></symbol>
+  <symbol id="i-accessibility" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><rect x="7.25" y="1.5" width="1.5" height="1.5" fill="currentColor" stroke="none"/><path d="M2.75 5.5H13.25M8 5.5V9.5M8 9.5L5.5 14.25M8 9.5L10.5 14.25"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.75 5.75H10.25V10.25H5.75ZM8 1.75V3M8 13V14.25M1.75 8H3M13 8H14.25M3.6 3.6L4.3 4.3M11.7 11.7L12.4 12.4M3.6 12.4L4.3 11.7M11.7 4.3L12.4 3.6"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3 12.5L2.25 9L3.5 5.25L6.25 3H9.75L12.5 5.25L13.75 9L13 12.5M8 9L10.75 6.25"/><rect x="7" y="8" width="2" height="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.5 1.75H10.5L14.25 5.5V10.5L10.5 14.25H5.5L1.75 10.5V5.5ZM8 4.75V8H10.5"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.5 1.75H10.5L14.25 5.5V10.5L10.5 14.25H5.5L1.75 10.5V5.5ZM1.75 8H14.25M8 1.75L10.5 8L8 14.25L5.5 8Z"/></symbol>
+  <symbol id="i-share" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 10V2.5M5.25 5.25L8 2.5L10.75 5.25M4.75 7.25H2.25V13.75H13.75V7.25H11.25"/></symbol>
+  <symbol id="f-calendar" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M4 2.5H12L14 4.5V12L12 14H4L2 12V4.5ZM3.5 6H12.5V7.5H3.5ZM9 9H11.5V11.5H9Z"/><rect x="4.5" y="0.75" width="1.5" height="2.5" fill="currentColor" stroke="none"/><rect x="10" y="0.75" width="1.5" height="2.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="f-queue" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><rect x="1.5" y="2" width="4.5" height="4.5" fill="currentColor" stroke="none"/><rect x="7.5" y="3.5" width="6.75" height="2" fill="currentColor" stroke="none"/><rect x="1.5" y="7.5" width="12.75" height="2" fill="currentColor" stroke="none"/><rect x="1.5" y="11.5" width="9" height="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="f-mic" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M6 1H10L11.5 2.5V8.5L10 10H6L4.5 8.5V2.5ZM6.5 4H9.5V5H6.5ZM6.5 6H9.5V7H6.5Z"/><path d="M3.25 7V8.5L5.75 11.5H10.25L12.75 8.5V7M8 11.5V14.25M5.75 14.25H10.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-micoff" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M6 1H10L11.5 2.5V8.5L10 10H6L4.5 8.5V2.5ZM6.5 4H9.5V5H6.5ZM6.5 6H9.5V7H6.5Z"/><path d="M3.25 7V8.5L5.75 11.5H10.25L12.75 8.5V7M8 11.5V14.25M5.75 14.25H10.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/><path d="M2 2L14 14" fill="none" style="stroke:var(--surface,#000)" stroke-width="3.5" stroke-linecap="butt"/><path d="M2.75 2.75L13.25 13.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-speaker" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M1 5H4.25L8.75 1.5V14.5L4.25 11H1Z"/><path d="M10.75 6L11.75 8L10.75 10M12.75 3.75L14.25 8L12.75 12.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-video" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.5 3.75H9.75L11 5V11L9.75 12.25H2.5L1.25 11V5ZM11.75 6.75L14.75 4.75V11.25L11.75 9.25Z"/></symbol>
+  <symbol id="f-tape" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.5 2.5H13.5L15 4V13.5H1V4ZM3.5 5.5H6.5V8.5H3.5ZM9.5 5.5H12.5V8.5H9.5ZM5 13.5L5.75 11H10.25L11 13.5Z"/></symbol>
+  <symbol id="f-transcript" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.5 1H9.75L13.5 4.75V15H2.5ZM5 7.5H11V9H5ZM5 10.5H9V12H5Z"/></symbol>
+  <symbol id="f-spark" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M8 .75L9.9 6.1L15.25 8L9.9 9.9L8 15.25L6.1 9.9L.75 8L6.1 6.1Z"/></symbol>
+  <symbol id="f-keyboard" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2 3H14L15 4V12L14 13H2L1 12V4ZM3.75 5.75H5.25V7.25H3.75ZM6.25 5.75H7.75V7.25H6.25ZM8.75 5.75H10.25V7.25H8.75ZM11.25 5.75H12.75V7.25H11.25ZM4.5 9H11.5V10.5H4.5Z"/></symbol>
+  <symbol id="f-accessibility" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><rect x="6.75" y="0.75" width="2.5" height="2.5" fill="currentColor" stroke="none"/><path d="M2.5 5.5H13.5M8 5.5V9.5M8 9.5L5.25 14.5M8 9.5L10.75 14.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-gauge" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.25 12.75L1.25 8.75L2.75 4.5L6 1.75H10L13.25 4.5L14.75 8.75L13.75 12.75ZM7.25 9.5L10.6 5.4L11.4 6L8.6 10.5Z"/></symbol>
+  <symbol id="f-waveform" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.75 7V9M5.25 5V11M7.75 2.75V13.25M10.25 5.5V10.5M12.75 7V9" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-sliders" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2 5H7M11.5 5H14M2 11H3.5M8 11H14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/><rect x="6.5" y="2.75" width="4.5" height="4.5" fill="currentColor" stroke="none"/><rect x="3.25" y="8.75" width="4.5" height="4.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="f-sun" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><rect x="5" y="5" width="6" height="6" fill="currentColor" stroke="none"/><path d="M8 1.75V2.75M8 13.25V14.25M1.75 8H2.75M13.25 8H14.25M3.6 3.6L4.1 4.1M11.9 11.9L12.4 12.4M3.6 12.4L4.1 11.9M11.9 4.1L12.4 3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-archive" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M1 2H15V6H1ZM2 7H14V14H2ZM6 9H10V10.5H6Z"/></symbol>
+  <symbol id="f-warning" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M8 1L15.25 14H.75ZM7.25 5.75H8.75V9.5H7.25ZM7.25 10.75H8.75V12.25H7.25Z"/></symbol>
+  <symbol id="f-bell" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M3 11V6.25L5.75 2.5H10.25L13 6.25V11L14.5 12.5V13H1.5V12.5Z"/><rect x="6.25" y="14" width="3.5" height="1.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="f-shield" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M8 1L14 3.25V8.25L8 15L2 8.25V3.25Z"/></symbol>
+  <symbol id="mod-bang" viewBox="0 0 16 16" fill="none"><rect x="9.25" y="9.25" width="6.75" height="6.75" fill="currentColor" style="stroke:var(--surface,#000)" stroke-width="1.5"/><rect x="12" y="10.5" width="1.25" height="3" style="fill:var(--surface,#000)"/><rect x="12" y="14" width="1.25" height="1.1" style="fill:var(--surface,#000)"/></symbol>
+  <symbol id="mod-x" viewBox="0 0 16 16" fill="none"><rect x="9.25" y="9.25" width="6.75" height="6.75" fill="currentColor" style="stroke:var(--surface,#000)" stroke-width="1.5"/><path d="M11.1 11.1L14.15 14.15M14.15 11.1L11.1 14.15" style="stroke:var(--surface,#000)" stroke-width="1.2"/></symbol>
+  <symbol id="i-paren" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3.5 1.75L1.5 8L3.5 14.25M20.5 1.75L22.5 8L20.5 14.25"/></symbol>
   <!-- The mark: six lamps in a crenel (the app icon's glyph). Opacity per lamp is part of the mark. -->
   <symbol id="i-mark" viewBox="0 0 472 296"><g fill="currentColor"><rect opacity=".7" x="59" width="118" height="119"/><rect opacity=".76" y="119" width="118" height="118"/><rect opacity=".5" x="118" y="178" width="118" height="118"/><rect opacity=".65" x="236" y="178" width="118" height="118"/><rect opacity=".56" x="295" width="118" height="119"/><rect x="354" y="119" width="118" height="118"/></g></symbol>
   <symbol id="i-logo" viewBox="0 0 24 24"><path fill="currentColor" d="M8 6.5H7.5Q8.5 6.5 8.5 7.5V8.7Q8.5 9.7 9.5 9.7H14.5Q15.5 9.7 15.5 8.7V7.5Q15.5 6.5 16.5 6.5H16A5.5 5.5 0 0 1 21.5 12A5.5 5.5 0 0 1 16 17.5H8A5.5 5.5 0 0 1 2.5 12A5.5 5.5 0 0 1 8 6.5Z"/></symbol>
 
-  <!-- Task marks: fill level says the state; never a tick. -->
-  <symbol id="m-open" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75" fill="none" stroke="#76736e" stroke-width="1.5"/></symbol>
-  <symbol id="m-progress" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75" fill="none" stroke="#ffad33" stroke-width="1.5"/><path d="M8 4.5a3.5 3.5 0 0 1 0 7z" fill="#ffad33"/></symbol>
-  <symbol id="m-blocked" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75" fill="none" stroke="#ff5a47" stroke-width="1.5"/><rect x="5" y="7.2" width="6" height="1.6" rx=".8" fill="#ff5a47"/></symbol>
-  <symbol id="m-done" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75" fill="none" stroke="#4c4a47" stroke-width="1.5"/><circle cx="8" cy="8" r="3.5" fill="#4c4a47"/></symbol>
+  <!-- Task marks: a chamfered square whose fill level says the state; never a tick. -->
+  <symbol id="m-open" viewBox="0 0 16 16"><path d="M4.75 2.25H11.25L13.75 4.75V11.25L11.25 13.75H4.75L2.25 11.25V4.75Z" fill="none" stroke="#76736e" stroke-width="1.5"/></symbol>
+  <symbol id="m-progress" viewBox="0 0 16 16"><path d="M4.75 2.25H11.25L13.75 4.75V11.25L11.25 13.75H4.75L2.25 11.25V4.75Z" fill="none" stroke="#ffad33" stroke-width="1.5"/><path d="M8 5H10L11 6V10L10 11H8Z" fill="#ffad33"/></symbol>
+  <symbol id="m-blocked" viewBox="0 0 16 16"><path d="M4.75 2.25H11.25L13.75 4.75V11.25L11.25 13.75H4.75L2.25 11.25V4.75Z" fill="none" stroke="#ff5a47" stroke-width="1.5"/><rect x="5" y="7.25" width="6" height="1.5" fill="#ff5a47"/></symbol>
+  <symbol id="m-done" viewBox="0 0 16 16"><path d="M4.75 2.25H11.25L13.75 4.75V11.25L11.25 13.75H4.75L2.25 11.25V4.75Z" fill="none" stroke="#4c4a47" stroke-width="1.5"/><path d="M6 5H10L11 6V10L10 11H6L5 10V6Z" fill="#4c4a47"/></symbol>
 </svg>
 
 <div class="flex h-screen">
@@ -494,7 +573,7 @@
     <div class="ear r"><span class="segd text-ink-1" data-seg="14:30" data-h="13"></span></div></div>
   <div class="ears" data-only="c-meeting-hour" data-fuse=".55" data-fuse-to=".52" data-fuse-dur="60"><div class="ear l"><svg class="ico-s text-ink-3"><use href="#i-video"/></svg><span class="ear-t">Design review</span></div><div></div>
     <div class="ear r"><span class="flex items-baseline"><span class="segd text-ink-1" data-seg="33" data-cells="2" data-h="13"></span><span class="unit">min</span></span></div></div>
-  <div class="ears" data-only="c-meeting-urgent" data-fuse=".8" data-fuse-to=".7" data-fuse-dur="40" data-fuse-color="#ffad33"><div class="ear l"><svg class="ico-s text-signal"><use href="#i-video"/></svg><span class="ear-t text-ink-1">Design review</span></div><div></div>
+  <div class="ears" data-only="c-meeting-urgent" data-fuse=".8" data-fuse-to=".7" data-fuse-dur="40" data-fuse-color="#ffad33"><div class="ear l"><span data-tt="video" data-st="a"></span><span class="ear-t text-ink-1">Design review</span></div><div></div>
     <div class="ear r"><span class="flex items-baseline text-signal"><span class="segd" data-seg="8" data-cells="2" data-h="13"></span><span class="unit !text-signal/70">min</span></span></div></div>
   <div class="ears" data-only="c-meeting-live" data-fuse=".3" data-fuse-to=".28" data-fuse-dur="60" data-fuse-color="#ffad33"><div class="ear l"><span class="lamp dot on-a"></span><span class="ear-t text-ink-1">Design review</span></div><div></div>
     <div class="ear r"><span class="flex items-baseline text-signal"><span class="segd" data-seg="18" data-cells="2" data-h="13"></span><span class="unit !text-signal/70">left</span></span></div></div>
@@ -507,7 +586,7 @@
   <div class="ears" data-only="c-recording-micoff"><div class="ear l"><span class="lamp dot on-r pulse"></span><span class="segd text-ink-1" data-seg="12:48" data-elapsed="768" data-h="13"></span></div><div></div>
     <div class="ear r"><svg class="ico-s text-ink-3"><use href="#i-micoff"/></svg><span class="ladder text-ink-1" data-ladder="6"></span></div></div>
   <div class="ears" data-only="c-recording-unknown"><div class="ear l"><span class="lamp dot on-r pulse"></span><span class="segd text-ink-1" data-seg="12:48" data-elapsed="768" data-h="13"></span></div><div></div>
-    <div class="ear r"><svg class="ico-s text-signal"><use href="#i-micoff"/></svg><span class="ladder text-ink-1" data-ladder="6"></span></div></div>
+    <div class="ear r"><span data-tt="mic" data-st="a" data-paren title="Mute state unknown"></span><span class="ladder text-ink-1" data-ladder="6"></span></div></div>
 
   <!-- Processing -->
   <div class="ears" data-only="c-proc-saving"><div class="ear l"><svg class="ico-s text-ink-2 breathe"><use href="#i-transcript"/></svg><span>Saving</span></div><div></div><div class="ear r"><span class="cells"><i class="cur"></i><i></i><i></i><i></i></span></div></div>
@@ -523,13 +602,13 @@
 
   <!-- ── Strip states: the notch drops one line, never the whole panel. ── -->
   <div class="peek" data-only="c-meeting-now" data-fuse="1" data-fuse-to=".96" data-fuse-dur="30" data-fuse-color="#ffad33">
-    <div class="ears"><div class="ear l"><svg class="ico-s text-signal"><use href="#i-video"/></svg><span class="ear-t text-ink-1">Design review</span></div><div></div>
+    <div class="ears"><div class="ear l"><span data-tt="video" data-st="a"></span><span class="ear-t text-ink-1">Design review</span></div><div></div>
       <div class="ear r"><span class="flex items-baseline text-signal"><span class="segd" data-seg="0" data-cells="2" data-h="13"></span><span class="unit !text-signal/70">min</span></span></div></div>
     <div class="strip"><span class="t-body">Starting now</span><span class="t-meta">Google Meet · Deniz, Ece</span><span class="flex-1"></span>
       <button class="btn-secondary sm" data-go="c-meeting-live">Later<span class="kbd">esc</span></button><button class="btn-primary sm" data-go="c-prompt-offer-meet" data-toast="Opens Google Meet">Join<span class="kbd">↩</span></button></div>
   </div>
   <div class="peek" data-only="c-prompt-offer c-prompt-offer-meet">
-    <div class="ears"><div class="ear l"><svg class="ico-s text-signal"><use href="#i-video"/></svg><span class="ear-t text-ink-1" data-only="c-prompt-offer">Zoom</span><span class="ear-t text-ink-1" data-only="c-prompt-offer-meet">Google Meet</span></div><div></div>
+    <div class="ears"><div class="ear l"><span data-tt="video" data-st="a"></span><span class="ear-t text-ink-1" data-only="c-prompt-offer">Zoom</span><span class="ear-t text-ink-1" data-only="c-prompt-offer-meet">Google Meet</span></div><div></div>
       <div class="ear r"><span class="lamp on-a blink"></span><span class="text-ink-1">On a call</span></div></div>
     <div class="strip"><span class="t-body">Record this call?</span><span class="t-meta" data-only="c-prompt-offer">Partner call</span><span class="t-meta" data-only="c-prompt-offer-meet">Design review</span><span class="flex-1"></span>
       <button class="btn-secondary sm" data-go="c-meeting-live">Not now<span class="kbd">esc</span></button><button class="btn-primary sm" data-go="c-recording"><span class="lamp dot on-r"></span>Record<span class="kbd">↩</span></button></div>
@@ -546,7 +625,7 @@
 
   <!-- Dictation: what you say appears under the notch as you say it. -->
   <div class="peek" data-only="c-dict-listening">
-    <div class="ears"><div class="ear l"><svg class="ico-s text-ink-1"><use href="#i-mic"/></svg><span class="text-ink-1">Listening</span></div><div></div><div class="ear r"><span class="ladder text-ink-1" data-ladder="6"></span></div></div>
+    <div class="ears"><div class="ear l"><span data-tt="mic" data-st="w"></span><span class="text-ink-1">Listening</span></div><div></div><div class="ear r"><span class="ladder text-ink-1" data-ladder="6"></span></div></div>
     <div class="strip"><div class="stream"><span><span data-stream="Let’s move the design review to Thursday afternoon, and send Deniz the new onboarding copy before then"></span><span class="caret"></span></span></div><span class="t-meta pr-2">Notes</span></div>
   </div>
   <div class="peek" data-only="c-dict-working">
@@ -558,7 +637,7 @@
     <div class="strip"><div class="stream"><span>Let’s move the design review to Thursday afternoon, and send Deniz the new onboarding copy before then.</span></div><button class="btn-secondary sm" data-go="c-meeting-later" data-toast="Removed from Notes">Undo<span class="kbd">⌘Z</span></button></div>
   </div>
   <div class="peek" data-only="c-dict-failed">
-    <div class="ears"><div class="ear l"><svg class="ico-s text-live"><use href="#i-mic"/></svg><span class="text-ink-1">Can’t hear you</span></div><div></div><div class="ear r"><span class="lamp on-r"></span></div></div>
+    <div class="ears"><div class="ear l"><span data-tt="mic" data-st="r" data-paren></span><span class="text-ink-1">Can’t hear you</span></div><div></div><div class="ear r"></div></div>
     <div class="strip"><span class="t-body">Crenel needs the microphone</span><span class="flex-1"></span><button class="btn-secondary sm" data-go="s-dictation-perms"><svg class="ico-xs"><use href="#i-sliders"/></svg>Settings</button></div>
   </div>
 
@@ -568,7 +647,7 @@
     <div class="strip"><span class="t-body">Notes and 3 action items</span><span class="t-meta">48 min</span><span class="flex-1"></span><button class="btn-secondary sm" data-go="c-meeting-later">Later<span class="kbd">esc</span></button><button class="btn-primary sm" data-go="o-detail">Open<span class="kbd">↩</span></button></div>
   </div>
   <div class="peek" data-only="c-failed">
-    <div class="ears"><div class="ear l"><svg class="ico-s text-live"><use href="#i-transcript"/></svg><span class="ear-t text-ink-1">Design review</span></div><div></div><div class="ear r"><span class="lamp on-r"></span><span class="text-ink-1">Failed</span></div></div>
+    <div class="ears"><div class="ear l"><span class="ttile r"><svg><use href="#f-transcript"/></svg></span><span class="ear-t text-ink-1">Design review</span></div><div></div><div class="ear r"><span class="text-ink-1">Failed</span></div></div>
     <div class="strip"><span class="t-body">Couldn’t reach transcription</span><span class="t-meta">audio is saved</span><span class="flex-1"></span><button class="btn-primary sm" data-go="c-proc-uploading">Retry<span class="kbd">↩</span></button></div>
   </div>
 </template>
@@ -604,11 +683,11 @@
         <div class="gauge-c"><span class="segd text-ink-1" data-seg="14:30" data-h="17"></span><span class="t-micro !text-ink-3">in 3 h 48</span></div>
       </div>
       <div class="gauge-box bleed text-ink-1" data-only="o-today-hour">
-        <div class="gauge text-ink-1" data-gauge=".55" data-size="104" data-ticks="60" data-major="15"></div>
+        <div class="gauge text-ink-1" data-gauge=".55" data-size="104" data-ticks="60" data-major="15" data-zones="0-10:a|0-2:r"></div>
         <div class="gauge-c"><span class="segd text-ink-1" data-seg="33" data-cells="2" data-h="24"></span><span class="t-micro !text-ink-3">min</span></div>
       </div>
       <div class="gauge-box bleed text-signal" data-only="o-today-urgent o-today-meet-waiting o-today-meet-unavailable">
-        <div class="gauge text-signal" data-gauge=".133" data-size="104" data-ticks="60" data-major="15"></div>
+        <div class="gauge text-signal" data-gauge=".133" data-size="104" data-ticks="60" data-major="15" data-zones="0-2:r"></div>
         <div class="gauge-c"><span class="segd text-signal" data-seg="8" data-cells="2" data-h="24"></span><span class="t-micro !text-signal/70">min</span></div>
       </div>
       <div class="gauge-box bleed text-signal" data-only="o-today-live">
@@ -683,6 +762,7 @@
       <div class="flex-1 flex flex-col gap-2.5 bleed text-live">
         <div class="flex items-center gap-2"><span class="lamp dot on-r pulse"></span><span class="t-label text-ink-1">Recording</span><span class="t-meta">Design review</span></div>
         <span class="segd text-ink-1" data-seg="12:48" data-elapsed="768" data-h="34"></span>
+        <div class="flex items-end gap-2.5" title="Planned length: 60 min"><div class="ramp" data-from="768" data-plan="3600" data-max="4500" data-w="196"></div><span class="t-micro -mb-[1px]">of 60 min</span></div>
       </div>
       <button class="knob" data-only="o-recording" data-go="o-recording-micoff" title="Meeting mic on — click to turn it off for privacy (⌥⌘M)"><svg class="ico"><use href="#i-mic"/></svg><span class="lamp on-w"></span></button>
       <button class="knob" data-only="o-recording-micoff" data-go="o-recording" title="Meeting mic off (⌥⌘M)"><svg class="ico text-ink-3"><use href="#i-micoff"/></svg><span class="lamp"></span></button>
@@ -693,11 +773,11 @@
     <div class="px-[10px] mt-5"><div class="chart" data-chart></div>
       <div class="flex justify-between t-micro mt-1.5"><span>−2:00</span><span>−1:00</span><span>now</span></div></div>
     <div class="flex flex-col gap-1 mt-4">
-      <div class="flex items-center gap-3 px-[10px] h-8" data-only="o-recording"><svg class="ico-s text-ink-2"><use href="#i-mic"/></svg><span class="t-label text-ink-2 w-[96px]">Your mic</span><div class="vu" data-cells="30"></div></div>
-      <div class="flex items-center gap-3 px-[10px] h-8" data-not="o-recording"><svg class="ico-s text-ink-3" data-only="o-recording-micoff"><use href="#i-micoff"/></svg><svg class="ico-s text-signal" data-only="o-recording-warnings"><use href="#i-micoff"/></svg><span class="t-label text-ink-3 w-[96px]">Your mic</span><div class="vu off" data-cells="30"></div></div>
-      <div class="flex items-center gap-3 px-[10px] h-8"><svg class="ico-s text-ink-2" data-not="o-recording-warnings"><use href="#i-speaker"/></svg><svg class="ico-s text-signal" data-only="o-recording-warnings"><use href="#i-speaker"/></svg><span class="t-label text-ink-2 w-[96px]">The call</span><div class="vu" data-cells="30"></div></div>
+      <div class="flex items-center gap-3 px-[10px] h-8" data-only="o-recording"><span data-tt="mic" data-st="w"></span><span class="t-label text-ink-2 w-[96px]">Your mic</span><div class="vu" data-cells="30"></div></div>
+      <div class="flex items-center gap-3 px-[10px] h-8" data-not="o-recording"><span data-only="o-recording-micoff" data-tt="micoff" data-st="off"></span><span data-only="o-recording-warnings" data-tt="mic" data-st="a" data-paren class="-mx-1"></span><span class="t-label text-ink-3 w-[96px]">Your mic</span><div class="vu off" data-cells="30"></div></div>
+      <div class="flex items-center gap-3 px-[10px] h-8"><span data-not="o-recording-warnings" data-tt="speaker" data-st="w"></span><span data-only="o-recording-warnings" data-tt="speaker" data-st="r" data-mod="bang"></span><span class="t-label text-ink-2 w-[96px]">The call</span><div class="vu" data-cells="30"></div></div>
     </div>
-    <div class="flex items-center gap-3 px-[10px] h-8 mt-2" data-only="o-recording o-recording-micoff"><span class="lamp on-g"></span><span class="t-meta">Your mic follows mute in Zoom</span></div>
+    <div class="flex items-center gap-3 px-[10px] h-8 mt-2" data-only="o-recording o-recording-micoff"><span data-tt="accessibility" data-st="g"></span><span class="t-meta">Your mic follows mute in Zoom</span></div>
     <div class="flex flex-col mt-2" data-only="o-recording-warnings">
       <div class="flex items-baseline gap-3 px-[10px] py-1"><span class="lamp on-a relative -top-[2px]"></span><span class="t-meta text-ink-2">Couldn’t read Zoom’s mute state, so your mic is kept off</span></div>
       <div class="flex items-baseline gap-3 px-[10px] py-1"><span class="lamp on-r relative -top-[2px]"></span><span class="t-meta text-ink-2">AirPods Pro disconnected. Reconnect them or stop the recording.</span></div>
@@ -815,11 +895,11 @@
 <!-- Detail body: shared by the notch and the desktop window -->
 <template id="tpl-detail-body">
   <!-- Player: the whole meeting as a waveform, speakers as a talk-time bar -->
-  <div class="flex items-center gap-3 pl-1 pr-[10px]">
-    <button class="knob sm" data-action="play" title="Play"><svg class="ico-s"><use href="#i-play"/></svg></button>
-    <div class="flex-1 flex flex-col gap-1.5">
-      <div class="relative h-7 flex items-center" data-scrub><div class="absolute inset-0 flex items-center gap-[2px]" data-wave></div><i class="absolute top-0 bottom-0 w-px bg-signal" style="left:25%;box-shadow:0 0 6px rgba(255,173,51,.8)" data-head></i></div>
-      <div class="flex items-center justify-between t-micro"><span class="!text-ink-2" data-ptime>12:04</span><span>48:12</span></div>
+  <div class="flex items-start gap-3 pl-1 pr-[10px]">
+    <div class="flex flex-col items-center gap-1.5 flex-none"><button class="knob sm" data-action="play" title="Play"><svg class="ico-s"><use href="#i-play"/></svg></button><span class="t-micro !text-ink-2" data-ptime>12:04</span></div>
+    <div class="flex-1 flex flex-col gap-1 pt-0.5">
+      <div class="relative h-7 flex items-center" data-scrub><div class="absolute inset-0 flex items-center gap-[2px]" data-wave></div><i class="absolute -top-0.5 -bottom-[9px] w-px bg-signal" style="left:25%;box-shadow:0 0 6px rgba(255,173,51,.8)" data-head></i></div>
+      <div class="tuner" data-tuner="48"></div>
     </div>
   </div>
   <div class="flex items-center gap-3 px-[10px] mt-3">
@@ -992,16 +1072,16 @@
         </div>
 
         <!-- Systems: every permission as a telltale, like a dashboard at ignition. Click one to fix it. -->
-        <div class="sys mb-1.5">
+        <div class="sys mb-2">
           <div class="flex items-baseline justify-between"><span class="t-label text-ink-3">Systems</span>
             <span class="t-micro" data-not="s-recording-denied s-dictation-perms s-calendar-denied s-calendar-failed">6 of 6 on</span><span class="t-micro !text-signal" data-only="s-recording-denied s-dictation-perms s-calendar-denied s-calendar-failed">needs you</span></div>
-          <div class="grid grid-cols-2 gap-x-2 gap-y-[9px]">
-            <span class="sys-i" data-go="s-calendar-connected"><span class="lamp on-g" data-not="s-calendar-denied s-calendar-failed"></span><span class="lamp on-a" data-only="s-calendar-denied"></span><span class="lamp on-r" data-only="s-calendar-failed"></span>Calendar</span>
-            <span class="sys-i" data-go="s-tasks-connected"><span class="lamp on-g"></span>Reminders</span>
-            <span class="sys-i" data-go="s-recording"><span class="lamp on-g"></span>Microphone</span>
-            <span class="sys-i" data-go="s-recording"><span class="lamp on-g" data-not="s-recording-denied"></span><span class="lamp on-r" data-only="s-recording-denied"></span>Call audio</span>
-            <span class="sys-i" data-go="s-recording"><span class="lamp on-g" data-not="s-recording-denied"></span><span class="lamp on-a" data-only="s-recording-denied"></span>Mute sync</span>
-            <span class="sys-i" data-go="s-dictation"><span class="lamp on-g" data-not="s-dictation-perms"></span><span class="lamp on-a" data-only="s-dictation-perms"></span>Keyboard</span>
+          <div class="flex items-center justify-between pr-0.5">
+            <span data-tt="calendar" data-st="g" data-go="s-calendar-connected" title="Calendar" data-not="s-calendar-denied s-calendar-failed"></span><span data-tt="calendar" data-st="a" data-paren data-go="s-calendar-denied" title="Calendar access is off" data-only="s-calendar-denied"></span><span data-tt="calendar" data-st="r" data-mod="bang" data-go="s-calendar-failed" title="Calendar can’t refresh" data-only="s-calendar-failed"></span>
+            <span data-tt="queue" data-st="g" data-go="s-tasks-connected" title="Reminders"></span>
+            <span data-tt="mic" data-st="g" data-go="s-recording" title="Microphone"></span>
+            <span data-tt="speaker" data-st="g" data-go="s-recording" title="Call audio" data-not="s-recording-denied"></span><span data-tt="speaker" data-st="r" data-paren data-go="s-recording-denied" title="Call audio is off" data-only="s-recording-denied"></span>
+            <span data-tt="accessibility" data-st="g" data-go="s-recording" title="Mute sync" data-not="s-recording-denied"></span><span data-tt="accessibility" data-st="a" data-paren data-go="s-recording-denied" title="Mute sync needs Accessibility" data-only="s-recording-denied"></span>
+            <span data-tt="keyboard" data-st="g" data-go="s-dictation" title="Dictation key" data-not="s-dictation-perms"></span><span data-tt="keyboard" data-st="a" data-paren data-go="s-dictation-perms" title="Input Monitoring is off" data-only="s-dictation-perms"></span>
           </div>
         </div>
         <div class="sb-item" data-key="settings" data-go="s-general"><svg class="ico"><use href="#i-sliders"/></svg><span class="flex-1">Settings</span><span class="sb-read">⌘,</span></div>
@@ -1022,7 +1102,7 @@
           <div class="panel">
             <div class="flex items-center gap-7 pl-5 pr-5 pt-5">
               <div class="relative flex-none w-[148px] h-[148px] bleed text-ink-1">
-                <div class="gauge text-ink-1" data-gauge=".55" data-size="148" data-ticks="60" data-major="15"></div>
+                <div class="gauge text-ink-1" data-gauge=".55" data-size="148" data-ticks="60" data-major="15" data-zones="0-10:a|0-2:r" data-labels="0|15|30|45|60"></div>
                 <div class="gauge-c !gap-1.5"><span class="segd text-ink-1" data-seg="33" data-cells="2" data-h="36"></span><span class="t-micro !text-ink-3">min</span></div>
               </div>
               <div class="flex-1 min-w-0 flex flex-col gap-2">
@@ -1042,7 +1122,7 @@
 
           <div class="grid grid-cols-3 gap-4">
             <div class="tile" data-go="d-tasks">
-              <div class="tile-h"><svg class="ico-s"><use href="#i-queue"/></svg><span class="flex-1">Tasks</span><span class="cells" title="1 of 5 done"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+              <div class="tile-h"><svg class="ico-s"><use href="#i-queue"/></svg><span class="flex-1">Tasks</span><span class="caps" title="1 done · 1 under way · 3 to do"><i class="on"></i><i class="half"></i><i></i><i></i><i></i></span></div>
               <div class="flex items-baseline"><span class="segd text-ink-1" data-seg="4" data-h="30"></span><span class="unit">open today</span></div>
               <div class="flex flex-col gap-2.5 mt-auto">
                 <div class="flex items-center gap-2.5 t-label text-ink-1"><svg class="ico-s"><use href="#m-progress"/></svg><span class="flex-1 truncate">Write release notes</span><span class="flex items-baseline text-signal"><span class="segd" data-seg="25" data-h="9"></span><span class="unit !text-signal/70 !text-[10px]">min</span></span></div>
@@ -1065,7 +1145,7 @@
               <div class="tile-h"><svg class="ico-s"><use href="#i-waveform"/></svg><span class="flex-1">Dictation</span><span class="t-meta">today</span></div>
               <div class="flex items-baseline"><span class="segd text-ink-1" data-seg="1284" data-h="30"></span><span class="unit">words</span></div>
               <div class="flex flex-col gap-2 mt-auto">
-                <div class="chart !h-7" data-chart></div>
+                <div class="dots mb-2" data-dots=".64" data-n="78" data-mark=".46"></div>
                 <span class="t-meta truncate">“Let’s move the review to Thursday…” · Slack</span>
               </div>
             </div>
@@ -1092,7 +1172,7 @@
         </header>
         <div class="flex-1 min-h-0 flex">
           <div class="w-[300px] flex-none flex flex-col min-h-0 pl-4 pr-3">
-            <div class="seg-ctl self-start mb-2 ml-1" data-not="d-meetings-empty"><span class="on">All</span><span>Needs you<span class="ml-1.5 text-signal">2</span></span><span>For you</span></div>
+            <div class="annun self-start h-[26px] mb-1.5 ml-2.5" data-not="d-meetings-empty"><span class="on">All</span><span>Needs you<span class="n">2</span></span><span>For you</span></div>
             <div data-only="d-meetings-empty" class="flex flex-col items-center text-center gap-1.5 pt-16 max-w-[240px] mx-auto"><span class="t-body text-ink-2">No recordings yet</span><span class="t-meta">Crenel offers to record when a call starts.</span></div>
             <div data-noresults hidden class="flex flex-col items-center text-center gap-1 pt-8"><span class="t-body text-ink-2 block">No results</span><span class="t-meta block">Try another name or a phrase from the call.</span></div>
             <div data-not="d-meetings-empty" class="flex-1 min-h-0 flex flex-col overflow-y-auto slide pb-3" data-slide>
@@ -1173,7 +1253,7 @@
             <div class="flex-1 min-w-0 flex flex-col gap-1.5">
               <span class="text-[20px] font-semibold tracking-[-.014em]">Hold fn and speak</span>
               <span class="t-body font-normal text-ink-3 max-w-[400px]">Words appear under the notch as you talk. Let go and they’re typed where your cursor is.</span>
-              <div class="flex gap-1.5 mt-2.5"><span class="chip-s"><svg><use href="#i-keyboard"/></svg>Hold to talk</span><span class="chip-s"><svg><use href="#i-globe"/></svg>English</span><span class="chip-s"><svg><use href="#i-shield"/></svg>On this Mac</span></div>
+              <div class="annun mt-3"><span class="on">Hold to talk</span><span>Toggle</span><span>Hands-free</span></div>
             </div>
             <div class="well grid grid-cols-2 py-3.5 flex-none">
               <div class="flex flex-col gap-2 px-5"><span class="segd text-ink-1" data-seg="1284" data-h="22"></span><span class="t-meta">words today</span></div>
@@ -1329,7 +1409,12 @@
               <!-- Recording -->
               <div class="sgroup" data-only="s-recording*"><div class="group-h">Source</div>
                 <div class="srow"><svg><use href="#i-mic"/></svg><div class="txt"><b>Microphone</b></div><span class="select max-w-[260px]" data-options="System default|MacBook Pro Microphone|AirPods Pro">MacBook Pro Microphone<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
-                <div class="srow"><span class="ng"></span><div class="txt"><b>Level</b><span>Speak to test</span></div><div class="well flex items-center h-7 px-2.5 w-[240px]"><div class="vu" data-cells="24"></div></div></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Level</b><span>Speak to test</span></div>
+                  <div class="cap w-[232px]">
+                    <div class="flex items-center justify-between t-micro"><span>−60</span><svg class="ico-xs text-ink-3"><use href="#i-mic"/></svg><span>0 dB</span></div>
+                    <div class="vu" data-cells="24"></div>
+                    <div class="zstrip"><i class="bg-ink-4" style="flex:17"></i><i class="bg-signal/70" style="flex:4"></i><i class="bg-live/80" style="flex:3"></i></div>
+                  </div></div>
               </div>
               <div class="sgroup" data-only="s-recording*"><div class="group-h">Permissions</div>
                 <div class="srow"><svg><use href="#i-mic"/></svg><div class="txt"><b>Microphone</b><span>Your voice</span></div><span class="ok-t">Allowed</span></div>
@@ -1422,8 +1507,8 @@
           <div class="flex flex-col gap-1.5"><div class="flex items-baseline justify-between t-label"><span class="text-ink-2">Deniz</span><span class="t-meta">18 min · 38%</span></div><div class="track"><i class="!bg-ink-2 !shadow-none" style="width:38%"></i></div></div>
           <div class="flex flex-col gap-1.5"><div class="flex items-baseline justify-between t-label"><span class="text-ink-3">Ece</span><span class="t-meta">8 min · 16%</span></div><div class="track"><i class="!bg-ink-4 !shadow-none" style="width:16%"></i></div></div>
         </div>
-        <div class="flex flex-col">
-          <div class="flex items-center h-7"><span class="t-label text-ink-3">Details</span></div>
+        <div class="frame">
+          <span class="fl">Details</span>
           <div class="kv"><span>Recorded from</span><b>Google Meet</b></div>
           <div class="kv"><span>Audio</span><b>2 tracks · 46 MB</b></div>
           <div class="kv"><span>Transcript</span><b>ElevenLabs</b></div>
@@ -1438,7 +1523,7 @@
      ONBOARDING WINDOW — an ignition check: each permission is a lamp.
      ═════════════════════════════════════════════════════════════════════ -->
 <template id="tpl-onboarding">
-  <div class="win w-[560px] h-[680px] flex flex-col">
+  <div class="win w-[560px] h-[724px] flex flex-col">
     <div class="lights"><i data-action="close-window"></i><i></i><i></i></div>
     <div class="flex items-center gap-1.5 justify-center pt-5">
       <span class="lamp on-w" data-only="ob-welcome"></span><span class="lamp on-d" data-not="ob-welcome"></span>
@@ -1458,18 +1543,33 @@
     </div>
 
     <div data-not="ob-welcome" class="flex-1 flex flex-col min-h-0">
-      <div class="px-9 pt-8 pb-5 flex flex-col gap-1.5"><span class="text-[22px] font-semibold tracking-[-.015em]">Switch on what you need</span><span class="t-body font-normal text-ink-3">Each switch turns on one feature. Skip any — the rest still work.</span></div>
+      <div class="flex items-center gap-6 px-9 pt-9 pb-5">
+        <div class="flex-1 flex flex-col gap-1.5"><span class="text-[22px] font-semibold tracking-[-.015em]">Switch on what you need</span><span class="t-body font-normal text-ink-3">Each switch turns on one feature. Skip any — the rest still work.</span></div>
+        <!-- System check: parts of the Mac light as their permission comes on -->
+        <div class="schem relative flex-none" title="System check">
+          <svg width="150" height="92" viewBox="0 0 150 92" stroke-width="1.5" stroke-linejoin="miter" stroke-linecap="square">
+            <path class="body" d="M22 4H128V66H22Z"/><path class="body" d="M8 72H142L136 84H14Z"/><path class="body" d="M22 66H128"/>
+            <path class="pt fill on" d="M62 4H88V9L86 11H64L62 9Z"/>
+            <path class="pt on" d="M57.5 6.5H59M91 6.5H92.5"/>
+            <path class="pt" data-part="0" d="M98 16H122V23H98Z"/>
+            <path class="pt" data-part="1" d="M18 75.5H36M18 78.5H36M114 75.5H132M114 78.5H132"/>
+            <path class="pt" data-part="2" d="M22 79.5H31V82H22Z"/>
+            <path class="pt" data-part="3" d="M72 34H78M75 34V46M72 46H78"/>
+          </svg>
+          <div class="scanner !rounded-[6px]" data-only="ob-turning"></div>
+        </div>
+      </div>
       <div class="flex-1 px-[26px] flex flex-col gap-3 overflow-y-auto" data-ignition>
         <div><div class="group-h">Plan</div>
           <div class="row-1"><svg class="ico text-ink-3"><use href="#i-calendar"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Calendar</span><span class="t-meta">Countdown to your next meeting</span></div><span class="lamp on-g"></span></div>
           <div class="row-1"><svg class="ico text-ink-3"><use href="#i-queue"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Reminders</span><span class="t-meta">Tasks on your iPhone and Watch too</span></div><span class="lamp on-g"></span></div>
-          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-bell"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Notifications</span><span class="t-meta">A heads-up before meetings</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant">Allow</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
+          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-bell"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Notifications</span><span class="t-meta">A heads-up before meetings</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant" data-part="0">Allow</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
         <div><div class="group-h">Sound</div>
           <div class="row-1"><svg class="ico text-ink-3"><use href="#i-mic"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Microphone</span><span class="t-meta">Your voice, for dictation and meetings</span></div><span class="lamp on-g"></span></div>
-          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-speaker"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">System audio</span><span class="t-meta">Everyone else on a call</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant">Allow</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
+          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-speaker"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">System audio</span><span class="t-meta">Everyone else on a call</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant" data-part="1">Allow</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
         <div><div class="group-h">Keyboard</div>
-          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-keyboard"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Input Monitoring</span><span class="t-meta">Hold Fn to dictate</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div>
-          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-accessibility"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Accessibility</span><span class="t-meta">Typing at the cursor, mute in Zoom and Meet</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant" title="This was turned off before; it can only be turned on in System Settings."><svg class="ico-xs"><use href="#i-link"/></svg>Open</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
+          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-keyboard"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Input Monitoring</span><span class="t-meta">Hold Fn to dictate</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant" data-part="2"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div>
+          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-accessibility"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Accessibility</span><span class="t-meta">Typing at the cursor, mute in Zoom and Meet</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant" data-part="3" title="This was turned off before; it can only be turned on in System Settings."><svg class="ico-xs"><use href="#i-link"/></svg>Open</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
         <div class="flex items-start gap-2.5 px-[10px] pt-1 pb-3 t-meta"><svg class="ico-xs mt-[1px] text-ink-4"><use href="#i-shield"/></svg>Dictation and the agent run on this Mac. Meeting audio leaves it only for a transcript, and only when you record.</div>
       </div>
       <div class="flex justify-end gap-2 px-9 pt-3 pb-8">
@@ -1711,30 +1811,76 @@ function drawSeg(el, text) {
 //   halo   — a wide blurred arc behind the lit range at 20% (light spilling on the face)
 //   dots   — an inner ring, one dot per major tick; lit when passed
 let gaugeId = 0
+// Zones (data-zones="0-10:a|0-2:r", in ticks from the start): printed under the scale even when unlit,
+// and a lit tick inside a zone takes the zone's colour — like a redline. Labels (data-labels="0|15|30|45|60")
+// replace the inner dots on large gauges.
+const ZC = { a: '#ffad33', r: '#ff5a47' }
 function drawGauge(el, v) {
   v = v ?? +el.dataset.gauge
   const n = +el.dataset.ticks || 60, size = +el.dataset.size || 104, sweep = 270, maj = +el.dataset.major || 0, c = size / 2, r = c - 1.5
   const lit = Math.round(v * n), ang = i => (-sweep / 2 + sweep * i / (n - 1)) * Math.PI / 180
+  const zones = (el.dataset.zones || '').split('|').filter(Boolean).map(z => { const [rg, k] = z.split(':'), [a, b] = rg.split('-').map(Number); return { a, b, c: ZC[k] } })
+  const zoneOf = i => zones.reduce((m, z) => i >= z.a && i < z.b ? z : m, null)   // later zones win (red over amber)
+  const labels = el.dataset.labels ? el.dataset.labels.split('|') : null
   const id = el._gid || (el._gid = 'gh' + (++gaugeId))
-  let ghost = '', on = '', head = '', dots = ''
+  let ghost = '', on = '', head = '', dots = '', zarc = ''
   for (let i = 0; i < n; i++) {
     const a = ang(i), major = maj && i % maj === 0, isHead = i === lit - 1 && lit < n, len = (major ? size * .085 : size * .05) + (isHead ? 1.2 : 0)
     const x1 = c + Math.sin(a) * (r - len), y1 = c - Math.cos(a) * (r - len), x2 = c + Math.sin(a) * r, y2 = c - Math.cos(a) * r
+    const z = zoneOf(i), tint = z ? ` style="stroke:${z.c}"` : ''
     const tail = i - lit, tailOp = [.42, .27, .17][tail]
-    const line = cls => `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke-width="${major || isHead ? 1.7 : 1.25}"${cls}/>`
+    const line = cls => `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke-width="${major || isHead ? 1.7 : 1.25}"${cls}${tint}/>`
     if (isHead) head = line(' class="head"')
     else if (i < lit) on += line('')
     else if (lit > 0 && tailOp) ghost += line(` opacity="${tailOp}"`)
-    else ghost += line(' class="g"')
-    if (major && size >= 96) { const rd = r - size * .085 - size * .055; dots += `<circle cx="${(c + Math.sin(a) * rd).toFixed(2)}" cy="${(c - Math.cos(a) * rd).toFixed(2)}" r="${size >= 140 ? 1.1 : .85}" stroke="none" fill="currentColor" opacity="${i < lit ? .9 : .22}"/>` }
+    else ghost += line(z ? ' opacity=".26"' : ' class="g"')
+    if (major && size >= 96) {
+      const rd = r - size * .085 - size * (labels ? .1 : .055), x = c + Math.sin(a) * rd, y = c - Math.cos(a) * rd
+      if (labels) dots += `<text x="${x.toFixed(1)}" y="${(y + size * .025).toFixed(1)}" text-anchor="middle" stroke="none" fill="currentColor" opacity="${i < lit ? .85 : .32}" style="font: 500 ${(size * .066).toFixed(1)}px Geist">${labels[i / maj] ?? ''}</text>`
+      else dots += `<circle cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="${size >= 140 ? 1.1 : .85}" stroke="none" fill="currentColor" opacity="${i < lit ? .9 : .22}"/>`
+    }
   }
-  let halo = ''
-  if (lit > 1) {
-    const rh = r - size * .04, a0 = ang(0), a1 = ang(lit - 1), large = (a1 - a0) > Math.PI ? 1 : 0
-    halo = `<path class="halo" d="M${(c + Math.sin(a0) * rh).toFixed(2)} ${(c - Math.cos(a0) * rh).toFixed(2)} A${rh} ${rh} 0 ${large} 1 ${(c + Math.sin(a1) * rh).toFixed(2)} ${(c - Math.cos(a1) * rh).toFixed(2)}" fill="none" stroke-width="${(size * .1).toFixed(1)}" filter="url(#${id})"/>`
-  }
-  el.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" stroke="currentColor" stroke-linecap="round"><defs><filter id="${id}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="${(size * .045).toFixed(1)}"/></filter></defs>${halo}${dots}<g>${ghost}</g><g class="lit">${on}</g>${head}</svg>`
+  const arc = (i0, i1, rr) => { const a0 = ang(i0), a1 = ang(i1); return `M${(c + Math.sin(a0) * rr).toFixed(2)} ${(c - Math.cos(a0) * rr).toFixed(2)} A${rr} ${rr} 0 ${(a1 - a0) > Math.PI ? 1 : 0} 1 ${(c + Math.sin(a1) * rr).toFixed(2)} ${(c - Math.cos(a1) * rr).toFixed(2)}` }
+  zones.forEach(z => { zarc += `<path d="${arc(z.a, Math.max(z.a, z.b - 1), r - size * .085 - size * .03)}" fill="none" stroke="${z.c}" stroke-width="1.5" stroke-linecap="butt" opacity=".55"/>` })
+  const halo = lit > 1 ? `<path class="halo" d="${arc(0, lit - 1, r - size * .04)}" fill="none" stroke-width="${(size * .1).toFixed(1)}" filter="url(#${id})"/>` : ''
+  el.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" stroke="currentColor" stroke-linecap="round"><defs><filter id="${id}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="${(size * .045).toFixed(1)}"/></filter></defs>${halo}${zarc}${dots}<g>${ghost}</g><g class="lit">${on}</g>${head}</svg>`
 }
+// Ramp (VDO tach): the band thickens as it rises; ticks step along the base; past the plan it's a printed red zone.
+// data-from (elapsed s) · data-plan (s) · data-max (s). The lit part follows the clock.
+function drawRamp(el, sec) {
+  const W = +el.dataset.w || 200, H = 11, plan = +el.dataset.plan, max = +el.dataset.max
+  sec = sec ?? +el.dataset.from
+  const x = t => Math.min(W, t / max * W), y = px => H - 1.5 - (px / W) * (H - 3.5), xp = x(plan), xv = x(sec)
+  const band = (x0, x1) => `M${x0.toFixed(1)} ${H} L${x0.toFixed(1)} ${y(x0).toFixed(2)} L${x1.toFixed(1)} ${y(x1).toFixed(2)} L${x1.toFixed(1)} ${H}Z`
+  let ticks = ''
+  for (let t = 0; t <= max + 1; t += 300) { const M = t % 900 === 0; ticks += `<rect x="${(x(t) - .5).toFixed(1)}" y="${H + 2}" width="1" height="${M ? 4 : 2}" fill="${t > plan ? '#ff5a47' : M ? '#76736e' : '#4c4a47'}"/>` }
+  el.innerHTML = `<svg width="${W}" height="${H + 6}">
+    <path d="${band(0, W)}" fill="rgba(255,255,255,.07)"/>
+    <path d="${band(xp, W)}" fill="rgba(255,90,71,.22)"/>
+    <path class="lit" d="${band(0, Math.min(xv, xp))}" fill="#f3f1ec"/>
+    ${xv > xp ? `<path d="${band(xp, xv)}" fill="#ff5a47" style="filter:drop-shadow(0 0 3px rgba(255,90,71,.7))"/>` : ''}
+    <rect x="${xp.toFixed(1)}" y="${H + 1}" width="${(W - xp).toFixed(1)}" height="1" fill="#ff5a47" opacity=".8"/>${ticks}</svg>`
+  el._sec = Math.floor(sec)
+}
+// Tuner scale: one tick a minute, a labelled major every ten.
+function drawTuner(el) {
+  const m = +el.dataset.tuner; let h = ''
+  for (let i = 0; i <= m; i++) { const M = i % 10 === 0, l = (i / m * 100).toFixed(2); h += `<i class="${M ? 'M' : ''}" style="left:${l}%"></i>`; if (M && i && i < m - 3) h += `<b style="left:${l}%">${i}</b>` }
+  el.innerHTML = h
+}
+// Dot matrix: 3 rows, filled column by column up to the value; data-mark = your usual.
+function drawDots(el) {
+  const n = +el.dataset.n || 72, lit = Math.round(+el.dataset.dots * n)
+  el.innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i < lit ? 'on' : ''}"></i>`).join('') + (el.dataset.mark ? `<span class="dots-mark" style="left:${(+el.dataset.mark * 100).toFixed(1)}%" title="Your usual day"></span>` : '')
+}
+// Telltale: <span data-tt="mic" data-st="g|a|r|w|off" data-paren data-mod="bang|x">
+function drawTelltale(el) {
+  const name = el.dataset.tt, stt = el.dataset.st || 'off', lit = stt !== 'off', paren = el.hasAttribute('data-paren')
+  const glyph = lit && document.getElementById('f-' + name) ? 'f-' + name : 'i-' + name
+  el.className = `tt ${stt}${paren ? ' paren' : ''} ${el.dataset.cls || ''}`
+  el.innerHTML = (paren ? '<svg class="p" viewBox="0 0 24 16"><use href="#i-paren"/></svg>' : '') + `<svg class="ico" viewBox="0 0 16 16"><use href="#${glyph}"/>${el.dataset.mod ? `<use href="#mod-${el.dataset.mod}"/>` : ''}</svg>`
+}
+
 // Ignition: sweep to full and settle back to the value (only when the panel opens).
 function ignite(el, loop) {
   const target = +el.dataset.gauge, t0 = performance.now(), up = 420, down = 520
@@ -1812,6 +1958,12 @@ function decorate(root, base, opts = {}) {
   root.querySelectorAll('.segd[data-seg]').forEach(el => drawSeg(el))
   root.querySelectorAll('.gauge[data-gauge]').forEach(el => { drawGauge(el, opts.ignite || el.dataset.ignite ? 0 : undefined); if (opts.ignite || el.dataset.ignite) ignite(el, el.dataset.ignite === 'loop') })
   root.querySelectorAll('.ruler[data-span]').forEach(drawRuler)
+  root.querySelectorAll('.ramp[data-plan]').forEach(el => drawRamp(el))
+  root.querySelectorAll('[data-tuner]').forEach(drawTuner)
+  root.querySelectorAll('[data-dots]').forEach(drawDots)
+  root.querySelectorAll('[data-tt]').forEach(drawTelltale)
+  // The selected place lights its icon: line glyph → solid glyph.
+  root.querySelectorAll('.sb-item.on > svg > use').forEach(u => { const n = u.getAttribute('href').replace('#i-', ''); if (document.getElementById('f-' + n)) u.setAttribute('href', '#f-' + n) })
   root.querySelectorAll('[data-wave]').forEach(drawWave)
   root.querySelectorAll('.vu[data-cells]').forEach(el => { const n = +el.dataset.cells; el.innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i >= n - Math.round(n * .14) ? 'red' : ''}"></i>`).join(''); el._lv = opts.ignite ? 1 : .4; el._pk = 0 })
   root.querySelectorAll('.ladder[data-ladder]').forEach(el => { el.innerHTML = '<b><i></i><i></i><i></i><i></i></b>'.repeat(+el.dataset.ladder) })
@@ -1829,7 +1981,8 @@ function decorate(root, base, opts = {}) {
   root.querySelectorAll('[data-rail]').forEach(placeRail)
   root.querySelectorAll('[data-slide]').forEach(box => { box.classList.add('slide'); if (!box.querySelector(':scope > .slab')) box.insertAdjacentHTML('afterbegin', '<i class="slab"></i>') })
   if (opts.stagger) root.querySelectorAll('[data-stagger] > *').forEach((el, i) => { el.classList.add('enter'); el.style.animationDelay = (40 + i * 28) + 'ms' })
-  if (base.id === 'ob-turning') root.querySelectorAll('[data-ign]').forEach((l, i) => setTimeout(() => l.classList.add('on-g', 'fire'), 350 + i * 420))
+  if (base.id === 'ob-turning') root.querySelectorAll('[data-ign]').forEach((l, i) => setTimeout(() => { l.classList.add('on-g', 'fire'); root.querySelector(`.schem [data-part="${i}"]`)?.classList.add('on') }, 350 + i * 420))
+  if (base.id === 'ob-done') root.querySelectorAll('.schem [data-part]').forEach(p => p.classList.add('on'))
   root.querySelectorAll('[data-taskinput]').forEach(input => wireTaskInput(input, base))
   root.querySelectorAll('[data-search]').forEach(wireSearch)
   if (base.onEnter === 'picker') { const row = root.querySelectorAll('.task-row')[2]; row && togglePicker(row) }
@@ -1987,6 +2140,7 @@ const backTo = []
 function fmt(t) { t = Math.max(0, Math.floor(t)); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}` }
 function tick() {
   const since = recStart ? (Date.now() - recStart) / 1000 : 0
+  document.querySelectorAll('.ramp[data-plan]').forEach(el => { const t = +el.dataset.from + since; if (Math.floor(t) !== el._sec) drawRamp(el, t) })
   document.querySelectorAll('[data-elapsed]').forEach(el => { const v = fmt(+el.dataset.elapsed + since); if (el.classList.contains('segd')) { if (el._seg !== v) drawSeg(el, v) } else el.textContent = v })
   document.querySelectorAll('[data-countdown]').forEach(el => { const v = String(Math.max(0, +el.dataset.countdown - Math.floor((Date.now() - enteredAt) / 1000))); if (el.classList.contains('segd')) { if (el._seg?.trim() !== v) drawSeg(el, v) } else el.textContent = v + ' s' })
   document.querySelectorAll('[data-upload]').forEach(el => { const p = String(Math.round((interactive ? Math.min(1, (Date.now() - enteredAt) / 3000) : .42) * 100)); if (el._seg?.trim() !== p) drawSeg(el, p) })
@@ -2080,6 +2234,7 @@ document.addEventListener('click', e => {
   }
   const tg = t.closest('.toggle')
   if (tg && !tg.dataset.go) { tg.classList.toggle('on'); if (tg.dataset.action === 'all-cals') { const c = tg.closest('.sgroup').querySelector('[data-cals]'); c.hidden = tg.classList.contains('on') } return }
+  const an = t.closest('.annun > span'); if (an) { [...an.parentNode.children].forEach(x => x.classList.toggle('on', x === an)); return }
   const sc = t.closest('.seg-ctl:not([data-cardstatus]):not(.picker) > span'); if (sc) { [...sc.parentNode.children].forEach(x => x.classList.toggle('on', x === sc)); return }
   const ch = t.closest('.choice > button'); if (ch) { [...ch.parentNode.children].forEach(x => { x.className = (x === ch ? 'btn-quiet' : 'btn-ghost') + ' sm' }); return }
 
@@ -2118,7 +2273,7 @@ function action(name, el) {
     case 'copied': { const was = el.innerHTML; el.classList.add('!text-ok'); if (el.textContent.trim()) el.textContent = 'Copied'; setTimeout(() => { el.classList.remove('!text-ok'); el.innerHTML = was }, 1400); break }
     case 'add-item': { const done = document.createElement('span'); done.className = 'ok-t h-[22px]'; done.textContent = 'In Tasks'; el.replaceWith(done); done.animate([{ opacity: 0, filter: 'brightness(2)' }, { opacity: 1, filter: 'none' }], { duration: 380 }); toast('Added to Tasks'); break }
     case 'play': playing = !playing; el.innerHTML = `<svg class="ico-s"><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`; break
-    case 'grant': el.outerHTML = '<span class="lamp on-g fire"></span>'; break
+    case 'grant': { const part = el.dataset.part; el.outerHTML = '<span class="lamp on-g fire"></span>'; document.querySelector(`.schem [data-part="${part}"]`)?.classList.add('on'); break }
     case 'expand': { const box = el.nextElementSibling; box.hidden = !box.hidden; el.querySelector('svg').style.transform = box.hidden ? '' : 'rotate(180deg)'; break }
     case 'save': { const m = el.parentNode.querySelector('[data-savemsg]'); m.innerHTML = '<span class="spin"></span>'; setTimeout(() => m.innerHTML = '<span class="ok-t">Saved</span>', 700); break }
     case 'dict-add': { const i = el.parentNode.querySelector('input'), box = el.closest('[data-dictbox]'); const v = i.value.trim(); if (!v) break; v.split(',').map(x => x.trim()).filter(Boolean).forEach(w => { const c = box.querySelector('.dchip').cloneNode(true); c.firstChild.textContent = w; box.querySelector('[data-dict]').appendChild(c); c.animate([{ opacity: 0, filter: 'brightness(2)' }, { opacity: 1, filter: 'none' }], { duration: 320 }) }); i.value = ''; break }

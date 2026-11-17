@@ -114,13 +114,24 @@ butonu yoktur.
 
 ## İkon ailesi
 
-- 16 birimlik ızgara, 1.5 çizgi, yuvarlak uç ve birleşim.
-- Bir ikonda en fazla bir dolu "lamba" ayrıntısı olur: takvimde bugünün karesi, konumda
-  merkez, görevlerde ilk kutu.
-- İkon asla daire veya kutu içine alınmaz. Durum için onay işareti kullanılmaz.
-- Kayıtlar kaset (`i-tape`), tekrar iki ok (`i-repeat`) ile gösterilir.
-- Görev işaretleri doluluk düzeyiyle konuşur: açık halka, amber yarım dolu, kırmızı çubuklu,
-  koyu dolu.
+- **Geometri.** 16 birimlik ızgara, 1.5 çizgi, kare uç ve sivri birleşim (Remix
+  dilinde). Yuvarlak köşe yoktur; köşeler 45° pahla kırılır. Açılar 0°, 45° ve 90°'dir.
+- **İki hal.** Yanabilen her ikonun iki çizimi vardır ve ikisi aynı kalıbı paylaşır.
+  - Çizgi hali (`i-*`): dinlenme ve "kapalı" durumu.
+  - Dolu hali (`f-*`): tam siluet, ayrıntılar içinden kesilir (mikrofonun ızgara
+    yarıkları, takvimin gün karesi, transkriptin satırları). Yanan durum budur.
+  - Seçili gezinme öğesinin ikonu dolu hale geçer.
+- **Uyarı lambası (`.tt`).** Yanmayan ikon %20 beyaz çizgi hali, yanan ikon kendi
+  renginde dolu hali ve iki katmanlı parıltıyla görünür.
+  - `paren` hali glifin iki yanına açılı parantez koyar. Anlamı "sistem/izin sorunu":
+    mikrofon izni yok, mute durumu okunamıyor, çağrı sesi kapalı.
+  - `mod` sağ alttaki 6.75'lik yuvaya rozet koyar (`!` ya da `×`). Rozet glife yüzey
+    renginde 1.5'luk bir boşlukla kesilir (`--surface`).
+- **Uyarı karosu (`.ttile`).** Renkli bir kare ve içinden oyulmuş glif. Yalnızca
+  kaçırılmaması gereken durumlarda kullanılır; şu an tek kullanımı işleme hatası
+  kulağıdır.
+- **Görev işaretleri.** Pahlı kare, doluluk düzeyiyle durum söyler: boş çerçeve, amber
+  yarım, kırmızı çubuk, koyu dolu. Onay işareti yoktur.
 - Öncelik, sinyal çubuğu gibi 3 artan çubukla gösterilir (`.pri`).
 
 ## Göstergeler (Swift'te `Shape` olarak)
@@ -187,6 +198,41 @@ butonu yoktur.
     - otomatik durdurmada 12 sn (kırmızı).
   - Doğrusal olarak kısalır.
 
+- **Basılı bölgeler (`data-zones`).** Geri sayım kadranında son 10 dakika amber, son 2
+  dakika kırmızı bölgedir. Bölge, tiklerin içinde 1.5'luk ince bir yay olarak her zaman
+  basılıdır. Bölgedeki tik yandığında bölgenin rengini alır; yanmadığında %26'lık renkli
+  hayalettir.
+- **Ölçek sayıları (`data-labels`).** Yalnızca 140 pt üstü kadranlarda (masaüstü
+  kahramanı) kullanılır: ana tiklerde 0 · 15 · 30 · 45. Geçilmiş sayı %85, kalan %32.
+- **Yükselen bant (`.ramp`).** Kayıtta geçen süreyi planlanan süreye göre gösterir.
+  Bant yükseldikçe kalınlaşır (2 → 11 pt). Altında 5 dakikada bir basamak tik, 15
+  dakikada bir uzun tik bulunur. Planın ötesi basılı kırmızı bölgedir; süre oraya
+  geçerse bant kırmızı yanar. Ölçek planın 1.25 katıdır. Yanında yalnızca "of 60 min"
+  yazar.
+- **Radyo ölçeği (`.tuner`).** Notch oynatıcısında dalga formunun altında yer alır:
+  dakikada bir tik, 10 dakikada bir etiketli uzun tik. İğne ölçeğin içine kadar iner. O
+  anki zaman düğmenin altında micro yazıyla durur.
+- **Nokta matrisi (`.dots`).** 3 satır, sütun sütun dolar, 4 pt lamba ve 3 pt aralık.
+  Küçük bir üçgen "your usual" düzeyini işaretler. Yalnızca masaüstündeki Dictation
+  karosunda kullanılır.
+- **Kapsüller (`.caps`).** 12×6 kapsüller: bitti beyaz, sürüyor amber yarım dolu, sırada
+  hayalet. Yalnızca masaüstündeki Tasks karosunda kullanılır.
+- **Kapasite ölçeği (`.cap`).** İki ucu etiketli ölçektir (−60 … 0 dB); glif ortaya
+  basılır. Hücrelerin altında beyaz, amber ve kırmızı bölge şeridi bulunur. Yalnızca
+  Ayarlar › Recording › Level'da kullanılır.
+- **Mod göstergesi (`.annun`).** Basılı kelimelerden seçili olan yanar (ink-1 + 8 pt
+  parıltı), diğerleri hayalettir (`#3a3936`). Sentence case yazılır, harf aralığı
+  açılmaz. Kullanım yerleri: Meetings filtresi, Dictation modu.
+- **Çerçeve (`.frame`).** 1 pt %8'lik basılı çerçeve, etiketi içeride sol üstte. Yalnızca
+  toplantı detayındaki Details grubu için kullanılır.
+- **Sistem şeması (`.schem`).** Mac'in çizgi çizimidir (150×92). Notch ve mikrofon
+  baştan yanar. Bildirim, hoparlör ızgaraları, `fn` tuşu ve metin imleci ilgili izin
+  açılınca turkuaz yanar. "Turn on all" sırasında üstünden tarayıcı geçer ve parçalar
+  lambalarla aynı anda (0.42 sn arayla) yanar. Onboarding izin adımındadır.
+
+Bu eklemelerin her biri bir ya da iki yerde durur. Yeni bilgi eklemezler, mevcut bir
+satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları gerekmez.
+
 ## Notch: üç boy
 
 | Boy | Ölçü | Ne zaman |
@@ -236,15 +282,16 @@ butonu yoktur.
   | Toplantı (≤ 10 dk) | amber ikon | amber dakika | amber fitil |
   | Süren toplantı | amber lamba + başlık | kalan + "left" | fitil |
   | Başlıyor | şerit: "Starting now" · Later `esc` · **Join ↩** | | |
-  | Arama algılandı | şerit: "Record this call?" · Not now `esc` · **Record ↩** | | |
-  | Kayıt | kırmızı nabız + süre | merdiven; mic kapalıysa mic-off | |
+  | Arama algılandı | amber yanan video ikonu; şerit: "Record this call?" · Not now `esc` · **Record ↩** | | |
+  | Kayıt | kırmızı nabız + süre | merdiven; mute okunamıyorsa amber parantezli mic | |
   | Bitti sanılıyor / otomatik durdurma | şerit, kırmızı fitil, segment geri sayım | | |
   | Dikte | şerit: konuştukça akan metin, eskisi solda solar, ışıklı imleç | | |
   | Dikte yazılıyor | metin söner, üstünden tarayıcı geçer | 3 hücre | |
   | Dikte eklendi | yeşil lamba + uygulama | | Undo ⌘Z |
   | İşleme | adım kelimesi | 4 istasyon hücresi; canlı olan yanıp söner | |
   | Sonuç | şerit: "Notes and 3 action items" · Later `esc` · **Open ↩** | | |
-  | Hata | şerit: neden + "audio is saved" · **Retry ↩** | | |
+  | Hata | kırmızı uyarı karosu + başlık; şerit: neden + "audio is saved" · **Retry ↩** | | |
+  | Dikte izni yok | kırmızı parantezli mic; şerit: neden · Settings | | |
   | Görev | ilerleme işareti + başlık | dakika | |
   | Görevler | kuyruk ikonu + "Today" | sayı | |
 
@@ -309,13 +356,14 @@ detay sayfası (`#121211`, bir kat yukarıda, yarıçap 14).
     sayılar, "fn".
   - Kayıt sürerken rayın altında bir kuyu kartı açılır: lamba, merdiven, segment süre,
     mic ve Stop.
-  - **Systems paneli:** altı izin bir gösterge panosundaki uyarı lambaları gibi durur
-    (Calendar, Reminders, Microphone, Call audio, Mute sync, Keyboard). Her biri kendi
-    ayar sayfasına götürür. Başlığın sağında "6 of 6 on" ya da amber "needs you" yazar.
+  - **Systems paneli:** tek satırda altı uyarı lambası ikonu durur, metin etiketi yoktur
+    (Calendar, Reminders, Microphone, Call audio, Mute sync, Keyboard). Adları tooltip'te
+    görünür. Sorunlu olan parantezli ya da rozetli yanar. Her biri kendi ayar sayfasına
+    götürür. Başlığın sağında "6 of 6 on" ya da amber "needs you" yazar.
 - **Araç çubuğu (60 pt).** Solda sayfa başlığı (17/600) ve meta, sağda sayfanın
   eylemleri (secondary, tuş kapaklı) ve arama alanı (30 pt, çukur) bulunur.
 - **Today (gösterge panosu).**
-  - Kahraman paneli: 148 pt tik halkası (dakika), "Next meeting" başlığı (22/600), saat ·
+  - Kahraman paneli: 148 pt tik halkası (dakika; basılı bölgeler ve ölçek sayıları), "Next meeting" başlığı (22/600), saat ·
     sağlayıcı, yüz yığını ve katılımcılar bulunur. Sağ kenarda yukarıda "Join opens at
     11:05" lambası, aşağıda Copy link · Calendar butonları yer alır.
   - Altında etiketli geniş gün cetveli bulunur.
