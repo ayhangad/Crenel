@@ -180,7 +180,7 @@ private extension AppFailure {
 /// one number, and how much fuse is left.
 struct NotchMeetingEar: Equatable {
     enum Kind: String, Equatable {
-        /// Today, more than an hour away: start time.
+        /// Today, more than an hour away: time left ("2h 37m").
         case later
         /// Within the hour: minutes, white fuse.
         case hour

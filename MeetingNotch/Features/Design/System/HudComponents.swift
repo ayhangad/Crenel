@@ -1026,6 +1026,13 @@ enum HudFormat {
         return formatter.string(from: date)
     }
 
+    /// Time left as segment text: "2h 37m", "45m". The gap is `HudSegmentArt.thinSpace`.
+    static func remaining(minutes: Int) -> String {
+        let minutes = max(0, minutes)
+        guard minutes >= 60 else { return "\(minutes)m" }
+        return "\(minutes / 60)h\(HudSegmentArt.thinSpace)\(String(format: "%02d", minutes % 60))m"
+    }
+
     static func elapsed(_ interval: TimeInterval) -> String {
         let total = max(0, Int(interval))
         let hours = total / 3_600, minutes = (total % 3_600) / 60, seconds = total % 60

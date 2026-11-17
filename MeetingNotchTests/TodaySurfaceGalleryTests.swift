@@ -127,6 +127,9 @@ final class TodaySurfaceGalleryTests: XCTestCase {
         try export(today(Self.events(focusAt: 10, focusEnd: 11)), "o-today-live")
         try export(today(Self.events(focusAt: 10.83, focusEnd: 11.5), bridge: .waiting), "o-today-meet-waiting")
         try export(today(Self.events(focusAt: 10.83, focusEnd: 11.5), bridge: .unavailable), "o-today-meet-unavailable")
+        let events = Self.events(focusAt: 14.5)
+        try export(today(events, hover: TodaySurface.heroHoverID), "o-today-hover-hero")
+        try export(today(events, hover: AnyHashable(events[2].id)), "o-today-hover-row")
     }
 
     func testTodayEmptyGallery() throws {
@@ -271,11 +274,12 @@ final class TodaySurfaceGalleryTests: XCTestCase {
         }
     }
 
-    private func today(_ events: [Meeting], calendar: TodayCalendarState = .ready, bridge: TodayMeetBridge = .none) -> some View {
+    private func today(_ events: [Meeting], calendar: TodayCalendarState = .ready, bridge: TodayMeetBridge = .none,
+                       hover: AnyHashable? = nil) -> some View {
         TodaySurface(
             events: events, emptyMessage: "", canRequestCalendarAccess: false, onRequestCalendarAccess: {},
             onOpenMeetingURL: { _ in }, onStartRecording: {}, calendar: calendar, meetBridge: bridge,
-            fixes: TodayCalendarFixes(), now: Self.now
+            fixes: TodayCalendarFixes(), now: Self.now, previewHover: hover
         )
     }
 

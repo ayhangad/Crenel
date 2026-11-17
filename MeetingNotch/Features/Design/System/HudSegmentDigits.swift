@@ -12,6 +12,7 @@ import SwiftUI
 ///     HudSegmentDigits("12:48", height: 34)
 ///     HudSegmentDigits("8", height: 24, cells: 2, color: Hud.Ink.signal)
 ///     HudSegmentDigits("--:--", height: 15)
+///     HudSegmentDigits(HudFormat.remaining(minutes: 157))   // "2h 37m"
 struct HudSegmentDigits: View {
     let text: String
     var height: CGFloat = 13
@@ -77,8 +78,13 @@ struct HudSegmentArt {
 
     static let map: [Character: String] = [
         "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd",
-        "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg", "-": "g", " ": ""
+        "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg", "-": "g", " ": "",
+        // Unit letters for durations ("2h 37m"). "m" also lights a middle leg (see `init`).
+        "h": "fgec", "m": "gec"
     ]
+
+    /// A gap between groups ("2h 37m"): narrower than a cell and without a ghost.
+    static let thinSpace: Character = "\u{2009}"
 
     init(text: String, cells: Int) {
         var characters = Array(text)
@@ -96,7 +102,17 @@ struct HudSegmentArt {
                 x += 5
                 continue
             }
+            if character == Self.thinSpace {
+                x += 5
+                continue
+            }
             let on = Self.map[character] ?? ""
+            if character == "m" {
+                var leg = Path()
+                leg.addLines(Self.vertical(5, 9 + Self.gap, 17 - Self.gap).map { CGPoint(x: $0.x + x, y: $0.y) })
+                leg.closeSubpath()
+                lit.addPath(leg)
+            }
             for segment in Self.segments {
                 var polygon = Path()
                 polygon.addLines(segment.points.map { CGPoint(x: $0.x + x, y: $0.y) })

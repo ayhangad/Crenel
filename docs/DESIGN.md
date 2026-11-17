@@ -306,7 +306,7 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
 
   | Durum | Sol kulak | Sağ kulak | Ek |
   | --- | --- | --- | --- |
-  | Toplantı (bugün, > 60 dk) | tür ikonu + başlık | başlangıç saati | |
+  | Toplantı (bugün, > 60 dk) | tür ikonu + başlık | kalan süre, segment ("2h 37m") | |
   | Toplantı (≤ 60 dk) | aynı | dakika + "min" | beyaz fitil |
   | Toplantı (≤ 10 dk) | amber ikon | amber dakika | amber fitil |
   | Süren toplantı | amber lamba + başlık | kalan + "left" | fitil |
@@ -328,6 +328,11 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   - Kahraman: tik halkası, başlık (hero), saat aralığı · sağlayıcı ve katılımcılar.
   - Join yalnızca 10 dk içinde veya toplantı sürerken görünür. O zaman kahramanın altında
     konsol açılır: solda lambalı durum, sağda Record ⌘R ve **Join ⌘J**.
+  - Konsol kapalıyken kahramanın (ve boş durumların) sağ kenarında, dikeyde ortalı bir
+    **Record ⌘R** tuşu durur: takvimde olmayan bir görüşme de her zaman kaydedilebilir.
+  - Bir etkinliğe tıklamak görüşmeye katılmaz. Bağlantısı olan etkinlikte **Join** tuşu
+    yalnızca üzerine gelince sağ kenarda belirir; katılmak yalnızca bu tuşladır (ve sağ
+    tık menüsünden).
   - Altında gün cetveli, sonra tarife düzeni bir liste gelir. Solda 42 pt'lik saat sütunu
     vardır ve yalnızca başlangıç saatini taşır. Bitiş saati gösterilmez: notch bir takvim
     değil, sıradakini gösterir. Bugün dışındaki günler ikinci satıra yazılır ("Wed ·

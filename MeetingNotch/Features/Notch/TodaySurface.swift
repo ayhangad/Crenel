@@ -76,7 +76,6 @@ struct TodayCalendarFixes {
 /// the day on a ruler, then a timetable of what is left today and what comes later.
 /// The console under the hero opens only when the call is near or on.
 struct TodaySurface: View {
-    @Environment(\.crenelActions) private var actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let events: [Meeting]
     let emptyMessage: String
@@ -92,6 +91,9 @@ struct TodaySurface: View {
     var now: Date?
     /// Sweep the gauge once: only when the panel opens from closed.
     var ignite = false
+    /// A row (its event id) or the hero (`TodaySurface.heroHoverID`) drawn as hovered, for renders.
+    var previewHover: AnyHashable?
+    static let heroHoverID: AnyHashable = "today.hero"
     @State private var hovered: AnyHashable?
     @State private var appeared = false
     @Namespace private var glide
@@ -107,7 +109,8 @@ struct TodaySurface: View {
         meetBridge: TodayMeetBridge = .none,
         fixes: TodayCalendarFixes? = nil,
         now: Date? = nil,
-        ignite: Bool = false
+        ignite: Bool = false,
+        previewHover: AnyHashable? = nil
     ) {
         self.events = events
         self.emptyMessage = emptyMessage
@@ -120,6 +123,7 @@ struct TodaySurface: View {
         self.fixes = fixes
         self.now = now
         self.ignite = ignite
+        self.previewHover = previewHover
     }
 
     var body: some View {
@@ -143,8 +147,14 @@ struct TodaySurface: View {
 
         VStack(alignment: .leading, spacing: 0) {
             if let focus = agenda.focus {
-                TodayHero(event: focus, now: now, ignite: ignite)
-                    .modifier(EventActions(event: focus, open: open, onStartRecording: onStartRecording))
+                TodayHero(
+                    event: focus, now: now, ignite: ignite,
+                    // The open console carries Record and Join itself.
+                    onRecord: console == nil ? onStartRecording : nil,
+                    onJoin: console == nil ? join(focus) : nil,
+                    forcedHover: previewHover == Self.heroHoverID
+                )
+                .modifier(EventActions(event: focus, join: join(focus), onStartRecording: onStartRecording))
                     .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
             }
             if let console {
@@ -167,7 +177,7 @@ struct TodaySurface: View {
             } else if state == .ready {
                 ruler(agenda, now: now)
                     .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
-                nothingElseRow(agenda, now: now)
+                nothingElseRow(agenda, now: now, canRecord: console == nil)
                     .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
                 if agenda.later.count > 1 {
                     group("Later", Array(agenda.later.dropFirst()), now: now)
@@ -177,7 +187,8 @@ struct TodaySurface: View {
                 TodayEmptyState(
                     state: state,
                     onConnect: onRequestCalendarAccess,
-                    fixes: fixes ?? .live
+                    fixes: fixes ?? .live,
+                    onRecord: console == nil ? onStartRecording : nil
                 )
                 .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
             }
@@ -213,15 +224,19 @@ struct TodaySurface: View {
             HudGroupHeader(title: title, count: events.count)
                 .padding(.bottom, 2)
             ForEach(events) { event in
-                TodayEventRow(event: event, now: now)
-                    .modifier(EventActions(event: event, open: open, onStartRecording: onStartRecording))
+                TodayEventRow(
+                    event: event, now: now,
+                    isHovered: (previewHover ?? hovered) == AnyHashable(event.id),
+                    onJoin: join(event)
+                )
+                .modifier(EventActions(event: event, join: join(event), onStartRecording: onStartRecording))
                     .hudGlide(event.id, hovered: $hovered, in: glide)
             }
         }
     }
 
     /// Calendars are connected and today is clear: say so, and name what comes next.
-    private func nothingElseRow(_ agenda: TodayAgenda, now: Date) -> some View {
+    private func nothingElseRow(_ agenda: TodayAgenda, now: Date, canRecord: Bool) -> some View {
         HStack(spacing: 12) {
             HudLamp(.teal)
             Text("Nothing else today").hud(.body, Hud.Ink.ink2)
@@ -231,15 +246,20 @@ struct TodaySurface: View {
                     .hud(.meta)
                     .lineLimit(1)
             }
+            if canRecord {
+                TodayRecordButton(action: onStartRecording)
+            }
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, 10)
+        .padding(.trailing, canRecord ? 4 : 10)
         .padding(.top, 4)
         .padding(.bottom, 8)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
-    private func open(_ event: Meeting) {
-        if let url = event.meetingURL { onOpenMeetingURL(url) } else { actions.openInCalendar(event) }
+    /// Joining is only ever the Join button (or the menu), never a click on the event.
+    private func join(_ event: Meeting) -> (() -> Void)? {
+        event.meetingURL.map { url in { onOpenMeetingURL(url) } }
     }
 }
 
@@ -348,20 +368,20 @@ enum TodayText {
     }
 }
 
-/// Click opens the event (its call link, or Calendar); the context menu holds the rest.
+/// A click on an event does nothing: joining is the Join button that shows on hover.
+/// The context menu holds the rest.
 private struct EventActions: ViewModifier {
     @Environment(\.crenelActions) private var actions
     let event: Meeting
-    let open: (Meeting) -> Void
+    let join: (() -> Void)?
     let onStartRecording: () -> Void
 
     func body(content: Content) -> some View {
         content
             .contentShape(Rectangle())
-            .onTapGesture { open(event) }
             .contextMenu {
-                if let url = event.meetingURL {
-                    Button("Join meeting") { open(event) }
+                if let url = event.meetingURL, let join {
+                    Button("Join meeting", action: join)
                     Button("Copy link") {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(url.absoluteString, forType: .string)
@@ -373,9 +393,36 @@ private struct EventActions: ViewModifier {
                     Button("Open in Calendar") { actions.openInCalendar(event) }
                 }
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityAddTraits(.isButton)
+            .accessibilityElement(children: .contain)
             .accessibilityLabel(AgendaRowText.accessibilityLabel(for: event))
+    }
+}
+
+/// Record, always within reach on Today: the hero's free trailing edge, or the empty
+/// state's. Hidden while the console is open, which has its own.
+private struct TodayRecordButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        HudButton("Record", lamp: .red, key: "⌘R", size: .small, action: action)
+            .keyboardShortcut("r", modifiers: .command)
+            .accessibilityLabel("Record")
+    }
+}
+
+/// Join, shown only while its event is hovered. It keeps its place in the layout so
+/// nothing shifts when it appears.
+private struct TodayHoverJoin: View {
+    let shown: Bool
+    let action: () -> Void
+
+    var body: some View {
+        HudButton("Join", kind: .primary, size: .small, action: action)
+            .opacity(shown ? 1 : 0)
+            .allowsHitTesting(shown)
+            .accessibilityHidden(!shown)
+            .accessibilityLabel("Join")
+            .animation(Hud.Motion.hover, value: shown)
     }
 }
 
@@ -387,6 +434,11 @@ private struct TodayHero: View {
     let event: Meeting
     let now: Date
     let ignite: Bool
+    /// nil while the console under the hero is open.
+    var onRecord: (() -> Void)?
+    var onJoin: (() -> Void)?
+    var forcedHover = false
+    @State private var isHovering = false
 
     private var untilStart: TimeInterval { event.startDate.timeIntervalSince(now) }
     private var isLive: Bool { untilStart <= 0 }
@@ -397,6 +449,7 @@ private struct TodayHero: View {
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             gauge
+                .opacity(isDimmed ? 0.55 : 1)
             VStack(alignment: .leading, spacing: 6) {
                 Text(event.title).hud(.hero).lineLimit(1).truncationMode(.tail)
                 HStack(spacing: 6) {
@@ -415,13 +468,23 @@ private struct TodayHero: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .opacity(isDimmed ? 0.55 : 1)
+            if let onJoin {
+                TodayHoverJoin(shown: isHovering || forcedHover, action: onJoin)
+            }
+            if let onRecord {
+                TodayRecordButton(action: onRecord)
+            }
         }
         .padding(.leading, 6)
-        .padding(.trailing, 10)
+        .padding(.trailing, onRecord == nil ? 10 : 4)
         .padding(.top, 4)
         .padding(.bottom, 12)
-        .opacity(event.isSuggestion || event.responseStatus == .tentative ? 0.55 : 1)
+        .contentShape(Rectangle())
+        .onHover { isHovering = $0 }
     }
+
+    private var isDimmed: Bool { event.isSuggestion || event.responseStatus == .tentative }
 
     @ViewBuilder
     private var gauge: some View {
@@ -546,10 +609,13 @@ private struct TodayConsole: View {
 private struct TodayEventRow: View {
     let event: Meeting
     let now: Date
+    var isHovered = false
+    var onJoin: (() -> Void)?
 
     private var isToday: Bool {
         Calendar.current.isDate(event.startDate, inSameDayAs: now) || event.startDate <= now
     }
+    private var isDimmed: Bool { event.isSuggestion || event.responseStatus == .tentative }
 
     var body: some View {
         HudRow(.twoLine) {
@@ -569,9 +635,18 @@ private struct TodayEventRow: View {
                 }
                 .padding(.top, 2)
                 .help("Invite — waiting for your answer")
+                // Join takes this place while the row is hovered.
+                .opacity(isHovered && onJoin != nil ? 0 : 1)
             }
         }
-        .opacity(event.isSuggestion || event.responseStatus == .tentative ? 0.55 : 1)
+        .opacity(isDimmed ? 0.55 : 1)
+        .overlay(alignment: .trailing) {
+            // Over the row, not in it: the row keeps its height and the Invite mark its place.
+            if let onJoin {
+                TodayHoverJoin(shown: isHovered, action: onJoin)
+                    .padding(.trailing, 6)
+            }
+        }
     }
 
     /// "Zoom" today; "Wed · Zoom" or "All day · Work" on other days.
@@ -595,6 +670,7 @@ private struct TodayEmptyState: View {
     let state: TodayCalendarState
     let onConnect: () -> Void
     let fixes: TodayCalendarFixes
+    var onRecord: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
@@ -614,6 +690,9 @@ private struct TodayEmptyState: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             fix
+            if let onRecord {
+                TodayRecordButton(action: onRecord)
+            }
         }
         .padding(.leading, 6)
         .padding(.trailing, 4)

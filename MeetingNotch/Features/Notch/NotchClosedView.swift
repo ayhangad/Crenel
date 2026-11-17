@@ -153,7 +153,9 @@ struct NotchClosedView: View {
             let ear = NotchMeetingEar(agenda, now: now)
             switch ear.kind {
             case .later:
-                HudSegmentDigits(HudFormat.clock(agenda.item.startDate), height: 13)
+                // Today: how long is left, not when it starts.
+                HudSegmentDigits(HudFormat.remaining(minutes: ear.minutes), height: 13)
+                    .accessibilityLabel("Starts in \(ear.minutes / 60) hours \(ear.minutes % 60) minutes")
             case .otherDay:
                 Text(NotchClosedText.dayWord(agenda.item.startDate)).hud(.meta).fixedSize()
                 HudSegmentDigits(HudFormat.clock(agenda.item.startDate), height: 13, color: Hud.Ink.ink2)

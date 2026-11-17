@@ -1,0 +1,10 @@
+<svg width="20" height="13" viewBox="0 0 20 13" xmlns="http://www.w3.org/2000/svg">
+<!-- The Crenel mark for the menu bar: one colour (template), lamp levels kept as alpha.
+     Cells are 5 pt on a 2.5 pt grid, so every edge lands on a pixel at 2x. -->
+<rect x="2.5" y="0" width="5" height="5" fill="#000" fill-opacity="0.72"/>
+<rect x="0" y="5" width="5" height="5" fill="#000" fill-opacity="0.80"/>
+<rect x="5" y="7.5" width="5" height="5" fill="#000" fill-opacity="0.55"/>
+<rect x="10" y="7.5" width="5" height="5" fill="#000" fill-opacity="0.68"/>
+<rect x="12.5" y="0" width="5" height="5" fill="#000" fill-opacity="0.60"/>
+<rect x="15" y="5" width="5" height="5" fill="#000" fill-opacity="1"/>
+</svg>

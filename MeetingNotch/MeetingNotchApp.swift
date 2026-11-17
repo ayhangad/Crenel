@@ -12,7 +12,7 @@ struct MeetingNotchApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra("Crenel", systemImage: "waveform.badge.mic") {
+        MenuBarExtra("Crenel", image: "MenuBarIcon") {
             Button("Open Crenel", systemImage: "macbook") {
                 appDelegate.showDesktop()
             }
