@@ -1,6 +1,7 @@
 # Crenel tasarım dili — "gece sürüşü"
 
-Durum: prototipte (2026-11-17), Swift'e aktarılmayı bekliyor. Kaynak:
+Durum: prototipte (2026-11-17; masaüstü, butonlar, göstergeler ve ikon ikinci turda
+yenilendi), Swift'e aktarılmayı bekliyor. Kaynak:
 `docs/design/crenel-prototype.html`. Uygulanan önceki dil ("enstrüman", `Hud*`), bu
 belgeye göre güncellenecek. Aşağıdaki ölçüler prototipteki CSS ve çizim kodunun
 karşılığıdır. Çelişki olursa prototip esastır.
@@ -28,11 +29,14 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
    | --- | --- |
    | amber `#ffad33` | seni bekliyor: yaklaşan toplantı, davet, öncelik, devam eden görev, uyarı |
    | kırmızı `#ff5a47` | canlı kayıt, hata, bloke |
-   | yeşil `#5fe0b4` | hazır, bağlı, eklendi |
+   | turkuaz `#34e6cb` | hazır, bağlı, eklendi (uygulama ikonunun rengi) |
    | beyaz `#f3f1ec` | etkin, seçili, o an çalışan |
    | kapalı `rgba(255,255,255,.09)` | yok, sırada |
 
-   Yanan lambanın kendi renginde 6–7 pt hafif bir parıltısı vardır.
+   Yanan lambanın sıcak bir çekirdeği vardır: ortası açık tonda (amber `#ffe2b3`,
+   kırmızı `#ffc2b8`, turkuaz `#b9fff3`, beyaz `#fff`), kenara doğru kendi rengine iner
+   (radyal, %72'de tam renk). Işığı iki katmandır: 6 pt sıkı parıltı (%65–75) ve 16 pt
+   geniş sızma (%20–24). Kapalı lambanın %5 opak ince bir kenarı vardır.
 3. **Hayaletler.** Yanmayan segment, tik ve hücreler %6–13 opaklıkla görünür kalır. Segment
    rakamın her basamağı bir hayalet "8" üzerinde durur. Baştaki boş basamaklar boş değil,
    hayalettir (`data-cells`).
@@ -59,8 +63,54 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
    ölçeğin parçası olarak görünür: cetvel tikleri, gösterge halkası, iğne.
 7. **Hiçbir şey zıplamaz.** Satır yüksekliği ve metin konumu hover'da değişmez. Bir listede
    tek bir hover zemini satırlar arasında kayar (0.18 sn, `cubic-bezier(.2,.8,.2,1)`).
-8. **Tek birincil eylem ve tuşu.** Her yüzeyde en fazla bir birincil (açık zeminli) buton
-   olur ve tuş ipucunu taşır (`↩`, `⌘J`, `⌘Z`). İkinciller hayalet ya da sessiz butondur.
+8. **Eylemler sağ kenarda biter.** Bilgi solda, eylem sağdadır. Birincil buton en
+   sağdadır; ikincil hemen solunda durur. Butonlar asla soldan yan yana dizilmez. Ayrıntı
+   için "Butonlar ve eylem yerleşimi" bölümüne bak.
+
+## Butonlar ve eylem yerleşimi
+
+Butonlar tıklanan kelimeler değil, basılan tuşlardır. Yalnızca metinden oluşan eylem
+butonu yoktur.
+
+| Tür | Görünüş | Kullanım |
+| --- | --- | --- |
+| primary | yanan tuş: `#fdfcf9 → #e2dfd8` dikey degrade, üstte 1 pt beyaz iç ışık, altta %14 gölge çizgisi, 0.5 pt koyu çerçeve, 16 pt %9 ink parıltı | yüzeyde en fazla bir tane, her zaman tuş kapağıyla |
+| secondary | karanlıkta kabarık tuş: beyaz %8.8 → %4.6 dikey degrade, 1 pt %7 iç halka, üstte 1 pt %7.5 ışık, altta 2 pt gölge | diğer bütün eylemler |
+| danger | secondary gövdesi, kırmızı mürekkep `#ff6b59` | silme, kaldırma; birincilin yanında asla durmaz |
+| ghost | yalnızca metin | listelerin içindeki üçüncül gezinme (ör. Rename) |
+| icon framed | secondary gövdeli kare ikon butonu | araç çubuğunda "daha fazla", kopyala |
+
+- **Boylar.** Normal 28 pt (yarıçap 8), sm 26 pt, xs 22 pt (yarıçap 6, 11.5 pt yazı),
+  lg 32 pt (yarıçap 9). Basınca 0.5 pt aşağı iner ve iç gölge alır.
+- **Tuş kapağı (`.kbd`).** Kısayol, butonun içinde küçük bir tuş olarak çizilir: 16 pt
+  (sm/xs'te 15 pt), yarıçap 4, 10.5 pt yazı. Altında 1 pt koyu kenar vardır. Birincilde
+  siyah %6 zemin ve %50 siyah yazı, ikincilde beyaz %5.5 zemin ve ink-3 yazı kullanılır.
+- **Yerleşim kuralları.**
+  1. Eylem satırı (`.actions`): solda durum notu (lamba + meta), sağda butonlar.
+  2. Sıra soldan sağa: danger · secondary · primary. Danger ile primary arasında her
+     zaman bir secondary ya da boşluk bulunur.
+  3. Vazgeçme butonu `esc`, birincil `↩` taşır. Başka kısayollar kendi tuşunu taşır
+     (`⌘J`, `⌘R`, `⌘Z`, `⇧⌘C`).
+  4. Tek eylemli boş durumlarda düzeltme butonu cümlenin altında değil, satırın sağ
+     ucunda ve dikey ortadadır.
+  5. Notch'taki konsol (`.console`, 44 pt, yarıçap 13, beyaz %4.5 → %2.5): toplantı
+     yaklaşınca kahramanın altında açılır. Solda lambalı durum ("Crenel will ask to record
+     when it starts", "Not being recorded", Meet köprüsü), sağda **Record ⌘R** (secondary)
+     ve **Join ⌘J** (primary).
+
+## Uygulama ikonu
+
+- Altı lamba bir mazgal (crenel) gülümsemesi çizer. Bu, notch'taki lamba dilinin
+  kendisidir. Kaynak: `MeetingNotch/AppIcon.icon` (Icon Composer, macOS 26).
+- Zemin: `#131313 → #030303` doğrusal degrade, sol üstten sağ alta.
+- Lambalar: 472×296 birimlik glif, 118 birimlik kareler, her biri radyal degradeli
+  (orta `#3BFFE8`, %38'de `#05F0D2`, kenar `#00A891`; sağdaki en parlak lamba camgöbeği:
+  `#8AFFFF → #0CF6F6 → #00AFC0`). Lamba opaklıkları .70 · .76 · .50 · .65 · .56 · .95'tir.
+  Bu opaklıklar markanın parçasıdır.
+- Cam efekti kapalıdır (lambalar net kalsın diye). Gölge `layer-color`, %60.
+- Uygulama içinde aynı glif `i-mark` sembolüdür. 26 pt'lik siyah karo (`.app-tile`)
+  içinde `#14f0d4` renginde ve 2.5 pt parıltıyla kullanılır. Bu yüzden "hazır" lambasının
+  rengi ikonun turkuazına çekildi.
 
 ## İkon ailesi
 
@@ -80,7 +130,8 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
     aralarında 0.55 boşluk bulunur.
   - 7° italik (`skewX(-7)`).
   - Basamak adımı 13, iki nokta adımı 5.
-  - Yanan segmentin hafif parıltısı vardır; hayalet segment %7.5 opaktır.
+  - Yanan segmentin iki katmanlı ışığı vardır: 1.5 pt %60 çekirdek ve 7 pt %24 sızma.
+    Hayalet segment %7.5 opaktır.
   - Boyutlar: kulakta 13 pt, açık panel kahramanında 24 pt, kayıt süresinde 34 pt.
   - Değer değişince yalnızca segmentler değişir; yerleşim kaymaz.
 - **Tik halkası (`.gauge`).**
@@ -89,7 +140,17 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
   - Toplantıya kalan süre: son 60 dakika, dakika başına bir tik. Toplantı sürerken kalan
     payı gösterir.
   - Ortada kahraman sayı ve altında micro birim bulunur. Arkasında göstergenin renginde
-    %9'luk bir ışık sızması vardır (`.bleed`).
+    radyal bir ışık sızması vardır (`.bleed`: merkezde %10, %60'ta %3, sonra sıfır).
+  - Işık modeli (birebir aktarılmalı):
+
+    | Katman | Ne |
+    | --- | --- |
+    | ghost | yanmayan tik, %13 |
+    | lit | yanan tikler, 1.6 pt çekirdek parıltı |
+    | head | son yanan tik: rengin %55'i beyazla karışık, 1.2 pt daha uzun, çift parıltı (2 pt + 6 pt) |
+    | tail | head'den sonraki 3 tik %42 · %27 · %17 kalır (fosfor art ışığı) |
+    | halo | yanan aralığın arkasında boyutun %10'u kalınlığında, boyutun %4.5'i kadar bulanık bir yay, %20 |
+    | dots | iç halkada her ana tik için bir nokta; geçilmişse %90, değilse %22 (96 pt üstü göstergelerde) |
 - **Gün cetveli (`.ruler`).**
   - 08–20 aralığında yarım saatte bir tik, saatte bir uzun tik ve her iki saatte bir
     etiket bulunur.
@@ -99,6 +160,15 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
     - davet amber dış çizgi,
     - kişisel sönük.
   - "Şimdi" amber bir iğnedir. Geçmiş bölüm karartılır.
+  - Geniş cetvel (masaüstü, `.ruler.wide`, 62 pt): etkinlik adları bloklarının altında
+    micro yazıyla durur. Geçmiş etkinlikler maskeyle değil %35 opaklıkla söner.
+- **Kuyu (`.well`).** Göstergelerin oturduğu çukur ekran penceresidir: `#050505 → #0a0a09`,
+  içte 2 pt koyu gölge, 1 pt %4.5 halka, altta 1 pt %3.5 ışık. Okumalar (Ready, Dictation,
+  ayar başlıkları), oynatıcı ve canlı kayıt kartı kuyunun içindedir. Kuyu içindeki
+  bölmeler çizgiyle değil, %4'lük 1 pt gölgeyle ayrılır.
+- **LED yığını (`.stack`).** Hücrelerden oluşan çubuk grafiktir. Masaüstünde gün başına 8
+  hücre (18×3), notch'ta 6 hücre (10×2) kullanılır. Bugün beyaz ve parıltılıdır, geçmiş
+  günler ink-3, gelecek günler hayalettir.
 - **VU metre (`.vu`).**
   - 24–30 hücre; son %14'ü kırmızı bölgedir.
   - Tepe hücresi 0.7 sn asılı kalıp sonra düşer (peak hold).
@@ -148,6 +218,8 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
 - **Kontak.** Panel kapalıdan açılınca tik halkaları önce tama tarar (0.42 sn), sonra
   değerine iner (0.52 sn). VU metreler de tamdan başlayıp düşer. Bu, panel her
   açıldığında bir kez olur; sekme değişiminde olmaz.
+  Masaüstünde de aynısı sayfa değiştiğinde bir kez olur. Aynı sayfanın başka bir
+  durumuna geçmek taramayı tekrarlamaz.
 - **Nabız ve yanıp sönme.** Kayıt lambası 1.4 sn'de nefes alır. Bekleyen lamba 1.1 sn'lik
   adımlarla yanıp söner.
 - **Lamba yanışı.** Onboarding'de "Turn on all" lambaları 0.42 sn arayla, kısa bir parlama
@@ -163,22 +235,23 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
   | Toplantı (≤ 60 dk) | aynı | dakika + "min" | beyaz fitil |
   | Toplantı (≤ 10 dk) | amber ikon | amber dakika | amber fitil |
   | Süren toplantı | amber lamba + başlık | kalan + "left" | fitil |
-  | Başlıyor | şerit: "Starting now" · Later · **Join ↩** | | |
-  | Arama algılandı | şerit: "Record this call?" · Not now · **Record ↩** | | |
+  | Başlıyor | şerit: "Starting now" · Later `esc` · **Join ↩** | | |
+  | Arama algılandı | şerit: "Record this call?" · Not now `esc` · **Record ↩** | | |
   | Kayıt | kırmızı nabız + süre | merdiven; mic kapalıysa mic-off | |
   | Bitti sanılıyor / otomatik durdurma | şerit, kırmızı fitil, segment geri sayım | | |
   | Dikte | şerit: konuştukça akan metin, eskisi solda solar, ışıklı imleç | | |
   | Dikte yazılıyor | metin söner, üstünden tarayıcı geçer | 3 hücre | |
   | Dikte eklendi | yeşil lamba + uygulama | | Undo ⌘Z |
   | İşleme | adım kelimesi | 4 istasyon hücresi; canlı olan yanıp söner | |
-  | Sonuç | şerit: "Notes and 3 action items" · **Open ↩** | | |
+  | Sonuç | şerit: "Notes and 3 action items" · Later `esc` · **Open ↩** | | |
+  | Hata | şerit: neden + "audio is saved" · **Retry ↩** | | |
   | Görev | ilerleme işareti + başlık | dakika | |
   | Görevler | kuyruk ikonu + "Today" | sayı | |
 
 - **Today.**
   - Kahraman: tik halkası, başlık (hero), saat aralığı · sağlayıcı ve katılımcılar.
-  - Join yalnızca 10 dk içinde veya toplantı sürerken buton olur; Record onun yanında
-    hayalet buton olarak durur.
+  - Join yalnızca 10 dk içinde veya toplantı sürerken görünür. O zaman kahramanın altında
+    konsol açılır: solda lambalı durum, sağda Record ⌘R ve **Join ⌘J**.
   - Altında gün cetveli, sonra tarife düzeni bir liste gelir. Solda 42 pt'lik saat sütunu
     vardır: başlangıç ink-1, bitiş meta. Gruplar Today ve Later'dır, yanlarında sönük
     sayılar bulunur. Davet, satırın sağında amber lamba + "Invite" ile gösterilir.
@@ -193,7 +266,11 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
     hücresi yanıp söner.
   - Altında canlı istasyonun ayrıntısı vardır: yükleme yüzdesi segmentle, belirsiz
     süreler tarayıcıyla gösterilir.
-- **Sonuç.** Üç okuma (süre · konuşmacı · sana düşen) ve **Open notes ↩**.
+- **İşleme.** Altta eylem satırı bulunur: solda "The audio is already safe on this Mac",
+  sağda Stop `esc`.
+- **Sonuç.** Üç okuma tek bir kuyuda durur (süre · konuşmacı · sana düşen). Eylem
+  satırında solda "Kept in Recordings", sağda Done `esc` · **Open notes ↩** bulunur.
+  Hatada: Recordings · **Try again ↩**.
 - **Kayıtlar.**
   - Üstte haftalık gösterge bulunur: toplam saat ve gün çubukları, bugün yanar.
   - Satırlar tarife düzenindedir (saat / süre). Lamba yalnızca dikkat isteyen satırda
@@ -202,8 +279,10 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
   - Dalga formu çubuklarıyla tüm toplantı gösterilir. Çalınan kısım ink-1'dir, amber iğne
     konumu gösterir; tıklamak o noktaya atlar. Altında konuşma süresi çubuğu ve
     konuşmacılar bulunur.
-  - Summary · Decided (numaralı) · For you (+ ile Görevlere ekler) · Transcript (zaman
-    damgası solda) bölümleri gelir.
+  - Summary (sağında Rewrite xs) · Decided (numaralı) · For you · Transcript bölümleri
+    gelir. For you ve Transcript aynı düzeni kullanır: zaman damgası solda, eylem sağda.
+    Eklenmemiş madde **+ Add** (xs secondary) taşır; eklenince yerinde turkuaz lambalı
+    "In Tasks" bir kez parlayarak belirir.
 - **Görevler.**
   - Giriş 44 pt yüksekliğindedir ve sağında `↩` tuş ipucu bulunur. Ayrıştırılan
     değerler lambalı çiplerle gösterilir; çipe tıklamak değeri düşürür. Tamamlama
@@ -211,12 +290,70 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
   - Today grubunun sağında günün ilerlemesi hücrelerle gösterilir (biten / toplam).
   - Satır 38 pt'dir. Sağda süre (segment), öncelik çubukları, tekrar ikonu ve tarih
     bulunur.
-  - Altta depo lambası yer alır: Reminders (yeşil) ya da On this Mac (kapalı).
-- **Masaüstü, ayarlar, onboarding.**
-  - Aynı satır sistemi, tarife listeleri ve lambalı durum kelimeleri kullanılır.
-  - Anahtarın topuzunda açıkken yanan yeşil bir lamba vardır.
-  - Onboarding bir kontak kontrolüdür: hoş geldin ekranında büyük tik halkası tarar.
-    İzin listesindeki her satır bir lambayla biter; "Turn on all" lambaları sırayla yakar.
+  - Altta eylem satırı bulunur. Solda depo lambası ("Synced with Reminders" ya da "On
+    this Mac only"), sağda Finished ya da Connect Reminders. Finished görünümünde:
+    Clear (danger) · Open tasks.
+  - Görev kartının altında solda kaynak çipi bulunur, sağda Delete (danger) ve
+    Close `esc` durur.
+
+## Masaüstü penceresi
+
+1240×760. Üç katman vardır: kenar çubuğu (`#080807`), pencere zemini (`#0e0e0d`) ve
+detay sayfası (`#121211`, bir kat yukarıda, yarıçap 14).
+
+- **Kenar çubuğu (224 pt).**
+  - Marka satırında ikon karosu, "Crenel" ve sönük segment saat bulunur.
+  - Ray (`.rail`): Today · Meetings · Tasks · Dictation; altta Settings. Seçili öğenin
+    solunda 3×14 pt'lik ışıklı bir lamba vardır ve öğeler arasında yaylı kayar (0.34 sn,
+    `cubic-bezier(.3,1.2,.4,1)`). Satırın sağında sönük bir okuma durur: "in 33 min",
+    sayılar, "fn".
+  - Kayıt sürerken rayın altında bir kuyu kartı açılır: lamba, merdiven, segment süre,
+    mic ve Stop.
+  - **Systems paneli:** altı izin bir gösterge panosundaki uyarı lambaları gibi durur
+    (Calendar, Reminders, Microphone, Call audio, Mute sync, Keyboard). Her biri kendi
+    ayar sayfasına götürür. Başlığın sağında "6 of 6 on" ya da amber "needs you" yazar.
+- **Araç çubuğu (60 pt).** Solda sayfa başlığı (17/600) ve meta, sağda sayfanın
+  eylemleri (secondary, tuş kapaklı) ve arama alanı (30 pt, çukur) bulunur.
+- **Today (gösterge panosu).**
+  - Kahraman paneli: 148 pt tik halkası (dakika), "Next meeting" başlığı (22/600), saat ·
+    sağlayıcı, yüz yığını ve katılımcılar bulunur. Sağ kenarda yukarıda "Join opens at
+    11:05" lambası, aşağıda Copy link · Calendar butonları yer alır.
+  - Altında etiketli geniş gün cetveli bulunur.
+  - Üç gösterge karosu: Tasks (açık sayı + hücreler + 3 satır), On tape (haftalık saat +
+    LED yığınları), Dictation (bugünkü kelime + şerit kaydedici + son cümle).
+  - Recent meetings paneli: sağ üstte All meetings (xs).
+- **Meetings.**
+  - Solda liste (300 pt): All · Needs you · For you segment kontrolü ve gruplar. Seçili
+    satırın solunda ışıklı lamba çizgisi vardır.
+  - Sağda detay sayfası:
+    - Başlık (22/600), meta çipleri (tarih, süre, sağlayıcı, kişiler).
+    - Sağda ⋯ · Export ▾ · Copy notes ⇧⌘C.
+    - Oynatıcı kuyusu: düğme, segment zaman, dalga formu, altında konuşmacı şeridi,
+      hız butonu.
+    - Gövde iki sütundur: solda Summary/Decided/Transcript, sağda 232 pt ray (For you +
+      Add, Talk time çubukları, Details anahtar-değer).
+- **Tasks.** Solda ortak görev listesi bulunur. Sağda ray yer alır: günün turkuaz tik
+  halkası (biten/toplam), Due (lamba + segment saat) ve Reminders senkron paneli.
+- **Dictation.**
+  - Kahraman panelinde 76×72 pt'lik basılı bir `fn` tuş kapağı (üstünde turkuaz lamba),
+    açıklama, mod/dil/yer çipleri ve kuyuda iki okuma (words today, dictations) bulunur.
+  - Altında Recent listesi (saat/uygulama sütunu, kopyala ikon butonu) ve Words to know
+    paneli yer alır.
+- **Settings.**
+  - İkinci bir ray (200 pt) bulunur ve her bölümün sağında durum lambası vardır.
+  - Her sayfa bir başlıkla açılır: 40 pt kabarık ikon karosu, başlık, bir cümle ve
+    sağda bir okuma:
+    - AI'da yedek zinciri lambaları (Anthropic › OpenAI › This Mac),
+    - Calendar ve Data'da kuyu içinde segment sayılar.
+  - Gruplar 14 pt yarıçaplı, hafif kabarık kartlardır. Grup başlığı kartın içindedir.
+  - Anahtar girişinin yanında Verify and save (secondary) bulunur. Remove (danger) durum
+    satırında durur, kaydetme butonunun yanında değil.
+- **Onboarding.**
+  - Bir kontak kontrolüdür: hoş geldin ekranında büyük tik halkasının içinde turkuaz
+    işaret tarar.
+  - İzin satırları secondary Allow/Open taşır ve bir lambayla biter.
+  - Altta Not now `esc` · **Turn on all ↩** butonları bulunur.
+- **Anahtar.** Topuzunda, açıkken yanan turkuaz bir lamba vardır.
 
 ## İnceleme
 

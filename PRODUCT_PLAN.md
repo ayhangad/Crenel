@@ -205,6 +205,17 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     lambaları), üç boyutlu notch (kompakt / şerit / açık), yeni ikon ailesi, hareket dili;
     `docs/DESIGN.md` güncel spesifikasyon. — ✅ 2026-11-17 (110 durum headless tarayıcıda
     hatasız render edildi; hover/sekme/görev/dikte/geri sayım etkileşimleri Playwright ile sürüldü)
+  - [x] Prototipte ikinci tur: masaüstü penceresinin yeniden kurulması (Today gösterge
+    panosu, Meetings sayfa + ray, Tasks rayı, Dictation bölümü, Settings ikinci ray ve
+    sayfa başlıkları, kayan ray lambası, Systems lamba paneli), secondary/danger buton ve
+    tuş kapağı sistemi, "eylemler sağ kenarda biter" yerleşim kuralları (notch konsolu,
+    şeritler, sonuç/hata/işleme eylem satırları), göstergelerin ışık modeli (head, tail,
+    halo, iç noktalar, sıcak çekirdekli lambalar, kuyu, LED yığını). — ✅ 2026-11-17
+    (112 durum headless tarayıcıda hatasız; etkileşim testi geçti)
+  - [x] Kullanıcının lamba-mazgal ikonunun uygulama ikonu yapılması: Icon Composer
+    `MeetingNotch/AppIcon.icon` (boş `AppIcon.appiconset` kaldırıldı), "hazır" lambası
+    ikonun turkuazına çekildi. — ✅ 2026-11-17 (`ictool` render incelendi; Debug build
+    başarılı, paket `AppIcon.icns` + `CFBundleIconName` içeriyor)
   - [ ] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
     uygulamaya geçirilmesi. — ⛔ Bloke: kullanıcı prototipi düzenliyor (2026-11-17)
 

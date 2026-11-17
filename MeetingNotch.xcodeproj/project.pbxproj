@@ -139,6 +139,7 @@
 		A0ABD4BCF18D3949B14CF6E1 /* UserDefaultsAppSettingsRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 357915D5E30319468E237CF8 /* UserDefaultsAppSettingsRepository.swift */; };
 		A21A6766D8F9D284416DC1FA /* AudioCapturePermissionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F651443E0BADA76C7E53A305 /* AudioCapturePermissionServiceTests.swift */; };
 		A6F1B60305C9C6CDA551B40D /* TaskItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC2144FBF69C04C86582206A /* TaskItem.swift */; };
+		A7580E3A06D702A74DAE80F7 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 5DD2D036086B6E11E071AAAA /* AppIcon.icon */; };
 		A7791C7106A51CBC8E5CBBF2 /* OpenAIProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63726F86ED9538EB59C96BCA /* OpenAIProvider.swift */; };
 		AB4815FC8B6C9E267FFD01BC /* MicrophoneCaptureIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F47A0E6C806F99ED2FC55FC /* MicrophoneCaptureIntegrationTests.swift */; };
 		AC62E10E67C3B640F96498CB /* HudComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 300AB1221E6852B9936FF782 /* HudComponents.swift */; };
@@ -320,6 +321,7 @@
 		5CBD94347C87C2616157C30D /* FileMeetingRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMeetingRepository.swift; sourceTree = "<group>"; };
 		5D34173FAE76EF2FC297D40D /* TranscriptionProcessingWorkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionProcessingWorkerTests.swift; sourceTree = "<group>"; };
 		5DA5AD7F741BEF49053949BB /* CalendarMeetingProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarMeetingProvider.swift; sourceTree = "<group>"; };
+		5DD2D036086B6E11E071AAAA /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		5DF772ACFB8E08E87C1F7ACC /* BrowserAudioNativeHostInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserAudioNativeHostInstaller.swift; sourceTree = "<group>"; };
 		5E6249A0D26B5CD320F8C723 /* RecordingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCoordinator.swift; sourceTree = "<group>"; };
 		5FAB3F57796BF311BA156BB0 /* FileTaskRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileTaskRepositoryTests.swift; sourceTree = "<group>"; };
@@ -456,6 +458,7 @@
 				6B7DF0F3F3C402B5074D6A5D /* Infrastructure */,
 				D9FEB7DF48295C9BB042B5FF /* Resources */,
 				5FDB587BE2F58F80A6E87898 /* Services */,
+				5DD2D036086B6E11E071AAAA /* AppIcon.icon */,
 				94F1B32B60432FBA9EC9A915 /* Assets.xcassets */,
 				6554E721A70985E1A9EB59D2 /* MeetingNotch-Bridging-Header.h */,
 				9879CB78B08613C4C1B77CF6 /* MeetingNotch.entitlements */,
@@ -1066,6 +1069,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A7580E3A06D702A74DAE80F7 /* AppIcon.icon in Resources */,
 				3216D93D73143D429B480F21 /* Assets.xcassets in Resources */,
 				E97F6770BC10EC977E552618 /* Geist-LICENSE.txt in Resources */,
 				46520E54CFC1A9090378251F /* Geist-Medium.ttf in Resources */,

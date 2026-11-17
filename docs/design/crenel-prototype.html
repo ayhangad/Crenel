@@ -44,7 +44,7 @@
         ink: { 1: '#f3f1ec', 2: '#aaa7a1', 3: '#76736e', 4: '#4c4a47', 5: '#2e2d2b' },
         signal: '#ffad33', // amber — waiting for you
         live: '#ff5a47',   // red — live, error
-        ok: '#5fe0b4',     // phosphor green — ready, connected
+        ok: '#34e6cb',     // phosphor teal — ready, connected (the app icon's colour)
       },
     } },
   }
@@ -90,23 +90,26 @@
 
     /* ── Lit things glow a little; unlit instrument parts stay visible as ghosts (6–9%). */
     .glow { text-shadow: 0 0 10px color-mix(in srgb, currentColor 45%, transparent); }
+    /* Two-layer bloom: a tight core glow and a wide, faint spill — like a lit segment behind glass. */
     .segd { display: inline-block; line-height: 0; vertical-align: -.08em; }
-    .segd svg { overflow: visible; filter: drop-shadow(0 0 3px color-mix(in srgb, currentColor 45%, transparent)); }
+    .segd svg { overflow: visible; filter: drop-shadow(0 0 1.5px color-mix(in srgb, currentColor 60%, transparent)) drop-shadow(0 0 7px color-mix(in srgb, currentColor 24%, transparent)); }
     .segd .g { opacity: .075; }
     .gauge svg { overflow: visible; }
-    .gauge .on { filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 60%, transparent)); }
+    .gauge .lit { filter: drop-shadow(0 0 1.6px color-mix(in srgb, currentColor 70%, transparent)); }
+    .gauge .head { stroke: color-mix(in srgb, currentColor 55%, white); filter: drop-shadow(0 0 2px currentColor) drop-shadow(0 0 6px color-mix(in srgb, currentColor 60%, transparent)); }
     .gauge .g { opacity: .13; }
+    .gauge .halo { opacity: .2; }
     .bleed { position: relative; }
     .bleed::before { content: ''; position: absolute; inset: -30px; pointer-events: none; border-radius: 50%;
-      background: radial-gradient(closest-side, color-mix(in srgb, currentColor 9%, transparent), transparent); }
+      background: radial-gradient(closest-side, color-mix(in srgb, currentColor 10%, transparent), color-mix(in srgb, currentColor 3%, transparent) 60%, transparent); }
 
-    /* Lamps: the one way to show state. 8×4 telltale; dot for "live". */
-    .lamp { @apply inline-block flex-none w-2 h-1 rounded-[2px]; background: rgba(255,255,255,.09); }
+    /* Lamps: the one way to show state. 8×4 telltale; dot for "live". A lit lamp has a hot core and a wide spill. */
+    .lamp { @apply inline-block flex-none w-2 h-1 rounded-[2px]; background: rgba(255,255,255,.09); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.05); }
     .lamp.dot { @apply w-[7px] h-[7px] rounded-full; }
-    .lamp.on-w { background: #f3f1ec; box-shadow: 0 0 6px rgba(243,241,236,.55); }
-    .lamp.on-a { background: #ffad33; box-shadow: 0 0 7px rgba(255,173,51,.6); }
-    .lamp.on-r { background: #ff5a47; box-shadow: 0 0 7px rgba(255,90,71,.65); }
-    .lamp.on-g { background: #5fe0b4; box-shadow: 0 0 7px rgba(95,224,180,.55); }
+    .lamp.on-w { background: radial-gradient(ellipse 70% 80% at 50% 45%, #fff, #f3f1ec 70%); box-shadow: 0 0 5px rgba(243,241,236,.6), 0 0 14px rgba(243,241,236,.16); }
+    .lamp.on-a { background: radial-gradient(ellipse 70% 80% at 50% 45%, #ffe2b3, #ffad33 72%); box-shadow: 0 0 6px rgba(255,173,51,.7), 0 0 16px rgba(255,173,51,.22); }
+    .lamp.on-r { background: radial-gradient(ellipse 70% 80% at 50% 45%, #ffc2b8, #ff5a47 72%); box-shadow: 0 0 6px rgba(255,90,71,.75), 0 0 16px rgba(255,90,71,.24); }
+    .lamp.on-g { background: radial-gradient(ellipse 70% 80% at 50% 45%, #b9fff3, #34e6cb 72%); box-shadow: 0 0 6px rgba(52,230,203,.65), 0 0 16px rgba(52,230,203,.2); }
     .lamp.on-d { background: #76736e; }
     .lamp.fire { animation: lampon .5s ease-out both; }
     .cells { @apply inline-flex gap-[3px] items-center; }
@@ -137,18 +140,52 @@
     .l2 { @apply flex items-center gap-1.5 t-meta min-w-0; }
     .sep { @apply text-ink-4; }
 
-    /* ── Buttons: one primary per surface, with its key. */
-    .btn { @apply inline-flex items-center justify-center gap-1.5 h-7 px-3 rounded-[8px] t-label whitespace-nowrap transition-colors duration-150; }
-    .btn.sm { @apply h-[26px] px-2.5; }
-    .btn-primary { @apply btn bg-ink-1 text-black hover:bg-white active:bg-ink-2; }
+    /* ── Buttons. Keys you press, not words you click.
+       Primary: the lit key — one per surface, always rightmost, always with its keycap.
+       Secondary: a raised key in the dark — hairline ring, top highlight, drop to the surface.
+       Danger: a secondary key with red ink; never next to the primary.
+       Ghost: text-only, only for tertiary navigation inside lists. */
+    .btn { @apply relative inline-flex items-center justify-center gap-1.5 h-7 px-3 rounded-[8px] t-label whitespace-nowrap select-none;
+      transition: background .15s, box-shadow .15s, color .15s, transform .08s; }
+    .btn:active { transform: translateY(.5px); }
+    .btn.sm { @apply h-[26px] px-2.5 gap-[5px]; }
+    .btn.xs { @apply h-[22px] pl-[7px] pr-2 gap-1 rounded-[6px]; font-size: 11.5px; }
+    .btn.lg { @apply h-8 px-3.5 rounded-[9px]; }
+    .btn-primary { @apply btn; color: #0b0b0a; background: linear-gradient(180deg, #fdfcf9, #e2dfd8);
+      box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(0,0,0,.14), 0 0 0 .5px rgba(0,0,0,.7), 0 1px 3px rgba(0,0,0,.5), 0 0 16px rgba(243,241,236,.09); }
+    .btn-primary:hover { background: linear-gradient(180deg, #fff, #ebe8e2); }
+    .btn-primary:active { background: linear-gradient(180deg, #d9d5cd, #e6e3dc); box-shadow: inset 0 1px 2px rgba(0,0,0,.22), 0 0 0 .5px rgba(0,0,0,.7); }
+    .btn-primary > svg { color: #0b0b0a; }
+    .btn-secondary, .btn-quiet, .btn-danger, .btn-red { @apply btn text-ink-1;
+      background: linear-gradient(180deg, rgba(255,255,255,.088), rgba(255,255,255,.046));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.075), 0 1px 2px rgba(0,0,0,.45); }
+    .btn-secondary:hover, .btn-quiet:hover, .btn-danger:hover, .btn-red:hover { background: linear-gradient(180deg, rgba(255,255,255,.125), rgba(255,255,255,.07)); }
+    .btn-secondary:active, .btn-quiet:active, .btn-danger:active, .btn-red:active { background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), inset 0 1px 2px rgba(0,0,0,.55); }
+    .btn-secondary > svg, .btn-quiet > svg { @apply text-ink-2; }
+    .btn-danger, .btn-red { color: #ff6b59; }
     .btn-ghost { @apply btn text-ink-2 hover:text-ink-1 hover:bg-white/[.06] active:bg-white/[.1]; }
-    .btn-quiet { @apply btn text-ink-1 bg-white/[.07] hover:bg-white/[.11]; }
-    .btn-red { @apply btn text-live hover:bg-white/[.06]; }
     .btn-icon { @apply relative inline-flex items-center justify-center w-7 h-7 rounded-[8px] text-ink-3 hover:text-ink-1 hover:bg-white/[.06] transition-colors; }
     .btn-icon.on { @apply text-ink-1; }
     .btn-icon.on::after { content: ''; @apply absolute bottom-[1px] left-1/2 -translate-x-1/2 w-2 h-[2px] rounded-full bg-ink-1; box-shadow: 0 0 6px rgba(243,241,236,.6); }
-    .kbd { @apply ml-0.5 text-[11px] font-medium opacity-50; }
+    .btn-icon.framed { @apply text-ink-2 hover:text-ink-1; background: linear-gradient(180deg, rgba(255,255,255,.088), rgba(255,255,255,.046));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.075), 0 1px 2px rgba(0,0,0,.45); }
+    .btn-icon.framed.sm { @apply w-[26px] h-[26px]; }
+    /* Keycap: the shortcut, drawn as a key. */
+    .kbd { @apply inline-flex items-center justify-center h-4 min-w-[16px] px-1 ml-1 -mr-[3px] rounded-[4px] font-medium leading-none; font-size: 10.5px;
+      color: #76736e; background: rgba(255,255,255,.055); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.5); }
+    .btn-primary .kbd { color: rgba(0,0,0,.5); background: rgba(0,0,0,.06); box-shadow: inset 0 0 0 .5px rgba(0,0,0,.12), inset 0 -1px 0 rgba(0,0,0,.14); }
+    .btn.sm .kbd, .btn.xs .kbd { @apply h-[15px] min-w-[15px]; font-size: 10px; }
     .dis { @apply opacity-40 pointer-events-none; }
+    /* Action bar: what is happening on the left, what you can do on the right. */
+    .actions { @apply flex items-center gap-2; }
+    .actions > .note { @apply flex-1 min-w-0 flex items-center gap-2.5 t-meta text-ink-2 truncate; }
+    .console { @apply flex items-center gap-2 h-11 pl-3.5 pr-[7px] rounded-[13px];
+      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.025)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+    .console > .note { @apply flex-1 min-w-0 flex items-center gap-2.5 t-meta text-ink-2; }
+    .console > .note > span:last-child { @apply truncate; }
+    /* Well: a recessed display window — where instruments live. */
+    .well { @apply relative rounded-[12px]; background: linear-gradient(180deg, #050505, #0a0a09);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.045), 0 1px 0 rgba(255,255,255,.035); }
     /* Push knobs: round, ringed, for the controls you press during a call. */
     .knob { @apply relative inline-flex items-center justify-center w-10 h-10 rounded-full text-ink-1 transition-colors;
       background: radial-gradient(circle at 50% 35%, rgba(255,255,255,.1), rgba(255,255,255,.035) 70%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), inset 0 1px 0 rgba(255,255,255,.08); }
@@ -173,7 +210,7 @@
     .vu { @apply flex gap-[2px] flex-1 items-center; }
     .vu > i { @apply block flex-1 h-[7px] rounded-[1.5px]; background: rgba(255,255,255,.07); transition: background .08s; }
     .vu > i.red { background: rgba(255,90,71,.12); }
-    .vu > i.on { background: #f3f1ec; }
+    .vu > i.on { background: #f3f1ec; box-shadow: 0 0 4px rgba(243,241,236,.3); }
     .vu > i.red.on { background: #ff5a47; box-shadow: 0 0 6px rgba(255,90,71,.6); }
     .vu > i.pk { background: #f3f1ec; box-shadow: 0 0 6px rgba(243,241,236,.7); }
     .vu.off > i { background: rgba(255,255,255,.05) !important; box-shadow: none !important; }
@@ -204,6 +241,14 @@
     .ruler .now { @apply absolute top-[1px] w-px h-[26px] bg-signal; box-shadow: 0 0 6px rgba(255,173,51,.8); }
     .ruler .now::before { content: ''; @apply absolute -top-[1px] -left-[2.5px] w-[6px] h-[3px] rounded-[1px] bg-signal; }
     .ruler .past-mask { @apply absolute left-0 top-[4px] h-[10px]; background: linear-gradient(90deg, rgba(0,0,0,.72), rgba(0,0,0,.5)); }
+    /* Wide ruler (desktop): event names ride under their blocks. */
+    .ruler.wide { @apply h-[62px] mx-0; }
+    .ruler.wide .ev { @apply h-[7px]; }
+    .ruler.wide .evl { @apply absolute top-[17px] t-micro whitespace-nowrap overflow-hidden text-ellipsis; color: #76736e; }
+    .ruler.wide .evl.focus { color: #f3f1ec; } .ruler.wide .evl.amber, .ruler.wide .evl.invite { color: #ffad33; }
+    .ruler.wide .tk { top: 36px; } .ruler.wide .lb { top: 47px; }
+    .ruler.wide .now { height: 42px; }
+    .ruler.wide .ev.past, .ruler.wide .evl.past { opacity: .35; }
 
     /* ── Notch. */
     #nwrap { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 30; --rt: 6px; --rb: 10px; transition: --rt .45s, --rb .45s; }
@@ -228,6 +273,7 @@
     .peek > .ears { width: 100%; }
     .strip { @apply relative flex items-center gap-2.5 h-[38px] mx-2 pl-[10px] pr-1.5 rounded-[12px]; background: rgba(255,255,255,.055); }
     .strip .t-body { @apply text-ink-1; }
+    .strip > span { white-space: nowrap; }
     .stream { @apply flex-1 min-w-0 flex justify-end overflow-hidden whitespace-nowrap t-body text-ink-1;
       mask-image: linear-gradient(90deg, transparent, #000 22%); }
     .caret { @apply inline-block w-[7px] h-[14px] ml-[3px] -mb-[2px] bg-ink-1 rounded-[1px]; animation: caret 1s steps(1) infinite; box-shadow: 0 0 6px rgba(243,241,236,.6); }
@@ -244,13 +290,59 @@
     .lights { @apply absolute top-3.5 left-3.5 flex gap-2 z-10; }
     .lights > i { @apply block w-3 h-3 rounded-full bg-white/15; }
     .lights > i:first-child { @apply bg-[#ff5f57]; }
-    .sidebar { @apply w-[212px] flex-none flex flex-col gap-6 px-3 pb-4; background: #090908; }
-    .sb-item { @apply relative flex items-center gap-3 h-9 px-[10px] rounded-[10px] t-label text-ink-2 hover:bg-white/[.05] transition-colors; }
-    .sb-item svg { @apply text-ink-3; }
-    .sb-item.on { @apply bg-white/[.08] text-ink-1; }
-    .sb-item.on svg { @apply text-ink-1; }
-    .page-title { @apply text-[22px] font-semibold text-ink-1; letter-spacing: -.015em; }
-    .sgroup { @apply flex flex-col max-w-[620px]; }
+    .sidebar { @apply w-[224px] flex-none flex flex-col px-3 pb-3; background: #080807; box-shadow: inset -1px 0 0 rgba(255,255,255,.035); }
+    .brand { @apply flex items-center gap-2.5 pl-1.5 pr-2 pt-[50px] pb-5; }
+    .app-tile { @apply relative w-[26px] h-[26px] rounded-[7px] flex items-center justify-center flex-none; color: #14f0d4;
+      background: linear-gradient(160deg, #161616, #040404); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.12), inset 0 1px 0 rgba(255,255,255,.06), 0 1px 3px rgba(0,0,0,.7); }
+    .app-tile svg { filter: drop-shadow(0 0 2.5px rgba(20,240,212,.6)); }
+    /* Rail: a vertical list whose selection lamp slides between items. */
+    .rail { @apply relative flex flex-col gap-[2px]; }
+    .rail-lamp { @apply absolute left-0 w-[3px] h-0 rounded-full bg-ink-1 pointer-events-none z-[2]; opacity: 0;
+      box-shadow: 0 0 6px rgba(243,241,236,.75), 0 0 14px rgba(243,241,236,.22); transition: top .34s cubic-bezier(.3,1.2,.4,1), height .34s, opacity .2s; }
+    .sb-item { @apply relative flex items-center gap-3 h-[34px] pl-3 pr-2.5 rounded-[9px] t-label text-ink-2 hover:bg-white/[.04] transition-colors; }
+    .sb-item > svg { @apply text-ink-3 transition-colors; }
+    .sb-item.on { @apply text-ink-1; background: linear-gradient(90deg, rgba(255,255,255,.075), rgba(255,255,255,.04)); }
+    .sb-item.on > svg { @apply text-ink-1; }
+    .sb-read { @apply t-meta text-ink-4; }
+    .sb-item.on .sb-read { @apply text-ink-3; }
+    .sys { @apply flex flex-col gap-2.5 p-3; }
+    .sys-i { @apply flex items-center gap-2 t-meta text-ink-2 hover:text-ink-1; }
+    .page-title { @apply text-[17px] font-semibold text-ink-1; letter-spacing: -.012em; }
+    .tb { @apply flex-none flex items-center gap-2 h-[60px] pl-6 pr-4; }
+    .search { @apply h-[30px] flex items-center gap-2 pl-[10px] pr-[5px] rounded-[9px] bg-white/[.045] focus-within:bg-white/[.075] transition-colors;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), inset 0 1px 1px rgba(0,0,0,.3); }
+    .search > svg { @apply ico-s text-ink-3; }
+    .search > input { @apply flex-1 min-w-0 bg-transparent outline-none t-label text-ink-1 placeholder:text-ink-3; }
+    /* Panels: raised a hair off the window floor. Sheet: the detail page, one layer up. */
+    .panel { @apply relative rounded-[16px]; background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.018)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), inset 0 1px 0 rgba(255,255,255,.035); }
+    .sheet { @apply relative rounded-[14px] overflow-hidden; background: #121211; box-shadow: inset 0 0 0 1px rgba(255,255,255,.055), inset 0 1px 0 rgba(255,255,255,.04), 0 10px 30px rgba(0,0,0,.35); }
+    .tile { @apply relative flex flex-col gap-3 p-4 rounded-[16px] min-h-[196px] transition-[background] duration-200; background: linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.018)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05), inset 0 1px 0 rgba(255,255,255,.035); }
+    .tile:hover { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.026)); }
+    .tile-h { @apply flex items-center gap-2 t-label text-ink-2; }
+    .tile-h > svg { @apply text-ink-3; }
+    .chip-s { @apply inline-flex items-center gap-1.5 h-6 px-2 rounded-[7px] t-meta text-ink-2; background: rgba(255,255,255,.045); box-shadow: inset 0 0 0 1px rgba(255,255,255,.04); }
+    .chip-s > svg { @apply ico-xs text-ink-3; }
+    .faces { @apply inline-flex; }
+    .faces > i { @apply not-italic flex items-center justify-center w-[22px] h-[22px] -ml-1.5 first:ml-0 rounded-full text-[10px] font-semibold text-ink-2; background: #1b1b1a; box-shadow: 0 0 0 2px #121211, inset 0 0 0 1px rgba(255,255,255,.08); }
+    .mrow.sel { background: rgba(255,255,255,.06); }
+    .mrow.sel::before { content: ''; @apply absolute left-[3px] top-[14px] w-[3px] h-[22px] rounded-full bg-ink-1; box-shadow: 0 0 6px rgba(243,241,236,.7); }
+    .lane { @apply flex h-[3px] gap-[2px]; }
+    /* LED stack: a bar graph made of cells — the week meter. */
+    .stack { @apply flex flex-col gap-[3px]; }
+    .stack > i { @apply block w-[18px] h-[3px] rounded-[1px]; background: rgba(255,255,255,.07); }
+    .stack > i.on { background: #f3f1ec; box-shadow: 0 0 5px rgba(243,241,236,.45); }
+    .stack.dim > i.on { background: #76736e; box-shadow: none; }
+    .stack.sm { gap: 2px; } .stack.sm > i { width: 10px; height: 2px; }
+    .lane > i { @apply block h-full rounded-[1px]; }
+    .kv { @apply flex items-baseline justify-between gap-3 py-[5px] t-meta; }
+    .kv > b { @apply font-normal text-ink-2 text-right; }
+    .ph { @apply flex items-center gap-4 pt-1 pb-1; }
+    .ph-icon { @apply w-10 h-10 flex-none rounded-[11px] flex items-center justify-center text-ink-1;
+      background: linear-gradient(160deg, rgba(255,255,255,.09), rgba(255,255,255,.03)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.07), 0 1px 3px rgba(0,0,0,.5); }
+    .keycap { @apply relative flex flex-col justify-between w-[76px] h-[72px] p-2.5 rounded-[14px] flex-none text-ink-1;
+      background: linear-gradient(180deg, #232321, #161615); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), inset 0 0 0 1px rgba(255,255,255,.06), 0 4px 0 #050505, 0 5px 12px rgba(0,0,0,.6); }
+    .sgroup { @apply flex flex-col p-1.5 rounded-[14px]; background: rgba(255,255,255,.022); box-shadow: inset 0 0 0 1px rgba(255,255,255,.045); }
+    .sgroup > .group-h { @apply pt-[7px]; }
     .srow { @apply flex items-center gap-3 px-[10px] min-h-[50px]; }
     .srow > svg:first-child { @apply ico text-ink-3; }
     .srow > .ng { @apply w-4 flex-none; }
@@ -264,7 +356,7 @@
     /* Status words carry their lamp. */
     .ok-t, .warn-t, .err-t, .dim-t { @apply inline-flex items-center gap-2 t-label text-ink-2; }
     .ok-t::before, .warn-t::before, .err-t::before, .dim-t::before { content: ''; @apply block w-2 h-1 rounded-[2px]; }
-    .ok-t::before { background: #5fe0b4; box-shadow: 0 0 7px rgba(95,224,180,.55); }
+    .ok-t::before { background: #34e6cb; box-shadow: 0 0 7px rgba(52,230,203,.55); }
     .warn-t::before { background: #ffad33; box-shadow: 0 0 7px rgba(255,173,51,.6); }
     .err-t::before { background: #ff5a47; box-shadow: 0 0 7px rgba(255,90,71,.6); }
     .dim-t::before { background: rgba(255,255,255,.12); }
@@ -272,7 +364,7 @@
     /* Switch: a knob with a lamp in it. */
     .toggle { @apply relative inline-block w-8 h-[18px] rounded-full flex-none transition-colors; background: rgba(255,255,255,.1); }
     .toggle::after { content: ''; @apply absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-ink-2 transition-all duration-200; }
-    .toggle::before { content: ''; @apply absolute top-[7px] left-[7px] w-1 h-1 rounded-full z-10 transition-all duration-200 opacity-0; background: #5fe0b4; box-shadow: 0 0 5px #5fe0b4; }
+    .toggle::before { content: ''; @apply absolute top-[7px] left-[7px] w-1 h-1 rounded-full z-10 transition-all duration-200 opacity-0; background: #34e6cb; box-shadow: 0 0 5px #34e6cb; }
     .toggle.on { @apply bg-ink-1; }
     .toggle.on::after { @apply left-4 bg-black; }
     .toggle.on::before { @apply left-[21px] opacity-100; }
@@ -344,6 +436,12 @@
   <symbol id="i-archive" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.75" y="2.75" width="12.5" height="3.5" rx="1"/><path d="M2.75 6.25v6a1 1 0 0 0 1 1h8.5a1 1 0 0 0 1-1v-6M6.5 9h3"/></symbol>
   <symbol id="i-accessibility" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="2.75" r="1.1" fill="currentColor" stroke="none"/><path d="M2.75 5.5h10.5M8 5.5v4M8 9.5l-2.5 4.75M8 9.5l2.5 4.75"/></symbol>
   <symbol id="i-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="2.75"/><path d="M8 1.75v1M8 13.25v1M1.75 8h1M13.25 8h1M3.6 3.6l.7.7M11.7 11.7l.7.7M3.6 12.4l.7-.7M11.7 4.3l.7-.7"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.4 12.6a6.25 6.25 0 1 1 9.2 0"/><path d="M8 9l2.6-2.6"/><circle cx="8" cy="9" r="1.35" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.5"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.25"/><path d="M1.75 8h12.5M8 1.75c1.7 1.75 2.5 3.85 2.5 6.25S9.7 12.5 8 14.25C6.3 12.5 5.5 10.4 5.5 8S6.3 3.5 8 1.75z"/></symbol>
+  <symbol id="i-share" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2.25M5.25 5L8 2.25 10.75 5M4.5 7.25h-.75a1.5 1.5 0 0 0-1.5 1.5v3.5a1.5 1.5 0 0 0 1.5 1.5h8.5a1.5 1.5 0 0 0 1.5-1.5v-3.5a1.5 1.5 0 0 0-1.5-1.5h-.75"/></symbol>
+  <!-- The mark: six lamps in a crenel (the app icon's glyph). Opacity per lamp is part of the mark. -->
+  <symbol id="i-mark" viewBox="0 0 472 296"><g fill="currentColor"><rect opacity=".7" x="59" width="118" height="119"/><rect opacity=".76" y="119" width="118" height="118"/><rect opacity=".5" x="118" y="178" width="118" height="118"/><rect opacity=".65" x="236" y="178" width="118" height="118"/><rect opacity=".56" x="295" width="118" height="119"/><rect x="354" y="119" width="118" height="118"/></g></symbol>
   <symbol id="i-logo" viewBox="0 0 24 24"><path fill="currentColor" d="M8 6.5H7.5Q8.5 6.5 8.5 7.5V8.7Q8.5 9.7 9.5 9.7H14.5Q15.5 9.7 15.5 8.7V7.5Q15.5 6.5 16.5 6.5H16A5.5 5.5 0 0 1 21.5 12A5.5 5.5 0 0 1 16 17.5H8A5.5 5.5 0 0 1 2.5 12A5.5 5.5 0 0 1 8 6.5Z"/></symbol>
 
   <!-- Task marks: fill level says the state; never a tick. -->
@@ -370,7 +468,7 @@
   <!-- ═══ RIGHT MENU: every screen and state ═══ -->
   <aside id="menu" class="w-[300px] flex-none flex flex-col border-l border-white/5 bg-[#0c0c0d]">
     <div class="px-4 pt-5 pb-3 border-b border-white/5">
-      <div class="flex items-center gap-2"><svg class="w-5 h-5"><use href="#i-logo"/></svg><span class="font-semibold text-[14px]">Crenel prototype</span></div>
+      <div class="flex items-center gap-2.5"><span class="app-tile"><svg class="w-[16px] h-[10px]"><use href="#i-mark"/></svg></span><span class="font-semibold text-[14px]">Crenel prototype</span></div>
       <input id="msearch" class="mt-3 w-full h-8 px-3 rounded-md bg-white/5 text-[12.5px] outline-none placeholder:text-white/30 focus:bg-white/10" placeholder="Search states…">
       <div class="flex flex-col gap-1.5 mt-3 text-[11.5px] text-white/50">
         <label class="flex items-center gap-2"><input id="optAuto" type="checkbox" checked class="accent-white"> Notch closes when the pointer leaves</label>
@@ -428,22 +526,22 @@
     <div class="ears"><div class="ear l"><svg class="ico-s text-signal"><use href="#i-video"/></svg><span class="ear-t text-ink-1">Design review</span></div><div></div>
       <div class="ear r"><span class="flex items-baseline text-signal"><span class="segd" data-seg="0" data-cells="2" data-h="13"></span><span class="unit !text-signal/70">min</span></span></div></div>
     <div class="strip"><span class="t-body">Starting now</span><span class="t-meta">Google Meet · Deniz, Ece</span><span class="flex-1"></span>
-      <button class="btn-ghost sm" data-go="c-meeting-live">Later</button><button class="btn-primary sm" data-go="c-prompt-offer-meet" data-toast="Opens Google Meet">Join<span class="kbd">↩</span></button></div>
+      <button class="btn-secondary sm" data-go="c-meeting-live">Later<span class="kbd">esc</span></button><button class="btn-primary sm" data-go="c-prompt-offer-meet" data-toast="Opens Google Meet">Join<span class="kbd">↩</span></button></div>
   </div>
   <div class="peek" data-only="c-prompt-offer c-prompt-offer-meet">
     <div class="ears"><div class="ear l"><svg class="ico-s text-signal"><use href="#i-video"/></svg><span class="ear-t text-ink-1" data-only="c-prompt-offer">Zoom</span><span class="ear-t text-ink-1" data-only="c-prompt-offer-meet">Google Meet</span></div><div></div>
       <div class="ear r"><span class="lamp on-a blink"></span><span class="text-ink-1">On a call</span></div></div>
     <div class="strip"><span class="t-body">Record this call?</span><span class="t-meta" data-only="c-prompt-offer">Partner call</span><span class="t-meta" data-only="c-prompt-offer-meet">Design review</span><span class="flex-1"></span>
-      <button class="btn-ghost sm" data-go="c-meeting-live">Not now</button><button class="btn-primary sm" data-go="c-recording"><span class="lamp dot on-r"></span>Record<span class="kbd">↩</span></button></div>
+      <button class="btn-secondary sm" data-go="c-meeting-live">Not now<span class="kbd">esc</span></button><button class="btn-primary sm" data-go="c-recording"><span class="lamp dot on-r"></span>Record<span class="kbd">↩</span></button></div>
   </div>
   <div class="peek" data-only="c-prompt-ended">
     <div class="ears"><div class="ear l"><span class="lamp dot on-r pulse"></span><span class="segd text-ink-1" data-seg="48:12" data-elapsed="2892" data-h="13"></span></div><div></div><div class="ear r"><span class="ladder text-ink-1" data-ladder="6" data-quiet></span></div></div>
-    <div class="strip"><span class="t-body">The call seems to have ended</span><span class="flex-1"></span><button class="btn-ghost sm" data-go="c-recording">Keep</button><button class="btn-primary sm" data-go="c-proc-saving">Stop<span class="kbd">↩</span></button></div>
+    <div class="strip"><span class="t-body">The call seems to have ended</span><span class="flex-1"></span><button class="btn-secondary sm" data-go="c-recording">Keep<span class="kbd">esc</span></button><button class="btn-primary sm" data-go="c-proc-saving"><svg class="ico-xs"><use href="#i-stop"/></svg>Stop<span class="kbd">↩</span></button></div>
   </div>
   <div class="peek" data-only="c-prompt-autostop" data-fuse="1" data-fuse-to="0" data-fuse-dur="12" data-fuse-color="#ff5a47">
     <div class="ears"><div class="ear l"><span class="lamp dot on-r pulse"></span><span class="segd text-ink-1" data-seg="48:12" data-elapsed="2892" data-h="13"></span></div><div></div><div class="ear r"><span class="ladder text-ink-1" data-ladder="6" data-quiet></span></div></div>
-    <div class="strip"><span class="t-body">Meeting ended</span><span class="t-meta">stopping in</span><span class="flex items-baseline text-live"><span class="segd" data-seg="12" data-countdown="12" data-cells="2" data-h="13"></span><span class="unit !text-live/70">s</span></span><span class="flex-1"></span>
-      <button class="btn-ghost sm" data-go="c-recording">Keep recording</button><button class="btn-primary sm" data-go="c-proc-saving">Stop<span class="kbd">↩</span></button></div>
+    <div class="strip"><span class="t-body">Call ended</span><span class="t-meta">stops in</span><span class="flex items-baseline text-live"><span class="segd" data-seg="12" data-countdown="12" data-cells="2" data-h="13"></span><span class="unit !text-live/70">s</span></span><span class="flex-1"></span>
+      <button class="btn-secondary sm" data-go="c-recording">Keep<span class="kbd">esc</span></button><button class="btn-primary sm" data-go="c-proc-saving"><svg class="ico-xs"><use href="#i-stop"/></svg>Stop<span class="kbd">↩</span></button></div>
   </div>
 
   <!-- Dictation: what you say appears under the notch as you say it. -->
@@ -457,21 +555,21 @@
   </div>
   <div class="peek" data-only="c-dict-inserted">
     <div class="ears"><div class="ear l"><svg class="ico-s text-ink-2"><use href="#i-mic"/></svg><span>Inserted</span></div><div></div><div class="ear r"><span class="lamp on-g"></span><span class="text-ink-1">Notes</span></div></div>
-    <div class="strip"><div class="stream"><span>Let’s move the design review to Thursday afternoon, and send Deniz the new onboarding copy before then.</span></div><button class="btn-ghost sm" data-go="c-meeting-later" data-toast="Removed from Notes">Undo<span class="kbd">⌘Z</span></button></div>
+    <div class="strip"><div class="stream"><span>Let’s move the design review to Thursday afternoon, and send Deniz the new onboarding copy before then.</span></div><button class="btn-secondary sm" data-go="c-meeting-later" data-toast="Removed from Notes">Undo<span class="kbd">⌘Z</span></button></div>
   </div>
   <div class="peek" data-only="c-dict-failed">
     <div class="ears"><div class="ear l"><svg class="ico-s text-live"><use href="#i-mic"/></svg><span class="text-ink-1">Can’t hear you</span></div><div></div><div class="ear r"><span class="lamp on-r"></span></div></div>
-    <div class="strip"><span class="t-body">Crenel needs the microphone</span><span class="flex-1"></span><button class="btn-quiet sm" data-go="s-dictation-perms">Open settings</button></div>
+    <div class="strip"><span class="t-body">Crenel needs the microphone</span><span class="flex-1"></span><button class="btn-secondary sm" data-go="s-dictation-perms"><svg class="ico-xs"><use href="#i-sliders"/></svg>Settings</button></div>
   </div>
 
   <!-- Results -->
   <div class="peek" data-only="c-ready">
     <div class="ears"><div class="ear l"><svg class="ico-s text-ink-1"><use href="#i-transcript"/></svg><span class="ear-t text-ink-1">Design review</span></div><div></div><div class="ear r"><span class="lamp on-g"></span><span class="text-ink-1">Ready</span></div></div>
-    <div class="strip"><span class="t-body">Notes and 3 action items</span><span class="t-meta">48 min</span><span class="flex-1"></span><button class="btn-primary sm" data-go="o-detail">Open<span class="kbd">↩</span></button></div>
+    <div class="strip"><span class="t-body">Notes and 3 action items</span><span class="t-meta">48 min</span><span class="flex-1"></span><button class="btn-secondary sm" data-go="c-meeting-later">Later<span class="kbd">esc</span></button><button class="btn-primary sm" data-go="o-detail">Open<span class="kbd">↩</span></button></div>
   </div>
   <div class="peek" data-only="c-failed">
     <div class="ears"><div class="ear l"><svg class="ico-s text-live"><use href="#i-transcript"/></svg><span class="ear-t text-ink-1">Design review</span></div><div></div><div class="ear r"><span class="lamp on-r"></span><span class="text-ink-1">Failed</span></div></div>
-    <div class="strip"><span class="t-body">Couldn’t reach transcription</span><span class="t-meta">audio is saved</span><span class="flex-1"></span><button class="btn-quiet sm" data-go="c-proc-uploading">Retry</button></div>
+    <div class="strip"><span class="t-body">Couldn’t reach transcription</span><span class="t-meta">audio is saved</span><span class="flex-1"></span><button class="btn-primary sm" data-go="c-proc-uploading">Retry<span class="kbd">↩</span></button></div>
   </div>
 </template>
 
@@ -499,10 +597,6 @@
 <template id="tpl-today">
   <div data-include="tpl-band"></div>
   <div data-stagger class="flex flex-col">
-    <!-- Google Meet bridge: one line, with a lamp -->
-    <div data-only="o-today-meet-waiting" class="flex items-center gap-3 px-[10px] h-8 mb-1"><span class="lamp on-a blink"></span><span class="t-meta text-ink-2">Click the Crenel extension in the call tab to record Meet audio</span></div>
-    <div data-only="o-today-meet-unavailable" class="flex items-center gap-3 px-[10px] h-8 mb-1"><span class="lamp on-r"></span><span class="t-meta text-ink-2">Meet audio bridge unavailable — recording won’t start</span></div>
-
     <!-- Hero: next event as one instrument. Gauge = the last hour, one tick per minute. -->
     <div data-not="o-today-empty*" class="hero" data-toast="Opens the Google Meet link" data-menu="menu-event">
       <div class="gauge-box bleed text-ink-1" data-only="o-today">
@@ -525,11 +619,16 @@
         <span class="t-hero truncate">Design review</span>
         <div class="l2"><span data-only="o-today">14:30 – 15:15</span><span data-only="o-today-hour">11:15 – 12:00</span><span data-only="o-today-urgent o-today-meet-*">10:50 – 11:30</span><span data-only="o-today-live">10:00 – 11:00</span><span class="sep">·</span><span>Google Meet</span></div>
         <div class="l2"><svg class="ico-xs text-ink-4"><use href="#i-people"/></svg><span>Deniz, Ece and 2 others</span></div>
-        <div class="flex gap-1 mt-2.5" data-only="o-today-urgent o-today-live o-today-meet-*">
-          <button class="btn-primary sm" data-toast="Opens Google Meet">Join<span class="kbd">⌘J</span></button>
-          <button class="btn-ghost sm" data-go="o-recording"><span class="lamp dot"></span>Record</button>
-        </div>
       </div>
+    </div>
+    <!-- Console: only when the call is near or on. State on the left, the call's two actions on the right. -->
+    <div class="console mx-0.5 mb-3" data-only="o-today-urgent o-today-live o-today-meet-*">
+      <span class="note" data-only="o-today-urgent"><span class="lamp on-g"></span><span>Crenel will ask to record when it starts</span></span>
+      <span class="note" data-only="o-today-live"><span class="lamp"></span><span>Not being recorded</span></span>
+      <span class="note" data-only="o-today-meet-waiting"><span class="lamp on-a blink"></span><span>Click Crenel in the Meet tab</span></span>
+      <span class="note" data-only="o-today-meet-unavailable"><span class="lamp on-r"></span><span>Meet audio bridge unavailable</span></span>
+      <button class="btn-secondary sm" data-go="o-recording" data-not="o-today-meet-unavailable"><span class="lamp dot on-r"></span>Record<span class="kbd">⌘R</span></button>
+      <button class="btn-primary sm" data-toast="Opens Google Meet">Join<span class="kbd">⌘J</span></button>
     </div>
 
     <!-- Day ruler: the shape of the day, 08–20, now as a needle -->
@@ -550,10 +649,10 @@
     </div>
 
     <!-- Empty states: one instrument at rest, one sentence, one fix -->
-    <div data-only="o-today-empty*" data-not="o-today-empty-nothing" class="flex items-center gap-4 pl-1.5 pr-[10px] py-2">
+    <div data-only="o-today-empty*" data-not="o-today-empty-nothing" class="flex items-center gap-4 pl-1.5 pr-1 py-2">
       <div class="gauge-box"><div class="gauge text-ink-1" data-gauge="0" data-size="104" data-ticks="60" data-major="15"></div>
         <div class="gauge-c"><span class="segd text-ink-1" data-seg="--:--" data-h="15"></span></div></div>
-      <div class="flex-1 flex flex-col gap-1.5 items-start">
+      <div class="flex-1 min-w-0 flex flex-col gap-1.5 items-start">
         <span class="t-title" data-only="o-today-empty-connect">Your calendar isn’t connected</span>
         <span class="t-title" data-only="o-today-empty-allow">Calendar access is off</span>
         <span class="t-title" data-only="o-today-empty-waiting">Waiting for calendar access</span>
@@ -564,13 +663,13 @@
         <span class="t-meta" data-only="o-today-empty-connect o-today-empty-allow o-today-empty-waiting">Meetings and their countdown appear here.</span>
         <span class="t-meta" data-only="o-today-empty-failed">Showing what was there at 10:12.</span>
         <span class="t-meta" data-only="o-today-empty-nocal">Add an account in Internet Accounts.</span>
-        <button class="btn-quiet sm mt-2" data-only="o-today-empty-connect" data-go="o-today-empty-waiting">Connect</button>
-        <button class="btn-quiet sm mt-2" data-only="o-today-empty-allow" data-toast="Opens Privacy &amp; Security › Calendars">Open settings</button>
-        <span class="mt-2 flex items-center gap-2 t-meta" data-only="o-today-empty-waiting o-today-empty-reading"><span class="lamp on-a blink"></span>System dialog is open</span>
-        <button class="btn-quiet sm mt-2" data-only="o-today-empty-failed" data-go="o-today">Try again</button>
-        <button class="btn-quiet sm mt-2" data-only="o-today-empty-off" data-go="s-calendar-connected">Turn on</button>
-        <button class="btn-quiet sm mt-2" data-only="o-today-empty-nocal" data-toast="Opens Internet Accounts">Internet Accounts</button>
+        <span class="mt-1.5 flex items-center gap-2 t-meta" data-only="o-today-empty-waiting o-today-empty-reading"><span class="lamp on-a blink"></span>System dialog is open</span>
       </div>
+      <button class="btn-primary sm" data-only="o-today-empty-connect" data-go="o-today-empty-waiting">Connect<span class="kbd">↩</span></button>
+      <button class="btn-secondary sm" data-only="o-today-empty-allow" data-toast="Opens Privacy &amp; Security › Calendars"><svg class="ico-xs"><use href="#i-link"/></svg>Privacy settings</button>
+      <button class="btn-secondary sm" data-only="o-today-empty-failed" data-go="o-today">Try again</button>
+      <button class="btn-secondary sm" data-only="o-today-empty-off" data-go="s-calendar-connected">Turn on</button>
+      <button class="btn-secondary sm" data-only="o-today-empty-nocal" data-toast="Opens Internet Accounts"><svg class="ico-xs"><use href="#i-link"/></svg>Accounts</button>
     </div>
     <div data-only="o-today-empty-nothing" class="flex items-center gap-3 px-[10px] pt-1 pb-2"><span class="lamp on-g"></span><span class="t-body text-ink-2">Nothing else today</span><span class="flex-1"></span><span class="t-meta">Weekly sync · Wed 10:00</span></div>
   </div>
@@ -630,18 +729,22 @@
         <span class="t-meta" data-only="o-proc-transcribing o-proc-summarizing">about 1 min</span>
         <div class="scanner" data-not="o-proc-uploading"></div>
       </div>
-      <div class="flex gap-1 mt-3 px-1" data-not="o-proc-saving"><button class="btn-ghost sm" data-go="a-stop-processing">Cancel</button></div>
+      <div class="actions mt-3 pl-[10px] pr-0.5">
+        <span class="note"><svg class="ico-xs text-ink-4"><use href="#i-shield"/></svg>The audio is already safe on this Mac</span>
+        <button class="btn-secondary sm" data-not="o-proc-saving" data-go="a-stop-processing">Stop<span class="kbd">esc</span></button>
+      </div>
     </div>
 
     <!-- Ready: three readouts, one way in -->
-    <div data-only="o-ready" class="flex flex-col gap-5 px-[10px] pt-1">
-      <div class="flex items-center gap-2"><span class="lamp on-g"></span><span class="t-title">Notes are ready</span><span class="t-meta">Design review</span></div>
-      <div class="grid grid-cols-3">
-        <div class="flex flex-col gap-2"><span class="segd text-ink-1" data-seg="48:12" data-h="20"></span><span class="t-meta">recorded</span></div>
-        <div class="flex flex-col gap-2"><span class="segd text-ink-1" data-seg="3" data-h="20"></span><span class="t-meta">speakers</span></div>
-        <div class="flex flex-col gap-2"><span class="segd text-signal" data-seg="3" data-h="20"></span><span class="t-meta">for you to do</span></div>
+    <div data-only="o-ready" class="flex flex-col gap-4 pt-1">
+      <div class="flex items-center gap-2.5 px-[10px]"><span class="lamp on-g"></span><span class="t-title">Notes are ready</span><span class="t-meta">Design review</span></div>
+      <!-- Three readouts in one recessed window -->
+      <div class="well grid grid-cols-3 mx-0.5 py-3.5">
+        <div class="flex flex-col gap-2 px-4"><span class="segd text-ink-1" data-seg="48:12" data-h="20"></span><span class="t-meta">recorded</span></div>
+        <div class="flex flex-col gap-2 px-4" style="box-shadow:-1px 0 0 rgba(255,255,255,.04)"><span class="segd text-ink-1" data-seg="3" data-h="20"></span><span class="t-meta">speakers</span></div>
+        <div class="flex flex-col gap-2 px-4" style="box-shadow:-1px 0 0 rgba(255,255,255,.04)"><span class="segd text-signal" data-seg="3" data-h="20"></span><span class="t-meta">for you to do</span></div>
       </div>
-      <div class="flex gap-1 -ml-1"><button class="btn-primary" data-go="o-detail">Open notes<span class="kbd">↩</span></button><button class="btn-ghost" data-go="o-today">Done</button></div>
+      <div class="actions pl-[10px] pr-0.5"><span class="note">Kept in Recordings</span><button class="btn-secondary" data-go="o-today">Done<span class="kbd">esc</span></button><button class="btn-primary" data-go="o-detail">Open notes<span class="kbd">↩</span></button></div>
     </div>
     <div data-only="o-failed o-failed-permission o-stopped" class="flex flex-col gap-4 px-[10px] pt-1">
       <div class="flex items-start gap-3">
@@ -655,10 +758,10 @@
           <span class="t-meta" data-only="o-stopped">The audio is kept. You can process it later from Recordings.</span>
         </div>
       </div>
-      <div class="flex gap-1 pl-[16px]">
-        <button class="btn-primary" data-only="o-failed" data-go="o-proc-uploading">Try again</button>
-        <button class="btn-ghost" data-only="o-failed-permission" data-toast="Opens System Settings › Privacy">System Settings</button><button class="btn-primary" data-only="o-failed-permission" data-go="o-today">Relaunch</button>
-        <button class="btn-ghost" data-only="o-stopped" data-go="o-today">Done</button>
+      <div class="actions justify-end pr-0.5">
+        <button class="btn-secondary" data-only="o-failed" data-go="o-history"><svg class="ico-xs"><use href="#i-tape"/></svg>Recordings</button><button class="btn-primary" data-only="o-failed" data-go="o-proc-uploading">Try again<span class="kbd">↩</span></button>
+        <button class="btn-secondary" data-only="o-failed-permission" data-toast="Opens System Settings › Privacy"><svg class="ico-xs"><use href="#i-link"/></svg>System Settings</button><button class="btn-primary" data-only="o-failed-permission" data-go="o-today">Relaunch<span class="kbd">↩</span></button>
+        <button class="btn-secondary" data-only="o-stopped" data-go="o-history"><svg class="ico-xs"><use href="#i-tape"/></svg>Recordings</button><button class="btn-primary" data-only="o-stopped" data-go="o-today">Done<span class="kbd">↩</span></button>
       </div>
     </div>
   </div>
@@ -668,21 +771,21 @@
 <template id="tpl-history">
   <div data-include="tpl-band"></div>
   <div data-stagger class="flex flex-col">
-    <div data-only="o-history-recovery" class="flex items-center gap-3 px-[10px] h-12 rounded-[12px] bg-white/[.05] mb-3">
+    <div data-only="o-history-recovery" class="console !h-[52px] gap-3 mb-3 !pr-1.5">
       <span class="lamp on-a"></span>
       <div class="flex flex-col gap-0.5"><span class="t-body">2 recordings recovered</span><span class="t-meta">1 kept in Recovery</span></div>
-      <span class="flex-1"></span><button class="btn-ghost sm" data-toast="Opens the Recovery folder">Show</button><button class="btn-icon" data-go="o-history"><svg class="ico-s"><use href="#i-close"/></svg></button>
+      <span class="flex-1"></span><button class="btn-secondary sm" data-toast="Opens the Recovery folder">Show in Finder</button><button class="btn-icon" data-go="o-history" title="Dismiss"><svg class="ico-s"><use href="#i-close"/></svg></button>
     </div>
     <!-- Week meter: minutes on tape, today lit -->
     <div data-not="o-history-empty" class="flex items-end gap-4 px-[10px] pb-3">
       <div class="flex flex-col gap-1.5"><span class="flex items-baseline"><span class="segd text-ink-1" data-seg="4:12" data-h="20"></span><span class="unit">h this week</span></span></div>
       <span class="flex-1"></span>
-      <div class="flex items-end gap-[5px] h-8">
-        <div class="flex flex-col items-center gap-1"><i class="block w-2 h-[14px] rounded-[2px] bg-ink-4"></i><span class="t-micro">M</span></div>
-        <div class="flex flex-col items-center gap-1"><i class="block w-2 h-[22px] rounded-[2px] bg-ink-1" style="box-shadow:0 0 6px rgba(243,241,236,.45)"></i><span class="t-micro !text-ink-2">T</span></div>
-        <div class="flex flex-col items-center gap-1"><i class="block w-2 h-[2px] rounded-[2px] bg-white/[.09]"></i><span class="t-micro">W</span></div>
-        <div class="flex flex-col items-center gap-1"><i class="block w-2 h-[2px] rounded-[2px] bg-white/[.09]"></i><span class="t-micro">T</span></div>
-        <div class="flex flex-col items-center gap-1"><i class="block w-2 h-[2px] rounded-[2px] bg-white/[.09]"></i><span class="t-micro">F</span></div>
+      <div class="flex items-end gap-[6px]">
+        <div class="flex flex-col items-center gap-1.5"><span class="stack sm dim"><i></i><i></i><i class=on></i><i class=on></i><i class=on></i><i class=on></i></span><span class="t-micro">M</span></div>
+        <div class="flex flex-col items-center gap-1.5"><span class="stack sm "><i class=on></i><i class=on></i><i class=on></i><i class=on></i><i class=on></i><i class=on></i></span><span class="t-micro !text-ink-2">T</span></div>
+        <div class="flex flex-col items-center gap-1.5"><span class="stack sm "><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="t-micro">W</span></div>
+        <div class="flex flex-col items-center gap-1.5"><span class="stack sm "><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="t-micro">T</span></div>
+        <div class="flex flex-col items-center gap-1.5"><span class="stack sm "><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="t-micro">F</span></div>
       </div>
     </div>
     <div data-not="o-history-empty" class="slide" data-slide>
@@ -702,7 +805,7 @@
 <!-- ═══ MEETING DETAIL (notch) ═══ -->
 <template id="tpl-detail">
   <div class="band"><div class="flex items-center"><button class="btn-icon -ml-1.5" data-go="o-history" title="Back to recordings"><svg class="ico"><use href="#i-chevron-left"/></svg></button><span class="t-label text-ink-3">Recordings</span></div><div></div>
-    <div class="band-r"><button class="btn-ghost sm" data-action="copied" data-not="o-detail-failed o-detail-queued o-detail-preparing o-detail-unreadable">Copy</button><button class="btn-icon" data-menu-click="menu-more" title="Export and actions"><svg class="ico"><use href="#i-more"/></svg></button></div></div>
+    <div class="band-r items-center gap-1"><button class="btn-secondary xs" data-action="copied" data-not="o-detail-failed o-detail-queued o-detail-preparing o-detail-unreadable"><svg class="ico-xs"><use href="#i-copy"/></svg>Copy</button><button class="btn-icon" data-menu-click="menu-more" title="Export and actions"><svg class="ico"><use href="#i-more"/></svg></button></div></div>
   <div data-stagger class="flex flex-col">
     <div class="flex flex-col gap-1 px-[10px] pt-1 pb-4"><span class="t-hero">Design review</span><span class="t-meta">Today 10:00 · 48 min · Deniz, Ece and you</span></div>
     <div data-include="tpl-detail-body"></div>
@@ -725,8 +828,8 @@
   </div>
 
   <div data-not="o-detail-failed o-detail-queued o-detail-preparing o-detail-unreadable">
-    <div data-only="o-detail-summaryfailed" class="flex items-center gap-3 px-[10px] mt-4 h-11 rounded-[10px] bg-white/[.04]"><span class="lamp on-a"></span><span class="t-meta text-ink-2 flex-1">No notes — the OpenAI key is missing</span><button class="btn-ghost sm" data-go="s-ai-auto">Add key</button></div>
-    <div class="group-h mt-4"><span class="flex-1">Summary</span><button class="btn-icon -mr-2" data-only="o-detail o-detail-rename d-*" data-toast="Writing new notes…" title="Write notes again"><svg class="ico-s"><use href="#i-spark"/></svg></button></div>
+    <div data-only="o-detail-summaryfailed" class="console mt-4"><span class="note"><span class="lamp on-a"></span><span>No notes — the OpenAI key is missing</span></span><button class="btn-secondary sm" data-go="s-ai-auto">Add key</button></div>
+    <div class="group-h mt-4 !h-8 items-center !pt-0"><span class="flex-1">Summary</span><button class="btn-secondary xs" data-only="o-detail o-detail-rename" data-toast="Writing new notes…" title="Write the notes again"><svg class="ico-xs"><use href="#i-spark"/></svg>Rewrite</button></div>
     <p data-only="o-detail-summaryfailed" class="px-[10px] pt-1 t-read text-ink-3">The transcript is ready; notes will appear once a model is set.</p>
     <div data-not="o-detail-summaryfailed">
       <p class="px-[10px] pt-1.5 t-read text-ink-1">The team agreed to ship the notch redesign behind a flag next week. Onboarding copy needs one more pass, and pricing stays unchanged until the beta closes.</p>
@@ -737,9 +840,9 @@
       </div>
       <div class="group-h mt-3">For you<span class="n">3</span></div>
       <div class="slide" data-slide>
-        <div class="trow !h-auto py-2.5 items-start"><button class="w-4 h-4 mt-[1px] flex items-center justify-center text-ink-2 hover:text-ink-1" data-action="add-item" title="Add to Tasks"><svg class="ico-s"><use href="#i-plus"/></svg></button><div class="flex-1 flex flex-col gap-[3px]"><span class="t-body">Check the dark and light appearance matrix</span><span class="t-meta">by Fri 20</span></div><span class="t-meta hover:text-ink-1" data-toast="Playing from 02:14">02:14</span></div>
-        <div class="trow !h-auto py-2.5 items-start"><span class="w-4 h-4 mt-[1px] flex items-center justify-center" title="In Tasks"><svg class="ico-s"><use href="#m-open"/></svg></span><div class="flex-1 flex flex-col gap-[3px]"><span class="t-body text-ink-2">Write onboarding copy</span><span class="t-meta">In Tasks</span></div><span class="t-meta hover:text-ink-1" data-toast="Playing from 18:40">18:40</span></div>
-        <div class="trow !h-auto py-2.5 items-start"><button class="w-4 h-4 mt-[1px] flex items-center justify-center text-ink-2 hover:text-ink-1" data-action="add-item" title="Add to Tasks"><svg class="ico-s"><use href="#i-plus"/></svg></button><div class="flex-1 flex flex-col gap-[3px]"><span class="t-body">Send the beta invite list</span><span class="t-meta">no date</span></div><span class="t-meta hover:text-ink-1" data-toast="Playing from 31:02">31:02</span></div>
+        <div class="trow !h-auto py-2.5 !items-start"><span class="t-micro !text-ink-3 pt-[4px] w-9 flex-none hover:!text-ink-1" data-toast="Playing from 02:14">02:14</span><div class="flex-1 flex flex-col gap-[3px]"><span class="t-body">Check the dark and light appearance matrix</span><span class="t-meta">by Fri 20</span></div><button class="btn-secondary xs" data-action="add-item" title="Add to Tasks"><svg class="ico-xs"><use href="#i-plus"/></svg>Add</button></div>
+        <div class="trow !h-auto py-2.5 !items-start"><span class="t-micro !text-ink-3 pt-[4px] w-9 flex-none hover:!text-ink-1" data-toast="Playing from 18:40">18:40</span><div class="flex-1 flex flex-col gap-[3px]"><span class="t-body text-ink-2">Write onboarding copy</span><span class="t-meta">no date</span></div><span class="ok-t h-[22px]">In Tasks</span></div>
+        <div class="trow !h-auto py-2.5 !items-start"><span class="t-micro !text-ink-3 pt-[4px] w-9 flex-none hover:!text-ink-1" data-toast="Playing from 31:02">31:02</span><div class="flex-1 flex flex-col gap-[3px]"><span class="t-body">Send the beta invite list</span><span class="t-meta">no date</span></div><button class="btn-secondary xs" data-action="add-item" title="Add to Tasks"><svg class="ico-xs"><use href="#i-plus"/></svg>Add</button></div>
       </div>
     </div>
     <div class="group-h mt-4">Transcript</div>
@@ -751,13 +854,13 @@
   </div>
   <!-- No transcript yet -->
   <div class="mt-4" data-only="o-detail-failed o-detail-queued o-detail-preparing o-detail-unreadable">
-    <div class="relative flex items-center gap-3 px-[10px] h-12 rounded-[10px] bg-white/[.04] overflow-hidden">
+    <div class="console relative overflow-hidden !h-12 gap-3">
       <span class="lamp on-r" data-only="o-detail-failed"></span><span class="lamp on-d" data-only="o-detail-queued"></span><span class="lamp on-a blink" data-only="o-detail-preparing"></span><span class="lamp on-a" data-only="o-detail-unreadable"></span>
       <span class="t-body flex-1" data-only="o-detail-failed">Transcription didn’t finish</span>
       <span class="t-body flex-1" data-only="o-detail-queued">Waiting to be transcribed</span>
       <span class="t-body flex-1" data-only="o-detail-preparing">Preparing the transcript</span>
       <span class="t-body flex-1" data-only="o-detail-unreadable">Couldn’t read the transcript</span>
-      <button class="btn-quiet sm" data-only="o-detail-failed o-detail-unreadable" data-go="o-detail-preparing">Try again</button>
+      <button class="btn-secondary sm" data-only="o-detail-failed o-detail-unreadable" data-go="o-detail-preparing">Try again</button>
       <div class="scanner" data-only="o-detail-preparing"></div>
     </div>
   </div>
@@ -815,13 +918,15 @@
     <div data-only="o-tasks-finished-empty" class="flex items-center gap-3 px-[10px] h-12"><svg class="ico-s text-ink-3"><use href="#i-history"/></svg><span class="t-body text-ink-2">Nothing finished yet</span></div>
 
     <!-- Footer -->
-    <div class="flex items-center gap-1 mt-3 px-0.5">
-      <button class="btn-ghost sm" data-not="o-tasks-finished*" data-go="o-tasks-finished"><svg class="ico-xs"><use href="#i-history"/></svg>Finished</button>
-      <button class="btn-ghost sm" data-only="o-tasks-finished*" data-go="o-tasks"><svg class="ico-xs"><use href="#i-chevron-left"/></svg>Tasks</button>
-      <button class="btn-ghost sm" data-only="o-tasks-finished" data-go="a-clear-history">Clear</button>
-      <span class="flex-1"></span>
-      <span class="flex items-center gap-2 t-meta pr-[10px]" data-not="o-tasks-local" title="Tasks live in the “Crenel” list in Apple Reminders, so they also show on iPhone and Apple Watch."><span class="lamp on-g"></span>Reminders</span>
-      <button class="flex items-center gap-2 t-meta pr-[10px] hover:text-ink-2" data-only="o-tasks-local" data-go="o-tasks" title="Tasks sync once you allow Reminders access."><span class="lamp"></span>On this Mac</button>
+    <!-- Footer: where the list lives on the left (a lamp, not a button); what you can do with it on the right -->
+    <div class="actions mt-3 pl-[10px] pr-0.5" data-tasks-footer>
+      <span class="note" data-not="o-tasks-local o-tasks-finished*" title="Tasks live in the “Crenel” list in Apple Reminders, so they also show on iPhone and Apple Watch."><span class="lamp on-g"></span>Synced with Reminders</span>
+      <span class="note" data-only="o-tasks-local"><span class="lamp"></span>On this Mac only</span>
+      <span class="note" data-only="o-tasks-finished*"><span class="lamp on-d"></span>Finished in the last 30 days</span>
+      <button class="btn-secondary sm" data-only="o-tasks-local" data-go="o-tasks">Connect Reminders</button>
+      <button class="btn-secondary sm" data-not="o-tasks-finished* o-tasks-local" data-go="o-tasks-finished"><svg class="ico-xs"><use href="#i-history"/></svg>Finished</button>
+      <button class="btn-danger sm" data-only="o-tasks-finished" data-go="a-clear-history"><svg class="ico-xs"><use href="#i-trash"/></svg>Clear</button>
+      <button class="btn-secondary sm" data-only="o-tasks-finished*" data-go="o-tasks"><svg class="ico-xs"><use href="#i-chevron-left"/></svg>Open tasks</button>
     </div>
   </div>
 </template>
@@ -829,7 +934,7 @@
 <!-- Task card: opens in place of the row -->
 <template id="tpl-task-card">
   <div class="task-card my-1 px-[10px] py-[14px] rounded-[14px] bg-white/[.045] flex flex-col gap-4 relative z-[2]">
-    <div class="flex items-start gap-3"><svg class="ico mt-[2px]" data-cardmark><use href="#m-progress"/></svg><span class="t-title flex-1 outline-none" contenteditable="true" spellcheck="false" data-cardtitle>Task</span><button class="btn-icon -mt-1 -mr-1" data-close title="Close card"><svg class="ico-s"><use href="#i-close"/></svg></button></div>
+    <div class="flex items-start gap-3"><svg class="ico mt-[2px]" data-cardmark><use href="#m-progress"/></svg><span class="t-title flex-1 outline-none" contenteditable="true" spellcheck="false" data-cardtitle>Task</span></div>
     <div class="seg-ctl self-start" data-cardstatus>
       <span class="pill" data-status="open"><svg class="ico-s"><use href="#m-open"/></svg>To do</span>
       <span class="pill" data-status="progress"><svg class="ico-s"><use href="#m-progress"/></svg>Doing</span>
@@ -843,7 +948,7 @@
     <div class="flex flex-col gap-2"><span class="t-meta">Priority</span>
       <div class="seg-ctl self-start"><span>None</span><span><span class="pri text-ink-2 mr-1.5"><i class="on"></i><i></i><i></i></span>Low</span><span class="on"><span class="pri text-ink-1 mr-1.5"><i class="on"></i><i class="on"></i><i></i></span>Medium</span><span><span class="pri text-signal mr-1.5"><i class="on"></i><i class="on"></i><i class="on"></i></span>High</span></div></div>
     <div class="p-[10px] rounded-[10px] bg-white/[.04] t-body text-ink-2 min-h-[56px] outline-none empty:before:content-['Note'] empty:before:text-ink-3" contenteditable="true"></div>
-    <div class="flex gap-1"><button class="btn-ghost sm" data-go="o-detail"><svg class="ico-xs"><use href="#i-transcript"/></svg>From Design review</button><span class="flex-1"></span><button class="btn-red sm" data-go="a-delete-task">Delete</button></div>
+    <div class="actions"><button class="chip" data-go="o-detail"><svg class="ico-xs text-ink-3"><use href="#i-transcript"/></svg>From Design review</button><span class="flex-1"></span><button class="btn-danger sm" data-go="a-delete-task"><svg class="ico-xs"><use href="#i-trash"/></svg>Delete</button><button class="btn-secondary sm" data-close>Close<span class="kbd">esc</span></button></div>
   </div>
 </template>
 
@@ -861,217 +966,468 @@
      DESKTOP WINDOW (Meetings · Tasks · Settings)
      ═════════════════════════════════════════════════════════════════════ -->
 <template id="tpl-desktop">
-  <div class="win w-[1120px] h-[680px] flex">
+  <div class="win w-[1240px] h-[760px] flex">
     <div class="lights"><i data-action="close-window"></i><i></i><i></i></div>
-    <div class="sidebar h-full">
-      <div class="flex items-center gap-2 px-[10px] pt-12"><svg class="w-[18px] h-[18px] text-ink-1"><use href="#i-logo"/></svg><span class="t-title">Crenel</span></div>
-      <div class="flex flex-col gap-0.5">
-        <div class="sb-item" data-key="meetings" data-go="d-meetings"><svg class="ico"><use href="#i-tape"/></svg>Meetings</div>
-        <div class="sb-item" data-key="tasks" data-go="d-tasks"><svg class="ico"><use href="#i-queue"/></svg>Tasks<span class="flex-1"></span><span class="t-meta !text-ink-4">5</span></div>
-        <div class="sb-item" data-key="settings" data-go="s-general"><svg class="ico"><use href="#i-sliders"/></svg>Settings</div>
-      </div>
-      <div class="flex-1"></div>
-      <div class="flex flex-col gap-3 px-[10px] py-3 rounded-[12px] bg-white/[.04]" data-only="d-meetings-recording">
-        <div class="flex items-center gap-2"><span class="lamp dot on-r pulse"></span><span class="t-label text-ink-1">Recording</span></div>
-        <span class="segd text-ink-1" data-seg="12:34" data-elapsed="754" data-h="22"></span>
-        <div class="vu" data-cells="18"></div>
-        <button class="btn-quiet sm self-start" data-go="d-meetings"><svg class="ico-xs text-live"><use href="#i-stop"/></svg>Stop</button>
-      </div>
-      <div class="sb-item" data-go="o-today"><svg class="ico"><use href="#i-window"/></svg>Show notch<span class="flex-1"></span><svg class="ico-xs text-ink-4"><use href="#i-link"/></svg></div>
-    </div>
 
-    <div class="flex-1 min-w-0 flex" style="background:#0e0e0d">
-      <!-- Meetings -->
-      <div data-only="d-meetings*" class="flex flex-1 min-w-0">
-        <div class="w-[320px] flex-none pt-8 px-4 flex flex-col gap-4" data-list>
-          <div class="flex items-center gap-2 px-[10px]"><span class="page-title">Meetings</span><span class="t-meta !text-ink-4" data-not="d-meetings-empty">12</span><span class="flex-1"></span><button class="btn-icon" data-go="o-recording" title="New recording"><svg class="ico"><use href="#i-plus"/></svg></button></div>
-          <label class="h-9 rounded-[10px] bg-white/[.055] focus-within:bg-white/[.09] flex items-center pl-[10px] pr-0.5 gap-2"><svg class="ico-s text-ink-3"><use href="#i-search"/></svg><input data-search class="flex-1 bg-transparent outline-none t-body text-ink-1 placeholder:text-ink-3" placeholder="Search meetings and transcripts"></label>
-          <div data-only="d-meetings-empty" class="flex flex-col items-center text-center gap-1.5 pt-8 max-w-[260px] mx-auto"><svg class="w-[18px] h-[18px] text-ink-4 mb-1"><use href="#i-tape"/></svg><span class="t-body text-ink-2">No recordings yet</span><span class="t-meta">Crenel offers to record when a call starts.</span></div>
-          <div data-noresults hidden class="flex flex-col items-center text-center gap-1 pt-6"><span class="t-body text-ink-2 block">No results</span><span class="t-meta block">Try another name.</span></div>
-          <div data-not="d-meetings-empty" class="flex flex-col overflow-y-auto slide" data-slide>
-            <div data-hdr class="group-h">Coming up</div>
-            <div class="row" data-title="Design review"><div class="tcol"><b>14:30</b><span>Today</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta">Google Meet</span></div><button class="btn-ghost sm -mt-0.5" data-toast="Opens the Google Meet link">Join</button></div>
-            <div class="row" data-title="Weekly sync"><div class="tcol"><b>10:00</b><span>Wed</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta">Zoom</span></div></div>
-            <div data-hdr class="group-h mt-2">Recorded</div>
-            <div class="row mrow" data-title="Design review" data-go="d-meetings" data-menu="menu-meeting-row"><div class="tcol"><b>10:00</b><span>48:12</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta">Today · 3 for you</span></div></div>
-            <div class="row mrow" data-title="Partner call" data-go="d-meetings-loading" data-menu="menu-meeting-row"><div class="tcol"><b>09:00</b><span>31:40</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta">Today</span></div><span class="lamp on-a blink mt-[7px]"></span></div>
-            <div class="row mrow" data-title="Weekly sync" data-go="d-meetings-error" data-menu="menu-meeting-row-failed"><div class="tcol"><b>15:30</b><span>1:02</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta">Yesterday · failed</span></div><span class="lamp on-r mt-[7px]"></span></div>
-            <div class="row mrow" data-title="Interview — backend" data-go="d-meetings" data-menu="menu-meeting-row"><div class="tcol"><b>11:00</b><span>44:03</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Interview — backend</span><span class="t-meta">Yesterday · no notes</span></div><span class="lamp on-a mt-[7px]"></span></div>
+    <!-- ── Sidebar: brand, four places, live card, systems panel, settings. One lamp slides along the rail. -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="app-tile"><svg class="w-[16px] h-[10px]"><use href="#i-mark"/></svg></span>
+        <span class="t-body font-semibold text-ink-1 flex-1">Crenel</span>
+        <span class="segd text-ink-3" data-seg="10:42" data-h="10" title="Tue 17 Nov"></span>
+      </div>
+      <div class="rail flex-1" data-rail="main">
+        <i class="rail-lamp"></i>
+        <div class="sb-item" data-key="today" data-go="d-today"><svg class="ico"><use href="#i-gauge"/></svg><span class="flex-1">Today</span><span class="sb-read">in 33 min</span></div>
+        <div class="sb-item" data-key="meetings" data-go="d-meetings"><svg class="ico"><use href="#i-tape"/></svg><span class="flex-1">Meetings</span><span class="sb-read" data-not="d-meetings-empty">12</span></div>
+        <div class="sb-item" data-key="tasks" data-go="d-tasks"><svg class="ico"><use href="#i-queue"/></svg><span class="flex-1">Tasks</span><span class="sb-read">4</span></div>
+        <div class="sb-item" data-key="dict" data-go="d-dictation"><svg class="ico"><use href="#i-waveform"/></svg><span class="flex-1">Dictation</span><span class="sb-read">fn</span></div>
+        <span class="flex-1"></span>
+
+        <!-- Live: only while recording. The same instruments as the notch, smaller. -->
+        <div class="well flex flex-col gap-3 p-3 mb-2" data-only="d-meetings-recording">
+          <div class="flex items-center gap-2"><span class="lamp dot on-r pulse"></span><span class="t-label text-ink-1 flex-1">Recording</span><span class="ladder text-ink-1" data-ladder="6"></span></div>
+          <div class="flex items-baseline justify-between"><span class="segd text-ink-1" data-seg="12:34" data-elapsed="754" data-h="22"></span><span class="t-meta truncate ml-2">Design review</span></div>
+          <div class="actions justify-end"><button class="btn-icon framed sm" title="Turn your mic off (⌥⌘M)"><svg class="ico-s"><use href="#i-mic"/></svg></button><button class="btn-secondary sm" data-go="d-meetings"><svg class="ico-xs !text-live"><use href="#i-stop"/></svg>Stop</button></div>
+        </div>
+
+        <!-- Systems: every permission as a telltale, like a dashboard at ignition. Click one to fix it. -->
+        <div class="sys mb-1.5">
+          <div class="flex items-baseline justify-between"><span class="t-label text-ink-3">Systems</span>
+            <span class="t-micro" data-not="s-recording-denied s-dictation-perms s-calendar-denied s-calendar-failed">6 of 6 on</span><span class="t-micro !text-signal" data-only="s-recording-denied s-dictation-perms s-calendar-denied s-calendar-failed">needs you</span></div>
+          <div class="grid grid-cols-2 gap-x-2 gap-y-[9px]">
+            <span class="sys-i" data-go="s-calendar-connected"><span class="lamp on-g" data-not="s-calendar-denied s-calendar-failed"></span><span class="lamp on-a" data-only="s-calendar-denied"></span><span class="lamp on-r" data-only="s-calendar-failed"></span>Calendar</span>
+            <span class="sys-i" data-go="s-tasks-connected"><span class="lamp on-g"></span>Reminders</span>
+            <span class="sys-i" data-go="s-recording"><span class="lamp on-g"></span>Microphone</span>
+            <span class="sys-i" data-go="s-recording"><span class="lamp on-g" data-not="s-recording-denied"></span><span class="lamp on-r" data-only="s-recording-denied"></span>Call audio</span>
+            <span class="sys-i" data-go="s-recording"><span class="lamp on-g" data-not="s-recording-denied"></span><span class="lamp on-a" data-only="s-recording-denied"></span>Mute sync</span>
+            <span class="sys-i" data-go="s-dictation"><span class="lamp on-g" data-not="s-dictation-perms"></span><span class="lamp on-a" data-only="s-dictation-perms"></span>Keyboard</span>
           </div>
         </div>
-        <!-- Detail pane -->
-        <div class="flex-1 min-w-0 flex flex-col">
-          <div data-only="d-meetings-none d-meetings-empty" class="flex-1 flex flex-col items-center justify-center gap-4">
-            <div class="relative w-[104px] h-[104px]"><div class="gauge text-ink-1" data-gauge="0" data-size="104" data-ticks="60" data-major="15"></div><div class="absolute inset-0 flex items-center justify-center"><svg class="w-5 h-5 text-ink-4"><use href="#i-tape"/></svg></div></div>
-            <span class="t-body text-ink-2">Pick a meeting</span>
-            <button class="btn-quiet" data-go="o-recording"><span class="lamp dot on-r"></span>New recording</button>
-          </div>
-          <div data-only="d-meetings-loading" class="flex-1 flex items-center justify-center gap-2 t-meta"><span class="spin"></span>Opening meeting…</div>
-          <div data-only="d-meetings-error" class="flex-1 flex flex-col items-center justify-center gap-3 text-center"><span class="lamp on-r"></span><span class="t-body text-ink-2">Couldn’t open this meeting</span><span class="t-meta">Its files couldn’t be read. Try opening it again.</span><button class="btn-quiet" data-go="d-meetings-loading">Try again</button></div>
-          <div data-only="d-meetings d-meetings-recording" class="flex-1 min-h-0 flex flex-col">
-            <div class="flex items-center gap-2 px-7 pt-7 pb-2">
-              <div class="flex-1 flex flex-col gap-1 min-w-0"><span class="page-title !text-[20px]">Design review</span><span class="t-meta">Today 10:00 · 48 min · Deniz, Ece and you</span></div>
-              <button class="btn-ghost sm" data-action="copied">Copy</button><button class="btn-icon" data-menu-click="menu-more"><svg class="ico"><use href="#i-more"/></svg></button>
-            </div>
-            <div class="flex-1 overflow-y-auto px-6 py-4 max-w-[720px]"><div data-include="tpl-detail-body"></div></div>
-          </div>
-        </div>
+        <div class="sb-item" data-key="settings" data-go="s-general"><svg class="ico"><use href="#i-sliders"/></svg><span class="flex-1">Settings</span><span class="sb-read">⌘,</span></div>
       </div>
+    </aside>
 
-      <!-- Tasks -->
-      <div data-only="d-tasks" class="flex-1 p-8 overflow-y-auto">
-        <div class="max-w-[640px] flex flex-col gap-5"><span class="page-title px-[10px]">Tasks</span><div data-include="tpl-tasks-body"></div></div>
-      </div>
+    <section class="flex-1 min-w-0 flex flex-col" style="background:#0e0e0d">
 
-      <!-- Settings -->
-      <div data-only="s-*" class="flex-1 px-7 pt-8 flex flex-col gap-5 min-w-0">
-        <span class="page-title px-[10px]">Settings</span>
-        <div class="tabs self-start px-[10px]" data-tabs>
-          <span class="tab" data-key="general" data-go="s-general">General</span>
-          <span class="tab" data-key="dictation" data-go="s-dictation">Dictation</span>
-          <span class="tab" data-key="stasks" data-go="s-tasks-connected">Tasks</span>
-          <span class="tab" data-key="ai" data-go="s-ai-auto">AI</span>
-          <span class="tab" data-key="calendar" data-go="s-calendar-connected">Calendar</span>
-          <span class="tab" data-key="recording" data-go="s-recording">Recording</span>
-          <span class="tab" data-key="data" data-go="s-data">Data</span>
-          <i class="tab-lamp"></i>
-        </div>
-        <div class="flex-1 overflow-y-auto pb-6 flex flex-col gap-7">
-          <!-- General -->
-          <div class="sgroup" data-only="s-general"><div class="group-h">General</div>
-            <div class="srow"><svg><use href="#i-sun"/></svg><div class="txt"><b>Open at login</b></div><span class="toggle on"></span></div>
-            <div class="srow"><svg><use href="#i-archive"/></svg><div class="txt"><b>Keep meetings</b></div><span class="select" data-options="Forever|7 days|30 days|90 days">Forever</span></div>
-            <div class="flex items-center gap-2 pl-[38px] pr-[10px] pt-2"><span class="t-meta" data-savemsg></span><span class="flex-1"></span><button class="btn-primary" data-action="save">Save</button></div>
-          </div>
-
-          <!-- Dictation -->
-          <div class="sgroup" data-only="s-dictation*"><div class="group-h">Dictation</div>
-            <div class="srow"><svg><use href="#i-waveform"/></svg><div class="txt"><b>Dictation</b></div><span class="toggle on"></span></div>
-            <div class="srow" data-only="s-dictation-perms"><svg><use href="#i-keyboard"/></svg><div class="txt"><b>Input Monitoring</b><span>Needed for the shortcut</span></div><span class="warn-t">Off</span><button class="btn-ghost sm" data-go="s-dictation">Allow</button></div>
-            <div class="snote" data-only="s-dictation-perms">Without Accessibility, text goes to the clipboard.</div>
-            <div class="srow"><svg><use href="#i-keyboard"/></svg><div class="txt"><b>Shortcut</b><span>⌃Space still switches input languages</span></div><span class="select" data-options="Hold Fn (🌐)|Hold right ⌥|Hold right ⌘">Hold Fn (🌐)</span></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Mode</b></div><span class="select" data-options="Hold to talk|Press to start, press to stop">Hold to talk</span></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Double-tap for hands-free</b></div><span class="toggle"></span></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Language</b></div><span class="select" data-options="System language|Turkish|English">System language</span></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Speech model</b><span>On this Mac · 180 MB</span></div><button class="btn-ghost sm" data-toast="Downloading the speech model…">Download</button></div>
-          </div>
-          <div class="sgroup" data-only="s-dictation*"><div class="group-h">Words to know</div>
-            <div class="flex items-center gap-2 px-[10px] py-1"><input class="sfield" placeholder="Crenel, SwiftUI, Ayhan" data-dictinput><button class="btn-quiet !px-2" data-action="dict-add"><svg class="ico-s"><use href="#i-plus"/></svg></button></div>
-            <div class="flex flex-wrap gap-1.5 px-[10px] pt-2" data-dict>
-              <span class="dchip inline-flex items-center gap-1.5 h-6 px-2 rounded-[6px] bg-white/[.06] hover:bg-white/10 t-meta text-ink-2" data-action="dict-remove">Crenel<svg class="w-2 h-2 text-ink-4"><use href="#i-close"/></svg></span>
-              <span class="dchip inline-flex items-center gap-1.5 h-6 px-2 rounded-[6px] bg-white/[.06] hover:bg-white/10 t-meta text-ink-2" data-action="dict-remove">SwiftUI<svg class="w-2 h-2 text-ink-4"><use href="#i-close"/></svg></span>
+      <!-- ═══ TODAY — the dashboard: one big instrument, the day as a ruler, three gauges, recent meetings ═══ -->
+      <div data-only="d-today" class="flex-1 min-h-0 flex flex-col">
+        <header class="tb">
+          <span class="page-title">Today</span><span class="t-meta ml-1">Tuesday, 17 November</span>
+          <span class="flex-1"></span>
+          <button class="btn-secondary sm" data-go="d-tasks"><svg class="ico-xs"><use href="#i-plus"/></svg>Task<span class="kbd">⌘N</span></button>
+          <button class="btn-secondary sm" data-go="o-recording"><span class="lamp dot on-r"></span>Record<span class="kbd">⌘R</span></button>
+        </header>
+        <div class="flex-1 overflow-y-auto px-6 pb-6 flex flex-col gap-4" data-stagger>
+          <div class="panel">
+            <div class="flex items-center gap-7 pl-5 pr-5 pt-5">
+              <div class="relative flex-none w-[148px] h-[148px] bleed text-ink-1">
+                <div class="gauge text-ink-1" data-gauge=".55" data-size="148" data-ticks="60" data-major="15"></div>
+                <div class="gauge-c !gap-1.5"><span class="segd text-ink-1" data-seg="33" data-cells="2" data-h="36"></span><span class="t-micro !text-ink-3">min</span></div>
+              </div>
+              <div class="flex-1 min-w-0 flex flex-col gap-2">
+                <span class="t-meta">Next meeting</span>
+                <span class="text-[22px] font-semibold tracking-[-.016em] leading-[1.15] truncate">Design review</span>
+                <div class="flex items-center gap-2 t-label text-ink-2 mt-0.5"><span>11:15 – 12:00</span><span class="sep">·</span><svg class="ico-xs text-ink-3"><use href="#i-video"/></svg><span>Google Meet</span></div>
+                <div class="flex items-center gap-2.5 mt-2"><span class="faces"><i>D</i><i>E</i><i>M</i><i>+1</i></span><span class="t-meta">Deniz, Ece and 2 others</span></div>
+              </div>
+              <!-- Actions sit at the trailing edge; Join appears only in the last 10 minutes -->
+              <div class="self-stretch flex flex-col items-end justify-between py-1.5">
+                <span class="flex items-center gap-2 t-meta"><span class="lamp"></span>Join opens at 11:05</span>
+                <div class="actions"><button class="btn-secondary sm" data-toast="Link copied"><svg class="ico-xs"><use href="#i-copy"/></svg>Copy link</button><button class="btn-secondary sm" data-toast="Opens in Calendar"><svg class="ico-xs"><use href="#i-calendar"/></svg>Calendar</button></div>
+              </div>
             </div>
-          </div>
-          <div class="sgroup" data-only="s-dictation*"><div class="group-h">Recent</div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Let’s move the review to Thursday afternoon.</b><span>Slack · 14:32</span></div><button class="btn-icon" data-action="copied" title="Copy"><svg class="ico-s"><use href="#i-copy"/></svg></button></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Ship the notarized build after QA signs off.</b><span>Notes · 13:05</span></div><button class="btn-icon" data-action="copied" title="Copy"><svg class="ico-s"><use href="#i-copy"/></svg></button></div>
+            <div class="px-5 pt-5 pb-3"><div class="ruler wide" data-span="8-20" data-now="10.7" data-events="9-9.5:dim:Standup|11.25-12:focus:Design review|13-14::Lunch with Deniz|16.5-17.5:invite:Partner call|19-20:dim:Gym"></div></div>
           </div>
 
-          <!-- Tasks -->
-          <div class="sgroup" data-only="s-tasks*"><div class="group-h">Tasks</div>
-            <div class="srow"><svg><use href="#i-queue"/></svg><div class="txt"><b>Keep tasks in</b><span data-not="s-tasks-local">Also on iPhone, iPad and Watch</span></div>
-              <span class="select" data-only="s-tasks-local" data-goopt="Apple Reminders:s-tasks-connected|This Mac only:s-tasks-local">This Mac only</span>
-              <span class="select" data-not="s-tasks-local" data-goopt="Apple Reminders:s-tasks-connected|This Mac only:s-tasks-local">Apple Reminders</span></div>
-            <div class="srow" data-only="s-tasks-connected"><span class="ng"></span><div class="txt"><b>Reminders</b><span>“Crenel” list</span></div><span class="ok-t">Connected</span></div>
-            <div class="srow" data-only="s-tasks-notconnected"><span class="ng"></span><div class="txt"><b>Reminders</b></div><span class="dim-t">Not connected</span><button class="btn-ghost sm" data-go="s-tasks-connected">Connect</button></div>
-            <div class="srow" data-only="s-tasks-denied"><span class="ng"></span><div class="txt"><b>Reminders</b><span>Privacy &amp; Security › Reminders</span></div><span class="warn-t">Access off</span></div>
-            <div class="srow" data-only="s-tasks-error"><span class="ng"></span><div class="txt"><b>Reminders</b><span>Couldn’t save the last change</span></div><span class="err-t">Error</span><button class="btn-ghost sm" data-go="s-tasks-connected">Try again</button></div>
-          </div>
-
-          <!-- AI -->
-          <div class="sgroup" data-only="s-ai*"><div class="group-h">Model</div>
-            <div class="srow"><svg><use href="#i-spark"/></svg><div class="txt"><b>Who writes</b>
-                <span data-only="s-ai-auto">Anthropic, then OpenAI, then this Mac</span><span data-only="s-ai-openai">Your OpenAI key</span><span data-only="s-ai-anthropic">Your Anthropic key</span><span data-only="s-ai-ondevice">Apple’s model, on this Mac</span><span data-only="s-ai-off">Raw text only</span></div>
-              <span class="select" data-goopt="Automatic:s-ai-auto|On this Mac (Apple):s-ai-ondevice|OpenAI (your key):s-ai-openai|Anthropic (your key):s-ai-anthropic|Off:s-ai-off">
-                <span data-only="s-ai-auto">Automatic</span><span data-only="s-ai-ondevice">On this Mac (Apple)</span><span data-only="s-ai-openai">OpenAI (your key)</span><span data-only="s-ai-anthropic">Anthropic (your key)</span><span data-only="s-ai-off">Off</span></span></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Clean up dictation</b></div><span class="toggle on"></span></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Voice commands on selected text</b></div><span class="toggle"></span></div>
-            <div class="sfrow" data-only="s-ai-openai"><input class="sfield" placeholder="OpenAI model ID (empty: default)"></div>
-            <div data-only="s-ai-auto s-ai-anthropic">
-              <div class="srow"><span class="ng"></span><div class="txt"><b>Anthropic</b></div><span class="dim-t" data-only="s-ai-auto">No key</span><span class="ok-t" data-only="s-ai-anthropic">Connected</span></div>
-              <div class="sfrow"><input class="sfield" type="password" placeholder="Anthropic API key" data-only="s-ai-auto"><input class="sfield" type="password" placeholder="New Anthropic API key" data-only="s-ai-anthropic"><button class="btn-primary" data-go="s-ai-anthropic">Save</button><button class="btn-red" data-only="s-ai-anthropic" data-go="s-ai-auto">Remove</button></div>
-              <div class="sfrow"><input class="sfield" placeholder="Anthropic model ID (empty: claude-haiku-5-5)"></div>
+          <div class="grid grid-cols-3 gap-4">
+            <div class="tile" data-go="d-tasks">
+              <div class="tile-h"><svg class="ico-s"><use href="#i-queue"/></svg><span class="flex-1">Tasks</span><span class="cells" title="1 of 5 done"><i class="on"></i><i></i><i></i><i></i><i></i></span></div>
+              <div class="flex items-baseline"><span class="segd text-ink-1" data-seg="4" data-h="30"></span><span class="unit">open today</span></div>
+              <div class="flex flex-col gap-2.5 mt-auto">
+                <div class="flex items-center gap-2.5 t-label text-ink-1"><svg class="ico-s"><use href="#m-progress"/></svg><span class="flex-1 truncate">Write release notes</span><span class="flex items-baseline text-signal"><span class="segd" data-seg="25" data-h="9"></span><span class="unit !text-signal/70 !text-[10px]">min</span></span></div>
+                <div class="flex items-center gap-2.5 t-label text-ink-2"><svg class="ico-s"><use href="#m-open"/></svg><span class="flex-1 truncate">Reply to Deniz about pricing</span><span class="t-meta !text-live">Yesterday</span></div>
+                <div class="flex items-center gap-2.5 t-label text-ink-2"><svg class="ico-s"><use href="#m-open"/></svg><span class="flex-1 truncate">Call the bank</span><span class="t-meta">15:00</span></div>
+              </div>
             </div>
-          </div>
-          <div class="sgroup" data-only="s-ai*"><div class="group-h">Meetings</div>
-            <div class="srow"><svg><use href="#i-waveform"/></svg><div class="txt"><b>Transcript</b></div><span class="select" data-options="ElevenLabs (cloud, speaker names)|On this Mac (Apple Speech)">ElevenLabs (cloud, speaker names)</span></div>
-            <div class="srow"><svg><use href="#i-spark"/></svg><div class="txt"><b>Notes</b></div><span class="select" data-options="OpenAI|Same as above">OpenAI</span></div>
-          </div>
-          <div class="sgroup" data-only="s-ai*"><div class="group-h">OpenAI</div>
-            <div class="srow"><svg><use href="#i-spark"/></svg><div class="txt"><b>OpenAI</b><span>Notes and tasks · billed to you</span></div><span class="ok-t" data-only="s-ai-openai">Connected</span><span class="dim-t" data-not="s-ai-openai">No key</span></div>
-            <div class="sfrow"><input class="sfield" type="password" placeholder="OpenAI API key" data-not="s-ai-openai"><input class="sfield" type="password" placeholder="New OpenAI API key" data-only="s-ai-openai">
-              <button class="btn-primary" data-not="s-ai-openai" data-go="s-ai-openai" title="Sends a small paid test request">Connect</button><button class="btn-primary" data-only="s-ai-openai" data-toast="Connection updated.">Update</button><button class="btn-red" data-only="s-ai-openai" data-go="s-ai-auto">Remove</button></div>
-          </div>
-          <div class="sgroup" data-only="s-ai*"><div class="group-h">ElevenLabs</div>
-            <div class="srow"><svg><use href="#i-waveform"/></svg><div class="txt"><b>ElevenLabs</b></div><span class="ok-t">Connected</span></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Transcript language</b></div><span class="select" data-options="Automatic|Turkish|English">Automatic</span></div>
-            <div class="sfrow"><input class="sfield" type="password" placeholder="Type to replace the saved key"><button class="btn-primary" data-toast="Speech-to-Text access verified and saved">Verify and save</button><button class="btn-red">Remove</button></div>
-          </div>
-
-          <!-- Calendar -->
-          <div class="sgroup" data-only="s-calendar*"><div class="group-h">Calendar</div>
-            <div class="srow"><svg><use href="#i-calendar"/></svg><div class="txt"><b>Show meetings in the notch</b></div><span class="toggle on" data-not="s-calendar-off" data-go="s-calendar-off"></span><span class="toggle" data-only="s-calendar-off" data-go="s-calendar-connected"></span></div>
-            <div class="srow"><svg><use href="#i-bell"/></svg><div class="txt"><b>Heads-up</b></div><span class="select" data-options="5 min and 1 min before|10 min and 1 min before|15 min and 1 min before">5 min and 1 min before</span></div>
-            <div class="srow"><svg><use href="#i-people"/></svg><div class="txt"><b>Connection</b></div>
-              <span class="ok-t" data-only="s-calendar-connected">Connected</span><button class="btn-ghost sm" data-only="s-calendar-connected" data-toast="Refreshing">Refresh</button>
-              <span class="dim-t" data-only="s-calendar-notconnected">Not connected</span><button class="btn-ghost sm" data-only="s-calendar-notconnected" data-go="s-calendar-connected">Allow</button>
-              <span class="warn-t" data-only="s-calendar-denied">Access off</span><button class="btn-ghost sm" data-only="s-calendar-denied" data-toast="Opens Privacy &amp; Security › Calendars">Open</button>
-              <span class="err-t" data-only="s-calendar-failed">Connection error</span><button class="btn-ghost sm" data-only="s-calendar-failed" data-go="s-calendar-connected">Try again</button>
-              <span class="dim-t" data-only="s-calendar-off">Off</span></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Accounts</b><span>Google, iCloud and Exchange come from Internet Accounts</span></div><button class="btn-ghost sm" data-toast="Opens Internet Accounts">Open</button></div>
-            <div data-only="s-calendar-connected">
-              <button class="expand" data-action="expand">Details<svg class="w-2.5 h-2.5 transition-transform"><use href="#i-chevron-down"/></svg></button>
-              <div data-expandable hidden>
-                <div class="srow"><span class="ng"></span><div class="txt"><b>Accounts</b></div><span class="t-label text-ink-2">Google (3) · iCloud (2)</span></div>
-                <div class="srow"><span class="ng"></span><div class="txt"><b>Readable</b></div><span class="t-label text-ink-2">5 calendars · 42 events</span></div>
-                <div class="srow"><span class="ng"></span><div class="txt"><b>Online meetings</b></div><span class="t-label text-ink-2">7</span></div>
-                <div class="srow"><span class="ng"></span><div class="txt"><b>Last refresh</b></div><span class="t-label text-ink-2">5 min ago</span></div>
+            <div class="tile" data-go="d-meetings">
+              <div class="tile-h"><svg class="ico-s"><use href="#i-tape"/></svg><span class="flex-1">On tape</span><span class="t-meta">this week</span></div>
+              <div class="flex items-baseline"><span class="segd text-ink-1" data-seg="4:12" data-h="30"></span><span class="unit">h</span></div>
+              <div class="flex items-end justify-between gap-2 mt-auto px-1">
+                <div class="flex-1 flex flex-col items-center gap-2"><span class="stack dim"><i></i><i></i><i></i><i class=on></i><i class=on></i><i class=on></i><i class=on></i><i class=on></i></span><span class="t-micro">Mon</span></div>
+                <div class="flex-1 flex flex-col items-center gap-2"><span class="stack "><i class=on></i><i class=on></i><i class=on></i><i class=on></i><i class=on></i><i class=on></i><i class=on></i><i class=on></i></span><span class="t-micro !text-ink-1">Tue</span></div>
+                <div class="flex-1 flex flex-col items-center gap-2"><span class="stack "><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="t-micro">Wed</span></div>
+                <div class="flex-1 flex flex-col items-center gap-2"><span class="stack "><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="t-micro">Thu</span></div>
+                <div class="flex-1 flex flex-col items-center gap-2"><span class="stack "><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span class="t-micro">Fri</span></div>
+              </div>
+            </div>
+            <div class="tile" data-go="d-dictation">
+              <div class="tile-h"><svg class="ico-s"><use href="#i-waveform"/></svg><span class="flex-1">Dictation</span><span class="t-meta">today</span></div>
+              <div class="flex items-baseline"><span class="segd text-ink-1" data-seg="1284" data-h="30"></span><span class="unit">words</span></div>
+              <div class="flex flex-col gap-2 mt-auto">
+                <div class="chart !h-7" data-chart></div>
+                <span class="t-meta truncate">“Let’s move the review to Thursday…” · Slack</span>
               </div>
             </div>
           </div>
-          <div class="sgroup" data-only="s-calendar*"><div class="group-h">Notifications</div>
-            <div class="srow"><svg><use href="#i-bell"/></svg><div class="txt"><b>Meeting notifications</b></div><span class="ok-t">On</span><button class="btn-ghost sm" data-toast="Opens Notification settings">Open</button></div>
+
+          <div class="panel p-2">
+            <div class="flex items-center h-9 pl-3 pr-1"><span class="t-label text-ink-2 flex-1">Recent meetings</span><button class="btn-secondary xs" data-go="d-meetings">All meetings<svg class="ico-xs"><use href="#i-chevron-right"/></svg></button></div>
+            <div class="slide" data-slide>
+              <div class="row" data-go="d-meetings"><div class="tcol"><b>10:00</b><span>48:12</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta truncate">3 for you to do · Deniz, Ece</span></div><span class="ok-t mt-[2px] !text-[11.5px]">Notes ready</span></div>
+              <div class="row" data-go="d-meetings-loading"><div class="tcol"><b>09:00</b><span>31:40</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta truncate">Mira Lund</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="lamp on-a blink"></span>Processing</span></div>
+              <div class="row" data-go="d-meetings-error"><div class="tcol"><b>15:30</b><span>1:02</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta truncate">Yesterday · 5 people</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="lamp on-r"></span>Failed</span></div>
+            </div>
           </div>
-          <div class="sgroup" data-only="s-calendar-connected"><div class="group-h">Calendars</div>
-            <div class="srow"><svg><use href="#i-calendar"/></svg><div class="txt"><b>All calendars</b></div><span class="toggle" data-action="all-cals"></span></div>
-            <div data-cals>
-              <div class="srow"><span class="ng"></span><div class="txt"><b>Work</b></div><span class="toggle on"></span></div>
-              <div class="srow"><span class="ng"></span><div class="txt"><b>Personal</b></div><span class="toggle"></span></div>
-              <div class="srow"><span class="ng"></span><div class="txt"><b>Family</b></div><span class="toggle on"></span></div>
+        </div>
+      </div>
+
+      <!-- ═══ MEETINGS — list on the floor, the selected meeting on a sheet one layer up ═══ -->
+      <div data-only="d-meetings*" class="flex-1 min-h-0 flex flex-col" data-list>
+        <header class="tb">
+          <span class="page-title">Meetings</span><span class="t-meta ml-1" data-not="d-meetings-empty">12 recorded · 9 h 40 on tape</span>
+          <span class="flex-1"></span>
+          <label class="search w-[270px]" data-not="d-meetings-empty"><svg><use href="#i-search"/></svg><input data-search placeholder="Search meetings and transcripts"><span class="kbd !ml-0 !mr-0">⌘F</span></label>
+          <button class="btn-secondary sm" data-go="o-recording"><span class="lamp dot on-r"></span>New recording</button>
+        </header>
+        <div class="flex-1 min-h-0 flex">
+          <div class="w-[300px] flex-none flex flex-col min-h-0 pl-4 pr-3">
+            <div class="seg-ctl self-start mb-2 ml-1" data-not="d-meetings-empty"><span class="on">All</span><span>Needs you<span class="ml-1.5 text-signal">2</span></span><span>For you</span></div>
+            <div data-only="d-meetings-empty" class="flex flex-col items-center text-center gap-1.5 pt-16 max-w-[240px] mx-auto"><span class="t-body text-ink-2">No recordings yet</span><span class="t-meta">Crenel offers to record when a call starts.</span></div>
+            <div data-noresults hidden class="flex flex-col items-center text-center gap-1 pt-8"><span class="t-body text-ink-2 block">No results</span><span class="t-meta block">Try another name or a phrase from the call.</span></div>
+            <div data-not="d-meetings-empty" class="flex-1 min-h-0 flex flex-col overflow-y-auto slide pb-3" data-slide>
+              <div data-hdr class="group-h">Coming up</div>
+              <div class="row" data-title="Design review"><div class="tcol"><b>11:15</b><span>Today</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta">Google Meet · in 33 min</span></div></div>
+              <div class="row" data-title="Weekly sync"><div class="tcol"><b>10:00</b><span>Wed</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta">Zoom</span></div></div>
+              <div data-hdr class="group-h mt-2">Today</div>
+              <div class="row mrow" data-sel="d-meetings d-meetings-recording" data-title="Design review" data-go="d-meetings" data-menu="menu-meeting-row"><div class="tcol"><b>10:00</b><span>48:12</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta">3 for you · Deniz, Ece</span></div></div>
+              <div class="row mrow" data-sel="d-meetings-loading" data-title="Partner call" data-go="d-meetings-loading" data-menu="menu-meeting-row"><div class="tcol"><b>09:00</b><span>31:40</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta">Processing</span></div><span class="lamp on-a blink mt-[7px]"></span></div>
+              <div data-hdr class="group-h mt-2">Yesterday</div>
+              <div class="row mrow" data-sel="d-meetings-error" data-title="Weekly sync" data-go="d-meetings-error" data-menu="menu-meeting-row-failed"><div class="tcol"><b>15:30</b><span>1:02</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta">Transcription failed</span></div><span class="lamp on-r mt-[7px]"></span></div>
+              <div class="row mrow" data-title="Interview — backend" data-go="d-meetings" data-menu="menu-meeting-row"><div class="tcol"><b>11:00</b><span>44:03</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Interview — backend</span><span class="t-meta">Transcript only</span></div><span class="lamp on-a mt-[7px]"></span></div>
+              <div data-hdr class="group-h mt-2">Mon 16</div>
+              <div class="row mrow" data-title="Quick note" data-go="d-meetings" data-menu="menu-meeting-row"><div class="tcol"><b>18:20</b><span>2:10</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Quick note</span><span class="t-meta">Not transcribed</span></div></div>
             </div>
           </div>
 
-          <!-- Recording -->
-          <div class="sgroup" data-only="s-recording*"><div class="group-h">Source</div>
-            <div class="srow"><svg><use href="#i-mic"/></svg><div class="txt"><b>Microphone</b></div><span class="select max-w-[260px]" data-options="System default|MacBook Pro Microphone|AirPods Pro">MacBook Pro Microphone</span></div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Level</b></div><div class="vu max-w-[260px]" data-cells="24"></div></div>
-          </div>
-          <div class="sgroup" data-only="s-recording*"><div class="group-h">Permissions</div>
-            <div class="srow"><svg><use href="#i-mic"/></svg><div class="txt"><b>Microphone</b><span>Your voice</span></div><span class="ok-t">Allowed</span></div>
-            <div class="srow" data-only="s-recording"><svg><use href="#i-speaker"/></svg><div class="txt"><b>System audio</b><span>Everyone else on the call</span></div><span class="ok-t">Allowed</span></div>
-            <div class="srow" data-only="s-recording-denied"><svg><use href="#i-speaker"/></svg><div class="txt"><b>System audio</b><span>Everyone else on the call</span></div><span class="err-t">Denied</span><button class="btn-ghost sm" data-toast="Opens Privacy &amp; Security › Screen &amp; System Audio Recording">Open</button><button class="btn-icon -ml-1" data-menu-click="menu-sysaudio"><svg class="ico-s"><use href="#i-more"/></svg></button></div>
-            <div class="srow" data-only="s-recording"><svg><use href="#i-accessibility"/></svg><div class="txt"><b>Mute tracking</b><span>Reads mute in Zoom and Meet</span></div><span class="ok-t">Allowed</span></div>
-            <div class="srow" data-only="s-recording-denied"><svg><use href="#i-accessibility"/></svg><div class="txt"><b>Mute tracking</b><span>Needs Accessibility</span></div><span class="warn-t">Off</span><button class="btn-ghost sm" data-go="s-recording">Allow</button></div>
-          </div>
-          <div class="sgroup" data-only="s-recording*"><div class="group-h">Privacy guard</div>
-            <div class="srow"><svg><use href="#i-shield"/></svg><div class="txt"><b>Meet tab</b></div><span class="dim-t">Waiting for a call tab</span></div>
-            <button class="expand" data-action="expand">How your mic is handled<svg class="w-2.5 h-2.5 transition-transform"><use href="#i-chevron-down"/></svg></button>
-            <div data-expandable hidden>
-              <div class="srow"><span class="ng"></span><div class="txt"><b>Your mic</b></div><span class="t-label text-ink-2">Starts muted</span></div>
-              <div class="srow"><span class="ng"></span><div class="txt"><b>Mute state unknown</b></div><span class="t-label text-ink-2">Not recorded</span></div>
-              <div class="srow"><span class="ng"></span><div class="txt"><b>By hand</b></div><span class="t-label text-ink-2">Notch or ⌥⌘M</span></div>
+          <div class="sheet flex-1 min-w-0 flex flex-col mr-3 mb-3">
+            <div data-only="d-meetings-none d-meetings-empty" class="flex-1 flex flex-col items-center justify-center gap-5">
+              <div class="relative w-[120px] h-[120px]"><div class="gauge text-ink-1" data-gauge="0" data-size="120" data-ticks="60" data-major="15"></div><div class="absolute inset-0 flex items-center justify-center"><svg class="w-5 h-5 text-ink-4"><use href="#i-tape"/></svg></div></div>
+              <div class="flex flex-col items-center gap-1"><span class="t-body text-ink-2">Pick a meeting</span><span class="t-meta">Notes, tasks and the transcript open here.</span></div>
+              <button class="btn-secondary" data-go="o-recording"><span class="lamp dot on-r"></span>New recording</button>
+            </div>
+            <div data-only="d-meetings-loading" class="flex-1 flex items-center justify-center gap-2 t-meta"><span class="spin"></span>Opening meeting…</div>
+            <div data-only="d-meetings-error" class="flex-1 flex flex-col items-center justify-center gap-4 text-center">
+              <span class="lamp on-r"></span>
+              <div class="flex flex-col gap-1"><span class="t-body text-ink-1">Couldn’t open this meeting</span><span class="t-meta">Its files couldn’t be read. The audio is still on disk.</span></div>
+              <div class="actions"><button class="btn-secondary" data-toast="Shows the audio in Finder"><svg class="ico-xs"><use href="#i-archive"/></svg>Show in Finder</button><button class="btn-primary" data-go="d-meetings-loading">Try again<span class="kbd">↩</span></button></div>
+            </div>
+            <div data-only="d-meetings d-meetings-recording" class="flex-1 min-h-0 flex flex-col">
+              <div data-include="tpl-ddetail"></div>
             </div>
           </div>
+        </div>
+      </div>
 
-          <!-- Data -->
-          <div class="sgroup" data-only="s-data*"><div class="group-h">Data</div>
-            <div class="srow"><svg><use href="#i-archive"/></svg><div class="txt"><b>Data folder</b><span>2.1 GB · 12 meetings</span></div><button class="btn-ghost sm" data-toast="Opens the data folder in Finder">Open</button></div>
-            <div class="srow"><svg><use href="#i-window"/></svg><div class="txt"><b>Setup</b></div><button class="btn-ghost sm" data-go="ob-welcome">Run again</button></div>
-            <div class="srow"><svg><use href="#i-trash"/></svg><div class="txt"><b>Delete all data</b><span data-only="s-data-busy">Not while recording or processing</span></div><button class="btn-red" data-not="s-data-busy" data-go="a-delete-all">Delete…</button><button class="btn-red dis" data-only="s-data-busy">Delete…</button></div>
+      <!-- ═══ TASKS — the list, and a rail with the day's gauge, what's due, and where it syncs ═══ -->
+      <div data-only="d-tasks" class="flex-1 min-h-0 flex flex-col">
+        <header class="tb">
+          <span class="page-title">Tasks</span><span class="t-meta ml-1">4 open · 1 done today</span>
+          <span class="flex-1"></span>
+          <button class="btn-secondary sm" data-toast="Opens Reminders"><svg class="ico-xs"><use href="#i-link"/></svg>Open in Reminders</button>
+        </header>
+        <div class="flex-1 min-h-0 flex gap-6 pl-5 pr-6 pb-6">
+          <div class="flex-1 min-w-0 overflow-y-auto"><div class="max-w-[620px]"><div data-include="tpl-tasks-body"></div></div></div>
+          <div class="w-[268px] flex-none flex flex-col gap-4" data-stagger>
+            <div class="panel flex flex-col items-center gap-4 pt-6 pb-5 px-5">
+              <div class="relative w-[128px] h-[128px] bleed text-ok">
+                <div class="gauge text-ok" data-gauge=".2" data-size="128" data-ticks="40" data-major="8"></div>
+                <div class="gauge-c !gap-1"><span class="segd text-ink-1" data-seg="1" data-h="30"></span><span class="t-micro !text-ink-3">of 5 done</span></div>
+              </div>
+              <span class="t-meta text-center">Release notes are the one in progress — 25 min so far.</span>
+            </div>
+            <div class="panel p-2">
+              <div class="flex items-center h-8 px-2.5"><span class="t-label text-ink-2 flex-1">Due</span><span class="t-micro">today</span></div>
+              <div class="flex items-center gap-3 h-9 px-2.5"><span class="lamp on-r"></span><span class="t-label text-ink-1 flex-1 truncate">Reply to Deniz</span><span class="t-meta !text-live">overdue</span></div>
+              <div class="flex items-center gap-3 h-9 px-2.5"><span class="lamp on-a"></span><span class="t-label text-ink-1 flex-1 truncate">Call the bank</span><span class="segd text-ink-2" data-seg="15:00" data-h="10"></span></div>
+              <div class="flex items-center gap-3 h-9 px-2.5"><span class="lamp"></span><span class="t-label text-ink-2 flex-1 truncate">Write release notes</span><span class="segd text-ink-3" data-seg="17:00" data-h="10"></span></div>
+            </div>
+            <div class="panel flex items-center gap-3 p-3.5">
+              <span class="lamp on-g"></span>
+              <div class="flex-1 min-w-0 flex flex-col gap-0.5"><span class="t-label text-ink-1">Apple Reminders</span><span class="t-meta truncate">“Crenel” list · synced just now</span></div>
+            </div>
           </div>
-          <div class="sgroup" data-only="s-data*"><div class="group-h">About</div>
-            <div class="srow"><span class="ng"></span><div class="txt"><b>Version</b></div><span class="t-label text-ink-2">1.2</span></div>
+        </div>
+      </div>
+
+      <!-- ═══ DICTATION — the key you hold, what it typed, words it should know ═══ -->
+      <div data-only="d-dictation" class="flex-1 min-h-0 flex flex-col">
+        <header class="tb">
+          <span class="page-title">Dictation</span><span class="t-meta ml-1">Hold fn, speak, let go</span>
+          <span class="flex-1"></span>
+          <button class="btn-secondary sm" data-go="s-dictation"><svg class="ico-xs"><use href="#i-sliders"/></svg>Shortcut and language</button>
+        </header>
+        <div class="flex-1 overflow-y-auto px-6 pb-6 flex flex-col gap-4" data-stagger>
+          <div class="panel flex items-center gap-7 p-6">
+            <div class="keycap"><span class="lamp on-g self-end"></span><span class="flex items-center justify-between"><span class="text-[13px] font-medium text-ink-2">fn</span><svg class="ico-s text-ink-3"><use href="#i-globe"/></svg></span></div>
+            <div class="flex-1 min-w-0 flex flex-col gap-1.5">
+              <span class="text-[20px] font-semibold tracking-[-.014em]">Hold fn and speak</span>
+              <span class="t-body font-normal text-ink-3 max-w-[400px]">Words appear under the notch as you talk. Let go and they’re typed where your cursor is.</span>
+              <div class="flex gap-1.5 mt-2.5"><span class="chip-s"><svg><use href="#i-keyboard"/></svg>Hold to talk</span><span class="chip-s"><svg><use href="#i-globe"/></svg>English</span><span class="chip-s"><svg><use href="#i-shield"/></svg>On this Mac</span></div>
+            </div>
+            <div class="well grid grid-cols-2 py-3.5 flex-none">
+              <div class="flex flex-col gap-2 px-5"><span class="segd text-ink-1" data-seg="1284" data-h="22"></span><span class="t-meta">words today</span></div>
+              <div class="flex flex-col gap-2 px-5" style="box-shadow:-1px 0 0 rgba(255,255,255,.04)"><span class="segd text-ink-1" data-seg="23" data-h="22"></span><span class="t-meta">dictations</span></div>
+            </div>
           </div>
+          <div class="grid grid-cols-[1fr_300px] gap-4 items-start">
+            <div class="panel p-2">
+              <div class="flex items-center h-9 pl-3 pr-1"><span class="t-label text-ink-2 flex-1">Recent</span><span class="t-micro pr-2">kept on this Mac</span></div>
+              <div class="slide" data-slide>
+                <div class="row !h-auto py-2.5 !items-start"><div class="tcol"><b>14:32</b><span>Slack</span></div><p class="flex-1 t-body text-ink-1 font-normal leading-[1.45]">Let’s move the design review to Thursday afternoon, and send Deniz the new onboarding copy before then.</p><button class="btn-icon framed sm" data-action="copied" title="Copy"><svg class="ico-s"><use href="#i-copy"/></svg></button></div>
+                <div class="row !h-auto py-2.5 !items-start"><div class="tcol"><b>13:05</b><span>Notes</span></div><p class="flex-1 t-body text-ink-1 font-normal leading-[1.45]">Ship the notarized build after QA signs off.</p><button class="btn-icon framed sm" data-action="copied" title="Copy"><svg class="ico-s"><use href="#i-copy"/></svg></button></div>
+                <div class="row !h-auto py-2.5 !items-start"><div class="tcol"><b>11:48</b><span>Mail</span></div><p class="flex-1 t-body text-ink-1 font-normal leading-[1.45]">Thanks Mira — Thursday works. I’ll bring the pricing numbers.</p><button class="btn-icon framed sm" data-action="copied" title="Copy"><svg class="ico-s"><use href="#i-copy"/></svg></button></div>
+                <div class="row !h-auto py-2.5 !items-start opacity-60"><div class="tcol"><b>10:20</b><span>Copied</span></div><p class="flex-1 t-body text-ink-1 font-normal leading-[1.45]">Check the light appearance on the settings window.</p><button class="btn-icon framed sm" data-action="copied" title="Copy"><svg class="ico-s"><use href="#i-copy"/></svg></button></div>
+              </div>
+            </div>
+            <div class="panel p-4 flex flex-col gap-3" data-dictbox>
+              <div class="flex flex-col gap-1"><span class="t-label text-ink-1">Words to know</span><span class="t-meta">Names and terms it should spell your way.</span></div>
+              <div class="flex items-center gap-1.5"><input class="sfield !h-[30px]" placeholder="Crenel, SwiftUI, Ayhan" data-dictinput><button class="btn-secondary sm !px-2" data-action="dict-add" title="Add"><svg class="ico-xs"><use href="#i-plus"/></svg></button></div>
+              <div class="flex flex-wrap gap-1.5" data-dict>
+                <span class="dchip chip" data-action="dict-remove">Crenel<svg class="w-2 h-2 text-ink-4"><use href="#i-close"/></svg></span>
+                <span class="dchip chip" data-action="dict-remove">SwiftUI<svg class="w-2 h-2 text-ink-4"><use href="#i-close"/></svg></span>
+                <span class="dchip chip" data-action="dict-remove">Deniz<svg class="w-2 h-2 text-ink-4"><use href="#i-close"/></svg></span>
+                <span class="dchip chip" data-action="dict-remove">ElevenLabs<svg class="w-2 h-2 text-ink-4"><use href="#i-close"/></svg></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ SETTINGS — a second rail with a lamp per section; each page opens with its own header ═══ -->
+      <div data-only="s-*" class="flex-1 min-h-0 flex flex-col">
+        <header class="tb"><span class="page-title">Settings</span><span class="flex-1"></span><label class="search w-[220px]"><svg><use href="#i-search"/></svg><input placeholder="Search settings"></label></header>
+        <div class="flex-1 min-h-0 flex">
+          <div class="rail w-[200px] flex-none pl-3 pr-2" data-rail="settings">
+            <i class="rail-lamp"></i>
+            <div class="sb-item" data-key="general" data-go="s-general"><svg class="ico"><use href="#i-sun"/></svg><span class="flex-1">General</span></div>
+            <div class="sb-item" data-key="dictation" data-go="s-dictation"><svg class="ico"><use href="#i-waveform"/></svg><span class="flex-1">Dictation</span><span class="lamp on-g" data-not="s-dictation-perms"></span><span class="lamp on-a" data-only="s-dictation-perms"></span></div>
+            <div class="sb-item" data-key="stasks" data-go="s-tasks-connected"><svg class="ico"><use href="#i-queue"/></svg><span class="flex-1">Tasks</span><span class="lamp on-g" data-not="s-tasks-notconnected s-tasks-denied s-tasks-error s-tasks-local"></span><span class="lamp on-a" data-only="s-tasks-denied"></span><span class="lamp on-r" data-only="s-tasks-error"></span><span class="lamp" data-only="s-tasks-notconnected s-tasks-local"></span></div>
+            <div class="sb-item" data-key="ai" data-go="s-ai-auto"><svg class="ico"><use href="#i-spark"/></svg><span class="flex-1">AI</span><span class="lamp on-g" data-not="s-ai-off"></span><span class="lamp" data-only="s-ai-off"></span></div>
+            <div class="sb-item" data-key="calendar" data-go="s-calendar-connected"><svg class="ico"><use href="#i-calendar"/></svg><span class="flex-1">Calendar</span><span class="lamp on-g" data-not="s-calendar-notconnected s-calendar-denied s-calendar-failed s-calendar-off"></span><span class="lamp on-a" data-only="s-calendar-denied"></span><span class="lamp on-r" data-only="s-calendar-failed"></span><span class="lamp" data-only="s-calendar-notconnected s-calendar-off"></span></div>
+            <div class="sb-item" data-key="recording" data-go="s-recording"><svg class="ico"><use href="#i-mic"/></svg><span class="flex-1">Recording</span><span class="lamp on-g" data-not="s-recording-denied"></span><span class="lamp on-r" data-only="s-recording-denied"></span></div>
+            <div class="sb-item" data-key="data" data-go="s-data"><svg class="ico"><use href="#i-archive"/></svg><span class="flex-1">Data</span></div>
+          </div>
+          <div class="flex-1 min-w-0 overflow-y-auto pl-5 pr-8 pb-8">
+            <div class="max-w-[640px] flex flex-col gap-5">
+              <!-- Page headers -->
+              <div class="ph" data-only="s-general"><span class="ph-icon"><svg class="ico"><use href="#i-sun"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">General</span><span class="t-meta">How Crenel starts and how long it keeps things.</span></div></div>
+              <div class="ph" data-only="s-dictation*"><span class="ph-icon"><svg class="ico"><use href="#i-waveform"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Dictation</span><span class="t-meta">The key you hold and how it listens.</span></div><span class="ok-t" data-not="s-dictation-perms">Ready</span><span class="warn-t" data-only="s-dictation-perms">Needs access</span></div>
+              <div class="ph" data-only="s-tasks*"><span class="ph-icon"><svg class="ico"><use href="#i-queue"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Tasks</span><span class="t-meta">Where your tasks live.</span></div></div>
+              <div class="ph" data-only="s-ai*"><span class="ph-icon"><svg class="ico"><use href="#i-spark"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">AI</span><span class="t-meta">Who writes your notes and cleans up dictation.</span></div>
+                <!-- The fallback chain as three lamps: lit = will be used -->
+                <div class="well flex items-center gap-3 h-9 px-3" data-not="s-ai-off">
+                  <span class="flex items-center gap-1.5 t-meta"><span class="lamp" data-not="s-ai-anthropic"></span><span class="lamp on-g" data-only="s-ai-anthropic"></span>Anthropic</span><svg class="ico-xs text-ink-4"><use href="#i-chevron-right"/></svg>
+                  <span class="flex items-center gap-1.5 t-meta"><span class="lamp" data-not="s-ai-openai"></span><span class="lamp on-g" data-only="s-ai-openai"></span>OpenAI</span><svg class="ico-xs text-ink-4"><use href="#i-chevron-right"/></svg>
+                  <span class="flex items-center gap-1.5 t-meta"><span class="lamp on-g" data-only="s-ai-auto s-ai-ondevice"></span><span class="lamp" data-only="s-ai-openai s-ai-anthropic"></span>This Mac</span>
+                </div></div>
+              <div class="ph" data-only="s-calendar*"><span class="ph-icon"><svg class="ico"><use href="#i-calendar"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Calendar</span><span class="t-meta">Meetings and their countdown in the notch.</span></div>
+                <div class="well grid grid-cols-2 py-2.5" data-only="s-calendar-connected"><div class="flex flex-col gap-1.5 px-4"><span class="segd text-ink-1" data-seg="5" data-h="15"></span><span class="t-micro !text-ink-3">calendars</span></div><div class="flex flex-col gap-1.5 px-4" style="box-shadow:-1px 0 0 rgba(255,255,255,.04)"><span class="segd text-ink-1" data-seg="42" data-h="15"></span><span class="t-micro !text-ink-3">events</span></div></div></div>
+              <div class="ph" data-only="s-recording*"><span class="ph-icon"><svg class="ico"><use href="#i-mic"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Recording</span><span class="t-meta">What Crenel hears, and what it never records.</span></div><span class="ok-t" data-only="s-recording">All allowed</span><span class="err-t" data-only="s-recording-denied">Call audio off</span></div>
+              <div class="ph" data-only="s-data*"><span class="ph-icon"><svg class="ico"><use href="#i-archive"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Data</span><span class="t-meta">Everything stays in one folder on this Mac.</span></div>
+                <div class="well grid grid-cols-2 py-2.5"><div class="flex flex-col gap-1.5 px-4"><span class="flex items-baseline"><span class="segd text-ink-1" data-seg="2.1" data-h="15"></span><span class="unit">GB</span></span><span class="t-micro !text-ink-3">on disk</span></div><div class="flex flex-col gap-1.5 px-4" style="box-shadow:-1px 0 0 rgba(255,255,255,.04)"><span class="segd text-ink-1" data-seg="12" data-h="15"></span><span class="t-micro !text-ink-3">meetings</span></div></div></div>
+
+              <!-- General -->
+              <div class="sgroup" data-only="s-general"><div class="group-h">Startup</div>
+                <div class="srow"><svg><use href="#i-sun"/></svg><div class="txt"><b>Open at login</b><span>Crenel sits in the notch from the moment you log in</span></div><span class="toggle on"></span></div>
+              </div>
+              <div class="sgroup" data-only="s-general"><div class="group-h">Storage</div>
+                <div class="srow"><svg><use href="#i-archive"/></svg><div class="txt"><b>Keep meetings</b><span>Older meetings are deleted with their audio</span></div><span class="select" data-options="Forever|7 days|30 days|90 days">Forever<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+              </div>
+              <div class="actions" data-only="s-general"><span class="note" data-savemsg></span><button class="btn-primary" data-action="save">Save<span class="kbd">⌘S</span></button></div>
+
+              <!-- Dictation -->
+              <div class="sgroup" data-only="s-dictation*"><div class="group-h">Dictation</div>
+                <div class="srow"><svg><use href="#i-waveform"/></svg><div class="txt"><b>Dictation</b><span>Hold a key anywhere to type with your voice</span></div><span class="toggle on"></span></div>
+                <div class="srow" data-only="s-dictation-perms"><svg><use href="#i-keyboard"/></svg><div class="txt"><b>Input Monitoring</b><span>Needed for the shortcut</span></div><span class="warn-t">Off</span><button class="btn-secondary sm" data-go="s-dictation">Allow</button></div>
+                <div class="snote" data-only="s-dictation-perms">Without Accessibility, text goes to the clipboard.</div>
+                <div class="srow"><svg><use href="#i-keyboard"/></svg><div class="txt"><b>Shortcut</b><span>⌃Space still switches input languages</span></div><span class="select" data-options="Hold Fn (🌐)|Hold right ⌥|Hold right ⌘">Hold Fn (🌐)<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Mode</b></div><span class="select" data-options="Hold to talk|Press to start, press to stop">Hold to talk<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Double-tap for hands-free</b></div><span class="toggle"></span></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Language</b></div><span class="select" data-options="System language|Turkish|English">System language<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+              </div>
+              <div class="sgroup" data-only="s-dictation*"><div class="group-h">Speech model</div>
+                <div class="srow"><svg><use href="#i-shield"/></svg><div class="txt"><b>On this Mac</b><span>180 MB · nothing you say leaves the Mac</span></div><button class="btn-secondary sm" data-toast="Downloading the speech model…"><svg class="ico-xs"><use href="#i-chevron-down"/></svg>Download</button></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Words to know</b><span>Crenel, SwiftUI, Deniz, ElevenLabs</span></div><button class="btn-secondary sm" data-go="d-dictation">Edit<svg class="ico-xs"><use href="#i-chevron-right"/></svg></button></div>
+              </div>
+
+              <!-- Tasks -->
+              <div class="sgroup" data-only="s-tasks*"><div class="group-h">Storage</div>
+                <div class="srow"><svg><use href="#i-queue"/></svg><div class="txt"><b>Keep tasks in</b><span data-not="s-tasks-local">Also on iPhone, iPad and Watch</span><span data-only="s-tasks-local">Only on this Mac</span></div>
+                  <span class="select" data-only="s-tasks-local" data-goopt="Apple Reminders:s-tasks-connected|This Mac only:s-tasks-local">This Mac only<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span>
+                  <span class="select" data-not="s-tasks-local" data-goopt="Apple Reminders:s-tasks-connected|This Mac only:s-tasks-local">Apple Reminders<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+                <div class="srow" data-only="s-tasks-connected"><span class="ng"></span><div class="txt"><b>Reminders</b><span>“Crenel” list</span></div><span class="ok-t">Connected</span><button class="btn-secondary sm" data-toast="Opens Reminders"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
+                <div class="srow" data-only="s-tasks-notconnected"><span class="ng"></span><div class="txt"><b>Reminders</b></div><span class="dim-t">Not connected</span><button class="btn-secondary sm" data-go="s-tasks-connected">Connect</button></div>
+                <div class="srow" data-only="s-tasks-denied"><span class="ng"></span><div class="txt"><b>Reminders</b><span>Privacy &amp; Security › Reminders</span></div><span class="warn-t">Access off</span><button class="btn-secondary sm" data-toast="Opens Privacy &amp; Security › Reminders"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
+                <div class="srow" data-only="s-tasks-error"><span class="ng"></span><div class="txt"><b>Reminders</b><span>Couldn’t save the last change</span></div><span class="err-t">Error</span><button class="btn-secondary sm" data-go="s-tasks-connected">Try again</button></div>
+              </div>
+
+              <!-- AI -->
+              <div class="sgroup" data-only="s-ai*"><div class="group-h">Model</div>
+                <div class="srow"><svg><use href="#i-spark"/></svg><div class="txt"><b>Who writes</b>
+                    <span data-only="s-ai-auto">Anthropic, then OpenAI, then this Mac</span><span data-only="s-ai-openai">Your OpenAI key</span><span data-only="s-ai-anthropic">Your Anthropic key</span><span data-only="s-ai-ondevice">Apple’s model, on this Mac</span><span data-only="s-ai-off">Raw text only</span></div>
+                  <span class="select" data-goopt="Automatic:s-ai-auto|On this Mac (Apple):s-ai-ondevice|OpenAI (your key):s-ai-openai|Anthropic (your key):s-ai-anthropic|Off:s-ai-off">
+                    <span data-only="s-ai-auto">Automatic</span><span data-only="s-ai-ondevice">On this Mac (Apple)</span><span data-only="s-ai-openai">OpenAI (your key)</span><span data-only="s-ai-anthropic">Anthropic (your key)</span><span data-only="s-ai-off">Off</span><svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Clean up dictation</b></div><span class="toggle on"></span></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Voice commands on selected text</b></div><span class="toggle"></span></div>
+                <div class="sfrow" data-only="s-ai-openai"><input class="sfield" placeholder="OpenAI model ID (empty: default)"></div>
+              </div>
+              <div class="sgroup" data-only="s-ai-auto s-ai-anthropic"><div class="group-h">Anthropic</div>
+                <div class="srow"><svg><use href="#i-spark"/></svg><div class="txt"><b>Anthropic</b><span>Notes and dictation clean-up · billed to you</span></div><span class="dim-t" data-only="s-ai-auto">No key</span><span class="ok-t" data-only="s-ai-anthropic">Connected</span><button class="btn-danger sm" data-only="s-ai-anthropic" data-go="s-ai-auto">Remove</button></div>
+                <div class="sfrow"><input class="sfield" type="password" placeholder="Anthropic API key" data-only="s-ai-auto"><input class="sfield" type="password" placeholder="New Anthropic API key" data-only="s-ai-anthropic"><button class="btn-secondary" data-go="s-ai-anthropic" title="Sends a small paid test request">Verify and save</button></div>
+                <div class="sfrow"><input class="sfield" placeholder="Anthropic model ID (empty: claude-haiku-5-5)"></div>
+              </div>
+              <div class="sgroup" data-only="s-ai*"><div class="group-h">Meetings</div>
+                <div class="srow"><svg><use href="#i-waveform"/></svg><div class="txt"><b>Transcript</b></div><span class="select" data-options="ElevenLabs (cloud, speaker names)|On this Mac (Apple Speech)">ElevenLabs (cloud, speaker names)<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+                <div class="srow"><svg><use href="#i-spark"/></svg><div class="txt"><b>Notes</b></div><span class="select" data-options="OpenAI|Same as above">OpenAI<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+              </div>
+              <div class="sgroup" data-only="s-ai*"><div class="group-h">OpenAI</div>
+                <div class="srow"><svg><use href="#i-spark"/></svg><div class="txt"><b>OpenAI</b><span>Notes and tasks · billed to you</span></div><span class="ok-t" data-only="s-ai-openai">Connected</span><span class="dim-t" data-not="s-ai-openai">No key</span><button class="btn-danger sm" data-only="s-ai-openai" data-go="s-ai-auto">Remove</button></div>
+                <div class="sfrow"><input class="sfield" type="password" placeholder="OpenAI API key" data-not="s-ai-openai"><input class="sfield" type="password" placeholder="New OpenAI API key" data-only="s-ai-openai">
+                  <button class="btn-secondary" data-not="s-ai-openai" data-go="s-ai-openai" title="Sends a small paid test request">Connect</button><button class="btn-secondary" data-only="s-ai-openai" data-toast="Connection updated.">Update</button></div>
+              </div>
+              <div class="sgroup" data-only="s-ai*"><div class="group-h">ElevenLabs</div>
+                <div class="srow"><svg><use href="#i-waveform"/></svg><div class="txt"><b>ElevenLabs</b><span>Meeting transcripts with speaker names</span></div><span class="ok-t">Connected</span><button class="btn-danger sm" data-toast="Key removed">Remove</button></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Transcript language</b></div><span class="select" data-options="Automatic|Turkish|English">Automatic<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+                <div class="sfrow"><input class="sfield" type="password" placeholder="Type to replace the saved key"><button class="btn-secondary" data-toast="Speech-to-Text access verified and saved">Verify and save</button></div>
+              </div>
+
+              <!-- Calendar -->
+              <div class="sgroup" data-only="s-calendar*"><div class="group-h">Calendar</div>
+                <div class="srow"><svg><use href="#i-calendar"/></svg><div class="txt"><b>Show meetings in the notch</b></div><span class="toggle on" data-not="s-calendar-off" data-go="s-calendar-off"></span><span class="toggle" data-only="s-calendar-off" data-go="s-calendar-connected"></span></div>
+                <div class="srow"><svg><use href="#i-bell"/></svg><div class="txt"><b>Heads-up</b></div><span class="select" data-options="5 min and 1 min before|10 min and 1 min before|15 min and 1 min before">5 min and 1 min before<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+                <div class="srow"><svg><use href="#i-people"/></svg><div class="txt"><b>Connection</b><span data-only="s-calendar-connected">Refreshed 5 min ago</span></div>
+                  <span class="ok-t" data-only="s-calendar-connected">Connected</span><button class="btn-secondary sm" data-only="s-calendar-connected" data-toast="Refreshing">Refresh</button>
+                  <span class="dim-t" data-only="s-calendar-notconnected">Not connected</span><button class="btn-secondary sm" data-only="s-calendar-notconnected" data-go="s-calendar-connected">Allow</button>
+                  <span class="warn-t" data-only="s-calendar-denied">Access off</span><button class="btn-secondary sm" data-only="s-calendar-denied" data-toast="Opens Privacy &amp; Security › Calendars"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button>
+                  <span class="err-t" data-only="s-calendar-failed">Connection error</span><button class="btn-secondary sm" data-only="s-calendar-failed" data-go="s-calendar-connected">Try again</button>
+                  <span class="dim-t" data-only="s-calendar-off">Off</span></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Accounts</b><span>Google (3) · iCloud (2), from Internet Accounts</span></div><button class="btn-secondary sm" data-toast="Opens Internet Accounts"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
+              </div>
+              <div class="sgroup" data-only="s-calendar*"><div class="group-h">Notifications</div>
+                <div class="srow"><svg><use href="#i-bell"/></svg><div class="txt"><b>Meeting notifications</b></div><span class="ok-t">On</span><button class="btn-secondary sm" data-toast="Opens Notification settings"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
+              </div>
+              <div class="sgroup" data-only="s-calendar-connected"><div class="group-h">Calendars</div>
+                <div class="srow"><svg><use href="#i-calendar"/></svg><div class="txt"><b>All calendars</b></div><span class="toggle" data-action="all-cals"></span></div>
+                <div data-cals>
+                  <div class="srow"><span class="ng"></span><div class="txt"><b>Work</b><span>Google · 31 events</span></div><span class="toggle on"></span></div>
+                  <div class="srow"><span class="ng"></span><div class="txt"><b>Personal</b><span>iCloud · 6 events</span></div><span class="toggle"></span></div>
+                  <div class="srow"><span class="ng"></span><div class="txt"><b>Family</b><span>iCloud · 5 events</span></div><span class="toggle on"></span></div>
+                </div>
+              </div>
+
+              <!-- Recording -->
+              <div class="sgroup" data-only="s-recording*"><div class="group-h">Source</div>
+                <div class="srow"><svg><use href="#i-mic"/></svg><div class="txt"><b>Microphone</b></div><span class="select max-w-[260px]" data-options="System default|MacBook Pro Microphone|AirPods Pro">MacBook Pro Microphone<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
+                <div class="srow"><span class="ng"></span><div class="txt"><b>Level</b><span>Speak to test</span></div><div class="well flex items-center h-7 px-2.5 w-[240px]"><div class="vu" data-cells="24"></div></div></div>
+              </div>
+              <div class="sgroup" data-only="s-recording*"><div class="group-h">Permissions</div>
+                <div class="srow"><svg><use href="#i-mic"/></svg><div class="txt"><b>Microphone</b><span>Your voice</span></div><span class="ok-t">Allowed</span></div>
+                <div class="srow" data-only="s-recording"><svg><use href="#i-speaker"/></svg><div class="txt"><b>System audio</b><span>Everyone else on the call</span></div><span class="ok-t">Allowed</span></div>
+                <div class="srow" data-only="s-recording-denied"><svg><use href="#i-speaker"/></svg><div class="txt"><b>System audio</b><span>Everyone else on the call</span></div><span class="err-t">Denied</span><button class="btn-icon framed sm" data-menu-click="menu-sysaudio" title="More"><svg class="ico-s"><use href="#i-more"/></svg></button><button class="btn-secondary sm" data-toast="Opens Privacy &amp; Security › Screen &amp; System Audio Recording"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
+                <div class="srow" data-only="s-recording"><svg><use href="#i-accessibility"/></svg><div class="txt"><b>Mute tracking</b><span>Reads mute in Zoom and Meet</span></div><span class="ok-t">Allowed</span></div>
+                <div class="srow" data-only="s-recording-denied"><svg><use href="#i-accessibility"/></svg><div class="txt"><b>Mute tracking</b><span>Needs Accessibility</span></div><span class="warn-t">Off</span><button class="btn-secondary sm" data-go="s-recording">Allow</button></div>
+              </div>
+              <div class="sgroup" data-only="s-recording*"><div class="group-h">Privacy guard</div>
+                <div class="srow"><svg><use href="#i-shield"/></svg><div class="txt"><b>Meet tab</b></div><span class="dim-t">Waiting for a call tab</span></div>
+                <button class="expand" data-action="expand">How your mic is handled<svg class="w-2.5 h-2.5 transition-transform"><use href="#i-chevron-down"/></svg></button>
+                <div data-expandable hidden>
+                  <div class="srow"><span class="ng"></span><div class="txt"><b>Your mic</b></div><span class="t-label text-ink-2">Starts muted</span></div>
+                  <div class="srow"><span class="ng"></span><div class="txt"><b>Mute state unknown</b></div><span class="t-label text-ink-2">Not recorded</span></div>
+                  <div class="srow"><span class="ng"></span><div class="txt"><b>By hand</b></div><span class="t-label text-ink-2">Notch or ⌥⌘M</span></div>
+                </div>
+              </div>
+
+              <!-- Data -->
+              <div class="sgroup" data-only="s-data*"><div class="group-h">Folder</div>
+                <div class="srow"><svg><use href="#i-archive"/></svg><div class="txt"><b>Data folder</b><span>~/Library/Application Support/Crenel</span></div><button class="btn-secondary sm" data-toast="Opens the data folder in Finder">Show in Finder</button></div>
+                <div class="srow"><svg><use href="#i-window"/></svg><div class="txt"><b>Setup</b><span>Walk through permissions again</span></div><button class="btn-secondary sm" data-go="ob-welcome">Run again</button></div>
+              </div>
+              <div class="sgroup" data-only="s-data*"><div class="group-h">Danger zone</div>
+                <div class="srow"><svg><use href="#i-trash"/></svg><div class="txt"><b>Delete all data</b><span data-not="s-data-busy">Meetings, audio, tasks on this Mac, settings and keys</span><span data-only="s-data-busy">Not while recording or processing</span></div><button class="btn-danger sm" data-not="s-data-busy" data-go="a-delete-all">Delete…</button><button class="btn-danger sm dis" data-only="s-data-busy">Delete…</button></div>
+              </div>
+              <div class="flex items-center gap-3 px-3 pt-1 t-meta" data-only="s-data*"><span class="app-tile !w-[22px] !h-[22px] !rounded-[6px]"><svg class="w-[13px] h-[8px]"><use href="#i-mark"/></svg></span>Crenel 1.2 · build 48</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</template>
+
+<!-- Desktop meeting detail: header + player well, then the notes with a rail -->
+<template id="tpl-ddetail">
+  <div class="flex items-start gap-4 px-7 pt-6">
+    <div class="flex-1 min-w-0 flex flex-col gap-3">
+      <span class="text-[22px] font-semibold tracking-[-.016em] leading-[1.15] truncate">Design review</span>
+      <div class="flex flex-wrap gap-1.5"><span class="chip-s"><svg><use href="#i-calendar"/></svg>Today 10:00</span><span class="chip-s"><svg><use href="#i-clock"/></svg>48 min</span><span class="chip-s"><svg><use href="#i-video"/></svg>Google Meet</span><span class="chip-s"><svg><use href="#i-people"/></svg>Deniz, Ece, you</span></div>
+    </div>
+    <div class="actions pt-0.5">
+      <button class="btn-icon framed sm" data-menu-click="menu-more" title="More"><svg class="ico-s"><use href="#i-more"/></svg></button>
+      <button class="btn-secondary sm" data-menu-click="menu-export"><svg class="ico-xs"><use href="#i-share"/></svg>Export<svg class="ico-xs !text-ink-3 -mr-0.5"><use href="#i-chevron-down"/></svg></button>
+      <button class="btn-secondary sm" data-action="copied"><svg class="ico-xs"><use href="#i-copy"/></svg>Copy notes<span class="kbd">⇧⌘C</span></button>
+    </div>
+  </div>
+  <!-- Player: knob, time, the whole call as a waveform, who spoke when as a lane under it -->
+  <div class="well mx-7 mt-5 flex items-center gap-4 pl-2.5 pr-3 h-[78px] flex-none">
+    <button class="knob" data-action="play" title="Play (space)"><svg class="ico-s"><use href="#i-play"/></svg></button>
+    <div class="flex flex-col gap-1.5 w-[58px] flex-none"><span class="segd text-ink-1" data-seg="12:04" data-h="14" data-ptime-seg></span><span class="t-micro">of 48:12</span></div>
+    <div class="flex-1 min-w-0 flex flex-col gap-2">
+      <div class="relative h-7 flex items-center" data-scrub><div class="absolute inset-0 flex items-center gap-[2px]" data-wave></div><i class="absolute -top-1 -bottom-1 w-px bg-signal" style="left:25%;box-shadow:0 0 6px rgba(255,173,51,.9),0 0 14px rgba(255,173,51,.3)" data-head></i></div>
+      <div class="lane"><i class="bg-ink-1" style="width:9%"></i><i class="bg-ink-2" style="width:14%"></i><i class="bg-ink-1" style="width:6%"></i><i class="bg-ink-4" style="width:8%"></i><i class="bg-ink-2" style="width:11%"></i><i class="bg-ink-1" style="width:17%"></i><i class="bg-ink-4" style="width:5%"></i><i class="bg-ink-2" style="width:13%"></i><i class="bg-ink-1" style="width:14%"></i></div>
+    </div>
+    <button class="btn-secondary xs !px-2" data-toast="Speed 1.5×">1×</button>
+  </div>
+  <div class="flex-1 min-h-0 overflow-y-auto">
+    <div class="grid grid-cols-[1fr_232px] gap-8 px-7 pt-5 pb-8" data-stagger>
+      <div class="flex flex-col min-w-0 -mx-[10px]">
+        <div class="group-h !h-8 items-center !pt-0"><span class="flex-1">Summary</span><button class="btn-secondary xs" data-toast="Writing new notes…"><svg class="ico-xs"><use href="#i-spark"/></svg>Rewrite</button></div>
+        <p class="px-[10px] pt-1 t-read text-ink-1">The team agreed to ship the notch redesign behind a flag next week. Onboarding copy needs one more pass, and pricing stays unchanged until the beta closes.</p>
+        <div class="group-h mt-4">Decided</div>
+        <div class="px-[10px] flex flex-col gap-1.5 t-read text-ink-1">
+          <p class="flex gap-3"><span class="t-micro !text-ink-3 pt-[5px] w-3 flex-none">1</span>The detail panel keeps the width of every notch screen.</p>
+          <p class="flex gap-3"><span class="t-micro !text-ink-3 pt-[5px] w-3 flex-none">2</span>Beta pricing is frozen until January.</p>
+        </div>
+        <div class="group-h mt-4">Transcript</div>
+        <div class="slide" data-slide>
+          <div class="trow !h-auto py-2.5 !items-start" data-menu="menu-segment"><span class="t-micro !text-ink-3 pt-[4px] w-9 flex-none" data-toast="Playing from 00:12">00:12</span><div class="flex-1 flex flex-col gap-[3px]"><span class="t-label text-ink-1">You</span><p class="t-read">Let’s start with the notch. I want the closed state to be readable in one glance.</p></div></div>
+          <div class="trow !h-auto py-2.5 !items-start" data-menu="menu-segment"><span class="t-micro !text-ink-3 pt-[4px] w-9 flex-none" data-toast="Playing from 00:31">00:31</span><div class="flex-1 flex flex-col gap-[3px]"><span class="t-label text-ink-2">Deniz</span><p class="t-read">Agreed. Two ears, one value each side, nothing else.</p></div></div>
+          <div class="trow !h-auto py-2.5 !items-start" data-menu="menu-segment"><span class="t-micro !text-ink-3 pt-[4px] w-9 flex-none" data-toast="Playing from 00:48">00:48</span><div class="flex-1 flex flex-col gap-[3px]"><span class="t-label text-ink-1">You</span><p class="t-read">And the open panel should never jump when I hover a row.</p></div></div>
+          <div class="trow !h-auto py-2.5 !items-start" data-menu="menu-segment"><span class="t-micro !text-ink-3 pt-[4px] w-9 flex-none" data-toast="Playing from 01:10">01:10</span><div class="flex-1 flex flex-col gap-[3px]"><span class="t-label text-ink-3">Ece</span><p class="t-read">Then pricing: I’d keep it frozen until the beta closes in January.</p></div></div>
+        </div>
+      </div>
+      <!-- Rail: what you owe, who talked, where it came from -->
+      <div class="flex flex-col gap-6">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center h-7"><span class="t-label text-ink-3 flex-1">For you</span><span class="segd text-signal" data-seg="3" data-h="11"></span></div>
+          <div class="flex flex-col gap-2.5">
+            <div class="flex items-start gap-2.5"><div class="flex-1 flex flex-col gap-0.5"><span class="t-label text-ink-1">Check the appearance matrix</span><span class="t-meta">by Fri 20 · 02:14</span></div><button class="btn-secondary xs" data-action="add-item"><svg class="ico-xs"><use href="#i-plus"/></svg>Add</button></div>
+            <div class="flex items-start gap-2.5"><div class="flex-1 flex flex-col gap-0.5"><span class="t-label text-ink-2">Write onboarding copy</span><span class="t-meta">18:40</span></div><span class="ok-t h-[22px]">In Tasks</span></div>
+            <div class="flex items-start gap-2.5"><div class="flex-1 flex flex-col gap-0.5"><span class="t-label text-ink-1">Send the beta invite list</span><span class="t-meta">31:02</span></div><button class="btn-secondary xs" data-action="add-item"><svg class="ico-xs"><use href="#i-plus"/></svg>Add</button></div>
+          </div>
+        </div>
+        <div class="flex flex-col gap-2.5">
+          <div class="flex items-center h-7"><span class="t-label text-ink-3 flex-1">Talk time</span><button class="btn-ghost xs !px-1.5 !h-6" data-menu-click="menu-speakers">Rename</button></div>
+          <div class="flex flex-col gap-1.5"><div class="flex items-baseline justify-between t-label"><span class="text-ink-1">You</span><span class="t-meta">22 min · 46%</span></div><div class="track"><i style="width:46%"></i></div></div>
+          <div class="flex flex-col gap-1.5"><div class="flex items-baseline justify-between t-label"><span class="text-ink-2">Deniz</span><span class="t-meta">18 min · 38%</span></div><div class="track"><i class="!bg-ink-2 !shadow-none" style="width:38%"></i></div></div>
+          <div class="flex flex-col gap-1.5"><div class="flex items-baseline justify-between t-label"><span class="text-ink-3">Ece</span><span class="t-meta">8 min · 16%</span></div><div class="track"><i class="!bg-ink-4 !shadow-none" style="width:16%"></i></div></div>
+        </div>
+        <div class="flex flex-col">
+          <div class="flex items-center h-7"><span class="t-label text-ink-3">Details</span></div>
+          <div class="kv"><span>Recorded from</span><b>Google Meet</b></div>
+          <div class="kv"><span>Audio</span><b>2 tracks · 46 MB</b></div>
+          <div class="kv"><span>Transcript</span><b>ElevenLabs</b></div>
+          <div class="kv"><span>Notes</span><b>Claude Haiku</b></div>
         </div>
       </div>
     </div>
@@ -1094,11 +1450,11 @@
       <div class="flex-1 flex flex-col items-center justify-center gap-9 px-10 text-center">
         <div class="relative w-[220px] h-[220px] bleed text-ink-1">
           <div class="gauge text-ink-1" data-gauge="1" data-size="220" data-ticks="90" data-major="15" data-ignite="loop"></div>
-          <div class="absolute inset-0 flex flex-col items-center justify-center gap-3"><svg class="w-9 h-9 text-ink-1"><use href="#i-logo"/></svg><span class="segd text-ink-1" data-seg="10:42" data-h="16"></span></div>
+          <div class="absolute inset-0 flex flex-col items-center justify-center gap-3"><svg class="w-[46px] h-[29px] text-[#14f0d4]" style="filter:drop-shadow(0 0 6px rgba(20,240,212,.55))"><use href="#i-mark"/></svg><span class="segd text-ink-1" data-seg="10:42" data-h="16"></span></div>
         </div>
         <div class="flex flex-col items-center gap-2.5"><span class="text-[24px] font-semibold tracking-[-.02em]">A quiet instrument for your day</span><span class="t-body text-ink-3 font-normal max-w-[380px]">Crenel lives in the notch. It counts down to your meetings, keeps your tasks, types what you say and writes the notes.</span></div>
       </div>
-      <div class="flex justify-center pb-9"><button class="btn-primary min-w-[160px] h-8" data-go="ob-setup">Start<span class="kbd">↩</span></button></div>
+      <div class="flex justify-center pb-9"><button class="btn-primary lg min-w-[168px]" data-go="ob-setup">Start<span class="kbd">↩</span></button></div>
     </div>
 
     <div data-not="ob-welcome" class="flex-1 flex flex-col min-h-0">
@@ -1107,17 +1463,17 @@
         <div><div class="group-h">Plan</div>
           <div class="row-1"><svg class="ico text-ink-3"><use href="#i-calendar"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Calendar</span><span class="t-meta">Countdown to your next meeting</span></div><span class="lamp on-g"></span></div>
           <div class="row-1"><svg class="ico text-ink-3"><use href="#i-queue"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Reminders</span><span class="t-meta">Tasks on your iPhone and Watch too</span></div><span class="lamp on-g"></span></div>
-          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-bell"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Notifications</span><span class="t-meta">A heads-up before meetings</span></div><button class="btn-ghost sm" data-only="ob-setup" data-action="grant">Allow</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
+          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-bell"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Notifications</span><span class="t-meta">A heads-up before meetings</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant">Allow</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
         <div><div class="group-h">Sound</div>
           <div class="row-1"><svg class="ico text-ink-3"><use href="#i-mic"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Microphone</span><span class="t-meta">Your voice, for dictation and meetings</span></div><span class="lamp on-g"></span></div>
-          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-speaker"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">System audio</span><span class="t-meta">Everyone else on a call</span></div><button class="btn-ghost sm" data-only="ob-setup" data-action="grant">Allow</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
+          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-speaker"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">System audio</span><span class="t-meta">Everyone else on a call</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant">Allow</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
         <div><div class="group-h">Keyboard</div>
-          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-keyboard"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Input Monitoring</span><span class="t-meta">Hold Fn to dictate</span></div><button class="btn-ghost sm" data-only="ob-setup" data-action="grant">Open</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div>
-          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-accessibility"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Accessibility</span><span class="t-meta">Typing at the cursor, mute in Zoom and Meet</span></div><button class="btn-ghost sm" data-only="ob-setup" data-action="grant" title="This was turned off before; it can only be turned on in System Settings.">Open</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
+          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-keyboard"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Input Monitoring</span><span class="t-meta">Hold Fn to dictate</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div>
+          <div class="row-1"><svg class="ico text-ink-3"><use href="#i-accessibility"/></svg><div class="flex-1 flex flex-col gap-0.5"><span class="t-body">Accessibility</span><span class="t-meta">Typing at the cursor, mute in Zoom and Meet</span></div><button class="btn-secondary sm" data-only="ob-setup" data-action="grant" title="This was turned off before; it can only be turned on in System Settings."><svg class="ico-xs"><use href="#i-link"/></svg>Open</button><span class="lamp" data-only="ob-turning" data-ign></span><span class="lamp on-g" data-only="ob-done"></span></div></div>
         <div class="flex items-start gap-2.5 px-[10px] pt-1 pb-3 t-meta"><svg class="ico-xs mt-[1px] text-ink-4"><use href="#i-shield"/></svg>Dictation and the agent run on this Mac. Meeting audio leaves it only for a transcript, and only when you record.</div>
       </div>
       <div class="flex justify-end gap-2 px-9 pt-3 pb-8">
-        <button class="btn-ghost" data-not="ob-done" data-action="close-window">Not now</button>
+        <button class="btn-secondary" data-not="ob-done" data-action="close-window">Not now<span class="kbd">esc</span></button>
         <button class="btn-primary" data-only="ob-setup" data-go="ob-turning">Turn on all<span class="kbd">↩</span></button>
         <button class="btn-primary dis !opacity-60" data-only="ob-turning"><span class="inline-block w-3 h-3 rounded-full border-[1.5px] border-black/20 border-t-black animate-spin"></span>Turning on</button>
         <button class="btn-primary" data-only="ob-done" data-action="finish-onboarding">Open Crenel<span class="kbd">↩</span></button>
@@ -1135,13 +1491,14 @@
 <template id="al-clear-history"><div class="alert"><div class="a-t">Clear finished tasks?</div><div class="a-m">Finished tasks will be deleted permanently.</div><div class="flex flex-col gap-1.5"><div class="a-red" data-go="o-tasks-finished-empty">Delete all</div><div class="a-def" data-go="back">Cancel</div></div></div></template>
 <template id="al-delete-meeting"><div class="alert"><div class="a-t">Delete meeting?</div><div class="a-m">Audio, transcript and notes will be deleted permanently.</div><div class="flex flex-col gap-1.5"><div class="a-red" data-go="o-history">Delete</div><div class="a-def" data-go="back">Cancel</div></div></div></template>
 <template id="al-delete-all"><div class="alert w-[300px]"><div class="a-t">Delete all data?</div><div class="a-m">Meetings, audio, transcripts, tasks on this Mac, settings, and the ElevenLabs, OpenAI and Anthropic keys in Keychain will be permanently deleted. Tasks in Apple Reminders stay. This can’t be undone.</div><div class="flex flex-col gap-1.5"><div class="a-red" data-go="ob-welcome">Delete permanently</div><div class="a-def" data-go="back">Cancel</div></div></div></template>
-<template id="al-rename"><div class="w-[380px] p-6 bg-black rounded-[14px] border border-white/10 flex flex-col gap-4 text-left" style="box-shadow:0 20px 60px rgba(0,0,0,.6)"><span class="t-title">Rename speaker</span><input class="h-9 px-[10px] rounded-[10px] bg-white/[.055] focus:bg-white/[.09] outline-none t-body text-ink-1 placeholder:text-ink-3" placeholder="Name" value="Deniz" autofocus><div class="flex items-center gap-1"><span class="flex-1"></span><button class="btn-ghost" data-go="back">Cancel</button><button class="btn-primary" data-go="back" data-toast="Saved.">Save</button></div></div></template>
+<template id="al-rename"><div class="w-[380px] p-6 bg-black rounded-[14px] border border-white/10 flex flex-col gap-4 text-left" style="box-shadow:0 20px 60px rgba(0,0,0,.6)"><span class="t-title">Rename speaker</span><input class="h-9 px-[10px] rounded-[10px] bg-white/[.055] focus:bg-white/[.09] outline-none t-body text-ink-1 placeholder:text-ink-3" placeholder="Name" value="Deniz" autofocus><div class="actions justify-end"><button class="btn-secondary" data-go="back">Cancel<span class="kbd">esc</span></button><button class="btn-primary" data-go="back" data-toast="Saved.">Save<span class="kbd">↩</span></button></div></div></template>
 
 <template id="menu-event"><div class="menu"><div data-toast="Opens the call link">Join meeting</div><div data-toast="Link copied">Copy link</div><div data-toast="Opens in Calendar">Open in Calendar</div><hr><div data-go="o-recording">Record now</div></div></template>
 <template id="menu-event-plain"><div class="menu"><div data-toast="Opens in Calendar">Open in Calendar</div></div></template>
 <template id="menu-recording"><div class="menu"><div data-go="o-detail">Open meeting</div><hr><div class="red" data-go="a-delete-meeting">Delete meeting</div></div></template>
 <template id="menu-recording-failed"><div class="menu"><div data-go="o-detail-failed">Open meeting</div><div data-go="o-detail-preparing">Retry processing</div><hr><div class="red" data-go="a-delete-meeting">Delete meeting</div></div></template>
 <template id="menu-stop"><div class="menu"><div class="red" data-go="a-delete-recording">Delete recording</div></div></template>
+<template id="menu-export"><div class="menu"><div data-toast="Saved as Markdown">Markdown…</div><div data-toast="Saved as PDF">PDF…</div><div data-toast="Saved as text">Plain text…</div><hr><div data-toast="Shows the audio in Finder">Audio in Finder</div></div></template>
 <template id="menu-more"><div class="menu"><div data-toast="Copied as text">Copy as text</div><div data-toast="Saved as Markdown">Save as Markdown</div><div data-toast="Shows the audio in Finder">Show audio in Finder</div><div data-go="o-detail-preparing">Retry processing</div><hr><div class="red" data-go="a-delete-meeting">Delete meeting</div></div></template>
 <template id="menu-speakers"><div class="menu min-w-[150px]"><div class="off">Rename</div><div data-go="o-detail-rename">You</div><div data-go="o-detail-rename">Deniz</div><div data-go="o-detail-rename">Ece</div></div></template>
 <template id="menu-segment"><div class="menu"><div data-toast="Copied">Copy</div><div data-toast="Playing from here">Play from here</div></div></template>
@@ -1264,13 +1621,15 @@ st('a-clear-history', 'Alert · clear finished', { kind: 'notch', alert: 'al-cle
 
 const W = { kind: 'win', tpl: 'tpl-desktop' }
 group('Desktop window')
-st('d-meetings', 'Meetings · selected', { ...W, keys: ['meetings'] })
+st('d-today', 'Today', { ...W, keys: ['today'], note: 'The dashboard: the next meeting as a big gauge, the day as a labelled ruler, three instrument tiles, recent meetings. Actions in the toolbar, at the trailing edge.' })
+st('d-meetings', 'Meetings · selected', { ...W, keys: ['meetings'], note: 'List on the window floor; the selected meeting on a sheet one layer up. Player in a recessed well; notes left, a rail with what you owe, talk time and details right.' })
 st('d-meetings-none', 'Meetings · nothing selected', { ...W, keys: ['meetings'] })
 st('d-meetings-recording', 'Meetings · while recording', { ...W, keys: ['meetings'] })
 st('d-meetings-empty', 'Meetings · empty', { ...W, keys: ['meetings'] })
 st('d-meetings-loading', 'Meetings · opening', { ...W, keys: ['meetings'], next: ['d-meetings', 900] })
 st('d-meetings-error', 'Meetings · couldn’t open', { ...W, keys: ['meetings'] })
-st('d-tasks', 'Tasks', { ...W, keys: ['tasks'] })
+st('d-tasks', 'Tasks', { ...W, keys: ['tasks'], note: 'The shared task list with a rail: the day as a gauge, what is due, where it syncs.' })
+st('d-dictation', 'Dictation', { ...W, keys: ['dict'], note: 'The key you hold, what it typed (copy any line), words it should know.' })
 
 group('Settings')
 st('s-general', 'General', { ...W, keys: ['settings', 'general'] })
@@ -1344,17 +1703,37 @@ function drawSeg(el, text) {
   el._seg = text
 }
 // Sweep gauge: one tick per unit, 270°, major ticks longer. Lit ticks = value.
+// Light model (port this exactly):
+//   ghost  — every unlit tick at 13% (the scale is always readable)
+//   lit    — ticks below the value, with a 1.6 px core glow
+//   head   — the last lit tick: whiter, 1 px longer, double glow (the "sweep head")
+//   tail   — the 3 ticks after the head keep 42/27/17% (phosphor afterglow)
+//   halo   — a wide blurred arc behind the lit range at 20% (light spilling on the face)
+//   dots   — an inner ring, one dot per major tick; lit when passed
+let gaugeId = 0
 function drawGauge(el, v) {
   v = v ?? +el.dataset.gauge
   const n = +el.dataset.ticks || 60, size = +el.dataset.size || 104, sweep = 270, maj = +el.dataset.major || 0, c = size / 2, r = c - 1.5
-  const lit = Math.round(v * n)
-  let s = ''
+  const lit = Math.round(v * n), ang = i => (-sweep / 2 + sweep * i / (n - 1)) * Math.PI / 180
+  const id = el._gid || (el._gid = 'gh' + (++gaugeId))
+  let ghost = '', on = '', head = '', dots = ''
   for (let i = 0; i < n; i++) {
-    const a = (-sweep / 2 + sweep * i / (n - 1)) * Math.PI / 180, major = maj && i % maj === 0, len = major ? size * .085 : size * .05
+    const a = ang(i), major = maj && i % maj === 0, isHead = i === lit - 1 && lit < n, len = (major ? size * .085 : size * .05) + (isHead ? 1.2 : 0)
     const x1 = c + Math.sin(a) * (r - len), y1 = c - Math.cos(a) * (r - len), x2 = c + Math.sin(a) * r, y2 = c - Math.cos(a) * r
-    s += `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke-width="${major ? 1.7 : 1.25}" class="${i < lit ? 'on' : 'g'}"/>`
+    const tail = i - lit, tailOp = [.42, .27, .17][tail]
+    const line = cls => `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke-width="${major || isHead ? 1.7 : 1.25}"${cls}/>`
+    if (isHead) head = line(' class="head"')
+    else if (i < lit) on += line('')
+    else if (lit > 0 && tailOp) ghost += line(` opacity="${tailOp}"`)
+    else ghost += line(' class="g"')
+    if (major && size >= 96) { const rd = r - size * .085 - size * .055; dots += `<circle cx="${(c + Math.sin(a) * rd).toFixed(2)}" cy="${(c - Math.cos(a) * rd).toFixed(2)}" r="${size >= 140 ? 1.1 : .85}" stroke="none" fill="currentColor" opacity="${i < lit ? .9 : .22}"/>` }
   }
-  el.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" stroke="currentColor" stroke-linecap="round">${s}</svg>`
+  let halo = ''
+  if (lit > 1) {
+    const rh = r - size * .04, a0 = ang(0), a1 = ang(lit - 1), large = (a1 - a0) > Math.PI ? 1 : 0
+    halo = `<path class="halo" d="M${(c + Math.sin(a0) * rh).toFixed(2)} ${(c - Math.cos(a0) * rh).toFixed(2)} A${rh} ${rh} 0 ${large} 1 ${(c + Math.sin(a1) * rh).toFixed(2)} ${(c - Math.cos(a1) * rh).toFixed(2)}" fill="none" stroke-width="${(size * .1).toFixed(1)}" filter="url(#${id})"/>`
+  }
+  el.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" stroke="currentColor" stroke-linecap="round"><defs><filter id="${id}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="${(size * .045).toFixed(1)}"/></filter></defs>${halo}${dots}<g>${ghost}</g><g class="lit">${on}</g>${head}</svg>`
 }
 // Ignition: sweep to full and settle back to the value (only when the panel opens).
 function ignite(el, loop) {
@@ -1375,15 +1754,18 @@ function drawRuler(el) {
   const pct = t => ((t - a) / (b - a) * 100).toFixed(3)
   let html = ''
   ;(el.dataset.events || '').split('|').filter(Boolean).forEach(e => {
-    const [rng, kind = ''] = e.split(':'), [s, f] = rng.split('-').map(Number)
-    html += `<i class="ev ${kind}" style="left:${pct(s)}%;width:calc(${pct(f) - pct(s)}% - 2px)"></i>`
+    const [rng, kind = '', title] = e.split(':'), [s, f] = rng.split('-').map(Number)
+    const past = f <= now ? ' past' : ''
+    html += `<i class="ev ${kind}${past}" style="left:${pct(s)}%;width:calc(${pct(f) - pct(s)}% - 2px)"></i>`
+    if (title) html += `<span class="evl ${kind}${past}" style="left:${pct(s)}%;max-width:${Math.max(pct(f) - pct(s), 9)}%">${title}</span>`
   })
   for (let t = a; t <= b + 1e-6; t += .5) {
     const M = Number.isInteger(t)
     html += `<i class="tk ${M ? 'M' : ''} ${t < now ? 'past' : ''}" style="left:${pct(t)}%"></i>`
     if (M && t % 2 === 0 && t > a && t < b) html += `<span class="lb" style="left:${pct(t)}%">${String(t).padStart(2, '0')}</span>`
   }
-  html += `<i class="past-mask" style="width:${pct(now)}%"></i><i class="now" style="left:${pct(now)}%"></i>`
+  if (!el.classList.contains('wide')) html += `<i class="past-mask" style="width:${pct(now)}%"></i>`
+  html += `<i class="now" style="left:${pct(now)}%"></i>`
   el.innerHTML = html
 }
 // Waveform overview for the player (deterministic).
@@ -1397,6 +1779,7 @@ function paintWave() {
   document.querySelectorAll('[data-wave]').forEach(w => [...w.children].forEach((b, i, all) => { b.style.background = i / all.length < playPos ? '#f3f1ec' : '#4c4a47' }))
   document.querySelectorAll('[data-head]').forEach(h => h.style.left = playPos * 100 + '%')
   document.querySelectorAll('[data-ptime]').forEach(t => t.textContent = fmt(playPos * 2892))
+  document.querySelectorAll('[data-ptime-seg]').forEach(t => { const v = fmt(playPos * 2892); if (t._seg !== v) drawSeg(t, v) })
 }
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -1421,6 +1804,7 @@ function build(tplId, id, keys) {
   wrap.querySelectorAll('[data-only]').forEach(el => { if (!matches(el.dataset.only, id)) el.remove() })
   wrap.querySelectorAll('[data-not]').forEach(el => { if (matches(el.dataset.not, id)) el.remove() })
   wrap.querySelectorAll('[data-key]').forEach(el => el.classList.toggle('on', keys.includes(el.dataset.key)))
+  wrap.querySelectorAll('[data-sel]').forEach(el => el.classList.toggle('sel', matches(el.dataset.sel, id)))
   return wrap
 }
 
@@ -1442,6 +1826,7 @@ function decorate(root, base, opts = {}) {
     el.title = pinned ? 'Unpin panel' : 'Keep panel open'
   })
   root.querySelectorAll('[data-tabs]').forEach(placeLamp)
+  root.querySelectorAll('[data-rail]').forEach(placeRail)
   root.querySelectorAll('[data-slide]').forEach(box => { box.classList.add('slide'); if (!box.querySelector(':scope > .slab')) box.insertAdjacentHTML('afterbegin', '<i class="slab"></i>') })
   if (opts.stagger) root.querySelectorAll('[data-stagger] > *').forEach((el, i) => { el.classList.add('enter'); el.style.animationDelay = (40 + i * 28) + 'ms' })
   if (base.id === 'ob-turning') root.querySelectorAll('[data-ign]').forEach((l, i) => setTimeout(() => l.classList.add('on-g', 'fire'), 350 + i * 420))
@@ -1467,6 +1852,20 @@ function placeLamp(tabs) {
     lamp.style.transition = ''
     lamp.style.left = x + 'px'; lamp.style.width = w + 'px'
     lampX[key] = { x, w }
+  })
+}
+
+// Rails: the same lamp, vertical. Each rail remembers where its lamp was.
+function placeRail(rail) {
+  const lamp = rail.querySelector(':scope > .rail-lamp'), on = rail.querySelector(':scope > .sb-item.on')
+  const key = 'rail-' + (rail.dataset.rail || 'main')
+  if (!lamp) return
+  if (!on) { lamp.style.opacity = 0; delete lampX[key]; return }
+  requestAnimationFrame(() => {
+    const h = 14, y = on.offsetTop + (on.offsetHeight - h) / 2, from = lampX[key]
+    lamp.style.transition = 'none'; lamp.style.top = (from ?? y) + 'px'; lamp.style.height = h + 'px'; lamp.style.opacity = 1
+    lamp.offsetWidth; lamp.style.transition = ''; lamp.style.top = y + 'px'
+    lampX[key] = y
   })
 }
 
@@ -1498,11 +1897,12 @@ function render() {
     const wbase = ws.alert ? S[alertBase[ws.id] || ws.as] : ws
     const wnode = build(wbase.tpl, wbase.id, wbase.keys || [])
     winEl.replaceChildren(...wnode.childNodes)
-    decorate(winEl, wbase, { ignite: lastWinTpl !== wbase.tpl })
-    lastWinTpl = wbase.tpl
+    const page = wbase.tpl + ':' + (wbase.keys || [])[0]   // a new page (not a new state of the same page) sweeps its gauges and staggers in
+    decorate(winEl, wbase, { ignite: lastWinPage !== page, stagger: lastWinPage !== page })
+    lastWinTpl = wbase.tpl; lastWinPage = page
     winEl.hidden = false
     fitWin(); wro.disconnect(); wro.observe(winEl.firstElementChild)
-  } else { winEl.hidden = true; winEl.replaceChildren(); lastWinTpl = null }
+  } else { winEl.hidden = true; winEl.replaceChildren(); lastWinTpl = null; lastWinPage = null }
 
   // Alert / sheet
   const al = (cur.win && S[cur.win].alert) || ns.alert
@@ -1520,7 +1920,7 @@ function render() {
   if (rendered) active?.scrollIntoView({ block: 'nearest' })
   rendered = true
 }
-let interactiveWin = false, rendered = false, lastTpl = null, lastWinTpl = null, lastScroll = 0
+let interactiveWin = false, rendered = false, lastTpl = null, lastWinTpl = null, lastScroll = 0, lastWinPage = null
 nc.addEventListener('scroll', () => { lastScroll = nc.scrollTop })
 
 // The notch follows its content: it grows and shrinks as the content changes.
@@ -1712,16 +2112,16 @@ function toast(text) { const el = $('#toast'); el.textContent = text; el.style.o
 function action(name, el) {
   switch (name) {
     case 'pin': pinned = !pinned; document.querySelectorAll('[data-pin]').forEach(p => { p.classList.toggle('on', pinned); p.querySelector('svg').style.transform = pinned ? 'none' : 'rotate(30deg)' }); break
-    case 'open-window': go('d-meetings', true); break
+    case 'open-window': go('d-today', true); break
     case 'close-window': cur.win = null; render(); break
     case 'finish-onboarding': cur.win = null; go('c-meeting-later', true); break
     case 'copied': { const was = el.innerHTML; el.classList.add('!text-ok'); if (el.textContent.trim()) el.textContent = 'Copied'; setTimeout(() => { el.classList.remove('!text-ok'); el.innerHTML = was }, 1400); break }
-    case 'add-item': el.outerHTML = '<span class="w-4 h-4 mt-[1px] flex items-center justify-center" title="In Tasks"><svg class="ico-s"><use href="#m-open"/></svg></span>'; toast('Added to Tasks'); break
+    case 'add-item': { const done = document.createElement('span'); done.className = 'ok-t h-[22px]'; done.textContent = 'In Tasks'; el.replaceWith(done); done.animate([{ opacity: 0, filter: 'brightness(2)' }, { opacity: 1, filter: 'none' }], { duration: 380 }); toast('Added to Tasks'); break }
     case 'play': playing = !playing; el.innerHTML = `<svg class="ico-s"><use href="#i-${playing ? 'pause' : 'play'}"/></svg>`; break
     case 'grant': el.outerHTML = '<span class="lamp on-g fire"></span>'; break
     case 'expand': { const box = el.nextElementSibling; box.hidden = !box.hidden; el.querySelector('svg').style.transform = box.hidden ? '' : 'rotate(180deg)'; break }
     case 'save': { const m = el.parentNode.querySelector('[data-savemsg]'); m.innerHTML = '<span class="spin"></span>'; setTimeout(() => m.innerHTML = '<span class="ok-t">Saved</span>', 700); break }
-    case 'dict-add': { const i = el.parentNode.querySelector('input'); const v = i.value.trim(); if (!v) break; v.split(',').map(x => x.trim()).filter(Boolean).forEach(w => { const c = el.closest('.sgroup').querySelector('.dchip').cloneNode(true); c.firstChild.textContent = w; el.closest('.sgroup').querySelector('[data-dict]').appendChild(c) }); i.value = ''; break }
+    case 'dict-add': { const i = el.parentNode.querySelector('input'), box = el.closest('[data-dictbox]'); const v = i.value.trim(); if (!v) break; v.split(',').map(x => x.trim()).filter(Boolean).forEach(w => { const c = box.querySelector('.dchip').cloneNode(true); c.firstChild.textContent = w; box.querySelector('[data-dict]').appendChild(c); c.animate([{ opacity: 0, filter: 'brightness(2)' }, { opacity: 1, filter: 'none' }], { duration: 320 }) }); i.value = ''; break }
     case 'dict-remove': el.remove(); break
   }
 }
