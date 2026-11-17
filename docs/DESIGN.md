@@ -22,7 +22,12 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
 1. **Her yüzeyde bir kahraman sayı.** Geri sayım, geçen süre ya da sayaç gibi en önemli
    sayı segment rakamla yazılır. Geri kalan her şey Geist'tir. Bir yüzeyde ikinci bir
    segment sayı yalnızca ölçüm kartlarında (Ready ekranı gibi) olabilir.
-2. **Durum lambayla söylenir.** "Connected" veya "Failed" gibi renkli metin yerine 8×4
+2. **Durumu şekil söyler, renk yalnızca şiddeti söyler.** Bir durum, renk ayırt
+   edilemese ve metin okunmasa da anlaşılmalıdır. Dikkat isteyen her durumun bir şekli
+   vardır (aşağıdaki "Durum şekilleri" tablosu). Lamba yalnızca sakin durumlar içindir:
+   hazır, bağlı, canlı, seçili.
+
+   **Lambalar.** "Connected" veya "Failed" gibi renkli metin yerine 8×4
    bir lamba ve sade bir kelime kullanılır. Renkler:
 
    | Lamba | Anlamı |
@@ -66,6 +71,28 @@ görünür kalır (hayalet). Böylece boş bir gösterge bile şeklini korur.
 8. **Eylemler sağ kenarda biter.** Bilgi solda, eylem sağdadır. Birincil buton en
    sağdadır; ikincil hemen solunda durur. Butonlar asla soldan yan yana dizilmez. Ayrıntı
    için "Butonlar ve eylem yerleşimi" bölümüne bak.
+
+## Durum şekilleri
+
+| Şekil | Anlamı | Renk | Örnek |
+| --- | --- | --- | --- |
+| üçgen, içi oyulmuş `!` (`s-err`) | bozuldu, başarısız | kırmızı | transkripsiyon başarısız, ses akışı koptu, takvim yenilenemedi |
+| elmas, içi oyulmuş `!` (`s-warn`) | senden bir şey bekliyor | amber (gecikmişse kırmızı) | davet, not yok, Meet sekmesine tıkla, kurtarılan kayıtlar, mute okunamadı |
+| sekizgen, içi oyulmuş çubuk (`s-off`) | sistem izni kapalı | amber; kayıt engelleniyorsa kırmızı | Access off, Denied, Input Monitoring kapalı |
+| koşan üç hücre (`.busy`) | çalışıyor | amber, ışık 1.05 sn'de bir tur | Processing satırları, transkript hazırlanıyor |
+| kum saati (`s-wait`) | sırada | ink-3 | transkripsiyon için bekliyor |
+| kare (`s-stop`) | durduruldu | ink-3 | işleme durduruldu |
+| lamba | sakin durum | turkuaz / beyaz / kırmızı nokta | hazır, bağlı, canlı kayıt |
+
+- **Boylar.** Satır ve metin içinde 12 pt, kulakta 14 pt. Hata panelinde 24 pt'lik şekil
+  44 pt'lik kuyuda durur (`.sg-hero`). Kuyunun içi şeklin renginde %16 hafifçe aydınlanır.
+- **Gösterge içinde.** Boş durumdaki dinlenen kadranın ortasında, sorun varsa `--:--`
+  yerine şekil durur (yenilenemedi: üçgen, erişim kapalı: sekizgen).
+- **Durum kelimeleri.** `ok-t` lamba, `dim-t` boş lamba, `warn-t` elmas, `err-t` üçgen,
+  `off-t` sekizgendir (`off-t r` kırmızı).
+- **Uyarı lambası ikonlarıyla birlikte.** Parantez ve rozet glifin kendisine aittir
+  (hangi sistem). Durum şekli ise durumun türünü söyler; ikisi yan yana durabilir.
+  Örnek: kulakta parantezli kırmızı mic + sağda "Mic off" sekizgeni.
 
 ## Butonlar ve eylem yerleşimi
 
@@ -300,7 +327,10 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   - Join yalnızca 10 dk içinde veya toplantı sürerken görünür. O zaman kahramanın altında
     konsol açılır: solda lambalı durum, sağda Record ⌘R ve **Join ⌘J**.
   - Altında gün cetveli, sonra tarife düzeni bir liste gelir. Solda 42 pt'lik saat sütunu
-    vardır: başlangıç ink-1, bitiş meta. Gruplar Today ve Later'dır, yanlarında sönük
+    vardır ve yalnızca başlangıç saatini taşır. Bitiş saati gösterilmez: notch bir takvim
+    değil, sıradakini gösterir. Bugün dışındaki günler ikinci satıra yazılır ("Wed ·
+    Zoom", "All day · Work"). Kahramanda da tek saat bulunur; süren toplantıda "Until
+    11:00" yazar. Gruplar Today ve Later'dır, yanlarında sönük
     sayılar bulunur. Davet, satırın sağında amber lamba + "Invite" ile gösterilir.
   - Boş durumlar: dinlenen bir gösterge (`--:--`), bir cümle ve tek bir düzeltme.
 - **Kayıt.**

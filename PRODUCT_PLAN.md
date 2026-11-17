@@ -223,6 +223,11 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     göstergesi, çerçeve ve onboarding sistem şeması. Her biri az yerde, mevcut bir satırın
     yerine. — ✅ 2026-11-17 (112 durum headless tarayıcıda hatasız; şema ve izin
     etkileşimi Playwright ile doğrulandı)
+  - [x] Durum şekilleri: dikkat isteyen her durum renk dışında bir şekille de okunur
+    (üçgen başarısız, elmas senden bekliyor, sekizgen izin kapalı, koşan hücreler
+    çalışıyor, kum saati sırada, kare durduruldu); hata panellerinde ışıklı kuyuda büyük
+    şekil. Etkinlik satırları ve kahramanda yalnızca başlangıç saati. — ✅ 2026-11-17
+    (112 durum headless tarayıcıda hatasız; etkileşim testi geçti)
   - [ ] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
     uygulamaya geçirilmesi. — ⛔ Bloke: kullanıcı prototipi düzenliyor (2026-11-17)
 

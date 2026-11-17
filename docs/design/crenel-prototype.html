@@ -55,6 +55,7 @@
   @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .3 } }
   @keyframes breathe { 0%,100% { opacity: .45 } 50% { opacity: 1 } }
   @keyframes blink { 0%,55% { opacity: 1 } 56%,100% { opacity: .18 } }
+  @keyframes run { 0%, 33% { background: #ffad33; box-shadow: 0 0 5px rgba(255,173,51,.7); } 34%, 100% { background: rgba(255,173,51,.16); box-shadow: none; } }
   @keyframes caret { 0%,50% { opacity: 1 } 51%,100% { opacity: 0 } }
   @keyframes scan { from { transform: translateX(-120%) } to { transform: translateX(520%) } }
   @keyframes enter { from { opacity: 0; transform: translateY(-5px) } to { opacity: 1; transform: none } }
@@ -122,6 +123,20 @@
     .pri > i:nth-child(1) { height: 4px } .pri > i:nth-child(2) { height: 7px } .pri > i:nth-child(3) { height: 10px }
     .pri > i.on { background: currentColor; }
 
+    /* ── Status shapes (data-sg="err|warn|off|wait|stop"). Never colour alone. */
+    .sg { @apply inline-flex flex-none items-center justify-center w-3 h-3; }
+    .sg > svg { @apply w-full h-full; }
+    .sg.md { @apply w-[14px] h-[14px]; } .sg.lg { @apply w-6 h-6; }
+    .sg.r { color: #ff5a47; } .sg.a { color: #ffad33; } .sg.d { color: #76736e; } .sg.w { color: #f3f1ec; }
+    .sg.r > svg, .sg.a > svg { filter: drop-shadow(0 0 2px color-mix(in srgb, currentColor 60%, transparent)) drop-shadow(0 0 8px color-mix(in srgb, currentColor 22%, transparent)); }
+    .sg-hero { @apply relative flex-none w-11 h-11 rounded-[12px] flex items-center justify-center;
+      background: radial-gradient(circle, color-mix(in srgb, currentColor 16%, transparent), transparent 70%), linear-gradient(180deg, #050505, #0a0a09);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.045); }
+    .sg-hero.r { color: #ff5a47; } .sg-hero.a { color: #ffad33; } .sg-hero.d { color: #76736e; }
+    /* Busy: three cells, a light running through them. Motion, not colour, says "working". */
+    .busy { @apply inline-flex flex-none items-center gap-[2px]; }
+    .busy > i { @apply block w-[3px] h-[7px] rounded-[1px]; background: rgba(255,173,51,.16); animation: run 1.05s steps(1) infinite; }
+    .busy > i:nth-child(2) { animation-delay: .35s; } .busy > i:nth-child(3) { animation-delay: .7s; }
     /* ── Telltales: an icon that lights. Unlit = line glyph as a ghost; lit = solid glyph in its colour, glowing.
        paren = system/permission fault, drawn as angled brackets; data-mod adds a corner badge (! or ×). */
     .tt { @apply relative inline-flex items-center justify-center flex-none w-4 h-4; color: rgba(255,255,255,.2); }
@@ -408,13 +423,16 @@
     .sfrow { @apply flex items-center gap-2 pl-[38px] pr-[10px] py-1; }
     .sfield { @apply flex-1 h-8 px-3 rounded-[8px] bg-white/[.055] t-body text-ink-1 outline-none placeholder:text-ink-3 focus:bg-white/[.09]; }
     .expand { @apply flex items-center gap-1.5 pl-[38px] h-[30px] t-meta hover:text-ink-2; }
-    /* Status words carry their lamp. */
-    .ok-t, .warn-t, .err-t, .dim-t { @apply inline-flex items-center gap-2 t-label text-ink-2; }
-    .ok-t::before, .warn-t::before, .err-t::before, .dim-t::before { content: ''; @apply block w-2 h-1 rounded-[2px]; }
+    /* Status words carry their shape: lamp = fine, diamond = needs you, triangle = broken, octagon = access off. */
+    .ok-t, .warn-t, .err-t, .dim-t, .off-t { @apply inline-flex items-center gap-2 t-label text-ink-2; }
+    .ok-t::before, .dim-t::before { content: ''; @apply block w-2 h-1 rounded-[2px]; }
+    .warn-t::before, .err-t::before, .off-t::before { content: ''; @apply block w-3 h-3 flex-none; -webkit-mask-size: 100%; mask-size: 100%; }
     .ok-t::before { background: #34e6cb; box-shadow: 0 0 7px rgba(52,230,203,.55); }
-    .warn-t::before { background: #ffad33; box-shadow: 0 0 7px rgba(255,173,51,.6); }
-    .err-t::before { background: #ff5a47; box-shadow: 0 0 7px rgba(255,90,71,.6); }
-    .dim-t::before { background: rgba(255,255,255,.12); }
+    .warn-t::before { background: #ffad33; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 .5L15.5 8L8 15.5L.5 8ZM7.25 4.25H8.75V8.75H7.25ZM7.25 10H8.75V11.5H7.25Z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 .5L15.5 8L8 15.5L.5 8ZM7.25 4.25H8.75V8.75H7.25ZM7.25 10H8.75V11.5H7.25Z'/%3E%3C/svg%3E"); }
+    .err-t::before { background: #ff5a47; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1L15.25 14H.75ZM7.25 5.75H8.75V9.5H7.25ZM7.25 10.75H8.75V12.25H7.25Z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M8 1L15.25 14H.75ZM7.25 5.75H8.75V9.5H7.25ZM7.25 10.75H8.75V12.25H7.25Z'/%3E%3C/svg%3E"); }
+    .off-t::before { background: #ffad33; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M5 1H11L15 5V11L11 15H5L1 11V5ZM3.75 7.1H12.25V8.9H3.75Z'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M5 1H11L15 5V11L11 15H5L1 11V5ZM3.75 7.1H12.25V8.9H3.75Z'/%3E%3C/svg%3E"); }
+    .off-t.r::before { background: #ff5a47; }
+    .dim-t::before { background: transparent; box-shadow: inset 0 0 0 1px rgba(255,255,255,.22); }
     .dim-t { @apply text-ink-3; }
     /* Switch: a knob with a lamp in it. */
     .toggle { @apply relative inline-block w-8 h-[18px] rounded-full flex-none transition-colors; background: rgba(255,255,255,.1); }
@@ -518,6 +536,12 @@
   <symbol id="f-shield" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M8 1L14 3.25V8.25L8 15L2 8.25V3.25Z"/></symbol>
   <symbol id="mod-bang" viewBox="0 0 16 16" fill="none"><rect x="9.25" y="9.25" width="6.75" height="6.75" fill="currentColor" style="stroke:var(--surface,#000)" stroke-width="1.5"/><rect x="12" y="10.5" width="1.25" height="3" style="fill:var(--surface,#000)"/><rect x="12" y="14" width="1.25" height="1.1" style="fill:var(--surface,#000)"/></symbol>
   <symbol id="mod-x" viewBox="0 0 16 16" fill="none"><rect x="9.25" y="9.25" width="6.75" height="6.75" fill="currentColor" style="stroke:var(--surface,#000)" stroke-width="1.5"/><path d="M11.1 11.1L14.15 14.15M14.15 11.1L11.1 14.15" style="stroke:var(--surface,#000)" stroke-width="1.2"/></symbol>
+  <!-- Status shapes: the shape says what kind of state it is; colour only says how bad. -->
+  <symbol id="s-err" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M8 1L15.25 14H.75ZM7.25 5.75H8.75V9.5H7.25ZM7.25 10.75H8.75V12.25H7.25Z"/></symbol>
+  <symbol id="s-warn" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M8 .5L15.5 8L8 15.5L.5 8ZM7.25 4.25H8.75V8.75H7.25ZM7.25 10H8.75V11.5H7.25Z"/></symbol>
+  <symbol id="s-off" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M5 1H11L15 5V11L11 15H5L1 11V5ZM3.75 7.1H12.25V8.9H3.75Z"/></symbol>
+  <symbol id="s-wait" viewBox="0 0 16 16"><path fill="currentColor" d="M3 1H13V3.25L9.5 8L13 12.75V15H3V12.75L6.5 8L3 3.25Z"/></symbol>
+  <symbol id="s-stop" viewBox="0 0 16 16"><path fill="currentColor" d="M3 3H13V13H3Z"/></symbol>
   <symbol id="i-paren" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3.5 1.75L1.5 8L3.5 14.25M20.5 1.75L22.5 8L20.5 14.25"/></symbol>
   <!-- The mark: six lamps in a crenel (the app icon's glyph). Opacity per lamp is part of the mark. -->
   <symbol id="i-mark" viewBox="0 0 472 296"><g fill="currentColor"><rect opacity=".7" x="59" width="118" height="119"/><rect opacity=".76" y="119" width="118" height="118"/><rect opacity=".5" x="118" y="178" width="118" height="118"/><rect opacity=".65" x="236" y="178" width="118" height="118"/><rect opacity=".56" x="295" width="118" height="119"/><rect x="354" y="119" width="118" height="118"/></g></symbol>
@@ -637,7 +661,7 @@
     <div class="strip"><div class="stream"><span>Let’s move the design review to Thursday afternoon, and send Deniz the new onboarding copy before then.</span></div><button class="btn-secondary sm" data-go="c-meeting-later" data-toast="Removed from Notes">Undo<span class="kbd">⌘Z</span></button></div>
   </div>
   <div class="peek" data-only="c-dict-failed">
-    <div class="ears"><div class="ear l"><span data-tt="mic" data-st="r" data-paren></span><span class="text-ink-1">Can’t hear you</span></div><div></div><div class="ear r"></div></div>
+    <div class="ears"><div class="ear l"><span data-tt="mic" data-st="r" data-paren></span><span class="text-ink-1">Can’t hear you</span></div><div></div><div class="ear r"><span class="off-t !text-ink-1 r">Mic off</span></div></div>
     <div class="strip"><span class="t-body">Crenel needs the microphone</span><span class="flex-1"></span><button class="btn-secondary sm" data-go="s-dictation-perms"><svg class="ico-xs"><use href="#i-sliders"/></svg>Settings</button></div>
   </div>
 
@@ -647,7 +671,7 @@
     <div class="strip"><span class="t-body">Notes and 3 action items</span><span class="t-meta">48 min</span><span class="flex-1"></span><button class="btn-secondary sm" data-go="c-meeting-later">Later<span class="kbd">esc</span></button><button class="btn-primary sm" data-go="o-detail">Open<span class="kbd">↩</span></button></div>
   </div>
   <div class="peek" data-only="c-failed">
-    <div class="ears"><div class="ear l"><span class="ttile r"><svg><use href="#f-transcript"/></svg></span><span class="ear-t text-ink-1">Design review</span></div><div></div><div class="ear r"><span class="text-ink-1">Failed</span></div></div>
+    <div class="ears"><div class="ear l"><span data-sg="err" class="md"></span><span class="ear-t text-ink-1">Design review</span></div><div></div><div class="ear r"><span class="text-ink-1">Failed</span></div></div>
     <div class="strip"><span class="t-body">Couldn’t reach transcription</span><span class="t-meta">audio is saved</span><span class="flex-1"></span><button class="btn-primary sm" data-go="c-proc-uploading">Retry<span class="kbd">↩</span></button></div>
   </div>
 </template>
@@ -696,7 +720,7 @@
       </div>
       <div class="flex-1 min-w-0 flex flex-col gap-1.5">
         <span class="t-hero truncate">Design review</span>
-        <div class="l2"><span data-only="o-today">14:30 – 15:15</span><span data-only="o-today-hour">11:15 – 12:00</span><span data-only="o-today-urgent o-today-meet-*">10:50 – 11:30</span><span data-only="o-today-live">10:00 – 11:00</span><span class="sep">·</span><span>Google Meet</span></div>
+        <div class="l2"><span data-only="o-today">14:30</span><span data-only="o-today-hour">11:15</span><span data-only="o-today-urgent o-today-meet-*">10:50</span><span data-only="o-today-live">Until 11:00</span><span class="sep">·</span><span>Google Meet</span></div>
         <div class="l2"><svg class="ico-xs text-ink-4"><use href="#i-people"/></svg><span>Deniz, Ece and 2 others</span></div>
       </div>
     </div>
@@ -704,8 +728,8 @@
     <div class="console mx-0.5 mb-3" data-only="o-today-urgent o-today-live o-today-meet-*">
       <span class="note" data-only="o-today-urgent"><span class="lamp on-g"></span><span>Crenel will ask to record when it starts</span></span>
       <span class="note" data-only="o-today-live"><span class="lamp"></span><span>Not being recorded</span></span>
-      <span class="note" data-only="o-today-meet-waiting"><span class="lamp on-a blink"></span><span>Click Crenel in the Meet tab</span></span>
-      <span class="note" data-only="o-today-meet-unavailable"><span class="lamp on-r"></span><span>Meet audio bridge unavailable</span></span>
+      <span class="note" data-only="o-today-meet-waiting"><span data-sg="warn" class="blink"></span><span>Click Crenel in the Meet tab</span></span>
+      <span class="note" data-only="o-today-meet-unavailable"><span data-sg="err"></span><span>Meet audio bridge unavailable</span></span>
       <button class="btn-secondary sm" data-go="o-recording" data-not="o-today-meet-unavailable"><span class="lamp dot on-r"></span>Record<span class="kbd">⌘R</span></button>
       <button class="btn-primary sm" data-toast="Opens Google Meet">Join<span class="kbd">⌘J</span></button>
     </div>
@@ -719,18 +743,18 @@
 
     <div data-not="o-today-empty*" class="slide mt-1" data-slide>
       <div class="group-h">Today<span class="n">3</span></div>
-      <div class="row" data-toast="Opens in Calendar" data-menu="menu-event-plain"><div class="tcol"><b>16:00</b><span>17:00</span></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-place"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Lunch with Deniz</span><span class="t-meta truncate">Karaköy Lokantası</span></div></div>
-      <div class="row" data-toast="Opens the Zoom link" data-menu="menu-event"><div class="tcol"><b>17:30</b><span>18:00</span></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-video"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta truncate">Zoom · from Mira Lund</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="lamp on-a"></span>Invite</span></div>
-      <div class="row opacity-55" data-toast="Opens in Calendar" data-menu="menu-event-plain"><div class="tcol"><b>19:00</b><span>20:00</span></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-calendar"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Gym</span><span class="t-meta truncate">Personal</span></div></div>
+      <div class="row" data-toast="Opens in Calendar" data-menu="menu-event-plain"><div class="tcol"><b>16:00</b></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-place"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Lunch with Deniz</span><span class="t-meta truncate">Karaköy Lokantası</span></div></div>
+      <div class="row" data-toast="Opens the Zoom link" data-menu="menu-event"><div class="tcol"><b>17:30</b></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-video"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta truncate">Zoom · from Mira Lund</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span data-sg="warn" title="Invite — waiting for your answer"></span>Invite</span></div>
+      <div class="row opacity-55" data-toast="Opens in Calendar" data-menu="menu-event-plain"><div class="tcol"><b>19:00</b></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-calendar"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Gym</span><span class="t-meta truncate">Personal</span></div></div>
       <div class="group-h mt-2">Later<span class="n">2</span></div>
-      <div class="row" data-toast="Opens the Zoom link" data-menu="menu-event"><div class="tcol"><b>10:00</b><span>Wed</span></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-video"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta truncate">Zoom</span></div></div>
-      <div class="row" data-toast="Opens in Calendar" data-menu="menu-event-plain"><div class="tcol"><b class="!text-ink-2">All day</b><span>Thu</span></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-calendar"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Company offsite</span><span class="t-meta truncate">Work</span></div></div>
+      <div class="row" data-toast="Opens the Zoom link" data-menu="menu-event"><div class="tcol"><b>10:00</b></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-video"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta truncate">Wed · Zoom</span></div></div>
+      <div class="row" data-toast="Opens in Calendar" data-menu="menu-event-plain"><div class="tcol"><b class="!text-ink-2">Thu</b></div><svg class="ico-s text-ink-3 mt-[1px]"><use href="#i-calendar"/></svg><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Company offsite</span><span class="t-meta truncate">All day · Work</span></div></div>
     </div>
 
     <!-- Empty states: one instrument at rest, one sentence, one fix -->
     <div data-only="o-today-empty*" data-not="o-today-empty-nothing" class="flex items-center gap-4 pl-1.5 pr-1 py-2">
       <div class="gauge-box"><div class="gauge text-ink-1" data-gauge="0" data-size="104" data-ticks="60" data-major="15"></div>
-        <div class="gauge-c"><span class="segd text-ink-1" data-seg="--:--" data-h="15"></span></div></div>
+        <div class="gauge-c"><span class="segd text-ink-1" data-seg="--:--" data-h="15" data-not="o-today-empty-failed o-today-empty-allow"></span><span data-sg="err" class="lg" data-only="o-today-empty-failed"></span><span data-sg="off" class="lg" data-only="o-today-empty-allow"></span></div></div>
       <div class="flex-1 min-w-0 flex flex-col gap-1.5 items-start">
         <span class="t-title" data-only="o-today-empty-connect">Your calendar isn’t connected</span>
         <span class="t-title" data-only="o-today-empty-allow">Calendar access is off</span>
@@ -742,7 +766,7 @@
         <span class="t-meta" data-only="o-today-empty-connect o-today-empty-allow o-today-empty-waiting">Meetings and their countdown appear here.</span>
         <span class="t-meta" data-only="o-today-empty-failed">Showing what was there at 10:12.</span>
         <span class="t-meta" data-only="o-today-empty-nocal">Add an account in Internet Accounts.</span>
-        <span class="mt-1.5 flex items-center gap-2 t-meta" data-only="o-today-empty-waiting o-today-empty-reading"><span class="lamp on-a blink"></span>System dialog is open</span>
+        <span class="mt-1.5 flex items-center gap-2 t-meta" data-only="o-today-empty-waiting o-today-empty-reading"><span data-sg="warn" class="blink"></span>System dialog is open</span>
       </div>
       <button class="btn-primary sm" data-only="o-today-empty-connect" data-go="o-today-empty-waiting">Connect<span class="kbd">↩</span></button>
       <button class="btn-secondary sm" data-only="o-today-empty-allow" data-toast="Opens Privacy &amp; Security › Calendars"><svg class="ico-xs"><use href="#i-link"/></svg>Privacy settings</button>
@@ -779,9 +803,9 @@
     </div>
     <div class="flex items-center gap-3 px-[10px] h-8 mt-2" data-only="o-recording o-recording-micoff"><span data-tt="accessibility" data-st="g"></span><span class="t-meta">Your mic follows mute in Zoom</span></div>
     <div class="flex flex-col mt-2" data-only="o-recording-warnings">
-      <div class="flex items-baseline gap-3 px-[10px] py-1"><span class="lamp on-a relative -top-[2px]"></span><span class="t-meta text-ink-2">Couldn’t read Zoom’s mute state, so your mic is kept off</span></div>
-      <div class="flex items-baseline gap-3 px-[10px] py-1"><span class="lamp on-r relative -top-[2px]"></span><span class="t-meta text-ink-2">AirPods Pro disconnected. Reconnect them or stop the recording.</span></div>
-      <div class="flex items-baseline gap-3 px-[10px] py-1"><span class="lamp on-r relative -top-[2px]"></span><span class="t-meta text-ink-2">The call’s audio stream dropped. Stopping to keep what’s recorded.</span></div>
+      <div class="flex items-baseline gap-3 px-[10px] py-1"><span data-sg="warn" class="relative top-[1px]"></span><span class="t-meta text-ink-2">Couldn’t read Zoom’s mute state, so your mic is kept off</span></div>
+      <div class="flex items-baseline gap-3 px-[10px] py-1"><span data-sg="err" class="relative top-[1px]"></span><span class="t-meta text-ink-2">AirPods Pro disconnected. Reconnect them or stop the recording.</span></div>
+      <div class="flex items-baseline gap-3 px-[10px] py-1"><span data-sg="err" class="relative top-[1px]"></span><span class="t-meta text-ink-2">The call’s audio stream dropped. Stopping to keep what’s recorded.</span></div>
     </div>
   </div>
 </template>
@@ -828,7 +852,7 @@
     </div>
     <div data-only="o-failed o-failed-permission o-stopped" class="flex flex-col gap-4 px-[10px] pt-1">
       <div class="flex items-start gap-3">
-        <span class="lamp on-r mt-[7px]" data-only="o-failed o-failed-permission"></span><span class="lamp on-d mt-[7px]" data-only="o-stopped"></span>
+        <span class="sg-hero r" data-only="o-failed"><span data-sg="err" class="lg"></span></span><span class="sg-hero r" data-only="o-failed-permission"><span data-sg="off" data-c="r" class="lg"></span></span><span class="sg-hero d" data-only="o-stopped"><span data-sg="stop" class="lg"></span></span>
         <div class="flex flex-col gap-1">
           <span class="t-title" data-only="o-failed">Couldn’t reach transcription</span>
           <span class="t-title" data-only="o-failed-permission">System audio permission is off</span>
@@ -852,7 +876,7 @@
   <div data-include="tpl-band"></div>
   <div data-stagger class="flex flex-col">
     <div data-only="o-history-recovery" class="console !h-[52px] gap-3 mb-3 !pr-1.5">
-      <span class="lamp on-a"></span>
+      <span data-sg="warn"></span>
       <div class="flex flex-col gap-0.5"><span class="t-body">2 recordings recovered</span><span class="t-meta">1 kept in Recovery</span></div>
       <span class="flex-1"></span><button class="btn-secondary sm" data-toast="Opens the Recovery folder">Show in Finder</button><button class="btn-icon" data-go="o-history" title="Dismiss"><svg class="ico-s"><use href="#i-close"/></svg></button>
     </div>
@@ -871,10 +895,10 @@
     <div data-not="o-history-empty" class="slide" data-slide>
       <div class="group-h">Today</div>
       <div class="row" data-go="o-detail" data-menu="menu-recording"><div class="tcol"><b>10:00</b><span>48:12</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta truncate">3 for you to do · Deniz, Ece</span></div></div>
-      <div class="row" data-go="o-detail-preparing" data-menu="menu-recording"><div class="tcol"><b>09:00</b><span>31:40</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta truncate">Mira Lund</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="lamp on-a blink"></span>Processing</span></div>
+      <div class="row" data-go="o-detail-preparing" data-menu="menu-recording"><div class="tcol"><b>09:00</b><span>31:40</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta truncate">Mira Lund</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="busy"><i></i><i></i><i></i></span>Processing</span></div>
       <div class="group-h mt-2">Yesterday</div>
-      <div class="row" data-go="o-detail-failed" data-menu="menu-recording-failed"><div class="tcol"><b>15:30</b><span>1:02</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta truncate">5 people</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="lamp on-r"></span>Failed</span></div>
-      <div class="row" data-go="o-detail-summaryfailed" data-menu="menu-recording"><div class="tcol"><b>11:00</b><span>44:03</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Interview — backend</span><span class="t-meta truncate">Transcript only</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="lamp on-a"></span>No notes</span></div>
+      <div class="row" data-go="o-detail-failed" data-menu="menu-recording-failed"><div class="tcol"><b>15:30</b><span>1:02</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta truncate">5 people</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span data-sg="err"></span>Failed</span></div>
+      <div class="row" data-go="o-detail-summaryfailed" data-menu="menu-recording"><div class="tcol"><b>11:00</b><span>44:03</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Interview — backend</span><span class="t-meta truncate">Transcript only</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span data-sg="warn"></span>No notes</span></div>
       <div class="group-h mt-2">Mon 16</div>
       <div class="row" data-go="o-detail-queued" data-menu="menu-recording"><div class="tcol"><b>18:20</b><span>2:10</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Quick note</span><span class="t-meta truncate">Not transcribed</span></div></div>
     </div>
@@ -908,7 +932,7 @@
   </div>
 
   <div data-not="o-detail-failed o-detail-queued o-detail-preparing o-detail-unreadable">
-    <div data-only="o-detail-summaryfailed" class="console mt-4"><span class="note"><span class="lamp on-a"></span><span>No notes — the OpenAI key is missing</span></span><button class="btn-secondary sm" data-go="s-ai-auto">Add key</button></div>
+    <div data-only="o-detail-summaryfailed" class="console mt-4"><span class="note"><span data-sg="warn"></span><span>No notes — the OpenAI key is missing</span></span><button class="btn-secondary sm" data-go="s-ai-auto">Add key</button></div>
     <div class="group-h mt-4 !h-8 items-center !pt-0"><span class="flex-1">Summary</span><button class="btn-secondary xs" data-only="o-detail o-detail-rename" data-toast="Writing new notes…" title="Write the notes again"><svg class="ico-xs"><use href="#i-spark"/></svg>Rewrite</button></div>
     <p data-only="o-detail-summaryfailed" class="px-[10px] pt-1 t-read text-ink-3">The transcript is ready; notes will appear once a model is set.</p>
     <div data-not="o-detail-summaryfailed">
@@ -935,7 +959,7 @@
   <!-- No transcript yet -->
   <div class="mt-4" data-only="o-detail-failed o-detail-queued o-detail-preparing o-detail-unreadable">
     <div class="console relative overflow-hidden !h-12 gap-3">
-      <span class="lamp on-r" data-only="o-detail-failed"></span><span class="lamp on-d" data-only="o-detail-queued"></span><span class="lamp on-a blink" data-only="o-detail-preparing"></span><span class="lamp on-a" data-only="o-detail-unreadable"></span>
+      <span data-sg="err" data-only="o-detail-failed"></span><span data-sg="wait" data-only="o-detail-queued"></span><span data-only="o-detail-preparing"><span class="busy"><i></i><i></i><i></i></span></span><span data-sg="warn" data-only="o-detail-unreadable"></span>
       <span class="t-body flex-1" data-only="o-detail-failed">Transcription didn’t finish</span>
       <span class="t-body flex-1" data-only="o-detail-queued">Waiting to be transcribed</span>
       <span class="t-body flex-1" data-only="o-detail-preparing">Preparing the transcript</span>
@@ -1108,7 +1132,7 @@
               <div class="flex-1 min-w-0 flex flex-col gap-2">
                 <span class="t-meta">Next meeting</span>
                 <span class="text-[22px] font-semibold tracking-[-.016em] leading-[1.15] truncate">Design review</span>
-                <div class="flex items-center gap-2 t-label text-ink-2 mt-0.5"><span>11:15 – 12:00</span><span class="sep">·</span><svg class="ico-xs text-ink-3"><use href="#i-video"/></svg><span>Google Meet</span></div>
+                <div class="flex items-center gap-2 t-label text-ink-2 mt-0.5"><span>11:15</span><span class="sep">·</span><svg class="ico-xs text-ink-3"><use href="#i-video"/></svg><span>Google Meet</span></div>
                 <div class="flex items-center gap-2.5 mt-2"><span class="faces"><i>D</i><i>E</i><i>M</i><i>+1</i></span><span class="t-meta">Deniz, Ece and 2 others</span></div>
               </div>
               <!-- Actions sit at the trailing edge; Join appears only in the last 10 minutes -->
@@ -1155,8 +1179,8 @@
             <div class="flex items-center h-9 pl-3 pr-1"><span class="t-label text-ink-2 flex-1">Recent meetings</span><button class="btn-secondary xs" data-go="d-meetings">All meetings<svg class="ico-xs"><use href="#i-chevron-right"/></svg></button></div>
             <div class="slide" data-slide>
               <div class="row" data-go="d-meetings"><div class="tcol"><b>10:00</b><span>48:12</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta truncate">3 for you to do · Deniz, Ece</span></div><span class="ok-t mt-[2px] !text-[11.5px]">Notes ready</span></div>
-              <div class="row" data-go="d-meetings-loading"><div class="tcol"><b>09:00</b><span>31:40</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta truncate">Mira Lund</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="lamp on-a blink"></span>Processing</span></div>
-              <div class="row" data-go="d-meetings-error"><div class="tcol"><b>15:30</b><span>1:02</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta truncate">Yesterday · 5 people</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="lamp on-r"></span>Failed</span></div>
+              <div class="row" data-go="d-meetings-loading"><div class="tcol"><b>09:00</b><span>31:40</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta truncate">Mira Lund</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span class="busy"><i></i><i></i><i></i></span>Processing</span></div>
+              <div class="row" data-go="d-meetings-error"><div class="tcol"><b>15:30</b><span>1:02</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta truncate">Yesterday · 5 people</span></div><span class="flex items-center gap-2 t-meta text-ink-2 mt-[2px]"><span data-sg="err"></span>Failed</span></div>
             </div>
           </div>
         </div>
@@ -1177,14 +1201,14 @@
             <div data-noresults hidden class="flex flex-col items-center text-center gap-1 pt-8"><span class="t-body text-ink-2 block">No results</span><span class="t-meta block">Try another name or a phrase from the call.</span></div>
             <div data-not="d-meetings-empty" class="flex-1 min-h-0 flex flex-col overflow-y-auto slide pb-3" data-slide>
               <div data-hdr class="group-h">Coming up</div>
-              <div class="row" data-title="Design review"><div class="tcol"><b>11:15</b><span>Today</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta">Google Meet · in 33 min</span></div></div>
-              <div class="row" data-title="Weekly sync"><div class="tcol"><b>10:00</b><span>Wed</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta">Zoom</span></div></div>
+              <div class="row" data-title="Design review"><div class="tcol"><b>11:15</b></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta">Google Meet · in 33 min</span></div></div>
+              <div class="row" data-title="Weekly sync"><div class="tcol"><b>10:00</b></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta">Wed · Zoom</span></div></div>
               <div data-hdr class="group-h mt-2">Today</div>
               <div class="row mrow" data-sel="d-meetings d-meetings-recording" data-title="Design review" data-go="d-meetings" data-menu="menu-meeting-row"><div class="tcol"><b>10:00</b><span>48:12</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Design review</span><span class="t-meta">3 for you · Deniz, Ece</span></div></div>
-              <div class="row mrow" data-sel="d-meetings-loading" data-title="Partner call" data-go="d-meetings-loading" data-menu="menu-meeting-row"><div class="tcol"><b>09:00</b><span>31:40</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta">Processing</span></div><span class="lamp on-a blink mt-[7px]"></span></div>
+              <div class="row mrow" data-sel="d-meetings-loading" data-title="Partner call" data-go="d-meetings-loading" data-menu="menu-meeting-row"><div class="tcol"><b>09:00</b><span>31:40</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Partner call</span><span class="t-meta">Processing</span></div><span class="mt-[5px]"><span class="busy"><i></i><i></i><i></i></span></span></div>
               <div data-hdr class="group-h mt-2">Yesterday</div>
-              <div class="row mrow" data-sel="d-meetings-error" data-title="Weekly sync" data-go="d-meetings-error" data-menu="menu-meeting-row-failed"><div class="tcol"><b>15:30</b><span>1:02</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta">Transcription failed</span></div><span class="lamp on-r mt-[7px]"></span></div>
-              <div class="row mrow" data-title="Interview — backend" data-go="d-meetings" data-menu="menu-meeting-row"><div class="tcol"><b>11:00</b><span>44:03</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Interview — backend</span><span class="t-meta">Transcript only</span></div><span class="lamp on-a mt-[7px]"></span></div>
+              <div class="row mrow" data-sel="d-meetings-error" data-title="Weekly sync" data-go="d-meetings-error" data-menu="menu-meeting-row-failed"><div class="tcol"><b>15:30</b><span>1:02</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Weekly sync</span><span class="t-meta">Transcription failed</span></div><span data-sg="err" class="mt-[3px]"></span></div>
+              <div class="row mrow" data-title="Interview — backend" data-go="d-meetings" data-menu="menu-meeting-row"><div class="tcol"><b>11:00</b><span>44:03</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Interview — backend</span><span class="t-meta">Transcript only</span></div><span data-sg="warn" class="mt-[3px]"></span></div>
               <div data-hdr class="group-h mt-2">Mon 16</div>
               <div class="row mrow" data-title="Quick note" data-go="d-meetings" data-menu="menu-meeting-row"><div class="tcol"><b>18:20</b><span>2:10</span></div><div class="flex-1 min-w-0 flex flex-col gap-[3px]"><span class="t-body truncate">Quick note</span><span class="t-meta">Not transcribed</span></div></div>
             </div>
@@ -1198,7 +1222,7 @@
             </div>
             <div data-only="d-meetings-loading" class="flex-1 flex items-center justify-center gap-2 t-meta"><span class="spin"></span>Opening meeting…</div>
             <div data-only="d-meetings-error" class="flex-1 flex flex-col items-center justify-center gap-4 text-center">
-              <span class="lamp on-r"></span>
+              <span class="sg-hero r"><span data-sg="err" class="lg"></span></span>
               <div class="flex flex-col gap-1"><span class="t-body text-ink-1">Couldn’t open this meeting</span><span class="t-meta">Its files couldn’t be read. The audio is still on disk.</span></div>
               <div class="actions"><button class="btn-secondary" data-toast="Shows the audio in Finder"><svg class="ico-xs"><use href="#i-archive"/></svg>Show in Finder</button><button class="btn-primary" data-go="d-meetings-loading">Try again<span class="kbd">↩</span></button></div>
             </div>
@@ -1228,8 +1252,8 @@
             </div>
             <div class="panel p-2">
               <div class="flex items-center h-8 px-2.5"><span class="t-label text-ink-2 flex-1">Due</span><span class="t-micro">today</span></div>
-              <div class="flex items-center gap-3 h-9 px-2.5"><span class="lamp on-r"></span><span class="t-label text-ink-1 flex-1 truncate">Reply to Deniz</span><span class="t-meta !text-live">overdue</span></div>
-              <div class="flex items-center gap-3 h-9 px-2.5"><span class="lamp on-a"></span><span class="t-label text-ink-1 flex-1 truncate">Call the bank</span><span class="segd text-ink-2" data-seg="15:00" data-h="10"></span></div>
+              <div class="flex items-center gap-3 h-9 px-2.5"><span data-sg="warn" data-c="r" title="Overdue"></span><span class="t-label text-ink-1 flex-1 truncate">Reply to Deniz</span><span class="t-meta !text-live">overdue</span></div>
+              <div class="flex items-center gap-3 h-9 px-2.5"><span class="lamp on-w"></span><span class="t-label text-ink-1 flex-1 truncate">Call the bank</span><span class="segd text-ink-2" data-seg="15:00" data-h="10"></span></div>
               <div class="flex items-center gap-3 h-9 px-2.5"><span class="lamp"></span><span class="t-label text-ink-2 flex-1 truncate">Write release notes</span><span class="segd text-ink-3" data-seg="17:00" data-h="10"></span></div>
             </div>
             <div class="panel flex items-center gap-3 p-3.5">
@@ -1291,18 +1315,18 @@
           <div class="rail w-[200px] flex-none pl-3 pr-2" data-rail="settings">
             <i class="rail-lamp"></i>
             <div class="sb-item" data-key="general" data-go="s-general"><svg class="ico"><use href="#i-sun"/></svg><span class="flex-1">General</span></div>
-            <div class="sb-item" data-key="dictation" data-go="s-dictation"><svg class="ico"><use href="#i-waveform"/></svg><span class="flex-1">Dictation</span><span class="lamp on-g" data-not="s-dictation-perms"></span><span class="lamp on-a" data-only="s-dictation-perms"></span></div>
-            <div class="sb-item" data-key="stasks" data-go="s-tasks-connected"><svg class="ico"><use href="#i-queue"/></svg><span class="flex-1">Tasks</span><span class="lamp on-g" data-not="s-tasks-notconnected s-tasks-denied s-tasks-error s-tasks-local"></span><span class="lamp on-a" data-only="s-tasks-denied"></span><span class="lamp on-r" data-only="s-tasks-error"></span><span class="lamp" data-only="s-tasks-notconnected s-tasks-local"></span></div>
+            <div class="sb-item" data-key="dictation" data-go="s-dictation"><svg class="ico"><use href="#i-waveform"/></svg><span class="flex-1">Dictation</span><span class="lamp on-g" data-not="s-dictation-perms"></span><span data-sg="off" data-only="s-dictation-perms"></span></div>
+            <div class="sb-item" data-key="stasks" data-go="s-tasks-connected"><svg class="ico"><use href="#i-queue"/></svg><span class="flex-1">Tasks</span><span class="lamp on-g" data-not="s-tasks-notconnected s-tasks-denied s-tasks-error s-tasks-local"></span><span data-sg="off" data-only="s-tasks-denied"></span><span data-sg="err" data-only="s-tasks-error"></span><span class="lamp" data-only="s-tasks-notconnected s-tasks-local"></span></div>
             <div class="sb-item" data-key="ai" data-go="s-ai-auto"><svg class="ico"><use href="#i-spark"/></svg><span class="flex-1">AI</span><span class="lamp on-g" data-not="s-ai-off"></span><span class="lamp" data-only="s-ai-off"></span></div>
-            <div class="sb-item" data-key="calendar" data-go="s-calendar-connected"><svg class="ico"><use href="#i-calendar"/></svg><span class="flex-1">Calendar</span><span class="lamp on-g" data-not="s-calendar-notconnected s-calendar-denied s-calendar-failed s-calendar-off"></span><span class="lamp on-a" data-only="s-calendar-denied"></span><span class="lamp on-r" data-only="s-calendar-failed"></span><span class="lamp" data-only="s-calendar-notconnected s-calendar-off"></span></div>
-            <div class="sb-item" data-key="recording" data-go="s-recording"><svg class="ico"><use href="#i-mic"/></svg><span class="flex-1">Recording</span><span class="lamp on-g" data-not="s-recording-denied"></span><span class="lamp on-r" data-only="s-recording-denied"></span></div>
+            <div class="sb-item" data-key="calendar" data-go="s-calendar-connected"><svg class="ico"><use href="#i-calendar"/></svg><span class="flex-1">Calendar</span><span class="lamp on-g" data-not="s-calendar-notconnected s-calendar-denied s-calendar-failed s-calendar-off"></span><span data-sg="off" data-only="s-calendar-denied"></span><span data-sg="err" data-only="s-calendar-failed"></span><span class="lamp" data-only="s-calendar-notconnected s-calendar-off"></span></div>
+            <div class="sb-item" data-key="recording" data-go="s-recording"><svg class="ico"><use href="#i-mic"/></svg><span class="flex-1">Recording</span><span class="lamp on-g" data-not="s-recording-denied"></span><span data-sg="off" data-c="r" data-only="s-recording-denied"></span></div>
             <div class="sb-item" data-key="data" data-go="s-data"><svg class="ico"><use href="#i-archive"/></svg><span class="flex-1">Data</span></div>
           </div>
           <div class="flex-1 min-w-0 overflow-y-auto pl-5 pr-8 pb-8">
             <div class="max-w-[640px] flex flex-col gap-5">
               <!-- Page headers -->
               <div class="ph" data-only="s-general"><span class="ph-icon"><svg class="ico"><use href="#i-sun"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">General</span><span class="t-meta">How Crenel starts and how long it keeps things.</span></div></div>
-              <div class="ph" data-only="s-dictation*"><span class="ph-icon"><svg class="ico"><use href="#i-waveform"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Dictation</span><span class="t-meta">The key you hold and how it listens.</span></div><span class="ok-t" data-not="s-dictation-perms">Ready</span><span class="warn-t" data-only="s-dictation-perms">Needs access</span></div>
+              <div class="ph" data-only="s-dictation*"><span class="ph-icon"><svg class="ico"><use href="#i-waveform"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Dictation</span><span class="t-meta">The key you hold and how it listens.</span></div><span class="ok-t" data-not="s-dictation-perms">Ready</span><span class="off-t" data-only="s-dictation-perms">Needs access</span></div>
               <div class="ph" data-only="s-tasks*"><span class="ph-icon"><svg class="ico"><use href="#i-queue"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Tasks</span><span class="t-meta">Where your tasks live.</span></div></div>
               <div class="ph" data-only="s-ai*"><span class="ph-icon"><svg class="ico"><use href="#i-spark"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">AI</span><span class="t-meta">Who writes your notes and cleans up dictation.</span></div>
                 <!-- The fallback chain as three lamps: lit = will be used -->
@@ -1313,7 +1337,7 @@
                 </div></div>
               <div class="ph" data-only="s-calendar*"><span class="ph-icon"><svg class="ico"><use href="#i-calendar"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Calendar</span><span class="t-meta">Meetings and their countdown in the notch.</span></div>
                 <div class="well grid grid-cols-2 py-2.5" data-only="s-calendar-connected"><div class="flex flex-col gap-1.5 px-4"><span class="segd text-ink-1" data-seg="5" data-h="15"></span><span class="t-micro !text-ink-3">calendars</span></div><div class="flex flex-col gap-1.5 px-4" style="box-shadow:-1px 0 0 rgba(255,255,255,.04)"><span class="segd text-ink-1" data-seg="42" data-h="15"></span><span class="t-micro !text-ink-3">events</span></div></div></div>
-              <div class="ph" data-only="s-recording*"><span class="ph-icon"><svg class="ico"><use href="#i-mic"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Recording</span><span class="t-meta">What Crenel hears, and what it never records.</span></div><span class="ok-t" data-only="s-recording">All allowed</span><span class="err-t" data-only="s-recording-denied">Call audio off</span></div>
+              <div class="ph" data-only="s-recording*"><span class="ph-icon"><svg class="ico"><use href="#i-mic"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Recording</span><span class="t-meta">What Crenel hears, and what it never records.</span></div><span class="ok-t" data-only="s-recording">All allowed</span><span class="off-t r" data-only="s-recording-denied">Call audio off</span></div>
               <div class="ph" data-only="s-data*"><span class="ph-icon"><svg class="ico"><use href="#i-archive"/></svg></span><div class="flex-1 flex flex-col gap-0.5"><span class="t-title">Data</span><span class="t-meta">Everything stays in one folder on this Mac.</span></div>
                 <div class="well grid grid-cols-2 py-2.5"><div class="flex flex-col gap-1.5 px-4"><span class="flex items-baseline"><span class="segd text-ink-1" data-seg="2.1" data-h="15"></span><span class="unit">GB</span></span><span class="t-micro !text-ink-3">on disk</span></div><div class="flex flex-col gap-1.5 px-4" style="box-shadow:-1px 0 0 rgba(255,255,255,.04)"><span class="segd text-ink-1" data-seg="12" data-h="15"></span><span class="t-micro !text-ink-3">meetings</span></div></div></div>
 
@@ -1329,7 +1353,7 @@
               <!-- Dictation -->
               <div class="sgroup" data-only="s-dictation*"><div class="group-h">Dictation</div>
                 <div class="srow"><svg><use href="#i-waveform"/></svg><div class="txt"><b>Dictation</b><span>Hold a key anywhere to type with your voice</span></div><span class="toggle on"></span></div>
-                <div class="srow" data-only="s-dictation-perms"><svg><use href="#i-keyboard"/></svg><div class="txt"><b>Input Monitoring</b><span>Needed for the shortcut</span></div><span class="warn-t">Off</span><button class="btn-secondary sm" data-go="s-dictation">Allow</button></div>
+                <div class="srow" data-only="s-dictation-perms"><svg><use href="#i-keyboard"/></svg><div class="txt"><b>Input Monitoring</b><span>Needed for the shortcut</span></div><span class="off-t">Off</span><button class="btn-secondary sm" data-go="s-dictation">Allow</button></div>
                 <div class="snote" data-only="s-dictation-perms">Without Accessibility, text goes to the clipboard.</div>
                 <div class="srow"><svg><use href="#i-keyboard"/></svg><div class="txt"><b>Shortcut</b><span>⌃Space still switches input languages</span></div><span class="select" data-options="Hold Fn (🌐)|Hold right ⌥|Hold right ⌘">Hold Fn (🌐)<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
                 <div class="srow"><span class="ng"></span><div class="txt"><b>Mode</b></div><span class="select" data-options="Hold to talk|Press to start, press to stop">Hold to talk<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
@@ -1348,7 +1372,7 @@
                   <span class="select" data-not="s-tasks-local" data-goopt="Apple Reminders:s-tasks-connected|This Mac only:s-tasks-local">Apple Reminders<svg class="ico-xs text-ink-3"><use href="#i-chevron-down"/></svg></span></div>
                 <div class="srow" data-only="s-tasks-connected"><span class="ng"></span><div class="txt"><b>Reminders</b><span>“Crenel” list</span></div><span class="ok-t">Connected</span><button class="btn-secondary sm" data-toast="Opens Reminders"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
                 <div class="srow" data-only="s-tasks-notconnected"><span class="ng"></span><div class="txt"><b>Reminders</b></div><span class="dim-t">Not connected</span><button class="btn-secondary sm" data-go="s-tasks-connected">Connect</button></div>
-                <div class="srow" data-only="s-tasks-denied"><span class="ng"></span><div class="txt"><b>Reminders</b><span>Privacy &amp; Security › Reminders</span></div><span class="warn-t">Access off</span><button class="btn-secondary sm" data-toast="Opens Privacy &amp; Security › Reminders"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
+                <div class="srow" data-only="s-tasks-denied"><span class="ng"></span><div class="txt"><b>Reminders</b><span>Privacy &amp; Security › Reminders</span></div><span class="off-t">Access off</span><button class="btn-secondary sm" data-toast="Opens Privacy &amp; Security › Reminders"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
                 <div class="srow" data-only="s-tasks-error"><span class="ng"></span><div class="txt"><b>Reminders</b><span>Couldn’t save the last change</span></div><span class="err-t">Error</span><button class="btn-secondary sm" data-go="s-tasks-connected">Try again</button></div>
               </div>
 
@@ -1389,7 +1413,7 @@
                 <div class="srow"><svg><use href="#i-people"/></svg><div class="txt"><b>Connection</b><span data-only="s-calendar-connected">Refreshed 5 min ago</span></div>
                   <span class="ok-t" data-only="s-calendar-connected">Connected</span><button class="btn-secondary sm" data-only="s-calendar-connected" data-toast="Refreshing">Refresh</button>
                   <span class="dim-t" data-only="s-calendar-notconnected">Not connected</span><button class="btn-secondary sm" data-only="s-calendar-notconnected" data-go="s-calendar-connected">Allow</button>
-                  <span class="warn-t" data-only="s-calendar-denied">Access off</span><button class="btn-secondary sm" data-only="s-calendar-denied" data-toast="Opens Privacy &amp; Security › Calendars"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button>
+                  <span class="off-t" data-only="s-calendar-denied">Access off</span><button class="btn-secondary sm" data-only="s-calendar-denied" data-toast="Opens Privacy &amp; Security › Calendars"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button>
                   <span class="err-t" data-only="s-calendar-failed">Connection error</span><button class="btn-secondary sm" data-only="s-calendar-failed" data-go="s-calendar-connected">Try again</button>
                   <span class="dim-t" data-only="s-calendar-off">Off</span></div>
                 <div class="srow"><span class="ng"></span><div class="txt"><b>Accounts</b><span>Google (3) · iCloud (2), from Internet Accounts</span></div><button class="btn-secondary sm" data-toast="Opens Internet Accounts"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
@@ -1419,9 +1443,9 @@
               <div class="sgroup" data-only="s-recording*"><div class="group-h">Permissions</div>
                 <div class="srow"><svg><use href="#i-mic"/></svg><div class="txt"><b>Microphone</b><span>Your voice</span></div><span class="ok-t">Allowed</span></div>
                 <div class="srow" data-only="s-recording"><svg><use href="#i-speaker"/></svg><div class="txt"><b>System audio</b><span>Everyone else on the call</span></div><span class="ok-t">Allowed</span></div>
-                <div class="srow" data-only="s-recording-denied"><svg><use href="#i-speaker"/></svg><div class="txt"><b>System audio</b><span>Everyone else on the call</span></div><span class="err-t">Denied</span><button class="btn-icon framed sm" data-menu-click="menu-sysaudio" title="More"><svg class="ico-s"><use href="#i-more"/></svg></button><button class="btn-secondary sm" data-toast="Opens Privacy &amp; Security › Screen &amp; System Audio Recording"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
+                <div class="srow" data-only="s-recording-denied"><svg><use href="#i-speaker"/></svg><div class="txt"><b>System audio</b><span>Everyone else on the call</span></div><span class="off-t r">Denied</span><button class="btn-icon framed sm" data-menu-click="menu-sysaudio" title="More"><svg class="ico-s"><use href="#i-more"/></svg></button><button class="btn-secondary sm" data-toast="Opens Privacy &amp; Security › Screen &amp; System Audio Recording"><svg class="ico-xs"><use href="#i-link"/></svg>Open</button></div>
                 <div class="srow" data-only="s-recording"><svg><use href="#i-accessibility"/></svg><div class="txt"><b>Mute tracking</b><span>Reads mute in Zoom and Meet</span></div><span class="ok-t">Allowed</span></div>
-                <div class="srow" data-only="s-recording-denied"><svg><use href="#i-accessibility"/></svg><div class="txt"><b>Mute tracking</b><span>Needs Accessibility</span></div><span class="warn-t">Off</span><button class="btn-secondary sm" data-go="s-recording">Allow</button></div>
+                <div class="srow" data-only="s-recording-denied"><svg><use href="#i-accessibility"/></svg><div class="txt"><b>Mute tracking</b><span>Needs Accessibility</span></div><span class="off-t">Off</span><button class="btn-secondary sm" data-go="s-recording">Allow</button></div>
               </div>
               <div class="sgroup" data-only="s-recording*"><div class="group-h">Privacy guard</div>
                 <div class="srow"><svg><use href="#i-shield"/></svg><div class="txt"><b>Meet tab</b></div><span class="dim-t">Waiting for a call tab</span></div>
@@ -1962,6 +1986,11 @@ function decorate(root, base, opts = {}) {
   root.querySelectorAll('[data-tuner]').forEach(drawTuner)
   root.querySelectorAll('[data-dots]').forEach(drawDots)
   root.querySelectorAll('[data-tt]').forEach(drawTelltale)
+  root.querySelectorAll('[data-sg]').forEach(el => {
+    const k = el.dataset.sg, c = el.dataset.c || { err: 'r', warn: 'a', off: 'a', wait: 'd', stop: 'd' }[k]
+    el.classList.add('sg', c); el.innerHTML = `<svg viewBox="0 0 16 16"><use href="#s-${k}"/></svg>`
+    if (!el.title) el.title = { err: 'Failed', warn: 'Needs you', off: 'Access is off', wait: 'Waiting', stop: 'Stopped' }[k]
+  })
   // The selected place lights its icon: line glyph → solid glyph.
   root.querySelectorAll('.sb-item.on > svg > use').forEach(u => { const n = u.getAttribute('href').replace('#i-', ''); if (document.getElementById('f-' + n)) u.setAttribute('href', '#f-' + n) })
   root.querySelectorAll('[data-wave]').forEach(drawWave)
