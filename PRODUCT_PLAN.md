@@ -234,7 +234,15 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     (açma, ayrılınca kapanma, durum seçme, Edit ve marka yerleşimi Playwright ile
     doğrulandı; 112 durum hatasız)
   - [ ] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
-    uygulamaya geçirilmesi. — ⛔ Bloke: kullanıcı prototipi düzenliyor (2026-11-17)
+    ("gece sürüşü", `docs/DESIGN.md`) uygulamaya geçirilmesi. — 🚧 Devam ediyor: 2026-11-17
+    - [ ] Temel: `Hud` token'ları, ikon ailesi (çizgi + dolu), lambalar, durum şekilleri,
+      tuş butonlar, segment rakam, tik halkası ve diğer göstergeler.
+    - [ ] Notch: üç boy (kompakt / şerit / açık 560), bant, hareket.
+    - [ ] Today, kayıt, işleme ve sonuç yüzeyleri.
+    - [ ] Kayıtlar ve toplantı detayı.
+    - [ ] Görevler (satır eylemleri, Edit kartı).
+    - [ ] Masaüstü penceresi (Today panosu, Meetings, Tasks, Dictation).
+    - [ ] Ayarlar ve onboarding.
 
 ## 2026-09-25 — Koyu tema parlaklık düzeltmesi
 
