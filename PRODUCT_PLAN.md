@@ -228,6 +228,11 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     çalışıyor, kum saati sırada, kare durduruldu); hata panellerinde ışıklı kuyuda büyük
     şekil. Etkinlik satırları ve kahramanda yalnızca başlangıç saati. — ✅ 2026-11-17
     (112 durum headless tarayıcıda hatasız; etkileşim testi geçti)
+  - [x] Görev satırı eylemleri: tıklayınca satır sola kayar, altından durumlar · Edit ·
+    Delete çıkar, fare çıkınca geri kayar; Edit kartı yalnızca içerik ve Done. Açık
+    notch bandında sekmelerden önce işaret + "Crenel"; açık panel 560 pt. — ✅ 2026-11-17
+    (açma, ayrılınca kapanma, durum seçme, Edit ve marka yerleşimi Playwright ile
+    doğrulandı; 112 durum hatasız)
   - [ ] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
     uygulamaya geçirilmesi. — ⛔ Bloke: kullanıcı prototipi düzenliyor (2026-11-17)
 

@@ -266,7 +266,7 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
 | --- | --- | --- |
 | Kompakt | iki eşit kulak + 186 kamera boşluğu, yükseklik 32, alt yarıçap 10 | süreklilik bilgisi |
 | Şerit | genişlik 440, kulaklar + 38 pt bir satır, alt yarıçap 18 | istemler, canlı dikte, sonuç |
-| Açık | genişlik 480, alt yarıçap 24, omuz 14 | panel |
+| Açık | genişlik 560, alt yarıçap 24, omuz 14 | panel |
 
 - **Kulaklar.** Sol kulak *ne* olduğunu (ikon + başlık, en fazla 118 pt), sağ kulak *sayıyı*
   söyler (segment + birim). Boşta notch, donanım notch'u boyutundadır.
@@ -276,8 +276,11 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   - Üzerine gelmek paneli açmaz, çünkü şeridin butonları vardır; kulaklara tıklamak açar.
   - Sonuç şeritleri 8 sn sonra, "eklendi" şeridi 3 sn sonra kapanır.
 - **Açık panelin bandı.**
-  - Kamera bandı panelin krom alanıdır: solda sekmeler (Today · Tasks), sağda Kayıtlar,
-    pencere ve sabitle.
+  - Kamera bandı panelin krom alanıdır. Solda marka bulunur: arka plansız işaret
+    (15×9.4, `#14f0d4`, 2.5 pt parıltı) ve "Crenel" (12.5/600). Yanında 16 pt arayla
+    sekmeler (Today · Tasks), sağda Kayıtlar, pencere ve sabitle yer alır.
+  - Marka ve sekmeler kamera boşluğunun solundaki ~173 pt'ye sığmalıdır. Panelin 560
+    pt olmasının sebebi budur; sol blok ile kamera arasında en az 3 pt kalır.
   - Seçili sekmenin altındaki ışıklı çizgi (lamba) sekmeler arasında yaylı kayar.
   - Band kaydırmada yapışık kalır.
 
@@ -370,8 +373,21 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   - Altta eylem satırı bulunur. Solda depo lambası ("Synced with Reminders" ya da "On
     this Mac only"), sağda Finished ya da Connect Reminders. Finished görünümünde:
     Clear (danger) · Open tasks.
-  - Görev kartının altında solda kaynak çipi bulunur, sağda Delete (danger) ve
-    Close `esc` durur.
+  - **Satır eylemleri.** Satıra (işarete ya da başlığa) tek tıklayınca satır, eylemlerin
+    genişliği kadar sola kayar. Süre 0.34 sn, `cubic-bezier(.3,1.12,.4,1)`; sol kenar
+    56 pt'de solar. Altından sağda eylemler çıkar:
+    - dört durum işaretinden oluşan bir grup (geçerli olan vurgulu),
+    - ince bir ayraç,
+    - Edit (kalem),
+    - Delete (kırmızı çöp).
+
+    Fare satırdan çıkınca ya da satıra yeniden tıklanınca satır geri kayar. Yalnızca
+    tıklamayla açılır, kaydırma (swipe) yoktur; tek yön sağdır. Durum seçilince önce
+    işaret yerinde değişir, sonra satır geri kayar ve gerekirse grubunu değiştirir.
+    Delete satırı yükseklikten söndürerek kaldırır.
+  - **Edit.** Satır yalnızca Edit ile yerinde genişler. Kartta başlık, When, Priority,
+    not ve kaynak çipi bulunur; durum ve silme kartta yoktur (satır eylemlerinde
+    dururlar). Tek çıkış **Done ↩**.
 
 ## Masaüstü penceresi
 

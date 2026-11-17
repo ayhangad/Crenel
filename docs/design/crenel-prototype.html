@@ -137,6 +137,19 @@
     .busy { @apply inline-flex flex-none items-center gap-[2px]; }
     .busy > i { @apply block w-[3px] h-[7px] rounded-[1px]; background: rgba(255,173,51,.16); animation: run 1.05s steps(1) infinite; }
     .busy > i:nth-child(2) { animation-delay: .35s; } .busy > i:nth-child(3) { animation-delay: .7s; }
+    /* ── Task row actions: one click slides the row left; states, Edit and Delete sit underneath on the right.
+       Leaving the row slides it back. No swipe — click only, one direction. */
+    .task-row { position: relative; border-radius: 10px; overflow: hidden; }
+    .task-row > .trow { transition: transform .34s cubic-bezier(.3,1.12,.4,1); }
+    .task-row.rev > .trow { transform: translateX(calc(-1 * var(--tw, 196px))); -webkit-mask-image: linear-gradient(90deg, transparent, #000 56px); mask-image: linear-gradient(90deg, transparent, #000 56px); }
+    .tray { @apply absolute right-0 top-0 h-[38px] flex items-center gap-1.5 pr-1; opacity: 0; transform: translateX(18px); pointer-events: none;
+      transition: opacity .18s, transform .34s cubic-bezier(.3,1.12,.4,1); }
+    .task-row.rev > .tray { opacity: 1; transform: none; pointer-events: auto; transition-delay: .04s; }
+    .tray-states { @apply flex gap-[2px] p-[2px] rounded-[9px]; background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+    .tray-states > button { @apply w-[26px] h-[26px] rounded-[7px] flex items-center justify-center transition-colors hover:bg-white/[.07]; }
+    .tray-states > button.on { background: rgba(255,255,255,.11); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+    .tray-sep { @apply block w-px h-4 mx-0.5; background: rgba(255,255,255,.08); }
+
     /* ── Telltales: an icon that lights. Unlit = line glyph as a ghost; lit = solid glyph in its colour, glowing.
        paren = system/permission fault, drawn as angled brackets; data-mod adds a corner badge (! or ×). */
     .tt { @apply relative inline-flex items-center justify-center flex-none w-4 h-4; color: rgba(255,255,255,.2); }
@@ -327,7 +340,7 @@
     #notch { --surface: #000; position: relative; background: #000; overflow: hidden; border-radius: 0 0 var(--rb) var(--rb); width: 186px; height: 32px;
       transition: width .52s cubic-bezier(.3,1.16,.4,1), height .52s cubic-bezier(.3,1.16,.4,1); }
     #nc { position: absolute; top: 0; left: 50%; transform: translateX(-50%); transition: opacity .18s ease-out; }
-    #nc.open { width: 480px; padding: 0 14px 16px; overflow-y: auto; }
+    #nc.open { width: 560px; padding: 0 14px 16px; overflow-y: auto; }
     #nc.closed { width: max-content; }
     #fuse { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); height: 2px; border-radius: 1px; width: 0; opacity: 0;
       background: var(--c, #f3f1ec); box-shadow: 0 0 8px var(--c, #f3f1ec), 0 0 2px var(--c, #f3f1ec); }
@@ -348,6 +361,9 @@
     .caret { @apply inline-block w-[7px] h-[14px] ml-[3px] -mb-[2px] bg-ink-1 rounded-[1px]; animation: caret 1s steps(1) infinite; box-shadow: 0 0 6px rgba(243,241,236,.6); }
     .band { @apply sticky top-0 z-10 grid items-center h-8 -mx-[14px] mb-2 px-[14px] bg-black; grid-template-columns: 1fr 186px 1fr; }
     .band-r { @apply flex justify-end gap-0.5; }
+    /* The mark and the name, no tile: the lit glyph is the logo. */
+    .nb { @apply inline-flex items-center gap-[7px] flex-none t-label font-semibold text-ink-1 -ml-0.5; }
+    .nb > svg { width: 15px; height: 9.4px; color: #14f0d4; filter: drop-shadow(0 0 2.5px rgba(20,240,212,.6)); }
 
     /* Today hero: one instrument, one sentence. */
     .hero { @apply relative flex items-center gap-4 pl-1.5 pr-[10px] pt-1 pb-3; }
@@ -501,6 +517,7 @@
   <symbol id="i-warning" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 2.25L14.25 13.25H1.75Z"/><path d="M8 6.75V9"/><rect x="7.25" y="10.5" width="1.5" height="1.5" fill="currentColor" stroke="none"/></symbol>
   <symbol id="i-people" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4.75 2.5H7.25L8.25 3.5V6L7.25 7H4.75L3.75 6V3.5ZM1.75 13.75V11.75L3.75 9.75H8.25L10.25 11.75V13.75M10.75 2.5H11.75L12.75 3.5V6L11.75 7H10.75M12 9.75L14.25 11.75V13.75"/></symbol>
   <symbol id="i-keyboard" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.5 3.75H13.5L14.5 4.75V11.25L13.5 12.25H2.5L1.5 11.25V4.75Z"/><path d="M4.5 6.75H4.51M7 6.75H7.01M9.5 6.75H9.51M12 6.75H12.01M5.25 9.5H10.75"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M10.5 2.25L13.75 5.5L5.5 13.75H2.25V10.5ZM8.5 4.25L11.75 7.5"/></symbol>
   <symbol id="i-copy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.25 5.25H13.75V13.75H5.25ZM10.75 5.25V2.25H2.25V10.75H5.25"/></symbol>
   <symbol id="i-trash" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.5 4.25H13.5M6.25 4.25V2.25H9.75V4.25M3.75 4.25L4.5 14H11.5L12.25 4.25M6.75 7V11M9.25 7V11"/></symbol>
   <symbol id="i-more" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="7.25" width="2" height="2" fill="currentColor" stroke="none"/><rect x="7" y="7.25" width="2" height="2" fill="currentColor" stroke="none"/><rect x="11.5" y="7.25" width="2" height="2" fill="currentColor" stroke="none"/></symbol>
@@ -681,10 +698,13 @@
      ═════════════════════════════════════════════════════════════════════ -->
 <template id="tpl-band">
   <div class="band">
+    <div class="flex items-center gap-4 min-w-0">
+    <span class="nb" title="Crenel"><svg><use href="#i-mark"/></svg>Crenel</span>
     <div class="tabs" data-tabs>
       <span class="tab" data-key="today" data-go="o-today">Today</span>
       <span class="tab" data-key="tasks" data-go="o-tasks">Tasks<span class="badge">5</span></span>
       <i class="tab-lamp"></i>
+    </div>
     </div>
     <div></div>
     <div class="band-r">
@@ -1039,12 +1059,6 @@
 <template id="tpl-task-card">
   <div class="task-card my-1 px-[10px] py-[14px] rounded-[14px] bg-white/[.045] flex flex-col gap-4 relative z-[2]">
     <div class="flex items-start gap-3"><svg class="ico mt-[2px]" data-cardmark><use href="#m-progress"/></svg><span class="t-title flex-1 outline-none" contenteditable="true" spellcheck="false" data-cardtitle>Task</span></div>
-    <div class="seg-ctl self-start" data-cardstatus>
-      <span class="pill" data-status="open"><svg class="ico-s"><use href="#m-open"/></svg>To do</span>
-      <span class="pill" data-status="progress"><svg class="ico-s"><use href="#m-progress"/></svg>Doing</span>
-      <span class="pill" data-status="blocked"><svg class="ico-s"><use href="#m-blocked"/></svg>Blocked</span>
-      <span class="pill" data-status="done"><svg class="ico-s"><use href="#m-done"/></svg>Done</span>
-    </div>
     <div class="flex flex-col gap-2"><span class="t-meta">When</span>
       <div class="flex gap-1 choice"><button class="btn-quiet sm">Today</button><button class="btn-ghost sm">Tomorrow</button><button class="btn-ghost sm">Weekend</button><button class="btn-ghost sm">Next week</button><button class="btn-ghost sm">No date</button></div>
       <div class="flex items-center gap-2 t-meta text-ink-2"><svg class="ico-xs"><use href="#i-calendar"/></svg>Today 17:00<svg class="ico-xs ml-2"><use href="#i-repeat"/></svg>Every week</div>
@@ -1052,17 +1066,22 @@
     <div class="flex flex-col gap-2"><span class="t-meta">Priority</span>
       <div class="seg-ctl self-start"><span>None</span><span><span class="pri text-ink-2 mr-1.5"><i class="on"></i><i></i><i></i></span>Low</span><span class="on"><span class="pri text-ink-1 mr-1.5"><i class="on"></i><i class="on"></i><i></i></span>Medium</span><span><span class="pri text-signal mr-1.5"><i class="on"></i><i class="on"></i><i class="on"></i></span>High</span></div></div>
     <div class="p-[10px] rounded-[10px] bg-white/[.04] t-body text-ink-2 min-h-[56px] outline-none empty:before:content-['Note'] empty:before:text-ink-3" contenteditable="true"></div>
-    <div class="actions"><button class="chip" data-go="o-detail"><svg class="ico-xs text-ink-3"><use href="#i-transcript"/></svg>From Design review</button><span class="flex-1"></span><button class="btn-danger sm" data-go="a-delete-task"><svg class="ico-xs"><use href="#i-trash"/></svg>Delete</button><button class="btn-secondary sm" data-close>Close<span class="kbd">esc</span></button></div>
+    <div class="actions"><button class="chip" data-go="o-detail"><svg class="ico-xs text-ink-3"><use href="#i-transcript"/></svg>From Design review</button><span class="flex-1"></span><button class="btn-primary sm" data-close>Done<span class="kbd">↩</span></button></div>
   </div>
 </template>
 
-<!-- Status picker: unfolds under the row -->
-<template id="tpl-picker">
-  <div class="picker ml-[34px] mb-2 seg-ctl relative z-[2]">
-    <span class="pill" data-status="open"><svg class="ico-s"><use href="#m-open"/></svg>To do</span>
-    <span class="pill" data-status="progress"><svg class="ico-s"><use href="#m-progress"/></svg>Doing</span>
-    <span class="pill" data-status="blocked"><svg class="ico-s"><use href="#m-blocked"/></svg>Blocked</span>
-    <span class="pill" data-status="done"><svg class="ico-s"><use href="#m-done"/></svg>Done</span>
+<!-- Row actions: revealed under the row when it slides left -->
+<template id="tpl-tray">
+  <div class="tray">
+    <div class="tray-states">
+      <button data-tstate="open" title="To do"><svg class="ico"><use href="#m-open"/></svg></button>
+      <button data-tstate="progress" title="Doing"><svg class="ico"><use href="#m-progress"/></svg></button>
+      <button data-tstate="blocked" title="Blocked"><svg class="ico"><use href="#m-blocked"/></svg></button>
+      <button data-tstate="done" title="Done"><svg class="ico"><use href="#m-done"/></svg></button>
+    </div>
+    <i class="tray-sep"></i>
+    <button class="btn-icon framed sm" data-tedit title="Edit"><svg class="ico-s"><use href="#i-edit"/></svg></button>
+    <button class="btn-icon framed sm !text-[#ff6b59]" data-tdelete title="Delete"><svg class="ico-s"><use href="#i-trash"/></svg></button>
   </div>
 </template>
 
@@ -1730,12 +1749,12 @@ st('o-detail-rename', 'Sheet · rename speaker', { kind: 'notch', alert: 'al-ren
 
 const K = { tpl: 'tpl-tasks', keys: ['tasks'] }
 group('Tasks')
-st('o-tasks', 'Tasks', { ...K, closed: 'c-tasks', note: 'Type and press Return. Try “Call mom tomorrow 3pm every week !!”. Click a mark for status, a title for the card.' })
+st('o-tasks', 'Tasks', { ...K, closed: 'c-tasks', note: 'Type and press Return. Try “Call mom tomorrow 3pm every week !!”. Click a task for its actions.' })
 st('o-tasks-typing', 'Input · values recognised', { ...K, closed: 'c-tasks', prefill: 'Call mom tomorrow 3pm every week !!' })
 st('o-tasks-quickpick', 'Input · quick picks', { ...K, closed: 'c-tasks', prefill: 'Buy coffee beans' })
 st('o-tasks-completion', 'Input · inline completion', { ...K, closed: 'c-tasks', prefill: 'Wri', note: 'Tab accepts.' })
-st('o-tasks-picker', 'Status picker', { ...K, closed: 'c-tasks', onEnter: 'picker' })
-st('o-tasks-card', 'Task card', { ...K, closed: 'c-tasks', onEnter: 'card' })
+st('o-tasks-actions', 'Row actions', { ...K, closed: 'c-tasks', onEnter: 'actions', note: 'Click a task: the row slides left and its actions sit underneath — state, Edit, Delete. Leave the row and it slides back.' })
+st('o-tasks-card', 'Edit', { ...K, closed: 'c-tasks', onEnter: 'card', note: 'Only Edit opens the row in place.' })
 st('o-tasks-empty', 'Tasks · empty', { ...K, closed: 'c-idle' })
 st('o-tasks-local', 'Tasks · on this Mac', { ...K, closed: 'c-tasks', note: 'Reminders not connected; click the label to connect.' })
 st('o-tasks-finished', 'Finished', { ...K, closed: 'c-tasks' })
@@ -2014,7 +2033,7 @@ function decorate(root, base, opts = {}) {
   if (base.id === 'ob-done') root.querySelectorAll('.schem [data-part]').forEach(p => p.classList.add('on'))
   root.querySelectorAll('[data-taskinput]').forEach(input => wireTaskInput(input, base))
   root.querySelectorAll('[data-search]').forEach(wireSearch)
-  if (base.onEnter === 'picker') { const row = root.querySelectorAll('.task-row')[2]; row && togglePicker(row) }
+  if (base.onEnter === 'actions') { const row = root.querySelectorAll('.task-row')[2]; row && setTimeout(() => toggleTray(row), 380) }
   if (base.onEnter === 'card') { const row = root.querySelector('.task-row'); row && openCard(row) }
   tick()
 }
@@ -2119,7 +2138,7 @@ function fitNotch() {
     return
   }
   nc.style.maxHeight = cap + 'px'
-  notch.style.width = '480px'
+  notch.style.width = '560px'
   notch.style.height = Math.min(inner.offsetHeight + 16, cap) + 'px'
 }
 // The bottom edge as a fuse.
@@ -2247,9 +2266,11 @@ document.addEventListener('click', e => {
     if (card) { card._row && setStatus(card._row, status.dataset.status); syncCard(card); return }
     if (picker) { setStatus(picker._row, status.dataset.status); picker.remove(); return }
   }
-  const mark = t.closest('[data-mark]'); if (mark) { togglePicker(mark.closest('.task-row')); return }
-  const openEl = t.closest('[data-open]')
-  if (openEl && !t.closest('[data-go]')) { openCard(openEl.closest('.task-row')); return }
+  const ts = t.closest('[data-tstate]'); if (ts) { pickState(ts); return }
+  const te = t.closest('[data-tedit]'); if (te) { const row = te.closest('.task-row'); closeTray(row); setTimeout(() => openCard(row), 160); return }
+  const td = t.closest('[data-tdelete]'); if (td) { deleteRow(td.closest('.task-row')); return }
+  const rowHit = t.closest('.task-row > .trow')
+  if (rowHit && !t.closest('[data-go]')) { toggleTray(rowHit.parentNode); return }
   const scrub = t.closest('[data-scrub]')
   if (scrub) { const r = scrub.getBoundingClientRect(); playPos = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); paintWave(); return }
 
@@ -2325,13 +2346,33 @@ function bumpCells(row, d) {
   const on = cells.querySelectorAll('i.on').length + d
   ;[...cells.children].forEach((c, i) => c.classList.toggle('on', i < on))
 }
-function togglePicker(row) {
-  const open = row.querySelector('.picker'); document.querySelectorAll('.picker').forEach(p => p.remove())
-  if (open) return
-  const p = document.getElementById('tpl-picker').content.firstElementChild.cloneNode(true); p._row = row
-  p.querySelectorAll('[data-status]').forEach(x => x.classList.toggle('on', x.dataset.status === row.querySelector('[data-mark]').dataset.mark))
-  row.appendChild(p)
+// Row actions
+function toggleTray(row) {
+  if (row.classList.contains('rev')) return closeTray(row)
+  document.querySelectorAll('.task-row.rev').forEach(closeTray)
+  let tray = row.querySelector(':scope > .tray')
+  if (!tray) { tray = document.getElementById('tpl-tray').content.firstElementChild.cloneNode(true); row.appendChild(tray) }
+  const st = row.querySelector('[data-mark]').dataset.mark
+  tray.querySelectorAll('[data-tstate]').forEach(b => b.classList.toggle('on', b.dataset.tstate === st))
+  requestAnimationFrame(() => {   // measure once laid out: slide exactly as far as the actions need
+    row.style.setProperty('--tw', tray.offsetWidth + 12 + 'px')
+    row.classList.add('rev')
+  })
 }
+function closeTray(row) { row && row.classList.remove('rev') }
+function pickState(btn) {
+  const row = btn.closest('.task-row'), st = btn.dataset.tstate
+  btn.parentNode.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn))
+  row.querySelector('[data-mark] use').setAttribute('href', '#' + MARK[st])   // the mark changes in place first…
+  setTimeout(() => { closeTray(row); setTimeout(() => setStatus(row, st), 260) }, 220)   // …then the row slides home and moves group
+}
+function deleteRow(row) {
+  const h = row.offsetHeight
+  row.animate([{ height: h + 'px', opacity: 1 }, { height: '0px', opacity: 0 }], { duration: 260, easing: 'cubic-bezier(.4,0,.2,1)' }).onfinish = () => { bumpCells(row, 0); row.remove() }
+  toast('Task deleted')
+}
+// Leaving the row slides it back.
+document.addEventListener('mouseout', e => { const row = e.target.closest?.('.task-row.rev'); if (row && !row.contains(e.relatedTarget)) closeTray(row) })
 function openCard(row) {
   document.querySelectorAll('.task-card').forEach(closeCard)
   const card = document.getElementById('tpl-task-card').content.firstElementChild.cloneNode(true)
@@ -2344,7 +2385,6 @@ function openCard(row) {
 function syncCard(card) {
   const st = card._row.querySelector('[data-mark]').dataset.mark
   card.querySelector('[data-cardmark] use').setAttribute('href', '#' + MARK[st])
-  card.querySelectorAll('[data-cardstatus] [data-status]').forEach(x => x.classList.toggle('on', x.dataset.status === st))
 }
 function closeCard(card) { if (!card) return; const t = card.querySelector('[data-cardtitle]').textContent.trim(); if (t) card._row.querySelector('[data-title]').textContent = t; card._row.hidden = false; card.remove() }
 
