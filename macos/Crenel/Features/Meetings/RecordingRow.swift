@@ -99,64 +99,60 @@ final class RecordingInlinePlayback: ObservableObject {
 
 // MARK: - Date tile
 
-/// The day a recording was made, as a small well: the day in segment digits over the
-/// month. It is as tall as the row's text, and its corner lamp says whether the notes are
-/// ready (teal), want a look (amber), failed (red), or are still on their way.
+/// The day a recording was made (`HudDateTile` with the month). A corner lamp appears
+/// only when the recording needs something: notes want a look (amber), failed (red),
+/// processing (blinking amber) or not transcribed yet (dim). Ready recordings stay quiet.
 struct RecordingDateTile: View {
     let date: Date
     let attention: RecordingAttention
-    var calendar: Calendar = .current
 
-    static let width: CGFloat = 40
+    static let width = HudDateTile.width
 
     var body: some View {
-        VStack(spacing: 4) {
-            HudSegmentDigits(String(format: "%02d", calendar.component(.day, from: date)), height: 15, cells: 2)
-            Text(verbatim: month).hud(.micro, Hud.Ink.ink3)
-        }
-        .frame(width: Self.width)
-        .frame(maxHeight: .infinity)
-        .background {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(LinearGradient(colors: [Color(white: 0.02), Color(white: 0.04)], startPoint: .top, endPoint: .bottom))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.07), lineWidth: 0.5)
-                }
-        }
-        .overlay(alignment: .topTrailing) {
-            lamp.offset(x: 2, y: -2)
-        }
-        .accessibilityHidden(true)
+        HudDateTile(date: date, caption: .month, lamp: lamp.color, lampLoop: lamp.loop)
     }
 
-    private var month: String {
-        let formatter = DateFormatter()
-        formatter.locale = AppLanguage.locale
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date)
-    }
-
-    @ViewBuilder private var lamp: some View {
+    private var lamp: (color: Hud.LampColor?, loop: HudLoop) {
         switch attention {
-        case .none: HudLamp(.teal, form: .dot)
-        case .noNotes: HudLamp(.amber, form: .dot)
-        case .failed: HudLamp(.red, form: .dot)
-        case .processing: HudLamp(.amber, form: .dot, loop: .blink)
-        case .notTranscribed: HudLamp(.dim, form: .dot)
+        case .none: (nil, .steady)
+        case .noNotes: (.amber, .steady)
+        case .failed: (.red, .steady)
+        case .processing: (.amber, .blink)
+        case .notTranscribed: (.dim, .steady)
         }
     }
 }
 
 // MARK: - Mini waveform
 
-/// The whole recording as a short row of bars. Ghost bars while the peaks load or when
-/// the audio cannot be read; the played part lights up while it plays inline.
+/// A short row of bars that reads as a recording. It is drawn, not decoded: the shape is
+/// a speech-like pattern seeded by the meeting, so every row has its own and nothing
+/// waits on the audio file. The played part lights up while it plays inline.
 struct RecordingMiniWaveform: View {
-    let peaks: [Double]?
+    let peaks: [Double]
     var progress: Double = 0
+
+    init(seed: UUID, progress: Double = 0) {
+        peaks = Self.pattern(seed: seed)
+        self.progress = progress
+    }
+
+    /// Bursts and pauses like speech, from a seed: same meeting, same bars.
+    static func pattern(seed: UUID, bars: Int = bars) -> [Double] {
+        var value: UInt64 = 0xCBF2_9CE4_8422_2325
+        withUnsafeBytes(of: seed.uuid) { bytes in
+            for byte in bytes { value = (value ^ UInt64(byte)) &* 0x100_0000_01B3 }
+        }
+        func next() -> Double {
+            value = value &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+            return Double(value >> 11) / Double(1 << 53)
+        }
+        var envelope = 0.5
+        return (0..<bars).map { index in
+            if index % 5 == 0 { envelope = 0.25 + 0.75 * next() }
+            return min(1, max(0.08, envelope * (0.45 + 0.55 * next())))
+        }
+    }
 
     static let bars = 34
     static let size = CGSize(width: 102, height: 18)
@@ -168,13 +164,13 @@ struct RecordingMiniWaveform: View {
             let width = (size.width - gap * CGFloat(count - 1)) / CGFloat(count)
             var played = Path(), rest = Path()
             for index in 0..<count {
-                let sample = peaks.map { $0.indices.contains(index) ? $0[index] : 0 } ?? 0
+                let sample = peaks.indices.contains(index) ? peaks[index] : 0
                 let height = max(3, min(size.height, 3 + CGFloat(sample) * (size.height - 3)))
                 let rect = CGRect(x: CGFloat(index) * (width + gap), y: (size.height - height) / 2, width: width, height: height)
                 let bar = Path(roundedRect: rect, cornerRadius: width / 2)
                 if progress > 0, Double(index) / Double(count) < progress { played.addPath(bar) } else { rest.addPath(bar) }
             }
-            context.fill(rest, with: .color(peaks == nil ? Hud.Ink.ink5 : Hud.Ink.ink4))
+            context.fill(rest, with: .color(Hud.Ink.ink4))
             context.fill(played, with: .color(Hud.Ink.ink1))
         }
         .frame(width: Self.size.width, height: Self.size.height)
@@ -196,7 +192,6 @@ struct RecordingRow: View {
 
     @Environment(\.recordingPreviewLoader) private var loader
     @State private var preview: RecordingPreview?
-    @State private var peaks: [Double]?
 
     /// Vertical padding inside the row; the list adds `RecordingRow.spacing` between rows
     /// so hover slabs never touch.
@@ -226,7 +221,7 @@ struct RecordingRow: View {
                     .monospacedDigit()
                     .fixedSize()
                 ZStack(alignment: .trailing) {
-                    RecordingMiniWaveform(peaks: peaks, progress: isPlaying ? playback.progress : 0)
+                    RecordingMiniWaveform(seed: meeting.id, progress: isPlaying ? playback.progress : 0)
                         .opacity(isHovered ? 0 : 1)
                     if isHovered {
                         buttons(isPlaying: isPlaying)
@@ -291,11 +286,5 @@ struct RecordingRow: View {
         let meeting = meeting
         let loaded = await RecordingPreviewCache.shared.preview(for: meeting) { await loader.load(meeting) }
         preview = loaded
-        guard let url = loaded?.audioURL else { return }
-        if let cached = MeetingWaveformPeaks.shared.cached(for: url, bars: RecordingMiniWaveform.bars) {
-            peaks = cached
-        } else {
-            peaks = await MeetingWaveformPeaks.shared.peaks(for: url, bars: RecordingMiniWaveform.bars)
-        }
     }
 }

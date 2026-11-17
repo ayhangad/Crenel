@@ -39,6 +39,7 @@ final class DictationCoordinator {
         controller.updateTriggerSettings(preferences.dictationTrigger)
 
         isEnabled = preferences.dictationEnabled
+        appState.updateDictationKeyHint(isEnabled ? preferences.dictationTrigger.trigger.keyHint : nil)
         fnKeyGuard.update(dictationEnabled: isEnabled, trigger: preferences.dictationTrigger.trigger)
         if isEnabled {
             startTriggerMonitoring()

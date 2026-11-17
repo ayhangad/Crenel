@@ -85,6 +85,8 @@ struct NotchClosedView: View {
         switch state {
         case .idle:
             EmptyView()
+        case .standby, .tasks:
+            HudMark().accessibilityHidden(true)
         case .meeting(let agenda):
             let ear = NotchMeetingEar(agenda, now: now)
             switch ear.kind {
@@ -113,9 +115,6 @@ struct NotchClosedView: View {
         case .focus(let task):
             HudStateMark(state: .inProgress, size: 14)
             title(task.title, lit: true)
-        case .tasks:
-            HudIcon(.queue, size: 14).foregroundStyle(Hud.Ink.ink3)
-            word(String(localized: "Today"), lit: false)
         case .dictationListening:
             HudTelltale(.mic, .white, size: 14)
             word(String(localized: "Listening"), lit: true)
@@ -149,6 +148,12 @@ struct NotchClosedView: View {
         switch state {
         case .idle:
             EmptyView()
+        case .standby(.nextEvent(let meeting)):
+            Text(NotchClosedText.dayWord(meeting.startDate)).hud(.meta).fixedSize()
+            HudSegmentDigits(HudFormat.clock(meeting.startDate), height: 13, color: Hud.Ink.ink2)
+        case .standby(.dictationKey(let key)):
+            HudIcon(.mic, size: 14).foregroundStyle(Hud.Ink.ink3)
+            Text(verbatim: key).hud(.meta, Hud.Ink.ink2).fixedSize()
         case .meeting(let agenda):
             let ear = NotchMeetingEar(agenda, now: now)
             switch ear.kind {
@@ -189,7 +194,7 @@ struct NotchClosedView: View {
             let value = NotchClosedText.focusValue(now.timeIntervalSince(task.startedAt ?? now))
             HudReadout(value.digits, unit: LocalizedStringKey(value.unit), cells: 2)
         case .tasks(let count):
-            HudSegmentDigits("\(count)", height: 13, cells: 2)
+            HudReadout("\(count)", unit: count == 1 ? "task" : "tasks", cells: 2)
         case .dictationListening:
             HudLadder(level: level)
         case .dictationWorking(let step, _):
@@ -300,7 +305,7 @@ struct NotchClosedView: View {
                 .keyboardShortcut(.defaultAction)
             }
 
-        case .idle, .meeting, .recording(_, nil), .processing, .focus, .tasks:
+        case .idle, .standby, .meeting, .recording(_, nil), .processing, .focus, .tasks:
             EmptyView()
         }
     }
@@ -359,6 +364,9 @@ struct NotchClosedView: View {
     private var accessibilityText: String {
         switch state {
         case .idle: ""
+        case .standby(.nextEvent(let meeting)):
+            "Next: \(meeting.title), \(NotchClosedText.dayWord(meeting.startDate)) \(HudFormat.clock(meeting.startDate))"
+        case .standby(.dictationKey(let key)): "Hold \(key) to dictate"
         case .meeting(let agenda): NotchAgendaFormatter.accessibilityText(for: agenda)
         case .meetingStarting(let meeting): "\(meeting.title), starting now"
         case .callDetected(let clientID, _): "\(NotchClosedText.clientName(clientID)), on a call"

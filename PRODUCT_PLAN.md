@@ -228,6 +228,11 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     süre ve gerçek dalga formu; hover'da Play/Open; satırlar arası boşluk, zeminler çakışmaz. — ✅ 2026-11-17
     (572 test, 5 atlandı, 0 hata; normal ve hover galerisi render'ları incelendi; gerçek
     notch'ta kullanıcı kabulü bekliyor)
+  - [x] Recordings lambası yalnız dikkat isteyen kayıtta; dalga formu çizilmiş desen (ses
+    okunmaz, panel takılmaz). Today listesi aynı satır dilinde (tarih karosu, süre, hover
+    Join, davette amber lamba). Kapalı notch boşta kapanmaz: işaret + görev sayısı, yoksa
+    başka gündeki ilk etkinlik, yoksa dikte tuşu. — ✅ 2026-11-17 (572 test, 5 atlandı,
+    0 hata; Today ve kapalı notch render'ları incelendi; gerçek notch'ta kabul bekliyor)
   - [x] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
     taşınması. — ✅ 2026-11-16 (`9dc6708`)
   - [x] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması. — ✅ 2026-11-16 (`9dc6708`)

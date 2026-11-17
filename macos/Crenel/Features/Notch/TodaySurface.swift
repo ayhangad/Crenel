@@ -180,7 +180,7 @@ struct TodaySurface: View {
                 nothingElseRow(agenda, now: now, canRecord: console == nil)
                     .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
                 if agenda.later.count > 1 {
-                    group("Later", Array(agenda.later.dropFirst()), now: now)
+                    group(String(localized: "Later"), Array(agenda.later.dropFirst()), now: now, isFirst: false)
                         .hudStagger(4, shown: appeared, reduceMotion: reduceMotion)
                 }
             } else {
@@ -210,19 +210,18 @@ struct TodaySurface: View {
     private func timetable(_ agenda: TodayAgenda, now: Date) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             if !agenda.today.isEmpty {
-                group("Today", agenda.today, now: now)
+                group(String(localized: "Today"), agenda.today, now: now, isFirst: true)
             }
             if !agenda.later.isEmpty {
-                group("Later", agenda.later, now: now)
-                    .padding(.top, agenda.today.isEmpty ? 0 : 8)
+                group(String(localized: "Later"), agenda.later, now: now, isFirst: agenda.today.isEmpty)
             }
         }
     }
 
-    private func group(_ title: LocalizedStringKey, _ events: [Meeting], now: Date) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HudGroupHeader(title: title, count: events.count)
-                .padding(.bottom, 2)
+    private func group(_ title: String, _ events: [Meeting], now: Date, isFirst: Bool) -> some View {
+        VStack(alignment: .leading, spacing: RecordingRow.spacing) {
+            HudListHeader(title, count: events.count, isFirst: isFirst)
+                .padding(.bottom, -RecordingRow.spacing)
             ForEach(events) { event in
                 TodayEventRow(
                     event: event, now: now,
@@ -613,8 +612,9 @@ private struct TodayConsole: View {
 
 // MARK: - Row
 
-/// A timetable row: the start time in the 42 pt column, the kind icon, then title and
-/// where it happens. No end time: the notch shows what is next, not a calendar.
+/// An event in the row language of Recordings: the day tile (with an amber lamp only for
+/// an invite waiting for an answer), the title, and when · where under it; the length at
+/// the trailing edge, which Join replaces while the row is hovered.
 private struct TodayEventRow: View {
     let event: Meeting
     let now: Date
@@ -625,32 +625,33 @@ private struct TodayEventRow: View {
         Calendar.current.isDate(event.startDate, inSameDayAs: now) || event.startDate <= now
     }
     private var isDimmed: Bool { event.isSuggestion || event.responseStatus == .tentative }
+    private var isPending: Bool { event.responseStatus == .pending }
+    private var showsJoin: Bool { isHovered && onJoin != nil }
 
     var body: some View {
-        HudRow(.twoLine) {
-            HudTimeColumn(event.isAllDay ? TodayText.dayWord(max(event.startDate, now), now: now) : HudFormat.clock(event.startDate),
-                          dim: event.isAllDay)
-            MeetingKindIcon(meeting: event)
-                .padding(.top, 1)
-            VStack(alignment: .leading, spacing: 3) {
+        HStack(alignment: .top, spacing: Hud.Row.gap) {
+            HudDateTile(date: event.isAllDay ? max(event.startDate, now) : event.startDate,
+                        caption: .weekday, lamp: isPending ? .amber : nil)
+            VStack(alignment: .leading, spacing: 2) {
                 Text(event.title).hud(.body).lineLimit(1).truncationMode(.tail)
-                Text(verbatim: detail).hud(.meta).lineLimit(1).truncationMode(.tail)
+                metaLine
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            if event.responseStatus == .pending {
-                HStack(spacing: 8) {
-                    HudStatusShape(.warn)
-                    Text("Invite").hud(.meta, Hud.Ink.ink2)
-                }
-                .padding(.top, 2)
-                .help("Invite — waiting for your answer")
-                // Join takes this place while the row is hovered.
-                .opacity(isHovered && onJoin != nil ? 0 : 1)
+            if let length {
+                Text(verbatim: length)
+                    .hud(.meta, Hud.Ink.ink2)
+                    .monospacedDigit()
+                    .fixedSize()
+                    .opacity(showsJoin ? 0 : 1)
             }
         }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.horizontal, Hud.Row.inset)
+        .padding(.vertical, RecordingRow.verticalPadding)
+        .contentShape(Rectangle())
         .opacity(isDimmed ? 0.55 : 1)
         .overlay(alignment: .trailing) {
-            // Over the row, not in it: the row keeps its height and the Invite mark its place.
+            // Over the row, not in it: the row keeps its height and nothing shifts.
             if let onJoin {
                 TodayHoverJoin(shown: isHovered, action: onJoin)
                     .padding(.trailing, 6)
@@ -658,22 +659,45 @@ private struct TodayEventRow: View {
         }
     }
 
-    /// "Zoom" today; "Wed · Zoom" or "All day · Work" on other days.
-    private var detail: String {
-        var parts: [String] = []
-        if event.isAllDay {
-            parts.append(String(localized: "All day"))
-            if let calendarTitle = event.calendarTitle, !calendarTitle.isEmpty { parts.append(calendarTitle) }
-        } else {
-            if !isToday { parts.append(TodayText.dayWord(event.startDate, now: now)) }
-            if let venue = event.venueWord, !venue.isEmpty { parts.append(venue) }
+    private var metaLine: some View {
+        HStack(spacing: 6) {
+            Text(verbatim: when).monospacedDigit()
+            if let place {
+                Text(verbatim: "·").foregroundStyle(Hud.Ink.ink5)
+                Text(verbatim: place)
+            }
+            if isPending {
+                Text(verbatim: "·").foregroundStyle(Hud.Ink.ink5)
+                HStack(spacing: 5) {
+                    HudStatusShape(.warn).scaleEffect(0.8)
+                    Text("Invite").foregroundStyle(Hud.Ink.signal)
+                }
+                .help("Invite — waiting for your answer")
+            }
         }
-        return parts.joined(separator: " · ")
+        .hud(.meta)
+        .lineLimit(1)
+    }
+
+    /// "18:30", or "All day".
+    private var when: String {
+        event.isAllDay ? String(localized: "All day") : HudFormat.clock(event.startDate)
+    }
+
+    /// The call service or place for timed events; the calendar for all-day ones.
+    private var place: String? {
+        let word = event.isAllDay ? event.calendarTitle : event.venueWord
+        return word?.isEmpty == false ? word : nil
+    }
+
+    /// "45m", "1h 30m"; none for all-day events.
+    private var length: String? {
+        guard !event.isAllDay, event.endDate > event.startDate else { return nil }
+        return RecordingsFormat.length(event.endDate.timeIntervalSince(event.startDate))
     }
 }
 
 // MARK: - Empty states
-
 /// One instrument at rest, one sentence, one fix at the trailing edge.
 private struct TodayEmptyState: View {
     let state: TodayCalendarState

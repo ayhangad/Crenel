@@ -110,7 +110,6 @@ final class RecordingsGalleryTests: XCTestCase {
 
     func testRecordingsStatesRender() async throws {
         let audio = try sampleAudio()
-        _ = await MeetingWaveformPeaks.shared.peaks(for: audio, bars: RecordingMiniWaveform.bars)
         let loader = RecordingPreviewLoader { meeting in
             RecordingPreview(
                 overview: meeting.processingStatus == .completed && meeting.summaryNeedsAttention != true

@@ -10,7 +10,12 @@ enum NotchClosedState: Equatable {
         case autoStop(deadline: Date)
     }
 
+    /// Nothing to say: exactly the hardware notch. Only when there is no later event and
+    /// no dictation key to point at.
     case idle
+    /// Nothing today, but the notch still answers one question: the mark on the left, and
+    /// on the right the next event on another day or the key that starts dictation.
+    case standby(NotchStandby)
     /// Next or current calendar item: later today, within the hour, 10 min or less, in
     /// progress, or on another day.
     case meeting(NotchAgendaStatus)
@@ -38,7 +43,7 @@ enum NotchClosedState: Equatable {
     /// Strip states drop one line under the ears and never open the panel on hover.
     var isStrip: Bool {
         switch self {
-        case .idle, .meeting, .processing, .focus, .tasks:
+        case .idle, .standby, .meeting, .processing, .focus, .tasks:
             false
         case .recording(_, let prompt):
             prompt != nil
@@ -52,6 +57,7 @@ enum NotchClosedState: Equatable {
     var identity: String {
         switch self {
         case .idle: "idle"
+        case .standby(let standby): "standby.\(standby.kind)"
         case .meeting(let agenda): "meeting.\(agenda.item.id).\(NotchMeetingEar(agenda).kind)"
         case .meetingStarting(let meeting): "starting.\(meeting.id)"
         case .callDetected: "call"
@@ -74,6 +80,21 @@ enum NotchClosedState: Equatable {
     }
 }
 
+/// What the idle notch points at.
+enum NotchStandby: Equatable {
+    /// The next timed event, more than the agenda's horizon away (usually another day).
+    case nextEvent(Meeting)
+    /// The key that starts dictation: "fn", "⌥", "⌘".
+    case dictationKey(String)
+
+    var kind: String {
+        switch self {
+        case .nextEvent(let meeting): "event.\(meeting.id)"
+        case .dictationKey: "dictation"
+        }
+    }
+}
+
 // MARK: - Resolving
 
 /// Everything the closed notch needs to pick its state. Pure, so every state can be
@@ -89,6 +110,10 @@ struct NotchClosedInput {
     var lastStoredMeeting: StoredMeeting?
     /// "Later" was pressed on this meeting's "Starting now" strip.
     var dismissedStartingMeetingID: UUID?
+    /// Calendar items, for the idle notch's next event beyond the agenda's horizon.
+    var upcomingItems: [Meeting] = []
+    /// The key that starts dictation, when dictation is on.
+    var dictationKeyHint: String?
     var now = Date()
 }
 
@@ -124,8 +149,10 @@ enum NotchClosedResolver {
         }
 
         switch input.status {
-        case .dictation, .recording, .idle:
+        case .dictation, .recording:
             return .idle
+        case .idle:
+            return standby(input).map(NotchClosedState.standby) ?? .idle
         case .processing(let stage):
             return .processing(stage)
         case .completed:
@@ -149,6 +176,16 @@ enum NotchClosedResolver {
         case .tasks(let count):
             return .tasks(count: count)
         }
+    }
+
+    /// Nothing today and no tasks: the next timed event, else the dictation key.
+    static func standby(_ input: NotchClosedInput) -> NotchStandby? {
+        let next = input.upcomingItems
+            .filter { !$0.isAllDay && $0.startDate > input.now }
+            .min { $0.startDate < $1.startDate }
+        if let next { return .nextEvent(next) }
+        if let key = input.dictationKeyHint { return .dictationKey(key) }
+        return nil
     }
 
     /// A meeting with a link, about to start or just started, that was not put off.

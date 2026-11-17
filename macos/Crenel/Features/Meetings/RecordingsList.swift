@@ -82,16 +82,7 @@ struct RecentMeetingsList: View {
                 let groups = RecordingsMonth.groups(meetings, now: now)
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(groups) { group in
-                        HStack {
-                            Text(verbatim: group.title)
-                            Spacer(minLength: 8)
-                            Text(verbatim: "\(group.meetings.count)").monospacedDigit()
-                        }
-                        .hud(.meta, Hud.Ink.ink4)
-                        .padding(.horizontal, Hud.Row.inset)
-                        .padding(.top, group.id == groups.first?.id ? 2 : 10)
-                        .padding(.bottom, 4)
-                        .accessibilityAddTraits(.isHeader)
+                        HudListHeader(group.title, count: group.meetings.count, isFirst: group.id == groups.first?.id)
 
                         VStack(alignment: .leading, spacing: RecordingRow.spacing) {
                             ForEach(group.meetings) { meeting in

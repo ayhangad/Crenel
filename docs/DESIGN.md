@@ -268,7 +268,10 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
 | Açık | genişlik 560, alt yarıçap 24, omuz 14 | panel |
 
 - **Kulaklar.** Sol kulak *ne* olduğunu (ikon + başlık, en fazla 118 pt), sağ kulak *sayıyı*
-  söyler (segment + birim). Boşta notch, donanım notch'u boyutundadır.
+  söyler (segment + birim). Bugün yapacak bir şey yokken bile notch kapanmaz: solda
+  turkuaz işaret, sağda sırasıyla açık görev sayısı ("5 tasks"), başka bir gündeki ilk
+  etkinlik ("Wed 09:30") ya da dikteyi başlatan tuş (mic + "fn"). Dikte kapalı ve hiçbiri
+  yoksa notch donanım boyutuna iner.
 - **Şerit.**
   - Paneli asla kendiliğinden açmaz. Altta tek bir satır açılır: bir cümle, bir meta ve
     en fazla iki buton.
@@ -323,7 +326,9 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   | Hata | kırmızı uyarı karosu + başlık; şerit: neden + "audio is saved" · **Retry ↩** | | |
   | Dikte izni yok | kırmızı parantezli mic; şerit: neden · Settings | | |
   | Görev | ilerleme işareti + başlık | dakika | |
-  | Görevler | kuyruk ikonu + "Today" | sayı | |
+  | Görevler | turkuaz işaret | sayı + "tasks" | |
+  | Boşta, sıradaki etkinlik | turkuaz işaret | gün + saat (ink-2) | |
+  | Boşta, dikte | turkuaz işaret | mic + tuş ("fn", "⌥", "⌘") | |
 
 - **Today.**
   - Kahraman: tik halkası, başlık (hero), saat aralığı · sağlayıcı ve katılımcılar.
@@ -334,12 +339,12 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   - Bir etkinliğe tıklamak görüşmeye katılmaz. Bağlantısı olan etkinlikte **Join** tuşu
     yalnızca üzerine gelince sağ kenarda belirir; katılmak yalnızca bu tuşladır (ve sağ
     tık menüsünden).
-  - Altında gün cetveli, sonra tarife düzeni bir liste gelir. Solda 42 pt'lik saat sütunu
-    vardır ve yalnızca başlangıç saatini taşır. Bitiş saati gösterilmez: notch bir takvim
-    değil, sıradakini gösterir. Bugün dışındaki günler ikinci satıra yazılır ("Wed ·
-    Zoom", "All day · Work"). Kahramanda da tek saat bulunur; süren toplantıda "Until
-    11:00" yazar. Gruplar Today ve Later'dır, yanlarında sönük
-    sayılar bulunur. Davet, satırın sağında amber lamba + "Invite" ile gösterilir.
+  - Altında gün cetveli, sonra Recordings ile aynı satır dilinde bir liste gelir: solda
+    tarih karosu (segment gün + haftanın günü), başlık, altında "18:30 · Zoom" ya da
+    "All day · Work", sağ kenarda süre. Hover'da süre yerine Join belirir. Kahramanda tek
+    saat bulunur; süren toplantıda "Until 11:00" yazar. Gruplar Today ve Later'dır; ad
+    solda, sayı sağ kenarda, ikisi de sönük. Karonun köşesinde amber lamba yalnız cevap
+    bekleyen davette yanar; ikinci satırda elmas + "Invite" bulunur.
   - Boş durumlar: dinlenen bir gösterge (`--:--`), bir cümle ve tek bir düzeltme.
 - **Kayıt.**
   - 34 pt segment süre gösterilir, arkasında kırmızı ışık sızması vardır. Sağda iki
@@ -360,14 +365,15 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   - Üstte haftalık gösterge bulunur: toplam saat ve gün çubukları, bugün yanar.
   - Kayıtlar ay başlıklarıyla gruplanır (ay adı solda, sayı sağda, meta / ink-4).
   - Satır (`RecordingRow`, örnek `docs/design/recordings-mock.html`):
-    - Solda 40 pt genişliğinde tarih karosu: segment gün (15 pt, hayalet 8'ler) ve
-      altında ay. Kuyu zemini, 0.5 pt çerçeve. Yüksekliği satırdaki metnin toplam
-      yüksekliğine eşittir. Köşedeki lamba: turkuaz notlar hazır, amber notlar bakılmayı
-      bekliyor, kırmızı başarısız, yanıp sönen amber işleniyor, sönük henüz yazıya
-      dökülmedi.
+    - Solda 40 pt genişliğinde tarih karosu (`HudDateTile`): segment gün (15 pt, hayalet
+      8'ler) ve altında ay. Kuyu zemini, 0.5 pt çerçeve. Yüksekliği satırdaki metnin
+      toplam yüksekliğine eşittir. Köşe lambası yalnız dikkat isteyen kayıtta yanar:
+      amber notlar bakılmayı bekliyor, kırmızı başarısız, yanıp sönen amber işleniyor,
+      sönük henüz yazıya dökülmedi. Hazır kayıtta lamba yoktur.
     - Ortada başlık (body), altında saat · platform · aksiyon sayısı ya da durum
       (şekil + kelime), altında notların ilk satırı (meta / ink-4).
-    - Sağda 140 pt'lik sütun: süre ve 34 çubukluk gerçek dalga formu. Hover'da dalga
+    - Sağda 140 pt'lik sütun: süre ve 34 çubukluk dalga formu. Dalga formu ses
+      dosyasından okunmaz; kayda göre tohumlanmış konuşma benzeri bir desen anında çizilir. Hover'da dalga
       formunun yerini Play (satırda çalar, çalan kısım ink-1 yanar) ve **Open ↩** alır;
       sütun sabit genişlikte olduğu için metin kaymaz.
     - Satır içi dikey boşluk 7 pt, satırlar arası 4 pt. Hover zemini satırın içinde

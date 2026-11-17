@@ -210,6 +210,8 @@ final class NotchShellGalleryTests: XCTestCase {
 
         let states: [(String, NotchClosedState, Double)] = [
             ("c-idle", .idle, 0),
+            ("c-standby-next", .standby(.nextEvent(visit)), 0),
+            ("c-standby-dictation", .standby(.dictationKey("fn")), 0),
             ("c-meeting-later", .meeting(NotchAgendaStatus(item: later, phase: .upcoming(startsIn: later.startDate.timeIntervalSince(now)))), 0),
             ("c-meeting-hour", upcoming(33 * 60), 0),
             ("c-meeting-urgent", upcoming(8 * 60), 0),

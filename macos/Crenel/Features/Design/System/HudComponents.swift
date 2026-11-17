@@ -222,6 +222,90 @@ struct HudTimeColumn: View {
     }
 }
 
+// MARK: - Date tile
+
+/// A day as a small well (`.dtile`): the day of the month in segment digits over a short
+/// word — the month in Recordings, the weekday in Today. It stretches to the height of
+/// the row's text, so put it in an `HStack(alignment: .top)` that is
+/// `.fixedSize(horizontal: false, vertical: true)`. An optional corner lamp marks a row
+/// that needs something; rows that are fine have none.
+///
+///     HudDateTile(date: meeting.startedAt, caption: .month)
+///     HudDateTile(date: event.startDate, caption: .weekday, lamp: .amber)
+struct HudDateTile: View {
+    enum Caption { case month, weekday }
+
+    let date: Date
+    var caption: Caption = .month
+    var lamp: Hud.LampColor?
+    var lampLoop: HudLoop = .steady
+    var calendar: Calendar = .current
+
+    static let width: CGFloat = 40
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HudSegmentDigits(String(format: "%02d", calendar.component(.day, from: date)), height: 15, cells: 2)
+            Text(verbatim: word).hud(.micro, Hud.Ink.ink3)
+        }
+        .frame(width: Self.width)
+        .frame(maxHeight: .infinity)
+        .background {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(LinearGradient(colors: [Color(white: 0.02), Color(white: 0.04)], startPoint: .top, endPoint: .bottom))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.07), lineWidth: 0.5)
+                }
+        }
+        .overlay(alignment: .topTrailing) {
+            if let lamp {
+                HudLamp(lamp, form: .dot, loop: lampLoop).offset(x: 2, y: -2)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var word: String {
+        let formatter = DateFormatter()
+        formatter.locale = AppLanguage.locale
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = caption == .month ? "MMM" : "EEE"
+        return formatter.string(from: date)
+    }
+}
+
+/// A list's group header in the row language: the name on the left, the count at the
+/// trailing edge, both quiet.
+///
+///     HudListHeader("September", count: 2)
+struct HudListHeader: View {
+    let title: String
+    var count: Int?
+    var isFirst = false
+
+    init(_ title: String, count: Int? = nil, isFirst: Bool = false) {
+        self.title = title
+        self.count = count
+        self.isFirst = isFirst
+    }
+
+    var body: some View {
+        HStack {
+            Text(verbatim: title)
+            Spacer(minLength: 8)
+            if let count { Text(verbatim: "\(count)").monospacedDigit() }
+        }
+        .hud(.meta, Hud.Ink.ink4)
+        .padding(.horizontal, Hud.Row.inset)
+        .padding(.top, isFirst ? 2 : 10)
+        .padding(.bottom, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
 // MARK: - Glide highlight (hover slab)
 
 /// One hover slab per list (`.slab`) that slides between rows instead of each row

@@ -402,6 +402,15 @@ final class AppState: ObservableObject {
         dictationHistory = history
     }
 
+    /// The key that starts dictation, as the closed notch names it ("fn", "⌥", "⌘"); nil
+    /// when dictation is off or uses a custom shortcut.
+    @Published private(set) var dictationKeyHint: String?
+
+    func updateDictationKeyHint(_ hint: String?) {
+        guard dictationKeyHint != hint else { return }
+        dictationKeyHint = hint
+    }
+
     func updateDictationAvailability(_ availability: DictationAvailability) {
         dictationAvailability = availability
     }

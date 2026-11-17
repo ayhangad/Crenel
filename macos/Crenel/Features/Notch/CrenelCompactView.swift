@@ -178,6 +178,8 @@ extension AppState {
             completedMeeting: completedMeeting,
             lastStoredMeeting: lastStoredMeeting,
             dismissedStartingMeetingID: dismissedStartingMeetingID,
+            upcomingItems: upcomingMeetings,
+            dictationKeyHint: dictationKeyHint,
             now: now
         ))
     }

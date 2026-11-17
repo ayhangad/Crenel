@@ -43,6 +43,16 @@ enum DictationTrigger: Codable, Hashable, Sendable {
         return true
     }
 
+    /// The key on its own, for the idle notch: "fn", "⌥", "⌘"; nil for a custom shortcut.
+    var keyHint: String? {
+        switch self {
+        case .fnHold: "fn"
+        case .rightOptionHold: "⌥"
+        case .rightCommandHold: "⌘"
+        case .shortcut: nil
+        }
+    }
+
     var displayName: String {
         switch self {
         case .fnHold:
