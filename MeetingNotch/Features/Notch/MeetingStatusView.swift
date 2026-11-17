@@ -1,11 +1,28 @@
+import AppKit
 import SwiftUI
+
+extension Notification.Name {
+    /// Posted when the Today tab asks for the Recordings list (failed and stopped
+    /// results). The notch shell shows the list.
+    static let crenelShowRecordings = Notification.Name("MeetingNotch.showRecordings")
+}
+
+/// Gauges and meters sweep once when the panel opens from closed, not when the Today
+/// tab comes back from Tasks or from a meeting's detail.
+enum TodayIgnition {
+    static var suppressNext = false
+}
 
 // MARK: - Today tab
 
+/// The Today tab of the open notch: Today while nothing runs, then Recording,
+/// Processing and the Result.
 struct MeetingStatusView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showsCancelConfirmation = false
+    @State private var resultStats: MeetingResultStats?
+    @State private var ignite = !TodayIgnition.suppressNext
     let onRequestCalendarAccess: () -> Void
     let onOpenMeetingURL: (URL) -> Void
     let onStartRecording: () -> Void
@@ -18,30 +35,49 @@ struct MeetingStatusView: View {
     let onRecoverFromFailure: (AppFailure) -> Void
     let onOpenStoredMeeting: (StoredMeeting) -> Void
     let onRelaunchApplication: () -> Void
+    /// Shows the Recordings list; posts `.crenelShowRecordings` when nil.
+    let onShowRecordings: (() -> Void)?
+    /// Reads the finished meeting's numbers; the meeting store when nil.
+    let loadResultStats: ((StoredMeeting) async -> MeetingResultStats?)?
+
+    init(
+        onRequestCalendarAccess: @escaping () -> Void,
+        onOpenMeetingURL: @escaping (URL) -> Void,
+        onStartRecording: @escaping () -> Void,
+        onStopRecording: @escaping () -> Void,
+        onToggleMeetingMicrophone: @escaping () -> Void,
+        onDismissMeetingPrompt: @escaping () -> Void,
+        onContinueRecording: @escaping () -> Void,
+        onConfirmMeetingEnded: @escaping () -> Void,
+        onCancelFlow: @escaping () -> Void,
+        onRecoverFromFailure: @escaping (AppFailure) -> Void,
+        onOpenStoredMeeting: @escaping (StoredMeeting) -> Void,
+        onRelaunchApplication: @escaping () -> Void,
+        onShowRecordings: (() -> Void)? = nil,
+        loadResultStats: ((StoredMeeting) async -> MeetingResultStats?)? = nil
+    ) {
+        self.onRequestCalendarAccess = onRequestCalendarAccess
+        self.onOpenMeetingURL = onOpenMeetingURL
+        self.onStartRecording = onStartRecording
+        self.onStopRecording = onStopRecording
+        self.onToggleMeetingMicrophone = onToggleMeetingMicrophone
+        self.onDismissMeetingPrompt = onDismissMeetingPrompt
+        self.onContinueRecording = onContinueRecording
+        self.onConfirmMeetingEnded = onConfirmMeetingEnded
+        self.onCancelFlow = onCancelFlow
+        self.onRecoverFromFailure = onRecoverFromFailure
+        self.onOpenStoredMeeting = onOpenStoredMeeting
+        self.onRelaunchApplication = onRelaunchApplication
+        self.onShowRecordings = onShowRecordings
+        self.loadResultStats = loadResultStats
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Hud.Space.x3) {
-            if let prompt = appState.meetingLifecyclePrompt {
-                MeetingLifecyclePromptView(
-                    prompt: prompt,
-                    onStartRecording: onStartRecording,
-                    onDismiss: onDismissMeetingPrompt,
-                    onContinueRecording: onContinueRecording,
-                    onConfirmEnd: onConfirmMeetingEnded
-                )
-                .transition(.opacity.combined(with: .offset(y: -6)))
-            }
+        let memory = appState.todayFlowMemory
 
+        Group {
             switch appState.meetingFlow {
             case .idle, .upcomingMeeting:
-                if appState.meetingSessionDetection?.session.clientID == .googleMeetChrome,
-                   appState.browserAudioConnectionStatus == .unavailable || appState.browserAudioConnectionStatus == .waitingForMeetTab {
-                    NotchNoticeRow(
-                        text: googleMeetBridgeStatusText,
-                        tint: appState.browserAudioConnectionStatus == .unavailable ? Hud.Ink.live : Hud.Ink.signal
-                    )
-                    .accessibilityLabel("Google Meet audio: \(googleMeetBridgeStatusText)")
-                }
                 TodaySurface(
                     events: agenda,
                     emptyMessage: CalendarEmptyPresentation.message(enabled: appState.isCalendarEnabled,
@@ -49,22 +85,53 @@ struct MeetingStatusView: View {
                     canRequestCalendarAccess: appState.isCalendarEnabled && appState.calendarAccessState != .authorized,
                     onRequestCalendarAccess: onRequestCalendarAccess,
                     onOpenMeetingURL: onOpenMeetingURL,
-                    onStartRecording: onStartRecording
+                    onStartRecording: onStartRecording,
+                    calendar: TodayCalendarState(enabled: appState.isCalendarEnabled, access: appState.calendarAccessState,
+                                                 snapshot: appState.calendarIntegrationSnapshot),
+                    meetBridge: meetBridge,
+                    ignite: ignite
                 )
+
+            case .preparingRecording:
+                PreparingSurface(onCancel: { showsCancelConfirmation = true })
 
             case .recording(let startedAt):
-                recordingSurface(startedAt: startedAt)
-
-            default:
-                FlowSurface(
-                    flow: appState.meetingFlow,
-                    completedMeeting: appState.completedMeeting,
-                    onCancel: { showsCancelConfirmation = true },
-                    onOpenMeeting: onOpenStoredMeeting,
-                    onDone: appState.resetFlow,
-                    onRecover: onRecoverFromFailure,
-                    onRelaunch: onRelaunchApplication
+                LiveRecordingSurface(
+                    memory: memory,
+                    startedAt: startedAt,
+                    ignite: ignite,
+                    onToggleMicrophone: onToggleMeetingMicrophone,
+                    onStop: onStopRecording,
+                    onDelete: { showsCancelConfirmation = true }
                 )
+
+            case .finalizingAudio:
+                ProcessingSurface(station: .saving, title: memory.recordingMeeting?.title, recorded: memory.recordedDuration)
+
+            case .uploading(let progress):
+                processing(.uploading, uploadProgress: progress)
+
+            case .transcribing:
+                processing(.transcribing)
+
+            case .summarizing:
+                processing(.summarizing)
+
+            case .completed:
+                let meeting = appState.completedMeeting
+                ReadySurface(
+                    title: meeting?.title,
+                    recorded: meeting.map { $0.endedAt.timeIntervalSince($0.startedAt) },
+                    stats: resultStats,
+                    onDone: appState.resetFlow,
+                    onOpen: meeting.map { meeting in { onOpenStoredMeeting(meeting) } }
+                )
+
+            case .failed(let failure):
+                failed(failure)
+
+            case .cancelled:
+                stopped(after: memory.phaseBeforeCancel)
             }
         }
         .alert(cancelConfirmationTitle, isPresented: $showsCancelConfirmation) {
@@ -75,8 +142,16 @@ struct MeetingStatusView: View {
         } message: {
             Text(cancelConfirmationMessage)
         }
+        .task(id: appState.completedMeeting?.id) {
+            resultStats = nil
+            guard let meeting = appState.completedMeeting else { return }
+            resultStats = await (loadResultStats ?? Self.storedResultStats)(meeting)
+        }
+        .onDisappear {
+            // Leaving for Tasks or a meeting's detail is not closing the panel.
+            TodayIgnition.suppressNext = appState.selectedTab != .meetings || appState.presentedMeetingDetail != nil
+        }
         .animation(reduceMotion ? nil : Hud.Motion.change, value: appState.meetingFlow.phase)
-        .animation(reduceMotion ? nil : Hud.Motion.change, value: appState.meetingLifecyclePrompt != nil)
     }
 
     /// Today and the next few days, the next meeting first even if it starts later.
@@ -91,113 +166,103 @@ struct MeetingStatusView: View {
         return Array(sorted.prefix(8))
     }
 
-    // MARK: Recording
-
-    private func recordingSurface(startedAt: Date) -> some View {
-        let gate = appState.meetingMicrophoneGate
-        return VStack(alignment: .leading, spacing: Hud.Space.x3) {
-            HStack(alignment: .center, spacing: Hud.Space.x3) {
-                HudPulse(color: Hud.Ink.live)
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    let elapsed = HudFormat.elapsed(context.date.timeIntervalSince(startedAt))
-                    Text(elapsed)
-                        .hud(.display)
-                        .contentTransition(.numericText())
-                        .accessibilityLabel(NotchAccessibilityContract.recordingDurationLabel(elapsed))
-                }
-                Spacer(minLength: Hud.Space.x2)
-
-                if let gate {
-                    Button(action: onToggleMeetingMicrophone) {
-                        CrenelIcon(gate.permitsAudio ? .mic : .micOff, size: Hud.Size.icon)
-                            .foregroundStyle(gate.state == .unknown ? Hud.Ink.signal : (gate.permitsAudio ? Hud.Ink.text1 : Hud.Ink.text3))
-                    }
-                    .buttonStyle(HudButtonStyle(kind: .iconFilled))
-                    .help("Turn meeting mic on, or off for privacy (⌥⌘M)")
-                    .accessibilityLabel(NotchAccessibilityContract.microphoneGateLabel(gate.state))
-                }
-
-                Button(action: onStopRecording) {
-                    HudIcon(.stop, size: Hud.Size.icon).foregroundStyle(Hud.Ink.live)
-                }
-                .buttonStyle(HudButtonStyle(kind: .iconFilled))
-                .contextMenu {
-                    Button("Delete recording", role: .destructive) { showsCancelConfirmation = true }
-                }
-                .help("Stop recording")
-                .accessibilityLabel("Stop recording")
-            }
-            .padding(.horizontal, Hud.Size.rowInset)
-
-            VStack(alignment: .leading, spacing: 0) {
-                CaptureSourceRow(
-                    glyph: gate?.permitsAudio == false ? .micOff : .mic,
-                    title: "Microphone",
-                    status: appState.recordingCaptureStatus.microphone,
-                    isMuted: gate.map { !$0.permitsAudio } ?? false
-                )
-                CaptureSourceRow(
-                    glyph: .speaker,
-                    title: "System audio",
-                    status: appState.recordingCaptureStatus.systemAudio,
-                    isMuted: false
-                )
-            }
-
-            ForEach(recordingWarnings, id: \.self) { warning in
-                NotchNoticeRow(text: warning, tint: Hud.Ink.live)
-            }
-        }
-    }
-
-    private var recordingWarnings: [String] {
-        var warnings: [String] = []
-        if let gate = appState.meetingMicrophoneGate {
-            if let warning = microphonePrivacyWarning(for: gate) {
-                warnings.append(warning)
-            } else if gate.state == .unknown {
-                warnings.append(String(localized: "Mic state unknown; kept off"))
-            }
-        }
-        if let message = appState.recordingCaptureStatus.microphone.connectionState.message {
-            warnings.append(message)
-        }
-        if let message = appState.recordingCaptureStatus.systemAudio.connectionState.message {
-            warnings.append(message)
-        }
-        if let message = appState.recordingSafetyMessage {
-            warnings.append(message)
-        }
-        return warnings
-    }
-
-    private var googleMeetBridgeStatusText: String {
+    /// The Meet bridge only matters while a Meet call is detected.
+    private var meetBridge: TodayMeetBridge {
+        guard appState.meetingSessionDetection?.session.clientID == .googleMeetChrome else { return .none }
         switch appState.browserAudioConnectionStatus {
-        case .unavailable:
-            "Google Meet audio bridge unavailable; recording won’t start."
-        case .waitingForMeetTab:
-            "Click the Crenel Chrome extension in the call tab."
-        case .tabConnected:
-            "Google Meet tab connected."
-        case .recording:
-            "Recording Google Meet tab audio."
+        case .unavailable: return .unavailable
+        case .waitingForMeetTab: return .waiting
+        case .tabConnected, .recording: return .none
         }
     }
 
-    private func microphonePrivacyWarning(
-        for gate: MeetingMicrophoneGate
-    ) -> String? {
-        switch gate.events.last?.source {
-        case .adapterUnavailable:
-            "Can’t verify mic state. Your mic is kept out of the recording."
-        case .processChanged:
-            "Meeting app changed. Your mic is off until it’s verified."
-        case .systemInterruption:
-            "Mac is going to sleep. Mic is off and the recording is ending."
+    // MARK: Processing
+
+    private func processing(_ station: ProcessingSurface.Station, uploadProgress: Double? = nil) -> some View {
+        let meeting = processedMeeting
+        return ProcessingSurface(
+            station: station,
+            title: meeting?.title,
+            recorded: meeting.map { $0.endedAt.timeIntervalSince($0.startedAt) },
+            uploadProgress: uploadProgress,
+            onStop: { showsCancelConfirmation = true }
+        )
+    }
+
+    /// The meeting the worker is on: the running job's, else the last one saved.
+    private var processedMeeting: StoredMeeting? {
+        if let job = appState.processingJobs.first(where: { $0.state == .running }),
+           let meeting = appState.storedMeetings.first(where: { $0.id == job.meetingID }) {
+            return meeting
+        }
+        return appState.lastStoredMeeting
+    }
+
+    private static func storedResultStats(_ meeting: StoredMeeting) async -> MeetingResultStats? {
+        // Tests never read the user's meeting store.
+        guard NSClassFromString("XCTestCase") == nil else { return nil }
+        guard let transcription = try? await FileMeetingRepository().loadTranscription(for: meeting.id) else { return nil }
+        return MeetingResultStats(transcription: transcription)
+    }
+
+    // MARK: Result
+
+    private func failed(_ failure: AppFailure) -> some View {
+        let isPermission = failure.category == .permission
+        let secondary: FlowOutcomeSurface.Action?
+        let primary: FlowOutcomeSurface.Action
+        if isPermission, failure.recoveryAction == .openSystemSettings {
+            secondary = .init(title: String(localized: "System Settings"), glyph: .link) { onRecoverFromFailure(failure) }
+            primary = .init(title: String(localized: "Relaunch"), run: onRelaunchApplication)
+        } else {
+            secondary = isPermission ? nil : .init(title: String(localized: "Recordings"), glyph: .tape, run: showRecordings)
+            primary = .init(title: failure.recoveryButtonTitle) { onRecoverFromFailure(failure) }
+        }
+        return FlowOutcomeSurface(
+            status: isPermission ? .off : .err,
+            tint: Hud.Ink.live,
+            title: failure.title,
+            message: failure.message,
+            secondary: secondary,
+            primary: primary
+        )
+    }
+
+    private func stopped(after phase: MeetingFlowState.Phase?) -> some View {
+        let done = FlowOutcomeSurface.Action(title: String(localized: "Done"), run: appState.resetFlow)
+        switch phase {
+        case .uploading, .transcribing, .summarizing:
+            return FlowOutcomeSurface(
+                status: .stop,
+                title: String(localized: "Processing stopped"),
+                message: String(localized: "The audio is kept. You can process it later from Recordings."),
+                secondary: .init(title: String(localized: "Recordings"), glyph: .tape) {
+                    appState.resetFlow()
+                    showRecordings()
+                },
+                primary: done
+            )
+        case .recording, .finalizingAudio:
+            return FlowOutcomeSurface(
+                status: .stop,
+                title: String(localized: "Recording deleted"),
+                message: String(localized: "Mic and system audio were deleted."),
+                primary: done
+            )
         default:
-            nil
+            return FlowOutcomeSurface(status: .stop, title: String(localized: "Stopped"), primary: done)
         }
     }
+
+    private func showRecordings() {
+        if let onShowRecordings {
+            onShowRecordings()
+        } else {
+            NotificationCenter.default.post(name: .crenelShowRecordings, object: nil)
+        }
+    }
+
+    // MARK: Alerts
 
     private var cancelConfirmationTitle: String {
         switch appState.meetingFlow.phase {
@@ -214,225 +279,69 @@ struct MeetingStatusView: View {
         switch appState.meetingFlow.phase {
         case .uploading, .transcribing, .summarizing:
             "Stop processing"
-        default:
+        case .recording:
             "Delete recording"
+        default:
+            "Cancel setup"
         }
     }
 
     private var cancelConfirmationMessage: String {
         switch appState.meetingFlow.phase {
         case .uploading, .transcribing, .summarizing:
-            "The local audio is kept. You can retry transcription later from History."
+            "The audio is kept. You can process it later from Recordings."
         case .recording:
-            "This recording isn’t saved to History yet. Mic and system audio will be deleted permanently."
+            "This recording isn’t saved yet. Mic and system audio will be deleted permanently."
         default:
             "Temporary recording files will be deleted."
         }
     }
 }
 
-// MARK: - Recording pieces
+// MARK: - Recording, live
 
-/// One audio source: icon, name, and a segmented level that lives with the signal.
-/// A muted source dims instead of disappearing, so the layout never moves.
-private struct CaptureSourceRow: View {
-    let glyph: CrenelGlyph
-    let title: LocalizedStringKey
-    let status: AudioSourceStatus
-    let isMuted: Bool
-
-    var body: some View {
-        HStack(spacing: Hud.Space.x3) {
-            CrenelIcon(glyph, size: Hud.Size.icon)
-                .foregroundStyle(iconColor)
-            Text(title).hud(.label, Hud.Ink.text2).lineLimit(1)
-                .frame(width: 110, alignment: .leading)
-            HudSegmentMeter(segments: 24, progress: isMuted ? 0 : Double(min(max(status.level, 0), 1)), tint: Hud.Ink.text1, height: 4)
-        }
-        .padding(.horizontal, Hud.Size.rowInset)
-        .frame(height: 34)
-        .opacity(isMuted ? 0.45 : 1)
-        .accessibilityElement(children: .combine)
-        .help(status.connectionState.message ?? (status.isReady ? "Ready" : "Preparing"))
-        .accessibilityLabel(accessibilityText)
-    }
-
-    private var iconColor: Color {
-        switch status.connectionState {
-        case .ready: Hud.Ink.text2
-        case .preparing, .recovered, .pipelineRecovered: Hud.Ink.signal
-        case .disconnected, .pipelineStalled: Hud.Ink.live
-        }
-    }
-
-    private var accessibilityText: Text {
-        if let message = status.connectionState.message {
-            return Text(title) + Text(": \(message)")
-        }
-        return Text(title) + Text(status.isReady ? " ready" : " preparing")
-    }
-}
-
-/// A one-line notice: a small mark and a sentence, coloured by what it means.
-private struct NotchNoticeRow: View {
-    let text: String
-    var tint: Color = Hud.Ink.signal
+/// The recording surface fed from the app: levels, the mic gate, and the level history
+/// the Today tab keeps while the panel is closed.
+private struct LiveRecordingSurface: View {
+    @EnvironmentObject private var appState: AppState
+    @ObservedObject var memory: TodayFlowMemory
+    let startedAt: Date
+    let ignite: Bool
+    let onToggleMicrophone: () -> Void
+    let onStop: () -> Void
+    let onDelete: () -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
-            Circle().fill(tint).frame(width: 6, height: 6)
-                .frame(width: Hud.Size.icon)
-            Text(text)
-                .hud(.meta, Hud.Ink.text2)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, Hud.Size.rowInset)
-        .padding(.vertical, Hud.Space.x1)
-    }
-}
-
-// MARK: - After recording
-
-/// Saving, uploading, transcribing and summarizing as four steps; then the result.
-private struct FlowSurface: View {
-    let flow: MeetingFlowState
-    let completedMeeting: StoredMeeting?
-    let onCancel: () -> Void
-    let onOpenMeeting: (StoredMeeting) -> Void
-    let onDone: () -> Void
-    let onRecover: (AppFailure) -> Void
-    let onRelaunch: () -> Void
-
-    private static let steps: [LocalizedStringKey] = ["Saving audio", "Uploading", "Transcribing", "Summarizing"]
-
-    var body: some View {
-        switch flow {
-        case .preparingRecording, .finalizingAudio, .uploading, .transcribing, .summarizing:
-            VStack(alignment: .leading, spacing: Hud.Space.x3) {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(Self.steps.enumerated()), id: \.offset) { index, title in
-                        stepRow(index: index, title: title)
-                    }
-                }
-                if case .finalizingAudio = flow {
-                    EmptyView()
-                } else {
-                    Button("Cancel", action: onCancel)
-                        .buttonStyle(HudButtonStyle(kind: .ghost))
-                }
-            }
-
-        case .completed:
-            resultRow(glyph: .transcript, tint: Hud.Ink.text1, title: "Ready", detail: completedMeeting?.title) {
-                if let completedMeeting {
-                    Button("Open") { onOpenMeeting(completedMeeting) }
-                        .buttonStyle(HudButtonStyle(kind: .primary))
-                }
-                Button("Done", action: onDone)
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-            }
-
-        case .failed(let failure):
-            resultRow(glyph: .transcript, tint: Hud.Ink.live, title: LocalizedStringKey(failure.title), detail: failure.message) {
-                if failure.category == .permission, failure.recoveryAction == .openSystemSettings {
-                    Button("System Settings") { onRecover(failure) }
-                        .buttonStyle(HudButtonStyle(kind: .ghost))
-                    Button("Relaunch", action: onRelaunch)
-                        .buttonStyle(HudButtonStyle(kind: .primary))
-                } else {
-                    Button(failure.recoveryButtonTitle) { onRecover(failure) }
-                        .buttonStyle(HudButtonStyle(kind: .primary))
-                }
-            }
-
-        case .cancelled:
-            resultRow(glyph: .stop, tint: Hud.Ink.text3, title: "Stopped", detail: nil) {
-                Button("Done", action: onDone)
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-            }
-
-        case .idle, .upcomingMeeting, .recording:
-            EmptyView()
-        }
-    }
-
-    private var currentStep: Int {
-        switch flow {
-        case .preparingRecording, .finalizingAudio: 0
-        case .uploading: 1
-        case .transcribing: 2
-        case .summarizing: 3
-        default: 0
-        }
-    }
-
-    private var uploadProgress: Double? {
-        if case .uploading(let progress) = flow { return progress }
-        return nil
-    }
-
-    private func stepRow(index: Int, title: LocalizedStringKey) -> some View {
-        let isDone = index < currentStep
-        let isCurrent = index == currentStep
-        return HStack(spacing: Hud.Space.x3) {
-            Text(title)
-                .hud(.body, isCurrent ? Hud.Ink.text1 : (isDone ? Hud.Ink.text3 : Hud.Ink.text4))
-                .frame(width: 130, alignment: .leading)
-            if isCurrent {
-                Group {
-                    if let uploadProgress {
-                        HudSegmentMeter(segments: 20, progress: uploadProgress, tint: Hud.Ink.text1)
-                    } else {
-                        HudSegmentMeter(segments: 20, progress: 1, tint: Hud.Ink.text2)
-                            .modifier(HudBreathing())
-                    }
-                }
-                .transition(.opacity)
-            } else {
-                Spacer(minLength: 0)
-            }
-        }
-        .padding(.horizontal, Hud.Size.rowInset)
-        .frame(height: 34)
-        .animation(Hud.Motion.change, value: currentStep)
-        .accessibilityElement(children: .combine)
-        .accessibilityValue(isDone ? "Done" : (isCurrent ? "In progress" : "Waiting"))
-    }
-
-    private func resultRow<Actions: View>(
-        glyph: HudGlyph,
-        tint: Color,
-        title: LocalizedStringKey,
-        detail: String?,
-        @ViewBuilder actions: () -> Actions
-    ) -> some View {
-        VStack(alignment: .leading, spacing: Hud.Space.x3) {
-            HStack(alignment: .top, spacing: Hud.Space.x3) {
-                HudIcon(glyph).foregroundStyle(tint).padding(.top, 2)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).hud(.title)
-                    if let detail, !detail.isEmpty {
-                        Text(detail).hud(.meta, Hud.Ink.text3)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-            }
-            .padding(.horizontal, Hud.Size.rowInset)
-            HStack(spacing: Hud.Space.x1) {
-                actions()
-            }
-            .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3 - 12)
-        }
-        .padding(.vertical, Hud.Space.x2)
+        let gate = appState.meetingMicrophoneGate
+        let capture = appState.recordingCaptureStatus
+        let clientName = RecordingSurface.clientName(appState.meetingSessionDetection?.session.clientID)
+        let event = memory.recordingMeeting
+        RecordingSurface(
+            startedAt: startedAt,
+            title: event?.title,
+            plannedLength: event.flatMap { $0.isAllDay ? nil : $0.endDate.timeIntervalSince($0.startDate) },
+            microphone: gate?.state,
+            microphoneLevel: Double(capture.microphone.level),
+            callLevel: Double(capture.systemAudio.level),
+            callFailed: capture.systemAudio.connectionState == .pipelineStalled,
+            levels: memory.levels,
+            muteFollows: appState.accessibilityPermissionGranted ? clientName : nil,
+            warnings: RecordingSurface.warnings(gate: gate, clientName: clientName, capture: capture,
+                                                safetyMessage: appState.recordingSafetyMessage),
+            ignite: ignite,
+            onToggleMicrophone: onToggleMicrophone,
+            onStop: onStop,
+            onDelete: onDelete
+        )
     }
 }
 
 // MARK: - Prompts
 
 /// A detected meeting or an ending one: one row on a faint surface, the answer on the
-/// right. No separate window.
-private struct MeetingLifecyclePromptView: View {
+/// right. The panel no longer shows it — the prompt is a strip under the closed notch —
+/// but the row is kept for call sites that still want it.
+struct MeetingLifecyclePromptView: View {
     let prompt: MeetingLifecyclePrompt
     let onStartRecording: () -> Void
     let onDismiss: () -> Void
