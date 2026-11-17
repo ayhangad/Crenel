@@ -2,9 +2,9 @@ import SwiftUI
 
 // MARK: - Recordings (history)
 
-/// Recorded meetings, newest first (`tpl-history`): the week on tape on top, then
-/// timetable rows — start time over duration on the left, the title, and a status shape
-/// only on rows that need attention.
+/// Recorded meetings, newest first (`tpl-history`): the week on tape on top (only when
+/// something was recorded this week), then one-line rows — date, time, title, and the
+/// length at the trailing edge; a status shape only on rows that need attention.
 ///
 ///     RecentMeetingsList(meetings: stored, onOpen: open, onDelete: delete, onRetry: retry)
 ///     RecentMeetingsList(meetings: stored, …, recovery: summary, onOpenRecovery: show, onDismissRecovery: dismiss)
@@ -65,18 +65,18 @@ struct RecentMeetingsList: View {
                 emptyState
                     .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
             } else {
-                RecordingsWeekMeter(week: RecordingsWeek(meetings: weekMeetings ?? meetings, now: now))
-                    .padding(.horizontal, Hud.Row.inset)
-                    .padding(.bottom, 12)
-                    .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
+                let week = RecordingsWeek(meetings: weekMeetings ?? meetings, now: now)
+                if week.total > 0 {
+                    RecordingsWeekMeter(week: week)
+                        .padding(.horizontal, Hud.Row.inset)
+                        .padding(.bottom, 12)
+                        .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
+                }
+                // Newest first, no day groups: every row carries its own date.
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(groups.enumerated()), id: \.element.title) { index, group in
-                        HudGroupHeader(title: group.title)
-                            .padding(.top, index == 0 ? 0 : 8)
-                        ForEach(group.meetings) { meeting in
-                            row(meeting)
-                                .hudGlide(meeting.id, hovered: $hovered, in: glide)
-                        }
+                    ForEach(meetings) { meeting in
+                        row(meeting)
+                            .hudGlide(meeting.id, hovered: $hovered, in: glide)
                     }
                 }
                 .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
@@ -97,38 +97,35 @@ struct RecentMeetingsList: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var groups: [(title: String, meetings: [StoredMeeting])] {
-        var result: [(title: String, meetings: [StoredMeeting])] = []
-        for meeting in meetings {
-            let title = RecordingsFormat.day(meeting.startedAt, now: now)
-            if result.last?.title == title {
-                result[result.count - 1].meetings.append(meeting)
-            } else {
-                result.append((title, [meeting]))
-            }
-        }
-        return result
-    }
-
+    /// Date · time · title, and the length at the trailing edge. A status shape and its
+    /// word sit before the length only on rows that need attention.
     private func row(_ meeting: StoredMeeting) -> some View {
         let attention = RecordingAttention(meeting)
-        let line = detail?(meeting) ?? attention.detail
-        return HudRow(.twoLine) {
-            HudTimeColumn(HudFormat.clock(meeting.startedAt), RecordingsFormat.length(meeting.duration))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(meeting.title).hud(.body).lineLimit(1)
-                if let line {
-                    Text(line).hud(.meta).lineLimit(1)
-                }
+        let line = detail?(meeting)
+        return HudRow(.task) {
+            Text(verbatim: RecordingsFormat.date(meeting.startedAt, now: now))
+                .hud(.body, Hud.Ink.ink2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(width: RecordingsFormat.dateColumn, alignment: .leading)
+            Text(verbatim: HudFormat.clock(meeting.startedAt))
+                .hud(.body, Hud.Ink.ink2)
+                .frame(width: Hud.Row.timeColumn, alignment: .leading)
+            Text(meeting.title).hud(.body).lineLimit(1)
+            if let line {
+                Text(line).hud(.meta).lineLimit(1)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 8)
             if let word = attention.word {
                 HStack(spacing: 8) {
                     attention.shape
                     Text(word).hud(.meta, Hud.Ink.ink2).fixedSize()
                 }
-                .padding(.top, 2)
             }
+            Text(verbatim: RecordingsFormat.length(meeting.duration))
+                .hud(.meta)
+                .fixedSize()
+                .frame(minWidth: 52, alignment: .trailing)
         }
         .onTapGesture { onOpen(meeting) }
         .contextMenu {
@@ -142,7 +139,8 @@ struct RecentMeetingsList: View {
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(
-            [meeting.title, attention.word, line, HudFormat.elapsed(meeting.duration)]
+            [meeting.title, RecordingsFormat.date(meeting.startedAt, now: now), HudFormat.clock(meeting.startedAt),
+             attention.word, line, RecordingsFormat.length(meeting.duration)]
                 .compactMap { $0 }.joined(separator: ", ")
         )
     }
@@ -223,17 +221,30 @@ enum RecordingsFormat {
         return formatter.string(from: date)
     }
 
-    /// Minutes and seconds, as the time column prints a length: "48:12", "100:00". Hours
-    /// are not split off, so the value keeps to the 42 pt column.
-    static func length(_ interval: TimeInterval) -> String {
-        let total = max(0, Int(interval))
-        return String(format: "%d:%02d", total / 60, total % 60)
+    /// Width of the date column of a row.
+    static let dateColumn: CGFloat = 52
+
+    /// The day a recording was made, as its row prints it: "25 Jul", and with the year
+    /// when it is not this one ("25 Jul 25").
+    static func date(_ date: Date, now: Date, calendar: Calendar = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = AppLanguage.locale
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = calendar.isDate(date, equalTo: now, toGranularity: .year) ? "d MMM" : "d MMM yy"
+        return formatter.string(from: date)
     }
 
-    /// Hours and minutes for the week readout: "4:12".
+    /// How long a recording is, in words a glance can read: "1h 02m", "41m", "<1m".
+    static func length(_ interval: TimeInterval) -> String {
+        let minutes = Int((max(0, interval) / 60).rounded())
+        if minutes == 0 { return interval > 0 ? "<1m" : "0m" }
+        return minutes >= 60 ? "\(minutes / 60)h \(String(format: "%02d", minutes % 60))m" : "\(minutes)m"
+    }
+
+    /// Hours and minutes for the week readout, as segment text: "4h 12m".
     static func hours(_ interval: TimeInterval) -> String {
-        let minutes = max(0, Int(interval / 60))
-        return String(format: "%d:%02d", minutes / 60, minutes % 60)
+        HudFormat.remaining(minutes: max(0, Int(interval / 60)))
     }
 }
 
@@ -303,7 +314,7 @@ struct RecordingsWeekMeter: View {
         HStack(alignment: .bottom, spacing: 16) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 HudSegmentDigits(RecordingsFormat.hours(week.total), height: 20)
-                Text("h this week").hud(.unit).fixedSize()
+                Text("recorded this week").hud(.unit).fixedSize()
             }
             Spacer(minLength: 0)
             HStack(alignment: .bottom, spacing: 6) {
@@ -316,7 +327,7 @@ struct RecordingsWeekMeter: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(RecordingsFormat.hours(week.total)) hours recorded this week")
+        .accessibilityLabel("\(RecordingsFormat.length(week.total)) recorded this week")
     }
 }
 

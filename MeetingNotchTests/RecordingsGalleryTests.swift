@@ -30,7 +30,7 @@ final class RecordingsGalleryTests: XCTestCase {
 
         // 16 Nov: 2:10 + 1:40:00, 17 Nov: 48:12 + 31:40 — last week is not counted.
         XCTAssertEqual(week.total, 130 + 6_000 + 2_892 + 1_900, accuracy: 0.5)
-        XCTAssertEqual(RecordingsFormat.hours(week.total), "3:02")
+        XCTAssertEqual(RecordingsFormat.hours(week.total), "3h\u{2009}02m")
         XCTAssertEqual(week.days.filter(\.isToday).count, 1)
         let today = try? XCTUnwrap(week.days.first(where: \.isToday))
         let monday = try? XCTUnwrap(week.days.first { $0.recorded > 6_000 })
@@ -80,7 +80,9 @@ final class RecordingsGalleryTests: XCTestCase {
         XCTAssertNil(MeetingNotesMissingConsole.remainder("Couldn’t reach the model."))
         XCTAssertEqual(MeetingNotesMissingConsole.remainder(MeetingAnalysisError.invalidResponse.errorDescription),
                        MeetingAnalysisError.invalidResponse.errorDescription)
-        XCTAssertEqual(RecordingsFormat.length(6_000), "100:00")
+        XCTAssertEqual(RecordingsFormat.length(6_000), "1h 40m")
+        XCTAssertEqual(RecordingsFormat.length(2_517), "42m")
+        XCTAssertEqual(RecordingsFormat.date(date(16, 15, 30), now: now, calendar: calendar), "16 Nov")
         XCTAssertTrue(MeetingNotesMissingConsole.mentionsKey(missingKey))
         XCTAssertFalse(MeetingNotesMissingConsole.mentionsKey(MeetingAnalysisError.rateLimited.errorDescription))
         XCTAssertFalse(MeetingNotesMissingConsole.mentionsKey(nil))
