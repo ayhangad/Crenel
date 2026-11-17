@@ -25,7 +25,6 @@
 		0E78D18CEC8776FC831DAD08 /* AgentHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E87459C6962F436A4C3B0A /* AgentHTTPClient.swift */; };
 		0FB35EEAE013C174BF7736E5 /* SettingsKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A78C465670A1D6E05438AF6 /* SettingsKit.swift */; };
 		1517BD3E389B0C7442F1D9A0 /* CLIAgentProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1956CE3C487A0C5E4FBEE777 /* CLIAgentProviderTests.swift */; };
-		155EBA4A9C388169570EBF6A /* OpenAISettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D64144591938FA512376670 /* OpenAISettingsView.swift */; };
 		164FDB605B8D5F5943C94334 /* MeetingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC8849673E0B153DE83D763 /* MeetingSession.swift */; };
 		19F84D15EF34DD6AF064FB4B /* TaskRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B34D04FCFC457A263BF4D8AC /* TaskRowView.swift */; };
 		1B107E3820B94770D2CCEC15 /* MicrophonePCMPrivacyGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 025AF18C30CEE9A24D2D6299 /* MicrophonePCMPrivacyGate.swift */; };
@@ -301,7 +300,6 @@
 		1A871917343F79D70319D310 /* LocalMeetingTranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalMeetingTranscriptionService.swift; sourceTree = "<group>"; };
 		1B35D53199DC1C17A774305A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1D1723F775655ABEB97B65B2 /* FnKeySystemActionGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FnKeySystemActionGuard.swift; sourceTree = "<group>"; };
-		1D64144591938FA512376670 /* OpenAISettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAISettingsView.swift; sourceTree = "<group>"; };
 		1DC8849673E0B153DE83D763 /* MeetingSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingSession.swift; sourceTree = "<group>"; };
 		1DDC2075327D1EA9DCD7A0E8 /* MeetingReminderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingReminderTests.swift; sourceTree = "<group>"; };
 		1DE85360E6A005393C312EDB /* MeetingMicrophoneGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingMicrophoneGate.swift; sourceTree = "<group>"; };
@@ -1044,7 +1042,6 @@
 				80840BA3CD3FFC81FA784F5B /* CrenelSettingsView.swift */,
 				48DF1CBA5A354A826020ABE5 /* MeetingNotificationSettingsView.swift */,
 				D5A6101B1118F585DEF9A3B3 /* OnboardingView.swift */,
-				1D64144591938FA512376670 /* OpenAISettingsView.swift */,
 				1A78C465670A1D6E05438AF6 /* SettingsKit.swift */,
 				BD8EE9582C00B5BD3A6F948D /* SettingsPages.swift */,
 				1B35D53199DC1C17A774305A /* SettingsView.swift */,
@@ -1411,7 +1408,6 @@
 				D1486FECB3CFA223F67CB84D /* OnboardingView.swift in Sources */,
 				F83DE9CAB630459A487B70EA /* OpenAIMeetingSummaryService.swift in Sources */,
 				A7791C7106A51CBC8E5CBBF2 /* OpenAIProvider.swift in Sources */,
-				155EBA4A9C388169570EBF6A /* OpenAISettingsView.swift in Sources */,
 				5E6810022CD3718F0669D3EA /* PrivacyCanaryFileAuditor.swift in Sources */,
 				CF3BD08CDE62252736F4506B /* ProcessingJob.swift in Sources */,
 				326FE3C37B671DC33CE1C3B0 /* ProcessingQueue.swift in Sources */,

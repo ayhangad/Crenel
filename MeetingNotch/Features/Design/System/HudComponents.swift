@@ -514,11 +514,14 @@ private struct HudSelectBody: View {
 struct HudSelect<Value: Hashable>: View {
     @Binding var selection: Value
     let options: [(value: Value, title: String)]
+    /// Listed but not choosable (announced options).
+    var disabled: Set<Value> = []
 
     var body: some View {
         Menu {
             ForEach(options, id: \.value) { option in
                 Button(option.title) { selection = option.value }
+                    .disabled(disabled.contains(option.value))
             }
         } label: {
             Text(options.first { $0.value == selection }?.title ?? "")

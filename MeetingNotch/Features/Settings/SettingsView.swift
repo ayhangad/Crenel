@@ -243,7 +243,7 @@ struct SettingsView: View {
         case .tasks: TaskStorageSettingsView(actions: crenelSettings, model: crenel)
         case .ai:
             AgentSettingsView(actions: crenelSettings, openAI: openAISettings, model: crenel) {
-                elevenLabsGroup
+                voiceGroup
             }
         case .calendar: calendarPage
         case .recording: recordingPage

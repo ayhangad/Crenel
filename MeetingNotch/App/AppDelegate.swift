@@ -757,19 +757,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ) async -> TranscriptionSettingsSaveResult {
         do {
             let normalizedInput = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let key = if let normalizedInput, !normalizedInput.isEmpty {
-                normalizedInput
-            } else {
-                try await apiKeyRepository.apiKey() ?? ""
-            }
-            try await ElevenLabsAPIKeyValidator().validate(key)
-            if let normalizedInput, !normalizedInput.isEmpty {
-                try await apiKeyRepository.saveAPIKey(normalizedInput)
+            let newKey = normalizedInput.flatMap { $0.isEmpty ? nil : $0 }
+            if let newKey {
+                try await ElevenLabsAPIKeyValidator().validate(newKey)
+                try await apiKeyRepository.saveAPIKey(newKey)
             }
 
             var preferences = (try? await appSettingsRepository.load()) ?? .default
             preferences.transcription.languageCode = languageCode
             try await appSettingsRepository.save(preferences)
+            // Only the language changed: nothing to verify, nothing to retry.
+            guard newKey != nil else { return .saved(retriedJobCount: 0) }
 
             let retriedJobs = try await processingQueue.retryFailed(
                 failure: .authentication

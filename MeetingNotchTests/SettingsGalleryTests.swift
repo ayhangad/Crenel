@@ -121,6 +121,16 @@ final class SettingsGalleryTests: XCTestCase {
         anthropic.hasAnthropicKey = true
         try export(anthropic, "s-ai-anthropic")
 
+        var noKeys = fixture(.ai)
+        noKeys.preferences.agent.provider = .anthropic
+        noKeys.hasElevenLabsKey = false
+        try export(noKeys, "s-ai-no-keys")
+
+        var localVoice = fixture(.ai)
+        localVoice.preferences.agent.provider = .claudeCode
+        localVoice.preferences.meetingProcessing.transcription = .onDevice
+        try export(localVoice, "s-ai-voice-local")
+
         var onDevice = fixture(.ai)
         onDevice.preferences.agent.provider = .onDevice
         try export(onDevice, "s-ai-ondevice")

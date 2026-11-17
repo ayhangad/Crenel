@@ -352,48 +352,105 @@ extension SettingsView {
         return "Crenel \(version) · build \(build)"
     }
 
-    // MARK: ElevenLabs (AI page)
+    // MARK: Voice (AI page)
 
-    @ViewBuilder var elevenLabsGroup: some View {
-        SettingsGroup("ElevenLabs", index: 5) {
-            SettingsRow(glyph: .waveform, title: "ElevenLabs", detail: Text("Meeting transcripts with speaker names")) {
-                if hasStoredAPIKey {
-                    HudStatusWord(.ok, "Connected")
-                    HudButton("Remove", kind: .danger, size: .small, action: deleteTranscriptionAPIKey)
-                        .disabled(isSavingTranscriptionSettings)
-                        .accessibilityLabel("Remove connection")
-                } else {
-                    HudStatusWord(.dim, "No key")
-                    Link(destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!) {
-                        HudButtonLabel("Get a key", glyph: .link)
-                    }
-                    .buttonStyle(HudButtonStyle(kind: .secondary, size: .small))
-                    .accessibilityLabel("Create an API key on ElevenLabs")
+    /// Settings › AI › Voice: who transcribes meetings, and that provider's key.
+    @ViewBuilder var voiceGroup: some View {
+        let engine = crenel.preferences.meetingProcessing.transcription
+        SettingsGroup("Voice", index: 2) {
+            SettingsRow(glyph: .waveform, title: "Provider", detail: voiceDetail(engine)) {
+                if engine == .elevenLabs, !isLoadingTranscriptionSettings {
+                    if hasStoredAPIKey { HudStatusWord(.ok, "Connected") } else { HudStatusWord(.warn, "Needs a key") }
                 }
+                HudSelect(
+                    selection: Binding(
+                        get: { engine == .elevenLabs ? SettingsVoiceProvider.elevenLabs : .onDevice },
+                        set: { choice in
+                            guard let engine = choice.engine else { return }
+                            crenel.preferences.meetingProcessing.transcription = engine
+                            crenel.save(crenelSettings)
+                        }
+                    ),
+                    options: SettingsVoiceProvider.allCases.map { ($0, $0.title) },
+                    disabled: Set(SettingsVoiceProvider.allCases.filter { $0.engine == nil })
+                )
+                .accessibilityLabel("Voice provider")
+            }
+            if engine == .elevenLabs {
+                SettingsFieldRow {
+                    SecureField("", text: $apiKey,
+                                prompt: Text(hasStoredAPIKey ? "Type to replace the saved ElevenLabs key" : "ElevenLabs API key")
+                                    .foregroundStyle(Hud.Ink.ink3))
+                        .textFieldStyle(.plain)
+                        .textContentType(.password)
+                        .hud(.body)
+                        .focused($apiKeyFocused)
+                        .hudField(isFocused: apiKeyFocused)
+                        .onSubmit(saveTranscriptionSettings)
+                        .accessibilityLabel("ElevenLabs API key")
+                    if isSavingTranscriptionSettings { HudSpinner() }
+                    HudButton("Verify and save", action: saveTranscriptionSettings)
+                        .disabled(isLoadingTranscriptionSettings || isSavingTranscriptionSettings
+                            || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .help("Checks Speech-to-Text access before saving")
+                    if hasStoredAPIKey {
+                        HudButton("Remove", kind: .danger, action: deleteTranscriptionAPIKey)
+                            .disabled(isSavingTranscriptionSettings)
+                            .accessibilityLabel("Remove ElevenLabs key")
+                    } else {
+                        Link(destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!) {
+                            HudButtonLabel("Get a key", glyph: .link)
+                        }
+                        .buttonStyle(HudButtonStyle(kind: .secondary))
+                        .accessibilityLabel("Create an API key on ElevenLabs")
+                    }
+                }
+                SettingsMessage(message: transcriptionSettingsMessage, failed: transcriptionSettingsFailed)
             }
             SettingsRow(title: "Transcript language") {
-                HudSelect(selection: $languageCode, options: [
-                    (nil as String?, "Automatic"), ("tr" as String?, "Turkish"), ("en" as String?, "English")
-                ])
+                HudSelect(
+                    selection: Binding(
+                        get: { languageCode },
+                        set: { code in
+                            languageCode = code
+                            // Saved as it is chosen, like every other setting; no key involved.
+                            Task { _ = await onSaveTranscriptionSettings(code, nil) }
+                        }
+                    ),
+                    options: [(nil as String?, "Automatic"), ("tr" as String?, "Turkish"), ("en" as String?, "English")]
+                )
                 .accessibilityLabel("Transcript language")
             }
-            SettingsFieldRow {
-                SecureField("", text: $apiKey,
-                            prompt: Text(hasStoredAPIKey ? "Type to replace the saved key" : "ElevenLabs API key")
-                                .foregroundStyle(Hud.Ink.ink3))
-                    .textFieldStyle(.plain)
-                    .textContentType(.password)
-                    .hud(.body)
-                    .focused($apiKeyFocused)
-                    .hudField(isFocused: apiKeyFocused)
-                    .accessibilityLabel("ElevenLabs API key")
-                if isSavingTranscriptionSettings { HudSpinner() }
-                HudButton("Verify and save", action: saveTranscriptionSettings)
-                    .disabled(isLoadingTranscriptionSettings || isSavingTranscriptionSettings
-                        || (apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !hasStoredAPIKey))
-                    .help("Checks Speech-to-Text access before saving")
-            }
-            SettingsMessage(message: transcriptionSettingsMessage, failed: transcriptionSettingsFailed)
+        }
+    }
+
+    private func voiceDetail(_ engine: MeetingTranscriptionEngine) -> Text {
+        switch engine {
+        case .elevenLabs: Text("Meeting transcripts with speaker names · billed to you")
+        case .onDevice: Text("Apple Speech · free, audio stays on this Mac")
+        }
+    }
+}
+
+/// The voice providers offered on the AI page. Two of them are announced, not built.
+enum SettingsVoiceProvider: CaseIterable, Hashable {
+    case elevenLabs, onDevice, openAI, deepgram
+
+    var title: String {
+        switch self {
+        case .elevenLabs: "ElevenLabs"
+        case .onDevice: "On this Mac (Apple Speech)"
+        case .openAI: "OpenAI · coming soon"
+        case .deepgram: "Deepgram · coming soon"
+        }
+    }
+
+    /// nil: not available yet.
+    var engine: MeetingTranscriptionEngine? {
+        switch self {
+        case .elevenLabs: .elevenLabs
+        case .onDevice: .onDevice
+        case .openAI, .deepgram: nil
         }
     }
 }

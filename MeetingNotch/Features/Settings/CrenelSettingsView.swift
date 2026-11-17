@@ -11,6 +11,13 @@ struct CrenelSettingsActions {
     var onDeviceModelStatus: () async -> String? = { nil }
 }
 
+/// The OpenAI key: looked up, verified and saved, or removed.
+struct OpenAISettingsActions {
+    var hasKey: () async -> Bool = { false }
+    var save: (String) async -> SettingsActionResult = { _ in .failed(message: "Connection unavailable.") }
+    var disconnect: () async -> SettingsActionResult = { .succeeded() }
+}
+
 /// Shared load/edit/save state for the Dictation, Tasks and AI pages. Every change is
 /// saved as it is made.
 @MainActor
@@ -175,207 +182,139 @@ struct DictationSettingsView: View {
 
 // MARK: - AI
 
-/// Settings › AI (`s-ai-*`): who writes, the Anthropic key, what meetings use, then the
-/// OpenAI key and whatever the host adds after it (ElevenLabs).
+/// Settings › AI (`s-ai-*`). Two choices, each with the one key it needs:
+/// "General AI" (who writes notes, tasks and dictation clean-up) and, added by the host
+/// after it, "Voice" (who turns meeting audio into a transcript).
 struct AgentSettingsView<Extra: View>: View {
     let actions: CrenelSettingsActions
     let openAI: OpenAISettingsActions
     @ObservedObject var model: CrenelSettingsModel
     @ViewBuilder var extra: () -> Extra
 
-    @State private var anthropicKey = ""
-    @State private var hasAnthropicKey = false
-    @State private var isSavingKey = false
-    @State private var keyMessage: String?
-    @State private var keyFailed = false
+    @State private var hasAnthropicKey: Bool?
+    @State private var hasOpenAIKey: Bool?
     @State private var onDeviceStatus: String?
-    /// nil while checking.
-    @State private var openAIConnected: Bool?
     /// Whether the selected command-line tool is installed (nil while checking).
     @State private var toolInstalled: Bool?
-    @FocusState private var keyFocused: Bool
+    @State private var keyMessage: String?
+    @State private var keyFailed = false
 
     private var provider: AgentProviderKind { model.preferences.agent.provider }
 
     var body: some View {
-        SettingsPageHeader(glyph: .spark, title: "AI", sentence: "Who writes your notes and cleans up dictation.") {
-            chain
-        }
+        SettingsPageHeader(glyph: .spark, title: "AI", sentence: "One provider for writing, one for voice.")
 
-        SettingsGroup("Model", index: 1) {
-            SettingsRow(glyph: .spark, title: "Who writes", detail: providerDetail) {
+        SettingsGroup("General AI", index: 1) {
+            SettingsRow(glyph: .spark, title: "Provider", detail: providerDetail) {
                 providerStatus
-                HudSelect(selection: binding(\.agent.provider), options: [
-                    (AgentProviderKind.automatic, "Automatic"),
-                    (AgentProviderKind.onDevice, "On this Mac (Apple)"),
-                    (AgentProviderKind.openAI, "OpenAI (your key)"),
-                    (AgentProviderKind.anthropic, "Anthropic (your key)"),
-                    (AgentProviderKind.claudeCode, "Claude Code (this Mac)"),
-                    (AgentProviderKind.codex, "Codex (this Mac)"),
-                    (AgentProviderKind.off, "Off")
-                ])
-                .accessibilityLabel("Model")
+                HudSelect(selection: providerBinding, options: providerOptions)
+                    .accessibilityLabel("General AI provider")
             }
+            switch provider {
+            case .anthropic:
+                SettingsKeyField(
+                    name: "Anthropic", hasKey: hasAnthropicKey, saveTitle: "Save", saveHelp: "Saves the key to Keychain",
+                    save: { key in
+                        let result = await actions.saveAnthropicKey(key)
+                        hasAnthropicKey = await actions.hasAnthropicKey()
+                        show(result)
+                    },
+                    remove: {
+                        let result = await actions.deleteAnthropicKey()
+                        hasAnthropicKey = await actions.hasAnthropicKey()
+                        show(result)
+                    }
+                )
+            case .openAI:
+                SettingsKeyField(
+                    name: "OpenAI", hasKey: hasOpenAIKey, saveTitle: "Connect", saveHelp: "Sends a small paid test request",
+                    save: { key in
+                        let result = await openAI.save(key)
+                        hasOpenAIKey = await openAI.hasKey()
+                        show(result)
+                    },
+                    remove: {
+                        let result = await openAI.disconnect()
+                        hasOpenAIKey = await openAI.hasKey()
+                        show(result)
+                    }
+                )
+            default:
+                EmptyView()
+            }
+            SettingsMessage(message: keyMessage, failed: keyFailed)
             SettingsRow(title: "Clean up dictation") {
                 SettingsToggle("Clean up dictation", isOn: binding(\.agent.cleanupEnabled))
             }
             SettingsRow(title: "Voice commands on selected text") {
                 SettingsToggle("Voice commands on selected text", isOn: binding(\.agent.commandModeEnabled))
             }
-            if provider == .openAI {
-                SettingsFieldRow {
-                    HudTextField(text: optionalBinding(\.agent.openAIModelID), prompt: "OpenAI model ID (empty: default)")
-                        .accessibilityLabel("OpenAI model ID")
-                }
-            }
             SettingsMessage(message: model.message, failed: model.failed)
-        }
-
-        if provider == .anthropic || provider == .automatic {
-            SettingsGroup("Anthropic", index: 2) {
-                SettingsRow(glyph: .spark, title: "Anthropic",
-                            detail: Text("Notes and dictation clean-up · billed to you")) {
-                    if hasAnthropicKey {
-                        HudStatusWord(.ok, "Connected")
-                        HudButton("Remove", kind: .danger, size: .small, action: removeAnthropicKey)
-                            .disabled(isSavingKey)
-                            .accessibilityLabel("Remove Anthropic key")
-                    } else {
-                        HudStatusWord(.dim, "No key")
-                    }
-                }
-                SettingsFieldRow {
-                    SecureField("", text: $anthropicKey,
-                                prompt: Text(hasAnthropicKey ? "New Anthropic API key" : "Anthropic API key").foregroundStyle(Hud.Ink.ink3))
-                        .textFieldStyle(.plain)
-                        .textContentType(.password)
-                        .hud(.body)
-                        .focused($keyFocused)
-                        .hudField(isFocused: keyFocused)
-                        .onSubmit(saveAnthropicKey)
-                        .accessibilityLabel("Anthropic API key")
-                    if isSavingKey { HudSpinner() }
-                    HudButton("Save", action: saveAnthropicKey)
-                        .disabled(isSavingKey || anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
-                        .help("Saves the key to Keychain")
-                }
-                SettingsFieldRow {
-                    HudTextField(text: optionalBinding(\.agent.anthropicModelID),
-                                 prompt: "Anthropic model ID (empty: \(AnthropicProvider.defaultModel))")
-                        .accessibilityLabel("Anthropic model ID")
-                }
-                SettingsMessage(message: keyMessage, failed: keyFailed)
-            }
-        }
-
-        SettingsGroup("Meetings", index: 3) {
-            SettingsRow(glyph: .waveform, title: "Transcript",
-                        detail: model.preferences.meetingProcessing.transcription == .onDevice
-                            ? Text("Free · audio stays on this Mac") : nil) {
-                HudSelect(selection: binding(\.meetingProcessing.transcription), options: [
-                    (MeetingTranscriptionEngine.elevenLabs, "ElevenLabs (cloud, speaker names)"),
-                    (MeetingTranscriptionEngine.onDevice, "On this Mac (Apple Speech)")
-                ])
-                .accessibilityLabel("Transcript")
-            }
-            SettingsRow(glyph: .spark, title: "Notes") {
-                HudSelect(selection: binding(\.meetingProcessing.summary), options: [
-                    (MeetingSummaryEngine.openAI, "OpenAI"),
-                    (MeetingSummaryEngine.agent, "Same as above")
-                ])
-                .accessibilityLabel("Notes")
-            }
         }
         .task {
             hasAnthropicKey = await actions.hasAnthropicKey()
+            hasOpenAIKey = await openAI.hasKey()
             onDeviceStatus = await actions.onDeviceModelStatus()
         }
         .task(id: provider) {
+            keyMessage = nil
             let kind = provider
             guard let tool = CLIAgentTool.allCases.first(where: { $0.kind == kind }) else { toolInstalled = nil; return }
             toolInstalled = nil
             toolInstalled = await Task.detached { CLIToolLocator.locate(tool) != nil }.value
         }
-
-        OpenAISettingsView(actions: openAI, connected: $openAIConnected)
+        .task(id: model.isLoaded) {
+            // Older settings let meeting notes use a different provider than the rest.
+            // There is one choice now, so bring them in line once.
+            guard model.isLoaded else { return }
+            let expected = Self.summaryEngine(for: provider)
+            if model.preferences.meetingProcessing.summary != expected {
+                model.preferences.meetingProcessing.summary = expected
+                model.save(actions)
+            }
+        }
 
         extra()
     }
 
-    // MARK: Header chain
+    // MARK: Provider
 
-    private enum Link: CaseIterable {
-        case anthropic, openAI, thisMac
-
-        var title: LocalizedStringKey {
-            switch self {
-            case .anthropic: "Anthropic"
-            case .openAI: "OpenAI"
-            case .thisMac: "This Mac"
-            }
-        }
+    /// Meeting notes follow the one provider chosen here.
+    static func summaryEngine(for provider: AgentProviderKind) -> MeetingSummaryEngine {
+        provider == .openAI ? .openAI : .agent
     }
 
-    /// The link of the fallback chain that will write, if any can.
-    private var litLink: Link? {
-        switch provider {
-        case .automatic:
-            if hasAnthropicKey { return .anthropic }
-            if openAIConnected == true { return .openAI }
-            return onDeviceStatus == nil ? .thisMac : nil
-        case .anthropic: return hasAnthropicKey ? .anthropic : nil
-        case .openAI: return openAIConnected == true ? .openAI : nil
-        case .onDevice: return onDeviceStatus == nil ? .thisMac : nil
-        case .claudeCode, .codex, .off: return nil
-        }
+    private var providerBinding: Binding<AgentProviderKind> {
+        Binding(
+            get: { provider },
+            set: {
+                model.preferences.agent.provider = $0
+                model.preferences.meetingProcessing.summary = Self.summaryEngine(for: $0)
+                model.save(actions)
+            }
+        )
     }
 
-    /// The fallback chain as three lamps: lit = will be used. A command-line tool is
-    /// outside the chain, so it shows as the one lamp it is.
-    @ViewBuilder
-    private var chain: some View {
-        switch provider {
-        case .off:
-            EmptyView()
-        case .claudeCode, .codex:
-            HStack(spacing: 6) {
-                HudLamp(toolInstalled == true ? .teal : .off)
-                Text(verbatim: provider == .codex ? "Codex" : "Claude Code").hud(.meta)
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 36)
-            .hudWell()
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(toolInstalled == true ? "Installed" : "Not installed")
-        default:
-            HStack(spacing: 12) {
-                ForEach(Array(Link.allCases.enumerated()), id: \.offset) { index, link in
-                    if index > 0 {
-                        HudIcon(.chevronRight, size: 12).foregroundStyle(Hud.Ink.ink4)
-                    }
-                    HStack(spacing: 6) {
-                        HudLamp(litLink == link ? .teal : .off)
-                        Text(link.title).hud(.meta).lineLimit(1).fixedSize()
-                    }
-                }
-            }
-            .padding(.horizontal, 12)
-            .frame(height: 36)
-            .hudWell()
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Fallback order: Anthropic, then OpenAI, then this Mac")
-        }
+    private var providerOptions: [(value: AgentProviderKind, title: String)] {
+        var options: [(value: AgentProviderKind, title: String)] = [
+            (.anthropic, "Claude (API key)"),
+            (.openAI, "OpenAI (API key)"),
+            (.claudeCode, "Claude Code"),
+            (.codex, "Codex"),
+            (.onDevice, "On this Mac (Apple)")
+        ]
+        // Choices from older versions stay visible only while they are the saved one.
+        if provider == .automatic { options.append((.automatic, "Automatic")) }
+        if provider == .off { options.append((.off, "Off")) }
+        return options
     }
-
-    // MARK: Model row
 
     private var providerDetail: Text? {
         switch provider {
+        case .anthropic, .openAI: Text("Notes, tasks and dictation clean-up · billed to you")
+        case .claudeCode, .codex: Text("Your sign-in on this Mac · notes and tasks, not dictation")
+        case .onDevice: onDeviceStatus.map { Text(verbatim: $0) } ?? Text("Apple’s model · free, stays on this Mac")
         case .automatic: Text("Anthropic, then OpenAI, then this Mac")
-        case .onDevice: onDeviceStatus.map { Text(verbatim: $0) } ?? Text("Apple’s model, on this Mac")
-        case .openAI: Text("Your OpenAI key")
-        case .anthropic: Text("Your Anthropic key")
-        case .claudeCode, .codex: Text("Your sign-in on this Mac · notes only, not dictation")
         case .off: Text("Raw text only")
         }
     }
@@ -383,6 +322,8 @@ struct AgentSettingsView<Extra: View>: View {
     @ViewBuilder
     private var providerStatus: some View {
         switch provider {
+        case .anthropic: keyStatus(hasAnthropicKey)
+        case .openAI: keyStatus(hasOpenAIKey)
         case .claudeCode, .codex:
             switch toolInstalled {
             case .some(true): HudStatusWord(.ok, "Installed")
@@ -391,33 +332,17 @@ struct AgentSettingsView<Extra: View>: View {
             }
         case .onDevice:
             if onDeviceStatus != nil { HudStatusWord(.warn, "Unavailable") }
-        default:
+        case .automatic, .off:
             EmptyView()
         }
     }
 
-    // MARK: Actions
-
-    private func saveAnthropicKey() {
-        let key = anthropicKey
-        guard !key.trimmingCharacters(in: .whitespaces).isEmpty, !isSavingKey else { return }
-        isSavingKey = true
-        Task {
-            let result = await actions.saveAnthropicKey(key)
-            anthropicKey = ""
-            hasAnthropicKey = await actions.hasAnthropicKey()
-            show(result)
-            isSavingKey = false
-        }
-    }
-
-    private func removeAnthropicKey() {
-        isSavingKey = true
-        Task {
-            let result = await actions.deleteAnthropicKey()
-            hasAnthropicKey = await actions.hasAnthropicKey()
-            show(result)
-            isSavingKey = false
+    @ViewBuilder
+    private func keyStatus(_ hasKey: Bool?) -> some View {
+        switch hasKey {
+        case .some(true): HudStatusWord(.ok, "Connected")
+        case .some(false): HudStatusWord(.warn, "Needs a key")
+        case nil: EmptyView()
         }
     }
 
@@ -431,16 +356,64 @@ struct AgentSettingsView<Extra: View>: View {
     private func binding<Value>(_ keyPath: WritableKeyPath<CrenelPreferences, Value>) -> Binding<Value> {
         model.binding(keyPath, actions: actions)
     }
+}
 
-    private func optionalBinding(_ keyPath: WritableKeyPath<CrenelPreferences, String?>) -> Binding<String> {
-        Binding(
-            get: { model.preferences[keyPath: keyPath] ?? "" },
-            set: {
-                let trimmed = $0.trimmingCharacters(in: .whitespacesAndNewlines)
-                model.preferences[keyPath: keyPath] = trimmed.isEmpty ? nil : trimmed
-                model.save(actions)
+/// The one key of the chosen provider: a secure field, its save key, and Remove once a
+/// key is stored.
+struct SettingsKeyField: View {
+    let name: String
+    /// nil while the key is being looked up.
+    let hasKey: Bool?
+    var saveTitle: LocalizedStringKey = "Save"
+    var saveHelp: LocalizedStringKey = ""
+    let save: (String) async -> Void
+    let remove: () async -> Void
+
+    @State private var key = ""
+    @State private var busy = false
+    @FocusState private var focused: Bool
+
+    private var trimmed: String { key.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    var body: some View {
+        SettingsFieldRow {
+            SecureField("", text: $key,
+                        prompt: Text(verbatim: hasKey == true ? "Type to replace the saved \(name) key" : "\(name) API key")
+                            .foregroundStyle(Hud.Ink.ink3))
+                .textFieldStyle(.plain)
+                .textContentType(.password)
+                .hud(.body)
+                .focused($focused)
+                .hudField(isFocused: focused)
+                .onSubmit(submit)
+                .accessibilityLabel("\(name) API key")
+            if busy { HudSpinner() }
+            HudButton(saveTitle, action: submit)
+                .disabled(busy || hasKey == nil || trimmed.isEmpty)
+                .help(saveHelp)
+            if hasKey == true {
+                HudButton("Remove", kind: .danger) {
+                    busy = true
+                    Task {
+                        await remove()
+                        busy = false
+                    }
+                }
+                .disabled(busy)
+                .accessibilityLabel("Remove \(name) key")
             }
-        )
+        }
+    }
+
+    private func submit() {
+        guard !busy, hasKey != nil, !trimmed.isEmpty else { return }
+        busy = true
+        let candidate = trimmed
+        Task {
+            await save(candidate)
+            key = ""
+            busy = false
+        }
     }
 }
 
