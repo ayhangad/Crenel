@@ -8,6 +8,9 @@ enum NotchClosedState: Equatable {
         case ended
         /// "Call ended, stops in N s" — red fuse, then the recording stops on its own.
         case autoStop(deadline: Date)
+        /// "Update installs after this call" · OK: an update is ready, but a recording
+        /// never restarts Crenel.
+        case updateWaiting
     }
 
     /// Nothing to say: exactly the hardware notch. Only when there is no later event and
@@ -16,6 +19,16 @@ enum NotchClosedState: Equatable {
     /// Nothing today, but the notch still answers one question: the mark on the left, and
     /// on the right the next event on another day or the key that starts dictation.
     case standby(NotchStandby)
+    /// An update downloading (0…1) or being prepared (nil): quiet ears and a teal fuse.
+    case updating(progress: Double?)
+    /// Strip: "Crenel 1.2 is ready" · Later · Restart.
+    case updateReady(AppUpdateVersion)
+    /// Ears only, after Later: the mark and a teal lamp.
+    case updatePending(AppUpdateVersion)
+    /// The moment before Crenel quits to be replaced.
+    case restarting
+    /// Strip, after relaunching on a new version: "You're on Crenel 1.2" · What's new.
+    case updated(AppUpdateVersion)
     /// Next or current calendar item: later today, within the hour, 10 min or less, in
     /// progress, or on another day.
     case meeting(NotchAgendaStatus)
@@ -43,8 +56,10 @@ enum NotchClosedState: Equatable {
     /// Strip states drop one line under the ears and never open the panel on hover.
     var isStrip: Bool {
         switch self {
-        case .idle, .standby, .meeting, .processing, .focus, .tasks:
+        case .idle, .standby, .meeting, .processing, .focus, .tasks, .updating, .updatePending, .restarting:
             false
+        case .updateReady, .updated:
+            true
         case .recording(_, let prompt):
             prompt != nil
         case .meetingStarting, .callDetected, .dictationListening, .dictationWorking, .dictationInserted,
@@ -58,6 +73,11 @@ enum NotchClosedState: Equatable {
         switch self {
         case .idle: "idle"
         case .standby(let standby): "standby.\(standby.kind)"
+        case .updating(let progress): progress == nil ? "update.preparing" : "update.downloading"
+        case .updateReady: "update.ready"
+        case .updatePending: "update.pending"
+        case .restarting: "update.restarting"
+        case .updated: "update.updated"
         case .meeting(let agenda): "meeting.\(agenda.item.id).\(NotchMeetingEar(agenda).kind)"
         case .meetingStarting(let meeting): "starting.\(meeting.id)"
         case .callDetected: "call"
@@ -66,6 +86,7 @@ enum NotchClosedState: Equatable {
             case nil: "recording"
             case .ended: "recording.ended"
             case .autoStop: "recording.autostop"
+            case .updateWaiting: "recording.update"
             }
         case .processing(let stage): "processing.\(stage.stepIndex)"
         case .focus(let task): "focus.\(task.id)"
@@ -114,6 +135,10 @@ struct NotchClosedInput {
     var upcomingItems: [Meeting] = []
     /// The key that starts dictation, when dictation is on.
     var dictationKeyHint: String?
+    var update: AppUpdatePhase = .idle
+    var updateNotices = AppUpdateNotices()
+    /// Just relaunched on a new version.
+    var justUpdatedTo: AppUpdateVersion?
     var now = Date()
 }
 
@@ -139,9 +164,16 @@ enum NotchClosedResolver {
             switch input.prompt {
             case .endConfirmation: return .recording(recording, prompt: .ended)
             case .autoStop(_, _, let deadline): return .recording(recording, prompt: .autoStop(deadline: deadline))
-            case .recordingOffer, nil: return .recording(recording, prompt: nil)
+            case .recordingOffer, nil:
+                if case .ready(let version) = input.update, !input.updateNotices.recordingDismissed(version) {
+                    return .recording(recording, prompt: .updateWaiting)
+                }
+                return .recording(recording, prompt: nil)
             }
         }
+
+        // Restart was chosen: nothing else matters for the second Crenel has left.
+        if case .restarting = input.update { return .restarting }
 
         // A call was detected: the question stays until it is answered or the call ends.
         if case .recordingOffer(_, let clientID) = input.prompt {
@@ -152,6 +184,8 @@ enum NotchClosedResolver {
         case .dictation, .recording:
             return .idle
         case .idle:
+            if let notice = updateNotice(input) { return notice }
+            if let quiet = updateQuiet(input) { return quiet }
             return standby(input).map(NotchClosedState.standby) ?? .idle
         case .processing(let stage):
             return .processing(stage)
@@ -170,11 +204,34 @@ enum NotchClosedResolver {
             if isStartingNow(agenda, dismissedID: input.dismissedStartingMeetingID, now: input.now) {
                 return .meetingStarting(agenda.item)
             }
+            if let notice = updateNotice(input) { return notice }
             return .meeting(agenda)
         case .focus(let task):
+            if let notice = updateNotice(input) { return notice }
             return .focus(task)
         case .tasks(let count):
+            if let notice = updateNotice(input) { return notice }
+            if let quiet = updateQuiet(input) { return quiet }
             return .tasks(count: count)
+        }
+    }
+
+    /// Strips about updates: "Updated" after a relaunch, then "ready" until Later.
+    static func updateNotice(_ input: NotchClosedInput) -> NotchClosedState? {
+        if let version = input.justUpdatedTo { return .updated(version) }
+        if case .ready(let version) = input.update, !input.updateNotices.readyDismissed(version) {
+            return .updateReady(version)
+        }
+        return nil
+    }
+
+    /// Quiet update ears, only where the notch has nothing more useful to say.
+    static func updateQuiet(_ input: NotchClosedInput) -> NotchClosedState? {
+        switch input.update {
+        case .downloading(_, let progress): .updating(progress: progress)
+        case .preparing: .updating(progress: nil)
+        case .ready(let version): .updatePending(version)
+        case .idle, .restarting: nil
         }
     }
 
@@ -272,6 +329,10 @@ extension NotchClosedState {
             guard elapsed > 0 else { return CrenelNotchFuse(fraction: 1, tone: .amber) }
             let duration = max(60, meeting.endDate.timeIntervalSince(meeting.startDate))
             return CrenelNotchFuse(fraction: min(1, max(0, 1 - elapsed / duration)), tone: .amber)
+        case .updating(let progress):
+            return CrenelNotchFuse(fraction: progress ?? 1, tone: .teal)
+        case .restarting:
+            return CrenelNotchFuse(fraction: 1, tone: .teal)
         case .recording(_, .autoStop(let deadline)):
             let total = max(1, MeetingSessionLifecyclePolicy.autoStopCountdown)
             return CrenelNotchFuse(fraction: min(1, max(0, deadline.timeIntervalSince(now) / total)), tone: .red)

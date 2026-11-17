@@ -414,6 +414,33 @@ final class AppState: ObservableObject {
         dictationHistory = history
     }
 
+    /// Where an app update is (downloading, ready, restarting).
+    @Published private(set) var updatePhase: AppUpdatePhase = .idle
+    /// Update strips already answered.
+    @Published private(set) var updateNotices = AppUpdateNotices()
+    /// Set for a few seconds after launching a new version: the "Updated" strip.
+    @Published private(set) var justUpdatedTo: AppUpdateVersion?
+
+    func updateUpdatePhase(_ phase: AppUpdatePhase) {
+        guard updatePhase != phase else { return }
+        updatePhase = phase
+    }
+
+    /// Later on the ready strip: the strip goes, a quiet mark stays.
+    func dismissUpdateReady() {
+        updateNotices.laterVersion = updatePhase.version?.shortVersion
+    }
+
+    /// OK on "Update installs after this call".
+    func acknowledgeUpdateDuringRecording() {
+        updateNotices.duringRecordingVersion = updatePhase.version?.shortVersion
+    }
+
+    func showJustUpdated(_ version: AppUpdateVersion?) {
+        guard justUpdatedTo != version else { return }
+        justUpdatedTo = version
+    }
+
     /// The key that starts dictation, as the closed notch names it ("fn", "⌥", "⌘"); nil
     /// when dictation is off or uses a custom shortcut.
     @Published private(set) var dictationKeyHint: String?

@@ -8,6 +8,10 @@ struct CrenelActions {
     var openMeetingURL: (URL) -> Void = { _ in }
     var tasks = TaskActions()
     var dictation = DictationActions()
+    /// "Restart to update" in the open panel's band.
+    var restartToUpdate: () -> Void = {}
+    /// Settings › About: look for an update now.
+    var checkForUpdates: () -> Void = {}
 
     struct DictationActions {
         var toggleHandsFree: () -> Void = {}

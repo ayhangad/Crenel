@@ -9,7 +9,7 @@ enum HudGlyph: String, CaseIterable, Sendable {
     case record, stop, chevronRight, chevronLeft, chevronDown, arrowRight, plus, close
     case spark, link, bell, place, transcript, sliders, shield, warning, people, keyboard
     case edit, copy, trash, more, play, pause, waveform, search, archive, accessibility
-    case sun, gauge, clock, globe, share
+    case sun, gauge, clock, globe, share, download
 
     /// True when the glyph has a lit, solid form (`f-*`).
     var hasSolid: Bool { HudGlyphArt.solid[self] != nil }
@@ -113,7 +113,8 @@ enum HudGlyphArt {
         .gauge: [stroke("M3 12.5L2.25 9L3.5 5.25L6.25 3H9.75L12.5 5.25L13.75 9L13 12.5M8 9L10.75 6.25"), rect(7, 8, 2, 2)],
         .clock: [stroke("M5.5 1.75H10.5L14.25 5.5V10.5L10.5 14.25H5.5L1.75 10.5V5.5ZM8 4.75V8H10.5")],
         .globe: [stroke("M5.5 1.75H10.5L14.25 5.5V10.5L10.5 14.25H5.5L1.75 10.5V5.5ZM1.75 8H14.25M8 1.75L10.5 8L8 14.25L5.5 8Z")],
-        .share: [stroke("M8 10V2.5M5.25 5.25L8 2.5L10.75 5.25M4.75 7.25H2.25V13.75H13.75V7.25H11.25")]
+        .share: [stroke("M8 10V2.5M5.25 5.25L8 2.5L10.75 5.25M4.75 7.25H2.25V13.75H13.75V7.25H11.25")],
+        .download: [stroke("M8 2.25V10.5M5.25 7.75L8 10.5L10.75 7.75M2.25 13.75H13.75")]
     ]
 
     /// `f-*` — solid, lit forms with their details cut out.

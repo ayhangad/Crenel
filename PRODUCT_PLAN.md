@@ -164,6 +164,11 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
 
 - [ ] Developer ID Application sertifikası ve `Crenel-Notary` notarytool profili.
   — ⛔ Bloke: kullanıcının Apple hesabında adım adım yapılacak.
+- [x] Notch'ta güncelleme durumları (`docs/design/update-mock.html`): iniyor (yüzde + fitil),
+  hazırlanıyor, hazır şeridi (Later · Restart), kayıt sırasında bekliyor, yeniden başlıyor,
+  güncellendi şeridi; açık panelde "Restart to update". Sparkle'dan bağımsız durum modeli,
+  Debug'da sahte güncelleme kaynağı. — ✅ 2026-11-17 (578 test, 5 atlandı, 0 hata; yedi
+  durumun render'ı incelendi; Sparkle bağlantısı ayrı madde)
 - [ ] Applications dışından açılınca taşıma önerisi.
 - [ ] Sparkle 2 entegrasyonu (EdDSA anahtarı, appcast, nazik hatırlatma, kayıt sırasında erteleme,
   Ayarlar › About'ta "Check for Updates").

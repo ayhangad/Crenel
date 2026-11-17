@@ -67,12 +67,14 @@ struct CrenelNotchFuse: Equatable {
         case white
         case amber
         case red
+        case teal
 
         var color: Color {
             switch self {
             case .white: Hud.Ink.ink1
             case .amber: Hud.Ink.signal
             case .red: Hud.Ink.live
+            case .teal: Hud.Ink.ok
             }
         }
     }

@@ -24,6 +24,14 @@ struct NotchStripActions {
     var openSettings: () -> Void = {}
     /// Download on a dictation strip that needs the speech model.
     var downloadSpeechModel: () -> Void = {}
+    /// Restart ↩ on "Crenel 1.2 is ready".
+    var restartToUpdate: () -> Void = {}
+    /// Later esc on the same.
+    var dismissUpdateReady: () -> Void = {}
+    /// OK esc on "Update installs after this call".
+    var acknowledgeUpdateDuringRecording: () -> Void = {}
+    /// What's new ↩ on "You're on Crenel 1.2".
+    var showReleaseNotes: (AppUpdateVersion) -> Void = { _ in }
 }
 
 /// The closed notch for one state: two equal ears beside the camera — what on the left,
@@ -85,8 +93,22 @@ struct NotchClosedView: View {
         switch state {
         case .idle:
             EmptyView()
-        case .standby, .tasks:
+        case .standby, .tasks, .updatePending:
             HudMark().accessibilityHidden(true)
+        case .updating(let progress):
+            HudIcon(.download, size: 14)
+                .foregroundStyle(progress == nil ? Hud.Ink.ok : Hud.Ink.ink2)
+                .hudLoop(progress == nil ? .breathe : .steady)
+            word(progress == nil ? String(localized: "Preparing") : String(localized: "Update"), lit: false)
+        case .updateReady:
+            HudLamp(.teal, form: .dot)
+            word(String(localized: "Update ready"), lit: true)
+        case .restarting:
+            HudMark().accessibilityHidden(true)
+            word(String(localized: "Restarting"), lit: true)
+        case .updated:
+            HudMark().accessibilityHidden(true)
+            word(String(localized: "Updated"), lit: true)
         case .meeting(let agenda):
             let ear = NotchMeetingEar(agenda, now: now)
             switch ear.kind {
@@ -151,6 +173,19 @@ struct NotchClosedView: View {
         case .standby(.nextEvent(let meeting)):
             Text(NotchClosedText.dayWord(meeting.startDate)).hud(.meta).fixedSize()
             HudSegmentDigits(HudFormat.clock(meeting.startDate), height: 13, color: Hud.Ink.ink2)
+        case .updating(let progress):
+            if let progress {
+                HudReadout("\(Int((progress * 100).rounded(.down)))", unit: "%", cells: 2)
+            } else {
+                HudBusy()
+            }
+        case .updateReady(let version), .updated(let version):
+            HudSegmentDigits(version.shortVersion, height: 13, color: Hud.Ink.ok)
+        case .updatePending:
+            HudLamp(.teal, form: .dot)
+            Text("Update").hud(.meta).fixedSize()
+        case .restarting:
+            HudBusy()
         case .standby(.dictationKey(let key)):
             HudIcon(.mic, size: 14).foregroundStyle(Hud.Ink.ink3)
             Text(verbatim: key).hud(.meta, Hud.Ink.ink2).fixedSize()
@@ -240,6 +275,31 @@ struct NotchClosedView: View {
             NotchStripKey("Record", lamp: .red, key: "↩", kind: .primary, size: .small, action: actions.startRecording)
                 .keyboardShortcut(.defaultAction)
 
+        case .recording(_, .updateWaiting):
+            sentence(String(localized: "Update installs after this call"), meta: nil)
+            Spacer(minLength: 0)
+            NotchStripKey("OK", key: "esc", size: .small, action: actions.acknowledgeUpdateDuringRecording)
+                .keyboardShortcut(.cancelAction)
+
+        case .updateReady(let version):
+            sentence(String(localized: "Crenel \(version.shortVersion) is ready"),
+                     meta: version.releaseNotesURL == nil ? nil : String(localized: "What’s new"))
+            Spacer(minLength: 0)
+            NotchStripKey("Later", key: "esc", size: .small, action: actions.dismissUpdateReady)
+                .keyboardShortcut(.cancelAction)
+            NotchStripKey("Restart", key: "↩", kind: .primary, size: .small, action: actions.restartToUpdate)
+                .keyboardShortcut(.defaultAction)
+
+        case .updated(let version):
+            HudLamp(.teal, fires: true)
+            sentence(String(localized: "You’re on Crenel \(version.shortVersion)"),
+                     meta: version.changeCount.map { $0 == 1 ? String(localized: "1 change") : String(localized: "\($0) changes") })
+            Spacer(minLength: 0)
+            if version.releaseNotesURL != nil {
+                NotchStripKey("What’s new", key: "↩", kind: .primary, size: .small) { actions.showReleaseNotes(version) }
+                    .keyboardShortcut(.defaultAction)
+            }
+
         case .recording(_, .ended):
             sentence(String(localized: "The call seems to have ended"), meta: nil)
             Spacer(minLength: 0)
@@ -305,7 +365,8 @@ struct NotchClosedView: View {
                 .keyboardShortcut(.defaultAction)
             }
 
-        case .idle, .standby, .meeting, .recording(_, nil), .processing, .focus, .tasks:
+        case .idle, .standby, .meeting, .recording(_, nil), .processing, .focus, .tasks,
+             .updating, .updatePending, .restarting:
             EmptyView()
         }
     }
@@ -367,6 +428,12 @@ struct NotchClosedView: View {
         case .standby(.nextEvent(let meeting)):
             "Next: \(meeting.title), \(NotchClosedText.dayWord(meeting.startDate)) \(HudFormat.clock(meeting.startDate))"
         case .standby(.dictationKey(let key)): "Hold \(key) to dictate"
+        case .updating(let progress):
+            progress.map { "Downloading update, \(Int($0 * 100)) percent" } ?? "Preparing update"
+        case .updateReady(let version): "Crenel \(version.shortVersion) is ready to install"
+        case .updatePending(let version): "Crenel \(version.shortVersion) installs on restart"
+        case .restarting: "Restarting to update"
+        case .updated(let version): "Updated to Crenel \(version.shortVersion)"
         case .meeting(let agenda): NotchAgendaFormatter.accessibilityText(for: agenda)
         case .meetingStarting(let meeting): "\(meeting.title), starting now"
         case .callDetected(let clientID, _): "\(NotchClosedText.clientName(clientID)), on a call"

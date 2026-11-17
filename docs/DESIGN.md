@@ -329,7 +329,20 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   | Görevler | turkuaz işaret | sayı + "tasks" | |
   | Boşta, sıradaki etkinlik | turkuaz işaret | gün + saat (ink-2) | |
   | Boşta, dikte | turkuaz işaret | mic + tuş ("fn", "⌥", "⌘") | |
+  | Güncelleme iniyor | indirme ikonu + "Update" | yüzde (segment); turkuaz fitil dolar | |
+  | Güncelleme hazırlanıyor | nefes alan turkuaz indirme ikonu + "Preparing" | koşan hücreler; dolu fitil | |
+  | Güncelleme hazır | turkuaz lamba + "Update ready" | sürüm (turkuaz segment) | şerit: "Crenel 1.2 is ready" · Later `esc` · **Restart ↩** |
+  | Güncelleme bekliyor (Later sonrası) | turkuaz işaret | lamba + "Update" | |
+  | Kayıt sürerken güncelleme | kayıt kulakları | | şerit: "Update installs after this call" · OK `esc` |
+  | Yeniden başlıyor | işaret + "Restarting" | koşan hücreler; dolu fitil | |
+  | Güncellendi (yeniden açılınca, 6 sn) | işaret + "Updated" | sürüm | şerit: yanan lamba · "You're on Crenel 1.2" · "3 changes" · **What's new ↩** |
 
+- **Güncelleme.** İndirme ve hazırlama sessizdir: notch açılmaz, yalnız kulaklar ve fitil
+  söyler; bir toplantı geri sayımını ya da göreve dair kulakları asla örtmez. Hazır
+  olunca şerit bir kez gelir; Later'dan sonra kulaklarda sessiz bir lamba ve açık panelin
+  sekme satırının sağında **Restart to update** kalır. Kayıt sürerken Restart yoktur.
+  Kurulum Crenel kapalıyken 1–2 sn sürdüğü için "kuruluyor" ilerlemesi gösterilmez;
+  Restarting son andır, sonraki açılış "Updated" der. Örnek: `docs/design/update-mock.html`.
 - **Today.**
   - Kahraman: tik halkası, başlık (hero), saat aralığı · sağlayıcı ve katılımcılar.
   - Join yalnızca 10 dk içinde veya toplantı sürerken görünür. O zaman kahramanın altında

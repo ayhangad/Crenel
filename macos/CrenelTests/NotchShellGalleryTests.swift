@@ -208,6 +208,7 @@ final class NotchShellGalleryTests: XCTestCase {
         let task = TaskItem(title: "Write release notes", createdAt: now, status: .inProgress,
                             startedAt: now.addingTimeInterval(-25 * 60))
 
+        let update = AppUpdateVersion(shortVersion: "1.2", releaseNotesURL: URL(string: "https://example.com/notes"), changeCount: 3)
         let states: [(String, NotchClosedState, Double)] = [
             ("c-idle", .idle, 0),
             ("c-standby-next", .standby(.nextEvent(visit)), 0),
@@ -226,6 +227,13 @@ final class NotchShellGalleryTests: XCTestCase {
             ("c-proc-summarizing", .processing(.summarizing), 0),
             ("c-focus", .focus(task), 0),
             ("c-tasks", .tasks(count: 5), 0),
+            ("c-update-downloading", .updating(progress: 0.42), 0),
+            ("c-update-preparing", .updating(progress: nil), 0),
+            ("c-update-ready", .updateReady(update), 0),
+            ("c-update-pending", .updatePending(update), 0),
+            ("c-update-recording", .recording(recording(.open, elapsed: 1_447), prompt: .updateWaiting), 0.75),
+            ("c-update-restarting", .restarting, 0),
+            ("c-update-updated", .updated(update), 0),
             ("c-meeting-now", .meetingStarting(review), 0),
             ("c-prompt-offer", .callDetected(clientID: .zoom, title: "Partner call"), 0),
             ("c-prompt-offer-meet", .callDetected(clientID: .googleMeetChrome, title: "Design review"), 0),

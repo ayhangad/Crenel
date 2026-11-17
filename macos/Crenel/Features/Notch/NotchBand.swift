@@ -6,6 +6,7 @@ import SwiftUI
 /// never crowd the housing. Both stay put while the content scrolls.
 struct NotchBand: View {
     @EnvironmentObject private var appState: AppState
+    @Environment(\.crenelActions) private var actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let onTogglePin: () -> Void
 
@@ -36,10 +37,24 @@ struct NotchBand: View {
                 }
             }
 
-            tabs
-                .frame(height: Hud.Notch.tabRowHeight, alignment: .bottom)
-                .padding(.horizontal, Hud.Notch.openInset)
+            HStack(alignment: .center, spacing: 8) {
+                tabs
+                Spacer(minLength: 8)
+                // An update waiting to be installed: one click restarts into it.
+                if appState.updatePhase.isReady, !isRecording {
+                    HudButton("Restart to update", lamp: .teal, size: .mini, action: actions.restartToUpdate)
+                        .help("Crenel \(appState.updatePhase.version?.shortVersion ?? "") is ready")
+                        .transition(.opacity)
+                }
+            }
+            .frame(height: Hud.Notch.tabRowHeight, alignment: .bottom)
+            .padding(.horizontal, Hud.Notch.openInset)
         }
+    }
+
+    private var isRecording: Bool {
+        if case .recording = appState.meetingFlow { return true }
+        return false
     }
 
     private var tabs: some View {

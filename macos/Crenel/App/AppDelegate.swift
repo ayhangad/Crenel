@@ -50,6 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var meetingMonitor = MeetingMonitor(provider: calendarProvider)
     private lazy var meetingSessionCoordinator = MeetingSessionCoordinator()
     private lazy var meetingRepository: any MeetingRepository = FileMeetingRepository()
+    private lazy var updateCoordinator = AppUpdateCoordinator(appState: appState)
+    #if DEBUG
+    private var simulatedUpdater: SimulatedAppUpdater?
+    #endif
+    /// Release notes for every version.
+    static let releaseNotesURL = URL(string: "https://github.com/ayhangad/Crenel/releases")
     private(set) lazy var taskCoordinator = TaskCoordinator.live(appState: appState)
     private let notificationAuthorization = NotificationAuthorizationCache()
     private(set) lazy var setupCoordinator: SetupCoordinator = {
@@ -241,7 +247,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.openStoredMeeting(meeting)
                 self?.presentNotch(followPointer: false)
             },
-            recoverFromFailure: { [weak self] failure in self?.recover(from: failure) }
+            recoverFromFailure: { [weak self] failure in self?.recover(from: failure) },
+            restartToUpdate: { [weak self] in self?.updateCoordinator.restartToUpdate() },
+            dismissUpdateReady: { [weak self] in self?.appState.dismissUpdateReady() },
+            acknowledgeUpdateDuringRecording: { [weak self] in self?.appState.acknowledgeUpdateDuringRecording() },
+            showReleaseNotes: { [weak self] version in self?.updateCoordinator.showReleaseNotes(version) }
         )
     }
 
@@ -318,7 +328,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ = appState.todayFlowMemory
         #if DEBUG
         installPerformanceProbe()
+        installSimulatedUpdater()
         #endif
+        updateCoordinator.announceIfUpdated(releaseNotesURL: Self.releaseNotesURL)
         desktopSettingsObserver = NotificationCenter.default.addObserver(
             forName: .openDesktopSettings, object: nil, queue: .main
         ) { [weak self] notification in
@@ -1224,6 +1236,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///
     ///     xcrun xctrace record --template SwiftUI --attach <pid> --time-limit 25s
     ///     swift -e 'import Foundation; DistributedNotificationCenter.default().postNotificationName(.init("gad.Crenel.debug.tabCycle"), object: nil, deliverImmediately: true)'
+    private func installSimulatedUpdater() {
+        let updater = SimulatedAppUpdater()
+        updater.onRelaunched = { [weak self] version in self?.updateCoordinator.showUpdated(version) }
+        updateCoordinator.attach(updater)
+        simulatedUpdater = updater
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("gad.Crenel.debug.update"), object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.updateCoordinator.checkForUpdates() }
+        }
+    }
+
     private func installPerformanceProbe() {
         DistributedNotificationCenter.default().addObserver(
             forName: Notification.Name("gad.Crenel.debug.tabCycle"), object: nil, queue: .main
@@ -1366,7 +1390,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 copyLast: { [weak self] in self?.dictationCoordinator.copyLastDictation() },
                 requestInputMonitoring: { [weak self] in self?.dictationCoordinator.requestInputMonitoringAccess() },
                 prepareSpeechAssets: { [weak self] in self?.dictationCoordinator.prepareSpeechAssets() }
-            )
+            ),
+            restartToUpdate: { [weak self] in self?.updateCoordinator.restartToUpdate() },
+            checkForUpdates: { [weak self] in self?.updateCoordinator.checkForUpdates() }
         )
     }
 

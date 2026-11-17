@@ -209,7 +209,8 @@ struct NotchPanelView: View {
             startRecording: onStartRecording,
             dismissPrompt: onDismissMeetingPrompt,
             continueRecording: onContinueRecording,
-            confirmMeetingEnded: onConfirmMeetingEnded
+            confirmMeetingEnded: onConfirmMeetingEnded,
+            acknowledgeUpdateDuringRecording: appState.acknowledgeUpdateDuringRecording
         )
     }
 
