@@ -423,7 +423,8 @@ private struct TodayHoverJoin: View {
         Button(action: action) {
             HudButtonLabel("Join")
         }
-        .buttonStyle(HudButtonStyle(kind: .primary, size: .small))
+        // The same key face as Record beside it, so the two read as one size.
+        .buttonStyle(HudButtonStyle(kind: .secondary, size: .small))
             .opacity(shown ? 1 : 0)
             .allowsHitTesting(shown)
             .accessibilityHidden(!shown)
