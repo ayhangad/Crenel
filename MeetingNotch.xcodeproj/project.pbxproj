@@ -18,6 +18,7 @@
 		0AA534F6778A3A30BEE32CE8 /* DictationTextProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE7CAC6A680C0447D7FE7010 /* DictationTextProcessor.swift */; };
 		0D534666D40B045C6E5F7E79 /* CrenelDesignGalleryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F251E847970BDB2D39BF53BC /* CrenelDesignGalleryTests.swift */; };
 		0DFEF277DE4F4D7F9F4DB575 /* TranscriptionProcessingWorkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D34173FAE76EF2FC297D40D /* TranscriptionProcessingWorkerTests.swift */; };
+		0E6C6D68763E33B8912F6719 /* RecordingsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38834A3D8825FC72C48FFA10 /* RecordingsList.swift */; };
 		0E78D18CEC8776FC831DAD08 /* AgentHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89E87459C6962F436A4C3B0A /* AgentHTTPClient.swift */; };
 		1517BD3E389B0C7442F1D9A0 /* CLIAgentProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1956CE3C487A0C5E4FBEE777 /* CLIAgentProviderTests.swift */; };
 		155EBA4A9C388169570EBF6A /* OpenAISettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D64144591938FA512376670 /* OpenAISettingsView.swift */; };
@@ -295,6 +296,7 @@
 		349BFC738C6F1C41D9C3924F /* RecordingCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCoordinatorTests.swift; sourceTree = "<group>"; };
 		357915D5E30319468E237CF8 /* UserDefaultsAppSettingsRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppSettingsRepository.swift; sourceTree = "<group>"; };
 		3860AFA0A63847ECA2528C42 /* RecordingRecoveryServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingRecoveryServiceTests.swift; sourceTree = "<group>"; };
+		38834A3D8825FC72C48FFA10 /* RecordingsList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingsList.swift; sourceTree = "<group>"; };
 		392BCEFBCCECA45F1D713D34 /* AudioProcessMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioProcessMonitorTests.swift; sourceTree = "<group>"; };
 		3AD8EBF5385E00E1D4B67542 /* AudioLevelMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelMeter.swift; sourceTree = "<group>"; };
 		3BF55B8B05AE5CF4C6C2FCC2 /* CrenelTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrenelTaskTests.swift; sourceTree = "<group>"; };
@@ -938,6 +940,7 @@
 			children = (
 				6665F9B42929678B3355020B /* MeetingAnalysisActions.swift */,
 				FE4EBB9D622A37796DEF919B /* MeetingDetailView.swift */,
+				38834A3D8825FC72C48FFA10 /* RecordingsList.swift */,
 			);
 			path = Meetings;
 			sourceTree = "<group>";
@@ -1321,6 +1324,7 @@
 				62CCBE08E783C47A04BBC9C5 /* RecordingRecovery.swift in Sources */,
 				B0332DE1DD5A517B54152139 /* RecordingRecoveryService.swift in Sources */,
 				DA91105F561399130D5A6DA7 /* RecordingSession.swift in Sources */,
+				0E6C6D68763E33B8912F6719 /* RecordingsList.swift in Sources */,
 				7F5174FF1AEAE5B30BC9CC7E /* ReminderTaskMapping.swift in Sources */,
 				27F9EDF760B5AA31E22E5C7E /* RemindersTaskRepository.swift in Sources */,
 				D23BF58E1A46445F28C60D81 /* SampleBufferAudioWriter.swift in Sources */,
