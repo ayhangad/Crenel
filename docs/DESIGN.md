@@ -1,9 +1,8 @@
 # Crenel tasarım dili — "gece sürüşü"
 
-Durum: prototipte (2026-11-17; masaüstü, butonlar, göstergeler ve ikon ikinci turda
-yenilendi), Swift'e aktarılmayı bekliyor. Kaynak:
-`docs/design/crenel-prototype.html`. Uygulanan önceki dil ("enstrüman", `Hud*`), bu
-belgeye göre güncellenecek. Aşağıdaki ölçüler prototipteki CSS ve çizim kodunun
+Durum: uygulandı (2026-11-17). Kaynak tasarım: `docs/design/crenel-prototype.html`.
+Kod: `MeetingNotch/Features/Design/System/` (`Hud*`, API başvurusu aynı klasördeki
+`README.md`). Aşağıdaki ölçüler prototipteki CSS ve çizim kodunun
 karşılığıdır. Çelişki olursa prototip esastır.
 
 ## Fikir

@@ -295,6 +295,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // XCTest must not start real calendar/account/audio services or drain user queues.
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
               NSClassFromString("XCTestCase") == nil else { return }
+        // Start keeping the recording level history now, so a recording begun from the
+        // strip has its chart before the panel is first opened.
+        _ = appState.todayFlowMemory
         desktopSettingsObserver = NotificationCenter.default.addObserver(
             forName: .openDesktopSettings, object: nil, queue: .main
         ) { [weak self] notification in

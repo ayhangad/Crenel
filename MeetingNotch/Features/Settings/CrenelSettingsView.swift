@@ -355,7 +355,7 @@ struct AgentSettingsView<Extra: View>: View {
                     }
                     HStack(spacing: 6) {
                         HudLamp(litLink == link ? .teal : .off)
-                        Text(link.title).hud(.meta)
+                        Text(link.title).hud(.meta).lineLimit(1).fixedSize()
                     }
                 }
             }

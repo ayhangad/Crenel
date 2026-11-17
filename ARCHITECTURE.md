@@ -66,6 +66,16 @@ yalnız görünen şeklin içinde alır (`ignoresMouseEvents` global/yerel fare 
 güncellenir); hover bölgesi şekil + kamera yuvasıdır (notch'suz ekranda üst ortada 200 pt).
 API önceki kütüphaneyle aynıdır: `expand(on:)`, `compact(on:)`, `hide()`, `isHovering`.
 
+Notch'un üç boyu vardır (2026-11-17): kompakt (iki kulak, alt kenarda fitil), şerit (440 pt;
+kulaklar + tek satır) ve açık panel (560 pt; kamera bandı krom alanıdır: marka, sekmeler,
+Kayıtlar/pencere/sabitle). `NotchClosedState` kapalı durumu çözer: toplantı istemleri
+(başlıyor, arama algılandı, bitti sanılıyor, otomatik durdurma), canlı dikte, sonuç ve hata
+artık paneli açmaz, şerit olarak görünür. Şeridin üstüne gelmek paneli açmaz
+(`hoverIntent`), kulaklara tıklamak açar. Panel kapalıdan açıldığında `notchPanelIgnites`
+ortam değeri göstergelerin bir kez tam taramasını sağlar. Masaüstü penceresi 1240×760'tır;
+sayfaları Today (gösterge panosu), Meetings, Tasks, Dictation ve Settings'tir. Dalga formu
+gerçek ses dosyasından ana iş parçacığı dışında çıkarılır ve bellekte önbelleğe alınır.
+
 Tasarım dili ("gece sürüşü", 2026-11-17) `Features/Design/System/` altındadır;
 `docs/DESIGN.md`'de tarif edilir, kaynağı `docs/design/crenel-prototype.html`'dir. API
 başvurusu aynı klasördeki `README.md`'dir. Kaynak `Hud`'dur: `HudTokens` (sıcak mürekkep

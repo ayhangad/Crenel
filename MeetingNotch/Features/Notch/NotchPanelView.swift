@@ -125,21 +125,16 @@ struct NotchPanelView: View {
                         .id(detail.id)
                         .transition(.opacity)
                     } else if showsHistory {
-                        VStack(alignment: .leading, spacing: Hud.Space.x3) {
-                            if let recoverySummary = appState.recordingRecoverySummary {
-                                RecordingRecoveryNoticeView(
-                                    summary: recoverySummary,
-                                    onOpenRecovery: onOpenRecovery,
-                                    onDismiss: appState.dismissRecordingRecoverySummary
-                                )
-                            }
-                            RecentMeetingsList(
-                                meetings: Array(appState.storedMeetings.prefix(30)),
-                                onOpen: onOpenStoredMeeting,
-                                onDelete: onDeleteStoredMeeting,
-                                onRetry: onRetryStoredMeeting
-                            )
-                        }
+                        RecentMeetingsList(
+                            meetings: Array(appState.storedMeetings.prefix(30)),
+                            onOpen: onOpenStoredMeeting,
+                            onDelete: onDeleteStoredMeeting,
+                            onRetry: onRetryStoredMeeting,
+                            weekMeetings: appState.storedMeetings,
+                            recovery: appState.recordingRecoverySummary,
+                            onOpenRecovery: onOpenRecovery,
+                            onDismissRecovery: appState.dismissRecordingRecoverySummary
+                        )
                         .transition(.opacity)
                     } else {
                         switch appState.selectedTab {
@@ -156,7 +151,8 @@ struct NotchPanelView: View {
                                 onCancelFlow: onCancelFlow,
                                 onRecoverFromFailure: onRecoverFromFailure,
                                 onOpenStoredMeeting: onOpenStoredMeeting,
-                                onRelaunchApplication: onRelaunchApplication
+                                onRelaunchApplication: onRelaunchApplication,
+                                onShowRecordings: { showsHistory = true }
                             )
                             .transition(.opacity)
                         case .tasks:

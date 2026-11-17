@@ -233,18 +233,24 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     notch bandında sekmelerden önce işaret + "Crenel"; açık panel 560 pt. — ✅ 2026-11-17
     (açma, ayrılınca kapanma, durum seçme, Edit ve marka yerleşimi Playwright ile
     doğrulandı; 112 durum hatasız)
-  - [ ] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
-    ("gece sürüşü", `docs/DESIGN.md`) uygulamaya geçirilmesi. — 🚧 Devam ediyor: 2026-11-17
+  - [x] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
+    ("gece sürüşü", `docs/DESIGN.md`) uygulamaya geçirilmesi. — ✅ 2026-11-17 (574 test, 5 atlandı, 0 hata; her yüzeyin
+    durumları ekran dışı render edilip prototip görüntüleriyle karşılaştırıldı; canlı
+    etkileşim ve animasyonlar gerçek ekranda kullanıcı kabulünü bekliyor)
     - [x] Temel: `Hud` token'ları, ikon ailesi (çizgi + dolu), lambalar, durum şekilleri,
       tuş butonlar, segment rakam, tik halkası ve diğer göstergeler. — ✅ 2026-11-17
       (`Features/Design/System/README.md` API başvurusu; `HudFoundationGalleryTests`
       render'ları prototip görüntüleriyle karşılaştırıldı; 521 test, 0 hata)
-    - [ ] Notch: üç boy (kompakt / şerit / açık 560), bant, hareket.
-    - [ ] Today, kayıt, işleme ve sonuç yüzeyleri.
-    - [ ] Kayıtlar ve toplantı detayı.
-    - [ ] Görevler (satır eylemleri, Edit kartı).
-    - [ ] Masaüstü penceresi (Today panosu, Meetings, Tasks, Dictation).
-    - [ ] Ayarlar ve onboarding.
+    - [x] Notch: üç boy (kompakt / şerit / açık 560), bant, hareket. İstemler, canlı dikte ve
+      sonuçlar şerit olarak gösterilir; paneli kendiliğinden açmaz.
+    - [x] Today, kayıt, işleme ve sonuç yüzeyleri.
+    - [x] Kayıtlar ve toplantı detayı (gerçek ses dosyasından dalga formu, konuşma süresi).
+    - [x] Görevler (satır eylemleri, Edit kartı).
+    - [x] Masaüstü penceresi 1240×760 (Today panosu, Meetings, Tasks, Dictation).
+    - [x] Ayarlar ve onboarding.
+    - [ ] Tasarımın istediği ama uygulamada verisi olmayan parçalar: toplantı katılımcıları
+      ve davet eden, görevde bloke nedeni, dikte geri alma (Undo), sonuç şeridinde aksiyon
+      sayısı, PDF/düz metin dışa aktarma, mikrofon seviye testi, "your usual" dikte düzeyi.
 
 ## 2026-09-25 — Koyu tema parlaklık düzeltmesi
 

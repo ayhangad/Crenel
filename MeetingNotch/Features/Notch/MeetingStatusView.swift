@@ -22,7 +22,10 @@ struct MeetingStatusView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showsCancelConfirmation = false
     @State private var resultStats: MeetingResultStats?
-    @State private var ignite = !TodayIgnition.suppressNext
+    /// True only right after the panel opened from closed (set by the notch shell).
+    @Environment(\.notchPanelIgnites) private var panelIgnites
+    @State private var localIgnite = !TodayIgnition.suppressNext
+    private var ignite: Bool { panelIgnites && localIgnite }
     let onRequestCalendarAccess: () -> Void
     let onOpenMeetingURL: (URL) -> Void
     let onStartRecording: () -> Void
