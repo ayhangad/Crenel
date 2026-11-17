@@ -405,7 +405,7 @@ private struct TodayRecordButton: View {
 
     var body: some View {
         Button(action: action) {
-            HudButtonLabel("Record", lamp: .red, key: "⌘R").frame(width: TodayHoverJoin.labelWidth)
+            HudButtonLabel("Record", lamp: .red, key: "⌘R")
         }
         .buttonStyle(HudButtonStyle(kind: .secondary, size: .small))
             .keyboardShortcut("r", modifiers: .command)
@@ -417,15 +417,11 @@ private struct TodayRecordButton: View {
 /// nothing shifts when it appears.
 private struct TodayHoverJoin: View {
     let shown: Bool
-    /// Beside Record (the hero): the two keys are one size.
-    var equalWidth = false
     let action: () -> Void
-    /// Width of the Record label (lamp, word, keycap), shared by both keys.
-    static let labelWidth: CGFloat = 92
 
     var body: some View {
         Button(action: action) {
-            HudButtonLabel("Join").frame(width: equalWidth ? Self.labelWidth : nil)
+            HudButtonLabel("Join")
         }
         .buttonStyle(HudButtonStyle(kind: .primary, size: .small))
             .opacity(shown ? 1 : 0)
@@ -481,7 +477,7 @@ private struct TodayHero: View {
             .opacity(isDimmed ? 0.55 : 1)
             HStack(spacing: 6) {
                 if let onJoin {
-                    TodayHoverJoin(shown: isHovering || forcedHover, equalWidth: true, action: onJoin)
+                    TodayHoverJoin(shown: isHovering || forcedHover, action: onJoin)
                 }
                 if let onRecord {
                     TodayRecordButton(action: onRecord)

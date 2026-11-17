@@ -103,14 +103,17 @@ struct RecentMeetingsList: View {
         let attention = RecordingAttention(meeting)
         let line = detail?(meeting)
         return HudRow(.task) {
-            Text(verbatim: RecordingsFormat.date(meeting.startedAt, now: now))
-                .hud(.body, Hud.Ink.ink2)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .frame(width: RecordingsFormat.dateColumn, alignment: .leading)
-            Text(verbatim: HudFormat.clock(meeting.startedAt))
-                .hud(.body, Hud.Ink.ink2)
-                .frame(width: Hud.Row.timeColumn, alignment: .leading)
+            // When it was: quiet, small, and close together, so the title leads the row.
+            HStack(spacing: 6) {
+                Text(verbatim: RecordingsFormat.date(meeting.startedAt, now: now))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .frame(width: RecordingsFormat.dateColumn, alignment: .leading)
+                Text(verbatim: HudFormat.clock(meeting.startedAt))
+                    .frame(width: RecordingsFormat.timeColumn, alignment: .leading)
+            }
+            .hud(.meta)
+            .monospacedDigit()
             Text(meeting.title).hud(.body).lineLimit(1)
             if let line {
                 Text(line).hud(.meta).lineLimit(1)
@@ -222,7 +225,9 @@ enum RecordingsFormat {
     }
 
     /// Width of the date column of a row.
-    static let dateColumn: CGFloat = 52
+    static let dateColumn: CGFloat = 42
+    /// Width of the time column of a row.
+    static let timeColumn: CGFloat = 34
 
     /// The day a recording was made, as its row prints it: "25 Jul", and with the year
     /// when it is not this one ("25 Jul 25").
