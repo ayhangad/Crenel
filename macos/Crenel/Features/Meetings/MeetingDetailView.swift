@@ -456,8 +456,12 @@ struct MeetingDetailView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                MeetingNotesMissingConsole(failure: stored.summaryFailure)
-                    .padding(.top, 16)
+                MeetingNotesMissingConsole(
+                    failure: stored.summaryFailure,
+                    onRewrite: { onRetry(content.meeting) },
+                    isRewriting: isProcessing
+                )
+                .padding(.top, 16)
                 MeetingSummarySection(
                     overview: nil,
                     placeholder: MeetingNotesMissingConsole.remainder(stored.summaryFailure),

@@ -19,6 +19,9 @@ protocol MeetingRepository: MeetingRetentionRepository {
     func loadMarkdown(for meetingID: UUID) async throws -> String?
     func audioFileURL(for meeting: StoredMeeting) async -> URL
     func recoveryDirectoryURL() async -> URL
+    /// Flags notes written by the old offline extractor so they can be written again
+    /// with AI. Returns how many meetings it flagged; running it twice flags nothing.
+    func flagLegacySummaries() async throws -> Int
 }
 
 extension MeetingRepository {
@@ -28,6 +31,7 @@ extension MeetingRepository {
     func renameSpeaker(meetingID: UUID, speakerID: String, name: String) async throws -> StoredMeeting {
         throw MeetingRepositoryError.meetingNotFound
     }
+    func flagLegacySummaries() async throws -> Int { 0 }
 }
 
 enum MeetingRepositoryError: LocalizedError, Equatable {
@@ -244,6 +248,26 @@ actor FileMeetingRepository: MeetingRepository {
         var updated = StoredTranscription(completedAt: stored.completedAt, transcript: transcript, summary: summary)
         updated.summaryFailure = stored.summaryFailure
         return try writeAnalysis(updated, for: meeting)
+    }
+
+    static let legacySummaryFailure = "These notes came from the old offline extractor. Write them again with AI for a real summary and title."
+
+    func flagLegacySummaries() async throws -> Int {
+        var flagged = 0
+        for meeting in try loadAll() where meeting.processingStatus == .completed {
+            guard let stored = try? loadTranscription(for: meeting.id),
+                  let summary = stored.summary, summary.model == nil,
+                  stored.summaryFailure == nil else { continue }
+            var marked = stored
+            marked.summaryFailure = Self.legacySummaryFailure
+            do {
+                _ = try writeAnalysis(marked, for: meeting)
+                flagged += 1
+            } catch {
+                AppLogger.persistenceFailed(operation: "flag-legacy-summary", error: error)
+            }
+        }
+        return flagged
     }
 
     func loadTranscription(for meetingID: UUID) throws -> StoredTranscription? {

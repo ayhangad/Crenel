@@ -283,6 +283,9 @@ struct MeetingSummarySection: View {
 struct MeetingNotesMissingConsole: View {
     /// The stored reason, if the summary failed; nil when no model has written notes.
     let failure: String?
+    /// Writes the notes again with the current model; nil hides the button.
+    var onRewrite: (() -> Void)? = nil
+    var isRewriting = false
     var onOpenSettings: () -> Void = MeetingNotesMissingConsole.openAISettings
 
     var body: some View {
@@ -290,6 +293,11 @@ struct MeetingNotesMissingConsole: View {
             HudStatusShape(.warn)
             Text(Self.line(failure)).help(failure ?? "")
         } buttons: {
+            if let onRewrite, !Self.mentionsKey(failure) {
+                HudButton("Write notes", lamp: .teal, size: .small, action: onRewrite)
+                    .disabled(isRewriting)
+                    .help("Write the notes again from the transcript")
+            }
             HudButton(Self.mentionsKey(failure) ? "Add key" : "AI settings", size: .small, action: onOpenSettings)
                 .help("Open AI settings")
         }

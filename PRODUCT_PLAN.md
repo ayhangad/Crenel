@@ -237,7 +237,7 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
   - [x] Kompakt durumlar (dikte nokta küresi + seviye, kayıt, işleme, ajanda halkası,
     devam eden görev), Bugün (ışıklı sıradaki etkinlik kartı + ajanda + görev özeti),
     Görevler, canlı kayıt kartı, panel başlığı. — ✅ 2026-11-16 (ekran dışı render + test)
-  - [ ] Dikte için genişleyen "canlı" ara boyut (orb + canlı transkript).
+  - [ ] Dikte için genişleyen "canlı" ara boyut (orb + canlı transkript). — 🚧 Devam ediyor: 2026-11-17
   - [x] Açık panelde sekmeler kamera bandının altında kendi satırında; Recordings ikon
     değil üçüncü sekme (Today · Recordings · Tasks, ⌘1/⌘2/⌘3). — ✅ 2026-11-17 (571 test,
     5 atlandı, 0 hata; band render'ları incelendi; gerçek notch'ta kullanıcı kabulü bekliyor)
@@ -313,7 +313,7 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     - [x] Ayarlar ve onboarding.
     - [ ] Tasarımın istediği ama uygulamada verisi olmayan parçalar: toplantı katılımcıları
       ve davet eden, görevde bloke nedeni, dikte geri alma (Undo), sonuç şeridinde aksiyon
-      sayısı, PDF/düz metin dışa aktarma, mikrofon seviye testi, "your usual" dikte düzeyi.
+      sayısı, PDF/düz metin dışa aktarma, mikrofon seviye testi, "your usual" dikte düzeyi. — 🚧 Devam ediyor: 2026-11-17
 
 ## 2026-09-25 — Koyu tema parlaklık düzeltmesi
 

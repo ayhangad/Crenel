@@ -1591,6 +1591,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             do {
                 try await self.meetingRepository.prepare()
                 let recoveryReport = await self.recordingRecoveryService.recoverInterruptedCaptures()
+                _ = try? await self.meetingRepository.flagLegacySummaries()
                 let meetings = try await self.meetingRepository.loadAll()
                 self.appState.replaceStoredMeetings(meetings)
                 self.appState.applyRecordingRecoveryReport(recoveryReport)

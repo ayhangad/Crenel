@@ -178,6 +178,20 @@ final class NotchShellGalleryTests: XCTestCase {
 
     // MARK: Gallery — closed states
 
+    func testLongDictationGrowsIntoTheLiveSize() {
+        let short = NotchClosedView(state: .dictationListening(text: "Let’s move the review"), level: 0.5)
+            .environment(\.crenelNotchMetrics, metrics)
+        let long = NotchClosedView(state: .dictationListening(text: String(repeating: "ship the build now ", count: 12)), level: 0.5)
+            .environment(\.crenelNotchMetrics, metrics)
+        let shortHeight = NSHostingView(rootView: short).fittingSize.height
+        let longHeight = NSHostingView(rootView: long).fittingSize.height
+        XCTAssertGreaterThan(longHeight, shortHeight + 20)
+        XCTAssertFalse(NotchLiveDictation.needsLiveSize("Let’s move the review"))
+        let tail = NotchLiveDictation.tail(String(repeating: "word ", count: 80))
+        XCTAssertTrue(tail.hasPrefix("…word"))
+        XCTAssertLessThanOrEqual(tail.count, NotchLiveDictation.oneLineCharacters * NotchLiveDictation.maxLines + 1)
+    }
+
     func testEveryClosedStateRenders() throws {
         let now = self.now
         let review = Meeting(title: "Design review", startDate: now, endDate: now.addingTimeInterval(3_600),
@@ -240,6 +254,7 @@ final class NotchShellGalleryTests: XCTestCase {
             ("c-prompt-ended", .recording(recording(.open, elapsed: 2_892), prompt: .ended), 0),
             ("c-prompt-autostop", .recording(recording(.open, elapsed: 2_892),
                 prompt: .autoStop(deadline: now.addingTimeInterval(MeetingSessionLifecyclePolicy.autoStopCountdown * 0.8))), 0),
+            ("c-dict-listening-short", .dictationListening(text: "Let’s move the review"), 0.75),
             ("c-dict-listening", .dictationListening(text: dictated), 0.75),
             ("c-dict-working", .dictationWorking(step: 1, text: dictated), 0),
             ("c-dict-inserted", .dictationInserted(DictationResultSummary(text: dictated + ".", delivery: .insertedViaPaste, appName: "Notes")), 0),

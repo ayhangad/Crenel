@@ -221,6 +221,36 @@ final class FileMeetingRepositoryTests: XCTestCase {
         XCTAssertTrue(markdown?.contains("00:45") == true)
     }
 
+    func testLegacyExtractorNotesAreFlaggedOnceForAIRewrite() async throws {
+        let legacy = try await repository.saveCapture(try makeCapture(title: "İsimsiz Toplantı", startedAt: .now))
+        let modern = try await repository.saveCapture(try makeCapture(title: "Planning", startedAt: .now.addingTimeInterval(-60)))
+        let transcript = Transcript(text: "Merhaba.", languageCode: "tr", segments: [])
+        _ = try await repository.saveTranscription(
+            .init(transcript: transcript),
+            summary: MeetingSummary(overview: "Merhaba.", decisions: [], actionItems: []),
+            for: legacy
+        )
+        _ = try await repository.saveTranscription(
+            .init(transcript: transcript),
+            summary: MeetingSummary(overview: "Plan.", decisions: [], actionItems: [], suggestedTitle: "Plan", model: "fixture"),
+            for: modern
+        )
+
+        let flagged = try await repository.flagLegacySummaries()
+        let flaggedAgain = try await repository.flagLegacySummaries()
+
+        XCTAssertEqual(flagged, 1)
+        XCTAssertEqual(flaggedAgain, 0)
+        let stored = try await repository.loadTranscription(for: legacy.id)
+        XCTAssertEqual(stored?.summaryFailure, FileMeetingRepository.legacySummaryFailure)
+        XCTAssertEqual(stored?.summary?.overview, "Merhaba.")
+        let meetings = try await repository.loadAll()
+        XCTAssertEqual(meetings.first { $0.id == legacy.id }?.summaryNeedsAttention, true)
+        XCTAssertEqual(meetings.first { $0.id == modern.id }?.summaryNeedsAttention, false)
+        let modernStored = try await repository.loadTranscription(for: modern.id)
+        XCTAssertNil(modernStored?.summaryFailure)
+    }
+
     private func makeCapture(title: String, startedAt: Date) throws -> RecordingCaptureResult {
         let id = UUID()
         let directory = root

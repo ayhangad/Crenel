@@ -60,11 +60,18 @@ struct NotchClosedView: View {
             } else if state.isStrip {
                 VStack(spacing: 0) {
                     ears(totalWidth: Hud.Notch.stripWidth)
-                    NotchStripLine(scanning: isWorking) { strip }
-                        .padding(.horizontal, Hud.Notch.stripInset)
-                        .padding(.bottom, Hud.Notch.stripBottom)
+                    Group {
+                        if let liveText {
+                            NotchLiveDictation(text: liveText, level: level)
+                        } else {
+                            NotchStripLine(scanning: isWorking) { strip }
+                        }
+                    }
+                    .padding(.horizontal, Hud.Notch.stripInset)
+                    .padding(.bottom, Hud.Notch.stripBottom)
                 }
                 .frame(width: Hud.Notch.stripWidth)
+                .animation(reduceMotion ? nil : Hud.Motion.shape, value: liveText != nil)
             } else {
                 ears(totalWidth: nil)
             }
@@ -389,6 +396,13 @@ struct NotchClosedView: View {
 
     // MARK: Pieces
 
+    /// Listening with more words than one line holds: the strip grows into the live size.
+    private var liveText: String? {
+        guard case .dictationListening(let text) = state,
+              NotchLiveDictation.needsLiveSize(text) else { return nil }
+        return text
+    }
+
     private var isWorking: Bool {
         if case .dictationWorking = state { return true }
         return false
@@ -489,6 +503,52 @@ struct NotchStripLine<Content: View>: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .hudStrip()
             .hudScanner(scanning, radius: Hud.Notch.stripRadius)
+    }
+}
+
+/// The live size of dictation: between the strip and the open panel. The orb breathes
+/// with the voice on the left; the transcript runs up to three lines, newest at the
+/// bottom, the oldest words leaving at the top.
+struct NotchLiveDictation: View {
+    let text: String
+    var level: Double = 0
+
+    static let maxLines = 3
+    /// About what one strip line holds beside the destination app.
+    static let oneLineCharacters = 46
+
+    static func needsLiveSize(_ text: String) -> Bool {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).count > oneLineCharacters
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            CrenelOrb(top: .white, bottom: Hud.Ink.ink3, level: level, density: 12)
+                .frame(width: 30, height: 30)
+                .clipShape(Circle())
+                .background(Circle().fill(Hud.Ink.field))
+            Text("\(Self.tail(text)) \(Text(verbatim: "▏").foregroundStyle(Hud.Ink.ink2))")
+                .hud(.body, Hud.Ink.ink1)
+                .lineLimit(Self.maxLines)
+                .truncationMode(.head)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .bottomLeading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.leading, 10).padding(.trailing, 10).padding(.vertical, 9)
+        .frame(minHeight: Hud.Notch.stripHeight)
+        .background(RoundedRectangle(cornerRadius: Hud.Notch.stripRadius, style: .continuous).fill(Hud.Ink.field))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
+    }
+
+    /// The last words that fit in three lines: whole words, so the head never starts mid-word.
+    static func tail(_ text: String, limit: Int = oneLineCharacters * maxLines) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > limit else { return trimmed }
+        let suffix = trimmed.suffix(limit)
+        guard let space = suffix.firstIndex(of: " ") else { return "…" + suffix }
+        return "…" + suffix[suffix.index(after: space)...]
     }
 }
 
