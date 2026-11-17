@@ -49,8 +49,10 @@ struct LegacyIdentityMigration {
     }
 
     func run() {
-        guard !defaults.bool(forKey: Self.completedKey) else { return }
+        // The folder move is safe to repeat: an early build could create an empty Crenel
+        // folder before this migration existed, which made the first run skip the move.
         moveStorageFolder()
+        guard !defaults.bool(forKey: Self.completedKey) else { return }
         copyDefaults()
         moveKeychainItems()
         removeLegacyNativeHostManifest()
@@ -60,9 +62,24 @@ struct LegacyIdentityMigration {
     func moveStorageFolder() {
         let legacy = applicationSupport.appending(path: Self.legacyFolderName, directoryHint: .isDirectory)
         let current = applicationSupport.appending(path: "Crenel", directoryHint: .isDirectory)
-        guard fileManager.fileExists(atPath: legacy.path),
-              !fileManager.fileExists(atPath: current.path) else { return }
+        guard fileManager.fileExists(atPath: legacy.path) else { return }
+        if fileManager.fileExists(atPath: current.path) {
+            // Only empty folders: nothing under the new name to keep.
+            guard !containsFiles(current) else { return }
+            guard (try? fileManager.removeItem(at: current)) != nil else { return }
+        }
         try? fileManager.moveItem(at: legacy, to: current)
+    }
+
+    private func containsFiles(_ folder: URL) -> Bool {
+        guard let items = fileManager.enumerator(at: folder, includingPropertiesForKeys: [.isDirectoryKey]) else {
+            return true
+        }
+        for case let url as URL in items {
+            let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            if !isDirectory { return true }
+        }
+        return false
     }
 
     func copyDefaults() {

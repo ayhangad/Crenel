@@ -55,7 +55,9 @@ final class LegacyIdentityMigrationTests: XCTestCase {
     func testNeverOverwritesExistingCrenelFolderAndRunsOnce() throws {
         let support = root.appending(path: "Support", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: support.appending(path: "MeetingNotch"), withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: support.appending(path: "Crenel"), withIntermediateDirectories: true)
+        let kept = support.appending(path: "Crenel/Tasks/tasks.json")
+        try FileManager.default.createDirectory(at: kept.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("[]".utf8).write(to: kept)
         let keychain = RecordingKeychainMigrator()
         let migration = LegacyIdentityMigration(
             applicationSupport: support,
@@ -71,6 +73,30 @@ final class LegacyIdentityMigrationTests: XCTestCase {
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: support.appending(path: "MeetingNotch").path))
         XCTAssertEqual(keychain.moves.count, firstRunMoves)
+    }
+
+    /// An early build could leave an empty Crenel folder before the migration existed;
+    /// the data still moves, even after the migration was marked done.
+    func testReplacesEmptyCrenelFolderEvenAfterCompletion() throws {
+        let support = root.appending(path: "Support", directoryHint: .isDirectory)
+        let legacyMeeting = support.appending(path: "MeetingNotch/Meetings/a.json")
+        try FileManager.default.createDirectory(at: legacyMeeting.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: legacyMeeting)
+        for name in ["Meetings", "Tasks", "Recovery"] {
+            try FileManager.default.createDirectory(at: support.appending(path: "Crenel/\(name)"), withIntermediateDirectories: true)
+        }
+        defaults.set(true, forKey: LegacyIdentityMigration.completedKey)
+
+        LegacyIdentityMigration(
+            applicationSupport: support,
+            homeDirectory: root,
+            defaults: defaults,
+            legacyDefaults: { nil },
+            keychain: RecordingKeychainMigrator()
+        ).run()
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: support.appending(path: "Crenel/Meetings/a.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: support.appending(path: "MeetingNotch").path))
     }
 }
 
