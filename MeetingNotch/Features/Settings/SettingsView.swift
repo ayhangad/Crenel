@@ -1,8 +1,10 @@
 import SwiftUI
 
+/// Settings, hosted to the right of the app sidebar (`tpl-desktop`, `s-*`): its own
+/// title and search row, a second rail with a lamp per section, and the page.
 struct SettingsView: View {
-    @EnvironmentObject private var appState: AppState
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject var appState: AppState
+    @Environment(\.accessibilityReduceMotion) var reduceMotion
 
     let onRequestMicrophoneAccess: () -> Void
     let onRequestSystemAudioAccess: () -> Void
@@ -28,38 +30,55 @@ struct SettingsView: View {
         String?
     ) async -> TranscriptionSettingsSaveResult
     let onDeleteTranscriptionAPIKey: () async -> SettingsActionResult
+    /// Where the data lives and how much of it there is; nil measures the real folder.
+    let onLoadDataFolder: (() async -> SettingsDataFolder?)?
 
     var notificationService: MeetingNotificationService?
     var openAISettings = OpenAISettingsActions()
     var crenelSettings = CrenelSettingsActions()
 
-    @State private var reminderLeadTime: TimeInterval = 10 * 60
-    @State private var isCalendarEnabled = true
-    @State private var selectedCalendarIDs: [String]?
-    @State private var launchAtLogin = false
-    @State private var retentionDays: Int?
-    @State private var isLoadingGeneralSettings = true
-    @State private var isSavingGeneralSettings = false
-    @State private var generalSettingsMessage: String?
-    @State private var generalSettingsFailed = false
-    @State private var isDeletingAllData = false
-    @State private var showsDeleteAllDataConfirmation = false
+    @StateObject var crenel = CrenelSettingsModel()
 
-    @State private var availableMicrophones: [MicrophoneDevice] = []
-    @State private var selectedMicrophoneID: String?
-    @State private var isLoadingMicrophones = true
-    @State private var isSavingMicrophone = false
-    @State private var microphoneSettingsMessage: String?
-    @State private var microphoneSettingsFailed = false
+    @State var category = SettingsCategory.general
+    @State var query = ""
+    @State var hoveredResult: AnyHashable?
+    @Namespace var resultSpace
 
-    @State private var languageCode: String?
-    @State private var apiKey = ""
-    @FocusState private var apiKeyFocused: Bool
-    @State private var hasStoredAPIKey = false
-    @State private var isLoadingTranscriptionSettings = true
-    @State private var isSavingTranscriptionSettings = false
-    @State private var transcriptionSettingsMessage: String?
-    @State private var transcriptionSettingsFailed = false
+    // General and Calendar share one stored document.
+    @State var savedGeneral = GeneralSettingsSnapshot.default
+    @State var reminderLeadTime: TimeInterval = 10 * 60
+    @State var isCalendarEnabled = true
+    @State var selectedCalendarIDs: [String]?
+    @State var launchAtLogin = false
+    @State var retentionDays: Int?
+    @State var isLoadingGeneralSettings = true
+    @State var isSavingGeneralSettings = false
+    @State var generalMessage: String?
+    @State var generalFailed = false
+    @State var calendarMessage: String?
+
+    @State var isDeletingAllData = false
+    @State var showsDeleteAllDataConfirmation = false
+    @State var dataMessage: String?
+    @State var dataFailed = false
+    @State var dataFolder: SettingsDataFolder?
+
+    @State var availableMicrophones: [MicrophoneDevice] = []
+    @State var selectedMicrophoneID: String?
+    @State var isLoadingMicrophones = true
+    @State var isSavingMicrophone = false
+    @State var microphoneSettingsMessage: String?
+    @State var microphoneSettingsFailed = false
+    @State var showsPrivacyDetails = false
+
+    @State var languageCode: String?
+    @State var apiKey = ""
+    @FocusState var apiKeyFocused: Bool
+    @State var hasStoredAPIKey = false
+    @State var isLoadingTranscriptionSettings = true
+    @State var isSavingTranscriptionSettings = false
+    @State var transcriptionSettingsMessage: String?
+    @State var transcriptionSettingsFailed = false
 
     init(
         onRequestMicrophoneAccess: @escaping () -> Void = {},
@@ -102,9 +121,12 @@ struct SettingsView: View {
         openAISettings: OpenAISettingsActions = OpenAISettingsActions(),
         crenelSettings: CrenelSettingsActions = CrenelSettingsActions(),
         notificationService: MeetingNotificationService? = nil,
-        initialCategory: SettingsCategory = .general
+        initialCategory: SettingsCategory = .general,
+        onLoadDataFolder: (() async -> SettingsDataFolder?)? = nil,
+        initialQuery: String = ""
     ) {
         _category = State(initialValue: initialCategory)
+        _query = State(initialValue: initialQuery)
         self.notificationService = notificationService
         self.openAISettings = openAISettings
         self.crenelSettings = crenelSettings
@@ -129,49 +151,45 @@ struct SettingsView: View {
         self.onLoadTranscriptionSettings = onLoadTranscriptionSettings
         self.onSaveTranscriptionSettings = onSaveTranscriptionSettings
         self.onDeleteTranscriptionAPIKey = onDeleteTranscriptionAPIKey
+        self.onLoadDataFolder = onLoadDataFolder
     }
 
-    @State private var category = SettingsCategory.general
-    @State private var showsPrivacyDetails = false
-    @State private var showsCalendarDetails = false
+    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Hud.Space.x6) {
-            Text("Settings")
-                .font(Hud.font(22, .semibold))
-                .foregroundStyle(Hud.Ink.text1)
-                .padding(.horizontal, Hud.Size.rowInset)
-            SettingsCategoryTabs(selection: $category)
-            ScrollView {
-                VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
-                    switch category {
-                    case .general: generalContent
-                    case .dictation: DictationSettingsView(actions: crenelSettings)
-                    case .tasks: TaskStorageSettingsView(actions: crenelSettings)
-                    case .ai: aiContent
-                    case .calendar: calendarContent
-                    case .recording: recordingContent
-                    case .data: dataContent
+        VStack(spacing: 0) {
+            toolbar
+            HStack(alignment: .top, spacing: 0) {
+                SettingsRail(status: railStatus, selection: Binding(
+                    get: { category },
+                    set: { category = $0; query = "" }
+                ))
+                .frame(width: Hud.Window.settingsRailWidth)
+
+                ScrollView {
+                    Group {
+                        if trimmedQuery.isEmpty {
+                            SettingsPage { page }
+                                .id(category)
+                        } else {
+                            searchResults
+                        }
                     }
+                    .frame(maxWidth: SettingsLayout.contentWidth, alignment: .leading)
+                    .padding(.leading, 20)
+                    .padding(.trailing, 32)
+                    .padding(.bottom, 32)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, Hud.Space.x6)
-                .id(category)
-                .transition(.opacity)
+                .scrollIndicators(.hidden)
             }
-            .animation(reduceMotion ? nil : Hud.Motion.change, value: category)
-            .scrollIndicators(.hidden)
         }
-        .padding(.horizontal, Hud.Space.x6)
-        .padding(.top, Hud.Space.x7)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(white: 0.06))
-        .foregroundStyle(Hud.Ink.text1)
+        .background(Hud.Layer.window)
+        .hudSurface(Hud.Layer.window)
+        .foregroundStyle(Hud.Ink.ink1)
         .font(Hud.Style.body.font)
-        .tint(Hud.Ink.text2)
-        .buttonStyle(HudButtonStyle(kind: .ghost))
-        .toggleStyle(.switch)
-        .controlSize(.small)
+        .tint(Hud.Ink.ink2)
         .environment(\.colorScheme, .dark)
         .preferredColorScheme(.dark)
         .onAppear {
@@ -183,6 +201,8 @@ struct SettingsView: View {
                 apply(await general)
                 apply(await microphone)
                 apply(await transcription)
+                await crenel.load(crenelSettings)
+                await loadDataFolder()
             }
         }
         .onChange(of: appState.availableMicrophones) { _, devices in
@@ -201,290 +221,127 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: Pages
+    // MARK: Chrome
 
-    @ViewBuilder private var generalContent: some View {
-        SettingsGroup("General") {
-            SettingsRow(glyph: .sun, title: "Launch at login") {
-                Toggle("Launch at login", isOn: $launchAtLogin).settingsSwitch()
+    private var toolbar: some View {
+        HStack(spacing: 8) {
+            Text("Settings").hud(.hero).accessibilityAddTraits(.isHeader)
+            Spacer(minLength: 8)
+            HudSearchField(text: $query, prompt: "Search settings")
+                .frame(width: 220)
+                .accessibilityLabel("Search settings")
+        }
+        .padding(.leading, 24)
+        .padding(.trailing, 16)
+        .frame(height: Hud.Window.toolbarHeight)
+    }
+
+    @ViewBuilder private var page: some View {
+        switch category {
+        case .general: generalPage
+        case .dictation: DictationSettingsView(actions: crenelSettings, model: crenel)
+        case .tasks: TaskStorageSettingsView(actions: crenelSettings, model: crenel)
+        case .ai:
+            AgentSettingsView(actions: crenelSettings, openAI: openAISettings, model: crenel) {
+                elevenLabsGroup
             }
-            SettingsRow(glyph: .archive, title: "Keep meetings") {
-                Picker("Keep meetings", selection: $retentionDays) {
-                    Text("Forever").tag(nil as Int?)
-                    Text("7 days").tag(7 as Int?)
-                    Text("30 days").tag(30 as Int?)
-                    Text("90 days").tag(90 as Int?)
-                }.settingsMenu()
-            }
-            saveRow(message: generalSettingsMessage, isFailure: generalSettingsFailed,
-                    buttonTitle: "Save changes", isBusy: isSavingGeneralSettings,
-                    isDisabled: isLoadingGeneralSettings, action: saveGeneralSettings)
+        case .calendar: calendarPage
+        case .recording: recordingPage
+        case .data: dataPage
         }
     }
 
-    @ViewBuilder private var aiContent: some View {
-        AgentSettingsView(actions: crenelSettings)
-        OpenAISettingsView(actions: openAISettings)
-
-        SettingsGroup("ElevenLabs") {
-            SettingsRow(glyph: .waveform, title: "ElevenLabs") {
-                if hasStoredAPIKey {
-                    Text("Connected").hud(.label, Hud.Ink.ok)
-                } else {
-                    Link("Get a key", destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!)
-                        .buttonStyle(HudButtonStyle(kind: .ghost))
-                        .accessibilityLabel("Create an API key on ElevenLabs")
-                }
+    /// The real state of each section, for the lamp at the end of its rail item.
+    private func railStatus(_ item: SettingsCategory) -> SettingsRailStatus {
+        switch item {
+        case .general, .data:
+            return .none
+        case .dictation:
+            switch appState.dictationAvailability {
+            case .ready: return .ready
+            case .needsInputMonitoring: return .accessOff(blocking: false)
+            case .disabled: return .idle
             }
-            SettingsRow(title: "Transcript language") {
-                Picker("Transcript language", selection: $languageCode) {
-                    Text("Automatic").tag(nil as String?)
-                    Text("Turkish").tag("tr" as String?)
-                    Text("English").tag("en" as String?)
-                }.settingsMenu()
+        case .tasks:
+            switch appState.taskStorageStatus {
+            case .reminders: return .ready
+            case .localNotConnected, .localByChoice: return .idle
+            case .localDenied: return .accessOff(blocking: false)
+            case .localAfterError: return .failed
             }
-            SettingsFieldRow {
-                SecureField(
-                    hasStoredAPIKey ? "Type to replace the saved key" : "ElevenLabs API key",
-                    text: $apiKey
-                )
-                .textContentType(.password)
-                .focused($apiKeyFocused)
-                .settingsField(focused: apiKeyFocused)
-                .accessibilityLabel("ElevenLabs API key")
-                if isSavingTranscriptionSettings {
-                    ProgressView().controlSize(.small).accessibilityLabel("Working")
-                }
-                Button("Verify and save", action: saveTranscriptionSettings)
-                    .buttonStyle(HudButtonStyle(kind: .primary))
-                    .disabled(isLoadingTranscriptionSettings || isSavingTranscriptionSettings
-                        || (apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                            && !hasStoredAPIKey))
-                if hasStoredAPIKey {
-                    Button(action: deleteTranscriptionAPIKey) {
-                        Text("Remove").foregroundStyle(Hud.Ink.live)
-                    }
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-                    .disabled(isSavingTranscriptionSettings)
-                    .accessibilityLabel("Remove connection")
-                }
+        case .ai:
+            return crenel.preferences.agent.provider == .off ? .idle : .ready
+        case .calendar:
+            guard isCalendarEnabled else { return .idle }
+            switch appState.calendarAccessState {
+            case .authorized: return .ready
+            case .notDetermined, .requesting: return .idle
+            case .denied, .restricted: return .accessOff(blocking: false)
+            case .failed: return .failed
             }
-            if let transcriptionSettingsMessage {
-                SettingsNote(transcriptionSettingsMessage,
-                             color: transcriptionSettingsFailed ? Hud.Ink.live : Hud.Ink.text3)
+        case .recording:
+            let permissions = appState.audioCapturePermissions
+            if permissions.microphone != .authorized || permissions.systemAudio != .authorized {
+                return .accessOff(blocking: true)
             }
+            return appState.accessibilityPermissionGranted ? .ready : .accessOff(blocking: false)
         }
     }
 
-    @ViewBuilder private var calendarContent: some View {
-        calendarSettingsSection
-        if let notificationService {
-            MeetingNotificationSettingsView(service: notificationService)
+    // MARK: Search
+
+    /// Rows whose title matches, across every section; choosing one opens its page.
+    private var searchResults: some View {
+        let matches = SettingsCategory.allCases.flatMap { item in
+            item.searchTitles
+                .filter { $0.localizedCaseInsensitiveContains(trimmedQuery) }
+                .map { (category: item, title: $0) }
         }
-        if let calendars = appState.calendarIntegrationSnapshot?.calendars, !calendars.isEmpty {
-            SettingsGroup("Watched calendars") {
-                SettingsRow(glyph: .calendar, title: "All calendars") {
-                    Toggle("All calendars", isOn: Binding(
-                        get: { selectedCalendarIDs == nil },
-                        set: { selectedCalendarIDs = $0 ? nil : calendars.map(\.id) }
-                    )).settingsSwitch()
+        return VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
+            if matches.isEmpty {
+                HStack(spacing: 12) {
+                    HudIcon(.search, size: 16).foregroundStyle(Hud.Ink.ink3)
+                    Text("No setting matches “\(trimmedQuery)”").hud(.body, Hud.Ink.ink2)
                 }
-                if selectedCalendarIDs != nil {
-                    ForEach(calendars) { calendar in
-                        SettingsRow(title: calendar.title) {
-                            Toggle(calendar.title, isOn: Binding(
-                                get: { selectedCalendarIDs?.contains(calendar.id) ?? true },
-                                set: { selected in
-                                    var ids = Set(selectedCalendarIDs ?? [])
-                                    if selected { ids.insert(calendar.id) } else { ids.remove(calendar.id) }
-                                    selectedCalendarIDs = ids.sorted()
+                .padding(.horizontal, SettingsLayout.rowInset)
+                .frame(height: Hud.Row.oneLine)
+                .padding(.top, 4)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    HudGroupHeader(title: "Results", count: matches.count)
+                    ForEach(matches, id: \.title) { match in
+                        Button {
+                            category = match.category
+                            query = ""
+                        } label: {
+                            HStack(spacing: 12) {
+                                HudIcon(match.category.hudGlyph, size: 16).foregroundStyle(Hud.Ink.ink3)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(verbatim: match.title).hud(.body)
+                                    Text(match.category.title).hud(.meta)
                                 }
-                            )).settingsSwitch()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                HudIcon(.chevronRight, size: 12).foregroundStyle(Hud.Ink.ink4)
+                            }
+                            .lineLimit(1)
+                            .padding(.horizontal, SettingsLayout.rowInset)
+                            .frame(height: SettingsLayout.rowHeight)
+                            .hudGlide(AnyHashable(match.title), hovered: $hoveredResult, in: resultSpace)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
-                HStack {
-                    Spacer()
-                    Button("Save selection", action: saveGeneralSettings)
-                        .buttonStyle(HudButtonStyle(kind: .primary))
-                        .disabled(isSavingGeneralSettings)
-                        .accessibilityLabel("Save calendar selection")
-                }
-                .padding(.horizontal, Hud.Size.rowInset)
-                .padding(.top, Hud.Space.x2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .hudGroupCard()
+                .padding(.top, 4)
             }
         }
     }
 
-    @ViewBuilder private var recordingContent: some View {
-        SettingsGroup("Source") {
-            SettingsRow(glyph: .mic, title: "Recording mic",
-                        detail: availableMicrophones.isEmpty && !isLoadingMicrophones
-                            ? Text("No mic connected") : nil) {
-                HStack(spacing: Hud.Space.x2) {
-                    Picker("Recording mic", selection: $selectedMicrophoneID) {
-                        Text("System default").tag(nil as String?)
-                        ForEach(availableMicrophones) { microphone in
-                            Text(microphone.isSystemDefault ? "\(microphone.name) — default" : microphone.name)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                                .help(microphone.name)
-                                .tag(microphone.id as String?)
-                        }
-                        if let selectedMicrophoneID,
-                           !availableMicrophones.contains(where: { $0.id == selectedMicrophoneID }) {
-                            Text("Selected mic not connected")
-                                .tag(selectedMicrophoneID as String?)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .frame(maxWidth: 220)
-                    .disabled(isLoadingMicrophones || availableMicrophones.isEmpty)
+    // MARK: Loading
 
-                    Button("Save", action: saveMicrophoneSelection)
-                        .buttonStyle(HudButtonStyle(kind: .ghost))
-                        .disabled(isLoadingMicrophones || isSavingMicrophone || availableMicrophones.isEmpty)
-                }
-            }
-            if let microphoneSettingsMessage {
-                SettingsNote(microphoneSettingsMessage,
-                             color: microphoneSettingsFailed ? Hud.Ink.signal : Hud.Ink.text3)
-            }
-        }
-
-        SettingsGroup("Permissions") {
-            PermissionRow(
-                source: .microphone,
-                title: "Microphone",
-                detail: "Your voice",
-                status: appState.audioCapturePermissions.microphone,
-                onRequestAccess: onRequestMicrophoneAccess,
-                onOpenSystemSettings: onOpenSystemSettings
-            )
-            PermissionRow(
-                source: .systemAudio,
-                title: "System audio",
-                detail: "Other people in the call",
-                status: appState.audioCapturePermissions.systemAudio,
-                onRequestAccess: onRequestSystemAudioAccess,
-                onOpenSystemSettings: onOpenSystemSettings,
-                onRelaunchApplication: onRelaunchApplication
-            )
-            AccessibilityPermissionRow(
-                isGranted: appState.accessibilityPermissionGranted,
-                onRequestAccess: onRequestAccessibilityAccess,
-                onOpenSystemSettings: onOpenAccessibilitySettings
-            )
-        }
-
-        SettingsGroup("Privacy guard") {
-            SettingsRow(glyph: .shield, title: "Meet tab connection") {
-                Text(browserAudioStatusText).hud(.label, browserAudioStatusColor)
-            }
-            ExpandRow(title: "Details", isExpanded: $showsPrivacyDetails)
-                .accessibilityLabel("Advanced recording details")
-            if showsPrivacyDetails {
-                Group {
-                    settingValue("Meeting mic", "Starts muted")
-                    settingValue("Unknown mute state", "Not recorded")
-                    settingValue("Manual control", "Notch or ⌥⌘M")
-                    settingValue("Google Meet", "Connected call tab only")
-                }
-                .transition(.opacity)
-            }
-        }
-        .animation(reduceMotion ? nil : Hud.Motion.change, value: showsPrivacyDetails)
-    }
-
-    @ViewBuilder private var dataContent: some View {
-        SettingsGroup("Data") {
-            SettingsRow(glyph: .archive, title: "Data folder") {
-                Button("Open", action: onOpenDataDirectory)
-                    .accessibilityLabel("Open data folder")
-            }
-            SettingsRow(glyph: .window, title: "Setup guide") {
-                Button("Open", action: resetOnboarding)
-                    .accessibilityLabel("Open setup guide")
-            }
-            SettingsRow(glyph: .trash, title: "Delete all data",
-                        detail: appState.requiresTerminationConfirmation
-                            ? Text("Not while recording or processing") : nil) {
-                Button(role: .destructive) {
-                    showsDeleteAllDataConfirmation = true
-                } label: {
-                    Text("Delete…").foregroundStyle(Hud.Ink.live)
-                }
-                .disabled(appState.requiresTerminationConfirmation || isDeletingAllData)
-                .accessibilityLabel("Delete all data…")
-            }
-            if let generalSettingsMessage {
-                SettingsNote(generalSettingsMessage, color: generalSettingsFailed ? Hud.Ink.live : Hud.Ink.text3)
-            }
-        }
-        SettingsGroup("About") {
-            settingValue(
-                "Version",
-                "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—")"
-            )
-        }
-    }
-
-    // MARK: Pieces
-
-    private var browserAudioStatusText: LocalizedStringKey {
-        switch appState.browserAudioConnectionStatus {
-        case .unavailable: "Unavailable"
-        case .waitingForMeetTab: "Waiting for Meet tab"
-        case .tabConnected: "Connected"
-        case .recording: "Recording"
-        }
-    }
-
-    private var browserAudioStatusColor: Color {
-        switch appState.browserAudioConnectionStatus {
-        case .unavailable: Hud.Ink.live
-        case .waitingForMeetTab: Hud.Ink.text3
-        case .tabConnected: Hud.Ink.ok
-        case .recording: Hud.Ink.live
-        }
-    }
-
-    private func settingValue(_ title: LocalizedStringKey, _ value: LocalizedStringKey) -> some View {
-        SettingsRow(title: title) {
-            Text(value).hud(.label, Hud.Ink.text2).multilineTextAlignment(.trailing)
-        }
-    }
-
-    @ViewBuilder
-    private func saveRow(
-        message: String?,
-        isFailure: Bool,
-        buttonTitle: LocalizedStringKey,
-        isBusy: Bool,
-        isDisabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        HStack(spacing: Hud.Space.x2) {
-            if let message {
-                Text(message)
-                    .hud(.meta, isFailure ? Hud.Ink.live : Hud.Ink.text3)
-                    .lineLimit(2)
-            }
-            Spacer(minLength: 0)
-            if isBusy {
-                ProgressView().controlSize(.small).accessibilityLabel("Working")
-            }
-            Button(buttonTitle, action: action)
-                .buttonStyle(HudButtonStyle(kind: .primary))
-                .disabled(isDisabled || isBusy)
-        }
-        .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3)
-        .padding(.trailing, Hud.Size.rowInset)
-        .padding(.top, Hud.Space.x2)
-    }
-
-    private func apply(_ snapshot: GeneralSettingsSnapshot) {
+    func apply(_ snapshot: GeneralSettingsSnapshot) {
+        savedGeneral = snapshot
         reminderLeadTime = snapshot.reminderLeadTime
         isCalendarEnabled = snapshot.isCalendarEnabled
         selectedCalendarIDs = snapshot.selectedCalendarIDs
@@ -493,13 +350,13 @@ struct SettingsView: View {
         isLoadingGeneralSettings = false
     }
 
-    private func apply(_ snapshot: TranscriptionSettingsSnapshot) {
+    func apply(_ snapshot: TranscriptionSettingsSnapshot) {
         languageCode = snapshot.languageCode
         hasStoredAPIKey = snapshot.hasStoredAPIKey
         isLoadingTranscriptionSettings = false
     }
 
-    private func apply(_ snapshot: MicrophoneSettingsSnapshot) {
+    func apply(_ snapshot: MicrophoneSettingsSnapshot) {
         availableMicrophones = snapshot.devices
         selectedMicrophoneID = snapshot.selectedDeviceID
         isLoadingMicrophones = false
@@ -509,9 +366,20 @@ struct SettingsView: View {
         }
     }
 
-    private func saveGeneralSettings() {
+    func loadDataFolder() async {
+        if let onLoadDataFolder {
+            dataFolder = await onLoadDataFolder()
+        } else {
+            dataFolder = await SettingsDataFolder.measure()
+        }
+    }
+
+    // MARK: Saving
+
+    /// General › Save: what the page shows, with the calendar values already stored.
+    func saveGeneralSettings() {
         isSavingGeneralSettings = true
-        generalSettingsMessage = nil
+        generalMessage = nil
         let policy = retentionDays.flatMap(MeetingRetentionPolicy.init(deletingAfterDays:))
             ?? .keepForever
         let snapshot = GeneralSettingsSnapshot(
@@ -523,12 +391,40 @@ struct SettingsView: View {
         )
 
         Task {
-            handleGeneralResult(await onSaveGeneralSettings(snapshot))
+            switch await onSaveGeneralSettings(snapshot) {
+            case .succeeded(let message):
+                savedGeneral = snapshot
+                generalMessage = message ?? "Saved"
+                generalFailed = false
+            case .failed(let message):
+                generalMessage = message
+                generalFailed = true
+            }
             isSavingGeneralSettings = false
         }
     }
 
-    private func saveMicrophoneSelection() {
+    /// Calendar switches save as they change. They leave unsaved General edits alone.
+    func saveCalendarSettings() {
+        let snapshot = GeneralSettingsSnapshot(
+            reminderLeadTime: reminderLeadTime,
+            isCalendarEnabled: isCalendarEnabled,
+            launchAtLogin: savedGeneral.launchAtLogin,
+            meetingRetentionPolicy: savedGeneral.meetingRetentionPolicy,
+            selectedCalendarIDs: selectedCalendarIDs
+        )
+        Task {
+            switch await onSaveGeneralSettings(snapshot) {
+            case .succeeded:
+                savedGeneral = snapshot
+                calendarMessage = nil
+            case .failed(let message):
+                calendarMessage = message
+            }
+        }
+    }
+
+    func saveMicrophoneSelection() {
         isSavingMicrophone = true
         microphoneSettingsMessage = nil
         Task {
@@ -545,7 +441,7 @@ struct SettingsView: View {
         }
     }
 
-    private func saveTranscriptionSettings() {
+    func saveTranscriptionSettings() {
         isSavingTranscriptionSettings = true
         transcriptionSettingsMessage = nil
         let newAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -570,7 +466,7 @@ struct SettingsView: View {
         }
     }
 
-    private func deleteTranscriptionAPIKey() {
+    func deleteTranscriptionAPIKey() {
         isSavingTranscriptionSettings = true
         transcriptionSettingsMessage = nil
         Task {
@@ -588,318 +484,37 @@ struct SettingsView: View {
         }
     }
 
-    private func resetOnboarding() {
-        Task { handleGeneralResult(await onResetOnboarding()) }
+    func resetOnboarding() {
+        Task { handleDataResult(await onResetOnboarding(), fallback: nil) }
     }
 
-    private func deleteAllData() {
+    func deleteAllData() {
         isDeletingAllData = true
-        generalSettingsMessage = nil
+        dataMessage = nil
         Task {
-            handleGeneralResult(await onDeleteAllData())
+            handleDataResult(await onDeleteAllData(), fallback: "Saved")
             isDeletingAllData = false
             apply(await onLoadGeneralSettings())
             apply(await onLoadMicrophoneSettings())
             apply(await onLoadTranscriptionSettings())
+            await crenel.load(crenelSettings)
+            await loadDataFolder()
         }
     }
 
-    private func handleGeneralResult(_ result: SettingsActionResult) {
+    private func handleDataResult(_ result: SettingsActionResult, fallback: String?) {
         switch result {
         case .succeeded(let message):
-            generalSettingsMessage = message ?? "Saved"
-            generalSettingsFailed = false
+            dataMessage = message ?? fallback
+            dataFailed = false
         case .failed(let message):
-            generalSettingsMessage = message
-            generalSettingsFailed = true
-        }
-    }
-
-    private var calendarSettingsSection: some View {
-        SettingsGroup("Calendar") {
-            SettingsRow(glyph: .calendar, title: "Show calendar meetings") {
-                Toggle("Show calendar meetings", isOn: $isCalendarEnabled).settingsSwitch()
-            }
-            SettingsRow(glyph: .bell, title: "Meeting reminder") {
-                Picker("Meeting reminder", selection: $reminderLeadTime) {
-                    Text("5 min and 1 min before").tag(TimeInterval(5 * 60))
-                    Text("10 min and 1 min before").tag(TimeInterval(10 * 60))
-                    Text("15 min and 1 min before").tag(TimeInterval(15 * 60))
-                }
-                .settingsMenu()
-                .disabled(!isCalendarEnabled)
-            }
-            SettingsRow(glyph: .people, title: "Connection") {
-                HStack(spacing: Hud.Space.x2) {
-                    Text(calendarStatusTitle).hud(.label, calendarStatusColor)
-                    calendarPrimaryAction
-                }
-            }
-            SettingsRow(title: "Accounts") {
-                Button("Open", action: onOpenInternetAccounts)
-                    .disabled(!isCalendarEnabled)
-                    .accessibilityLabel("Open accounts")
-            }
-
-            if let snapshot = appState.calendarIntegrationSnapshot,
-               appState.calendarAccessState == .authorized {
-                ExpandRow(title: "Details", isExpanded: $showsCalendarDetails)
-                    .accessibilityLabel("Connection details")
-                if showsCalendarDetails {
-                    CalendarIntegrationDetails(snapshot: snapshot)
-                        .transition(.opacity)
-                }
-            }
-
-            saveRow(
-                message: generalSettingsMessage,
-                isFailure: generalSettingsFailed,
-                buttonTitle: "Save",
-                isBusy: isSavingGeneralSettings,
-                isDisabled: isLoadingGeneralSettings,
-                action: saveGeneralSettings
-            )
-            .accessibilityLabel("Save calendar settings")
-        }
-        .animation(reduceMotion ? nil : Hud.Motion.change, value: showsCalendarDetails)
-    }
-
-    private var calendarStatusTitle: LocalizedStringKey {
-        guard isCalendarEnabled else { return "Off" }
-        if appState.isCalendarRefreshing { return "Refreshing" }
-        return switch appState.calendarAccessState {
-        case .authorized: "Connected"
-        case .requesting: "Waiting for permission"
-        case .denied, .restricted: "Permission denied"
-        case .failed: "Connection error"
-        case .notDetermined: "Not connected"
-        }
-    }
-
-    private var calendarStatusColor: Color {
-        guard isCalendarEnabled else { return Hud.Ink.text3 }
-        return switch appState.calendarAccessState {
-        case .authorized: Hud.Ink.ok
-        case .requesting, .notDetermined: Hud.Ink.text3
-        case .denied, .restricted: Hud.Ink.signal
-        case .failed: Hud.Ink.live
-        }
-    }
-
-    @ViewBuilder
-    private var calendarPrimaryAction: some View {
-        switch appState.calendarAccessState {
-        case .authorized:
-            Button("Refresh") { onRefreshCalendar() }
-                .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
-                .accessibilityLabel("Refresh now")
-        case .denied, .restricted:
-            Button("Open") { onOpenCalendarSettings() }
-                .disabled(!isCalendarEnabled)
-                .accessibilityLabel("Open calendar permission")
-        case .requesting:
-            EmptyView()
-        case .failed:
-            Button("Try again") { onRefreshCalendar() }
-                .disabled(!isCalendarEnabled || appState.isCalendarRefreshing)
-        case .notDetermined:
-            Button("Allow") { onRequestCalendarAccess() }
-                .disabled(!isCalendarEnabled)
-                .accessibilityLabel("Allow calendar access")
+            dataMessage = message
+            dataFailed = true
         }
     }
 }
 
-// MARK: - Category tabs
-
-/// Category switcher: icon and word per tab, a soft plate gliding to the selection.
-private struct SettingsCategoryTabs: View {
-    @Binding var selection: SettingsCategory
-    @Namespace private var namespace
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(SettingsCategory.allCases) { item in
-                let isSelected = item == selection
-                Button {
-                    withAnimation(Hud.Motion.glide) { selection = item }
-                } label: {
-                    HStack(spacing: 7) {
-                        CrenelIcon(item.glyph, size: Hud.Size.smallIcon)
-                        Text(item.title).font(Hud.Style.label.font)
-                    }
-                    .foregroundStyle(isSelected ? Hud.Ink.text1 : Hud.Ink.text3)
-                    .padding(.horizontal, Hud.Space.x3)
-                    .frame(height: 26)
-                    .background {
-                        if isSelected {
-                            Capsule().fill(Hud.Ink.selected)
-                                .matchedGeometryEffect(id: "settings.tab", in: namespace)
-                        }
-                    }
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(isSelected ? .isSelected : [])
-            }
-        }
-        .padding(2)
-        .background(Capsule().fill(Color(white: 1, opacity: 0.035)))
-        .fixedSize()
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Settings categories")
-    }
-}
-
-/// A quiet row that shows or hides secondary rows below it.
-private struct ExpandRow: View {
-    let title: LocalizedStringKey
-    @Binding var isExpanded: Bool
-    @State private var isHovering = false
-
-    var body: some View {
-        Button {
-            isExpanded.toggle()
-        } label: {
-            HStack(spacing: Hud.Space.x2) {
-                Text(title)
-                CrenelIcon(.chevronDown, size: 10)
-                    .rotationEffect(.degrees(isExpanded ? 180 : 0))
-            }
-            .hud(.meta, isHovering ? Hud.Ink.text2 : Hud.Ink.text3)
-            .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3)
-            .frame(height: 30)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in withAnimation(Hud.Motion.hover) { isHovering = hovering } }
-        .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
-    }
-}
-
-private struct CalendarIntegrationDetails: View {
-    let snapshot: CalendarIntegrationSnapshot
-
-    var body: some View {
-        detail("Account sources", Text(sourceDescription))
-        detail("Readable content", Text(readableContentDescription))
-        detail("Online meetings", Text(snapshot.matchedMeetingCount, format: .number),
-               color: snapshot.matchedMeetingCount == 0 ? Hud.Ink.text2 : Hud.Ink.ok)
-        detail("Last refresh", Text(snapshot.refreshedAt, style: .relative))
-
-        if !snapshot.hasGoogleAccount {
-            SettingsNote("Google Calendar missing · add it in Internet Accounts", color: Hud.Ink.signal)
-        }
-    }
-
-    private func detail(_ title: LocalizedStringKey, _ value: Text, color: Color = Hud.Ink.text2) -> some View {
-        SettingsRow(title: title) {
-            value.hud(.label, color).lineLimit(1).truncationMode(.middle)
-        }
-    }
-
-    private var sourceDescription: String {
-        let description = snapshot.sources
-            .map { "\($0.kind.title) (\($0.calendarCount))" }
-            .joined(separator: " · ")
-        return description.isEmpty ? "No calendar sources found" : description
-    }
-
-    private var readableContentDescription: String {
-        "\(snapshot.readableCalendarCount) calendars · \(snapshot.scannedEventCount) events"
-    }
-}
-
-private struct PermissionRow: View {
-    let source: AudioSourceKind
-    let title: LocalizedStringKey
-    let detail: LocalizedStringKey
-    let status: AudioCapturePermissionStatus
-    let onRequestAccess: () -> Void
-    let onOpenSystemSettings: (AudioSourceKind) -> Void
-    var onRelaunchApplication: () -> Void = {}
-
-    var body: some View {
-        SettingsRow(glyph: source == .microphone ? .mic : .speaker, title: title, detail: detailText) {
-            if status == .authorized {
-                Text("Allowed").hud(.label, Hud.Ink.ok)
-            } else {
-                HStack(spacing: Hud.Space.x1) {
-                    Button(actionTitle) {
-                        status.requiresSystemSettings ? onOpenSystemSettings(source) : onRequestAccess()
-                    }
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-                    if source == .systemAudio, status.requiresSystemSettings {
-                        Menu {
-                            Button("Ask again", action: onRequestAccess)
-                            Button("Relaunch app", action: onRelaunchApplication)
-                        } label: { CrenelIcon(.more, size: Hud.Size.smallIcon) }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        .foregroundStyle(Hud.Ink.text3)
-                        .frame(width: Hud.Size.control, height: Hud.Size.control)
-                        .accessibilityLabel("System audio options")
-                    }
-                }
-            }
-        }
-        .accessibilityValue(statusTitle)
-    }
-
-    private var detailText: Text {
-        switch status {
-        case .authorized: Text(detail)
-        default: Text(statusTitle).foregroundStyle(statusColor)
-        }
-    }
-
-    private var actionTitle: LocalizedStringKey {
-        status.requiresSystemSettings ? "Open" : "Allow"
-    }
-
-    private var statusTitle: LocalizedStringKey {
-        switch status {
-        case .authorized: "Allowed"
-        case .verificationRequired: "System audio permission needs checking"
-        case .notDetermined: "Waiting for permission"
-        case .denied: "Permission denied"
-        case .restricted: "Restricted by the system"
-        }
-    }
-
-    private var statusColor: Color {
-        switch status {
-        case .authorized: Hud.Ink.ok
-        case .verificationRequired, .notDetermined: Hud.Ink.signal
-        case .denied, .restricted: Hud.Ink.live
-        }
-    }
-}
-
-private struct AccessibilityPermissionRow: View {
-    let isGranted: Bool
-    let onRequestAccess: () -> Void
-    let onOpenSystemSettings: () -> Void
-
-    var body: some View {
-        SettingsRow(glyph: .accessibility, title: "Mic tracking",
-                    detail: isGranted ? Text("Reads the meeting’s mute state")
-                        : Text("Needs Accessibility").foregroundStyle(Hud.Ink.signal)) {
-            if isGranted {
-                Text("Allowed").hud(.label, Hud.Ink.ok)
-            } else {
-                HStack(spacing: Hud.Space.x1) {
-                    Button("Allow", action: onRequestAccess)
-                        .buttonStyle(HudButtonStyle(kind: .ghost))
-                    Button("Open", action: onOpenSystemSettings)
-                        .buttonStyle(HudButtonStyle(kind: .ghost))
-                        .help("Accessibility settings")
-                        .accessibilityLabel("Open Accessibility settings")
-                }
-            }
-        }
-    }
-}
+// MARK: - Sections
 
 enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
     case general, dictation, tasks, ai, calendar, recording, data
@@ -926,7 +541,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
         case .data: "externaldrive"
         }
     }
-    /// The Crenel icon for the category tab.
+    /// Legacy icon.
     var glyph: CrenelGlyph {
         switch self {
         case .general: .sliders
@@ -937,5 +552,71 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
         case .recording: .mic
         case .data: .archive
         }
+    }
+    /// The icon of the section in the rail and on its page header.
+    var hudGlyph: HudGlyph {
+        switch self {
+        case .general: .sun
+        case .dictation: .waveform
+        case .tasks: .queue
+        case .ai: .spark
+        case .calendar: .calendar
+        case .recording: .mic
+        case .data: .archive
+        }
+    }
+    /// Row titles of the section, for search.
+    var searchTitles: [String] {
+        switch self {
+        case .general: ["Open at login", "Keep meetings"]
+        case .dictation: ["Dictation", "Input Monitoring", "Shortcut", "Mode", "Double-tap for hands-free",
+                          "Language", "Speech model", "Words to know"]
+        case .tasks: ["Keep tasks in", "Reminders"]
+        case .ai: ["Who writes", "Clean up dictation", "Voice commands on selected text", "Anthropic",
+                   "Transcript", "Notes", "OpenAI", "ElevenLabs", "Transcript language"]
+        case .calendar: ["Show meetings in the notch", "Heads-up", "Connection", "Accounts",
+                         "Meeting notifications", "Calendars"]
+        case .recording: ["Microphone", "Level", "Microphone permission", "System audio", "Mute tracking",
+                          "Meet tab", "How your mic is handled"]
+        case .data: ["Data folder", "Setup", "Delete all data", "Version"]
+        }
+    }
+}
+
+// MARK: - Data folder
+
+/// The data folder as the Data page shows it.
+struct SettingsDataFolder: Equatable, Sendable {
+    /// Display path, home abbreviated to `~`.
+    var path: String
+    var bytes: Int64
+
+    /// The size as segment digits and a unit: "2.1" GB, "482" MB.
+    var readout: (digits: String, unit: String) {
+        let megabytes = Double(bytes) / 1_000_000
+        if megabytes >= 1000 {
+            return (String(format: "%.1f", megabytes / 1000), "GB")
+        }
+        return (String(Int(megabytes.rounded())), "MB")
+    }
+
+    /// Measures the real folder off the main thread. Tests get nothing: they must not
+    /// read the user's data.
+    static func measure() async -> SettingsDataFolder? {
+        guard !SettingsLayout.isTesting else { return nil }
+        return await Task.detached(priority: .utility) { measureNow() }.value
+    }
+
+    private static func measureNow() -> SettingsDataFolder? {
+        guard let root = try? AppStorageLayout.applicationSupport().root else { return nil }
+        var bytes: Int64 = 0
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .totalFileAllocatedSizeKey, .fileSizeKey]
+        if let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: Array(keys)) {
+            while let url = enumerator.nextObject() as? URL {
+                guard let values = try? url.resourceValues(forKeys: keys), values.isRegularFile == true else { continue }
+                bytes += Int64(values.totalFileAllocatedSize ?? values.fileSize ?? 0)
+            }
+        }
+        return SettingsDataFolder(path: (root.path as NSString).abbreviatingWithTildeInPath, bytes: bytes)
     }
 }

@@ -11,9 +11,10 @@ struct CrenelSettingsActions {
     var onDeviceModelStatus: () async -> String? = { nil }
 }
 
-/// Shared load/edit/save state for the Crenel settings sections.
+/// Shared load/edit/save state for the Dictation, Tasks and AI pages. Every change is
+/// saved as it is made.
 @MainActor
-private final class CrenelSettingsModel: ObservableObject {
+final class CrenelSettingsModel: ObservableObject {
     @Published var preferences = CrenelPreferences.default
     @Published var isLoaded = false
     @Published var message: String?
@@ -37,107 +38,109 @@ private final class CrenelSettingsModel: ObservableObject {
             }
         }
     }
+
+    func binding<Value>(_ keyPath: WritableKeyPath<CrenelPreferences, Value>, actions: CrenelSettingsActions) -> Binding<Value> {
+        Binding(
+            get: { self.preferences[keyPath: keyPath] },
+            set: { self.preferences[keyPath: keyPath] = $0; self.save(actions) }
+        )
+    }
 }
 
 // MARK: - Dictation
 
+/// Settings › Dictation (`s-dictation`, `s-dictation-perms`).
 struct DictationSettingsView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.crenelActions) private var crenelActions
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let actions: CrenelSettingsActions
-    @StateObject private var model = CrenelSettingsModel()
+    @ObservedObject var model: CrenelSettingsModel
     @State private var newTerm = ""
-    @FocusState private var termFocused: Bool
+    @State private var showsWords = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
-            SettingsGroup("Dictation") {
-                SettingsRow(glyph: .waveform, title: "Use dictation") {
-                    Toggle("Use dictation", isOn: binding(\.dictationEnabled)).settingsSwitch()
-                }
-                permissionRows
-                SettingsRow(glyph: .keyboard, title: "Shortcut",
-                            detail: model.preferences.dictationTrigger.trigger == .fnHold
-                                ? Text("Use ⌃Space to switch input languages") : nil) {
-                    Picker("Shortcut", selection: binding(\.dictationTrigger.trigger)) {
-                        Text("Hold Fn (🌐)").tag(DictationTrigger.fnHold)
-                        Text("Hold right ⌥").tag(DictationTrigger.rightOptionHold)
-                        Text("Hold right ⌘").tag(DictationTrigger.rightCommandHold)
-                    }.settingsMenu()
-                }
-                SettingsRow(title: "Mode") {
-                    Picker("Mode", selection: binding(\.dictationTrigger.mode)) {
-                        Text("Hold to talk").tag(DictationTriggerMode.holdToTalk)
-                        Text("Press to start, press to stop").tag(DictationTriggerMode.toggle)
-                    }.settingsMenu()
-                }
-                SettingsRow(title: "Double-tap for hands-free") {
-                    Toggle("Double-tap for hands-free", isOn: binding(\.dictationTrigger.allowsDoubleTapHandsFree))
-                        .settingsSwitch()
-                }
-                SettingsRow(title: "Language") {
-                    Picker("Language", selection: binding(\.dictationLanguage)) {
-                        Text("System language").tag(DictationLanguage.automatic)
-                        Text("Turkish").tag(DictationLanguage.turkish)
-                        Text("English").tag(DictationLanguage.english)
-                    }.settingsMenu()
-                }
-                SettingsRow(title: "Speech model", detail: Text("On-device")) {
-                    Button("Download", action: crenelActions.dictation.prepareSpeechAssets)
-                        .buttonStyle(HudButtonStyle(kind: .ghost))
-                        .accessibilityLabel("Download model")
-                }
+        SettingsPageHeader(glyph: .waveform, title: "Dictation", sentence: "The key you hold and how it listens.") {
+            switch appState.dictationAvailability {
+            case .ready: HudStatusWord(.ok, "Ready")
+            case .needsInputMonitoring: HudStatusWord(.off(), "Needs access")
+            case .disabled: HudStatusWord(.dim, "Off")
             }
+        }
 
-            SettingsGroup("Dictionary") {
-                HStack(spacing: Hud.Space.x2) {
-                    TextField("Crenel, SwiftUI, Ayhan", text: $newTerm)
-                        .focused($termFocused)
-                        .settingsField(focused: termFocused)
-                        .onSubmit(addTerm)
-                        .accessibilityLabel("New dictionary term")
-                    Button(action: addTerm) { HudIcon(.plus, size: Hud.Size.smallIcon) }
-                        .buttonStyle(HudButtonStyle(kind: .iconFilled))
-                        .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
-                        .accessibilityLabel("Add")
+        SettingsGroup("Dictation", index: 1) {
+            SettingsRow(glyph: .waveform, title: "Dictation",
+                        detail: Text("Hold a key anywhere to type with your voice")) {
+                SettingsToggle("Dictation", isOn: binding(\.dictationEnabled))
+            }
+            permissionRows
+            SettingsRow(glyph: .keyboard, title: "Shortcut",
+                        detail: model.preferences.dictationTrigger.trigger == .fnHold
+                            ? Text("⌃Space still switches input languages") : nil) {
+                HudSelect(selection: binding(\.dictationTrigger.trigger), options: [
+                    (DictationTrigger.fnHold, "Hold Fn (🌐)"),
+                    (DictationTrigger.rightOptionHold, "Hold right ⌥"),
+                    (DictationTrigger.rightCommandHold, "Hold right ⌘")
+                ])
+                .accessibilityLabel("Shortcut")
+            }
+            SettingsRow(title: "Mode") {
+                HudSelect(selection: binding(\.dictationTrigger.mode), options: [
+                    (DictationTriggerMode.holdToTalk, "Hold to talk"),
+                    (DictationTriggerMode.toggle, "Press to start, press to stop")
+                ])
+                .accessibilityLabel("Mode")
+            }
+            SettingsRow(title: "Double-tap for hands-free") {
+                SettingsToggle("Double-tap for hands-free", isOn: binding(\.dictationTrigger.allowsDoubleTapHandsFree))
+            }
+            SettingsRow(title: "Language") {
+                HudSelect(selection: binding(\.dictationLanguage), options: [
+                    (DictationLanguage.automatic, "System language"),
+                    (DictationLanguage.turkish, "Turkish"),
+                    (DictationLanguage.english, "English")
+                ])
+                .accessibilityLabel("Language")
+            }
+        }
+
+        SettingsGroup("Speech model", index: 2) {
+            SettingsRow(glyph: .shield, title: "On this Mac", detail: Text("Nothing you say leaves the Mac")) {
+                HudButton("Download", glyph: .chevronDown, size: .small, action: crenelActions.dictation.prepareSpeechAssets)
+                    .accessibilityLabel("Download model")
+            }
+            SettingsRow(title: "Words to know", detail: Text(verbatim: wordsDetail)) {
+                HudButton(showsWords ? "Done" : "Edit", trailingGlyph: showsWords ? nil : .chevronDown, size: .small) {
+                    showsWords.toggle()
                 }
-                .padding(.horizontal, Hud.Size.rowInset)
-                .padding(.vertical, Hud.Space.x1)
+                .accessibilityLabel(showsWords ? "Done editing words" : "Edit words to know")
+            }
+            if showsWords {
+                SettingsFieldRow {
+                    HudTextField(text: $newTerm, prompt: "Crenel, SwiftUI, Ayhan", onSubmit: addTerm)
+                        .accessibilityLabel("New dictionary term")
+                    HudButton("Add", glyph: .plus, action: addTerm)
+                        .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
                 if !model.preferences.dictationVocabulary.isEmpty {
-                    FlowChips(items: model.preferences.dictationVocabulary) { term in
+                    SettingsWordChips(items: model.preferences.dictationVocabulary) { term in
                         model.preferences.dictationVocabulary.removeAll { $0 == term }
                         model.save(actions)
                     }
-                    .padding(.horizontal, Hud.Size.rowInset)
-                    .padding(.top, Hud.Space.x2)
+                    .padding(.leading, SettingsLayout.textInset)
+                    .padding(.trailing, SettingsLayout.rowInset)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
                 }
             }
-
-            SettingsGroup("Recent") {
-                if appState.dictationHistory.isEmpty {
-                    SettingsNote("Nothing yet · kept in memory only")
-                } else {
-                    ForEach(appState.dictationHistory.prefix(8)) { entry in
-                        SettingsRow(title: entry.finalText,
-                                    detail: Text([entry.appName, entry.createdAt.formatted(date: .omitted, time: .shortened)]
-                                        .compactMap { $0 }.joined(separator: " · "))) {
-                            Button {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(entry.finalText, forType: .string)
-                            } label: {
-                                CrenelIcon(.copy, size: Hud.Size.smallIcon)
-                            }
-                            .buttonStyle(HudButtonStyle(kind: .icon))
-                            .help("Copy")
-                            .accessibilityLabel("Copy dictation")
-                        }
-                    }
-                }
-            }
-
-            CrenelSaveStatus(message: model.message, failed: model.failed)
+            SettingsMessage(message: model.message, failed: model.failed)
         }
-        .task { await model.load(actions) }
+        .animation(reduceMotion ? nil : Hud.Motion.change, value: showsWords)
+    }
+
+    private var wordsDetail: String {
+        let words = model.preferences.dictationVocabulary
+        return words.isEmpty ? "Names and terms to spell right" : words.joined(separator: ", ")
     }
 
     @ViewBuilder
@@ -145,14 +148,15 @@ struct DictationSettingsView: View {
         switch appState.dictationAvailability {
         case .needsInputMonitoring:
             SettingsRow(glyph: .keyboard, title: "Input Monitoring", detail: Text("Needed for the shortcut")) {
-                Button("Allow", action: crenelActions.dictation.requestInputMonitoring)
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
+                HudStatusWord(.off(), "Off")
+                HudButton("Allow", size: .small, action: crenelActions.dictation.requestInputMonitoring)
+                    .accessibilityLabel("Allow Input Monitoring")
             }
         case .ready, .disabled:
             EmptyView()
         }
         if !appState.accessibilityPermissionGranted {
-            SettingsNote("Without Accessibility, text goes to the clipboard")
+            SettingsNote("Without Accessibility, text goes to the clipboard.")
         }
     }
 
@@ -165,150 +169,267 @@ struct DictationSettingsView: View {
     }
 
     private func binding<Value>(_ keyPath: WritableKeyPath<CrenelPreferences, Value>) -> Binding<Value> {
-        Binding(
-            get: { model.preferences[keyPath: keyPath] },
-            set: { model.preferences[keyPath: keyPath] = $0; model.save(actions) }
-        )
+        model.binding(keyPath, actions: actions)
     }
 }
 
-// MARK: - Agent
+// MARK: - AI
 
-struct AgentSettingsView: View {
+/// Settings › AI (`s-ai-*`): who writes, the Anthropic key, what meetings use, then the
+/// OpenAI key and whatever the host adds after it (ElevenLabs).
+struct AgentSettingsView<Extra: View>: View {
     let actions: CrenelSettingsActions
-    @StateObject private var model = CrenelSettingsModel()
+    let openAI: OpenAISettingsActions
+    @ObservedObject var model: CrenelSettingsModel
+    @ViewBuilder var extra: () -> Extra
+
     @State private var anthropicKey = ""
     @State private var hasAnthropicKey = false
+    @State private var isSavingKey = false
     @State private var keyMessage: String?
+    @State private var keyFailed = false
     @State private var onDeviceStatus: String?
+    /// nil while checking.
+    @State private var openAIConnected: Bool?
     /// Whether the selected command-line tool is installed (nil while checking).
     @State private var toolInstalled: Bool?
     @FocusState private var keyFocused: Bool
 
+    private var provider: AgentProviderKind { model.preferences.agent.provider }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
-            SettingsGroup("Agent") {
-                SettingsRow(glyph: .sparkle, title: "Model", detail: providerDetail) {
-                    Picker("Model", selection: binding(\.agent.provider)) {
-                        Text("Automatic").tag(AgentProviderKind.automatic)
-                        Text("On-device (Apple)").tag(AgentProviderKind.onDevice)
-                        Text("OpenAI (your key)").tag(AgentProviderKind.openAI)
-                        Text("Anthropic (your key)").tag(AgentProviderKind.anthropic)
-                        Text("Claude Code (this Mac)").tag(AgentProviderKind.claudeCode)
-                        Text("Codex (this Mac)").tag(AgentProviderKind.codex)
-                        Text("Off").tag(AgentProviderKind.off)
-                    }.settingsMenu()
-                }
-                SettingsRow(title: "Clean up dictation") {
-                    Toggle("Clean up dictation", isOn: binding(\.agent.cleanupEnabled)).settingsSwitch()
-                }
-                SettingsRow(title: "Voice commands on selected text") {
-                    Toggle("Voice commands on selected text", isOn: binding(\.agent.commandModeEnabled)).settingsSwitch()
-                }
+        SettingsPageHeader(glyph: .spark, title: "AI", sentence: "Who writes your notes and cleans up dictation.") {
+            chain
+        }
 
-                if model.preferences.agent.provider == .openAI {
-                    SettingsFieldRow {
-                        TextField("OpenAI model ID (empty: default)", text: optionalBinding(\.agent.openAIModelID))
-                            .settingsField()
-                    }
-                }
-                if model.preferences.agent.provider == .anthropic || model.preferences.agent.provider == .automatic {
-                    SettingsRow(title: "Anthropic") {
-                        if hasAnthropicKey {
-                            Text("Connected").hud(.label, Hud.Ink.ok)
-                        } else {
-                            Text("Key required").hud(.label, Hud.Ink.text3)
-                        }
-                    }
-                    SettingsFieldRow {
-                        SecureField(hasAnthropicKey ? "New Anthropic API key" : "Anthropic API key", text: $anthropicKey)
-                            .textContentType(.password)
-                            .focused($keyFocused)
-                            .settingsField(focused: keyFocused)
-                            .accessibilityLabel("Anthropic API key")
-                        Button("Save") {
-                            let key = anthropicKey
-                            Task {
-                                let result = await actions.saveAnthropicKey(key)
-                                anthropicKey = ""
-                                hasAnthropicKey = await actions.hasAnthropicKey()
-                                keyMessage = result.message
-                            }
-                        }
-                        .buttonStyle(HudButtonStyle(kind: .primary))
-                        .disabled(anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
-                        if hasAnthropicKey {
-                            Button {
-                                Task {
-                                    keyMessage = await actions.deleteAnthropicKey().message
-                                    hasAnthropicKey = await actions.hasAnthropicKey()
-                                }
-                            } label: {
-                                Text("Remove").foregroundStyle(Hud.Ink.live)
-                            }
-                            .buttonStyle(HudButtonStyle(kind: .ghost))
-                        }
-                    }
-                    SettingsFieldRow {
-                        TextField("Anthropic model ID (empty: default)", text: optionalBinding(\.agent.anthropicModelID))
-                            .settingsField()
-                    }
-                    if let keyMessage {
-                        SettingsNote(keyMessage)
-                    }
+        SettingsGroup("Model", index: 1) {
+            SettingsRow(glyph: .spark, title: "Who writes", detail: providerDetail) {
+                providerStatus
+                HudSelect(selection: binding(\.agent.provider), options: [
+                    (AgentProviderKind.automatic, "Automatic"),
+                    (AgentProviderKind.onDevice, "On this Mac (Apple)"),
+                    (AgentProviderKind.openAI, "OpenAI (your key)"),
+                    (AgentProviderKind.anthropic, "Anthropic (your key)"),
+                    (AgentProviderKind.claudeCode, "Claude Code (this Mac)"),
+                    (AgentProviderKind.codex, "Codex (this Mac)"),
+                    (AgentProviderKind.off, "Off")
+                ])
+                .accessibilityLabel("Model")
+            }
+            SettingsRow(title: "Clean up dictation") {
+                SettingsToggle("Clean up dictation", isOn: binding(\.agent.cleanupEnabled))
+            }
+            SettingsRow(title: "Voice commands on selected text") {
+                SettingsToggle("Voice commands on selected text", isOn: binding(\.agent.commandModeEnabled))
+            }
+            if provider == .openAI {
+                SettingsFieldRow {
+                    HudTextField(text: optionalBinding(\.agent.openAIModelID), prompt: "OpenAI model ID (empty: default)")
+                        .accessibilityLabel("OpenAI model ID")
                 }
             }
+            SettingsMessage(message: model.message, failed: model.failed)
+        }
 
-            SettingsGroup("Meetings") {
-                SettingsRow(glyph: .waveform, title: "Transcript",
-                            detail: model.preferences.meetingProcessing.transcription == .onDevice
-                                ? Text("Free · audio stays on this Mac") : nil) {
-                    Picker("Transcript", selection: binding(\.meetingProcessing.transcription)) {
-                        ForEach(MeetingTranscriptionEngine.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                    }.settingsMenu()
+        if provider == .anthropic || provider == .automatic {
+            SettingsGroup("Anthropic", index: 2) {
+                SettingsRow(glyph: .spark, title: "Anthropic",
+                            detail: Text("Notes and dictation clean-up · billed to you")) {
+                    if hasAnthropicKey {
+                        HudStatusWord(.ok, "Connected")
+                        HudButton("Remove", kind: .danger, size: .small, action: removeAnthropicKey)
+                            .disabled(isSavingKey)
+                            .accessibilityLabel("Remove Anthropic key")
+                    } else {
+                        HudStatusWord(.dim, "No key")
+                    }
                 }
-                SettingsRow(glyph: .sparkle, title: "Summary") {
-                    Picker("Summary", selection: binding(\.meetingProcessing.summary)) {
-                        ForEach(MeetingSummaryEngine.allCases, id: \.self) { Text($0.displayName).tag($0) }
-                    }.settingsMenu()
+                SettingsFieldRow {
+                    SecureField("", text: $anthropicKey,
+                                prompt: Text(hasAnthropicKey ? "New Anthropic API key" : "Anthropic API key").foregroundStyle(Hud.Ink.ink3))
+                        .textFieldStyle(.plain)
+                        .textContentType(.password)
+                        .hud(.body)
+                        .focused($keyFocused)
+                        .hudField(isFocused: keyFocused)
+                        .onSubmit(saveAnthropicKey)
+                        .accessibilityLabel("Anthropic API key")
+                    if isSavingKey { HudSpinner() }
+                    HudButton("Save", action: saveAnthropicKey)
+                        .disabled(isSavingKey || anthropicKey.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .help("Saves the key to Keychain")
                 }
+                SettingsFieldRow {
+                    HudTextField(text: optionalBinding(\.agent.anthropicModelID),
+                                 prompt: "Anthropic model ID (empty: \(AnthropicProvider.defaultModel))")
+                        .accessibilityLabel("Anthropic model ID")
+                }
+                SettingsMessage(message: keyMessage, failed: keyFailed)
             }
+        }
 
-            CrenelSaveStatus(message: model.message, failed: model.failed)
+        SettingsGroup("Meetings", index: 3) {
+            SettingsRow(glyph: .waveform, title: "Transcript",
+                        detail: model.preferences.meetingProcessing.transcription == .onDevice
+                            ? Text("Free · audio stays on this Mac") : nil) {
+                HudSelect(selection: binding(\.meetingProcessing.transcription), options: [
+                    (MeetingTranscriptionEngine.elevenLabs, "ElevenLabs (cloud, speaker names)"),
+                    (MeetingTranscriptionEngine.onDevice, "On this Mac (Apple Speech)")
+                ])
+                .accessibilityLabel("Transcript")
+            }
+            SettingsRow(glyph: .spark, title: "Notes") {
+                HudSelect(selection: binding(\.meetingProcessing.summary), options: [
+                    (MeetingSummaryEngine.openAI, "OpenAI"),
+                    (MeetingSummaryEngine.agent, "Same as above")
+                ])
+                .accessibilityLabel("Notes")
+            }
         }
         .task {
-            await model.load(actions)
             hasAnthropicKey = await actions.hasAnthropicKey()
             onDeviceStatus = await actions.onDeviceModelStatus()
         }
-        .task(id: model.preferences.agent.provider) {
-            let kind = model.preferences.agent.provider
+        .task(id: provider) {
+            let kind = provider
             guard let tool = CLIAgentTool.allCases.first(where: { $0.kind == kind }) else { toolInstalled = nil; return }
             toolInstalled = nil
             toolInstalled = await Task.detached { CLIToolLocator.locate(tool) != nil }.value
         }
+
+        OpenAISettingsView(actions: openAI, connected: $openAIConnected)
+
+        extra()
     }
 
+    // MARK: Header chain
+
+    private enum Link: CaseIterable {
+        case anthropic, openAI, thisMac
+
+        var title: LocalizedStringKey {
+            switch self {
+            case .anthropic: "Anthropic"
+            case .openAI: "OpenAI"
+            case .thisMac: "This Mac"
+            }
+        }
+    }
+
+    /// The link of the fallback chain that will write, if any can.
+    private var litLink: Link? {
+        switch provider {
+        case .automatic:
+            if hasAnthropicKey { return .anthropic }
+            if openAIConnected == true { return .openAI }
+            return onDeviceStatus == nil ? .thisMac : nil
+        case .anthropic: return hasAnthropicKey ? .anthropic : nil
+        case .openAI: return openAIConnected == true ? .openAI : nil
+        case .onDevice: return onDeviceStatus == nil ? .thisMac : nil
+        case .claudeCode, .codex, .off: return nil
+        }
+    }
+
+    /// The fallback chain as three lamps: lit = will be used. A command-line tool is
+    /// outside the chain, so it shows as the one lamp it is.
+    @ViewBuilder
+    private var chain: some View {
+        switch provider {
+        case .off:
+            EmptyView()
+        case .claudeCode, .codex:
+            HStack(spacing: 6) {
+                HudLamp(toolInstalled == true ? .teal : .off)
+                Text(verbatim: provider == .codex ? "Codex" : "Claude Code").hud(.meta)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .hudWell()
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(toolInstalled == true ? "Installed" : "Not installed")
+        default:
+            HStack(spacing: 12) {
+                ForEach(Array(Link.allCases.enumerated()), id: \.offset) { index, link in
+                    if index > 0 {
+                        HudIcon(.chevronRight, size: 12).foregroundStyle(Hud.Ink.ink4)
+                    }
+                    HStack(spacing: 6) {
+                        HudLamp(litLink == link ? .teal : .off)
+                        Text(link.title).hud(.meta)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .hudWell()
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Fallback order: Anthropic, then OpenAI, then this Mac")
+        }
+    }
+
+    // MARK: Model row
+
     private var providerDetail: Text? {
-        switch model.preferences.agent.provider {
-        case .automatic: Text("Anthropic, then OpenAI, then on-device")
-        case .onDevice: onDeviceStatus.map { Text($0).foregroundStyle(Hud.Ink.signal) }
-        case .openAI: Text("Uses the OpenAI key below")
+        switch provider {
+        case .automatic: Text("Anthropic, then OpenAI, then this Mac")
+        case .onDevice: onDeviceStatus.map { Text(verbatim: $0) } ?? Text("Apple’s model, on this Mac")
+        case .openAI: Text("Your OpenAI key")
+        case .anthropic: Text("Your Anthropic key")
+        case .claudeCode, .codex: Text("Your sign-in on this Mac · notes only, not dictation")
+        case .off: Text("Raw text only")
+        }
+    }
+
+    @ViewBuilder
+    private var providerStatus: some View {
+        switch provider {
         case .claudeCode, .codex:
             switch toolInstalled {
-            case .some(true): Text("Your sign-in on this Mac · summaries only, not dictation")
-            case .some(false): Text("Not installed on this Mac").foregroundStyle(Hud.Ink.signal)
-            case nil: nil
+            case .some(true): HudStatusWord(.ok, "Installed")
+            case .some(false): HudStatusWord(.warn, "Not installed")
+            case nil: EmptyView()
             }
-        default: nil
+        case .onDevice:
+            if onDeviceStatus != nil { HudStatusWord(.warn, "Unavailable") }
+        default:
+            EmptyView()
+        }
+    }
+
+    // MARK: Actions
+
+    private func saveAnthropicKey() {
+        let key = anthropicKey
+        guard !key.trimmingCharacters(in: .whitespaces).isEmpty, !isSavingKey else { return }
+        isSavingKey = true
+        Task {
+            let result = await actions.saveAnthropicKey(key)
+            anthropicKey = ""
+            hasAnthropicKey = await actions.hasAnthropicKey()
+            show(result)
+            isSavingKey = false
+        }
+    }
+
+    private func removeAnthropicKey() {
+        isSavingKey = true
+        Task {
+            let result = await actions.deleteAnthropicKey()
+            hasAnthropicKey = await actions.hasAnthropicKey()
+            show(result)
+            isSavingKey = false
+        }
+    }
+
+    private func show(_ result: SettingsActionResult) {
+        switch result {
+        case .succeeded(let message): keyMessage = message; keyFailed = false
+        case .failed(let message): keyMessage = message; keyFailed = true
         }
     }
 
     private func binding<Value>(_ keyPath: WritableKeyPath<CrenelPreferences, Value>) -> Binding<Value> {
-        Binding(
-            get: { model.preferences[keyPath: keyPath] },
-            set: { model.preferences[keyPath: keyPath] = $0; model.save(actions) }
-        )
+        model.binding(keyPath, actions: actions)
     }
 
     private func optionalBinding(_ keyPath: WritableKeyPath<CrenelPreferences, String?>) -> Binding<String> {
@@ -325,31 +446,29 @@ struct AgentSettingsView: View {
 
 // MARK: - Tasks
 
+/// Settings › Tasks (`s-tasks-*`).
 struct TaskStorageSettingsView: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.crenelActions) private var crenelActions
     let actions: CrenelSettingsActions
-    @StateObject private var model = CrenelSettingsModel()
+    @ObservedObject var model: CrenelSettingsModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
-            SettingsGroup("Tasks") {
-                SettingsRow(glyph: .tasks, title: "Store tasks in",
-                            detail: model.preferences.taskStorage == .reminders
-                                ? Text("Syncs to iPhone, iPad and Watch") : nil) {
-                    Picker("Store tasks in", selection: Binding(
-                        get: { model.preferences.taskStorage },
-                        set: { model.preferences.taskStorage = $0; model.save(actions) }
-                    )) {
-                        Text("Apple Reminders").tag(TaskStorageBackend.reminders)
-                        Text("This Mac only").tag(TaskStorageBackend.local)
-                    }.settingsMenu()
-                }
-                statusRow
+        SettingsPageHeader(glyph: .queue, title: "Tasks", sentence: "Where your tasks live.")
+
+        SettingsGroup("Storage", index: 1) {
+            SettingsRow(glyph: .queue, title: "Keep tasks in",
+                        detail: model.preferences.taskStorage == .reminders
+                            ? Text("Also on iPhone, iPad and Watch") : Text("Only on this Mac")) {
+                HudSelect(selection: model.binding(\.taskStorage, actions: actions), options: [
+                    (TaskStorageBackend.reminders, "Apple Reminders"),
+                    (TaskStorageBackend.local, "This Mac only")
+                ])
+                .accessibilityLabel("Keep tasks in")
             }
-            CrenelSaveStatus(message: model.message, failed: model.failed)
+            statusRow
+            SettingsMessage(message: model.message, failed: model.failed)
         }
-        .task { await model.load(actions) }
     }
 
     @ViewBuilder
@@ -357,22 +476,30 @@ struct TaskStorageSettingsView: View {
         switch appState.taskStorageStatus {
         case .reminders(let listTitle):
             SettingsRow(title: "Reminders", detail: Text("“\(listTitle)” list")) {
-                Text("Connected").hud(.label, Hud.Ink.ok)
+                HudStatusWord(.ok, "Connected")
+                HudButton("Open", glyph: .link, size: .small) {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Reminders.app"))
+                }
+                .accessibilityLabel("Open Reminders")
             }
         case .localNotConnected:
-            SettingsRow(title: "Reminders", detail: Text("Not connected")) {
-                Button("Connect", action: crenelActions.tasks.connectReminders)
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
+            SettingsRow(title: "Reminders") {
+                HudStatusWord(.dim, "Not connected")
+                HudButton("Connect", size: .small, action: crenelActions.tasks.connectReminders)
+                    .accessibilityLabel("Connect Reminders")
             }
         case .localDenied:
-            SettingsRow(title: "Reminders",
-                        detail: Text("Privacy & Security › Reminders")) {
-                Text("Access off").hud(.label, Hud.Ink.signal)
+            SettingsRow(title: "Reminders", detail: Text("Privacy & Security › Reminders")) {
+                HudStatusWord(.off(), "Access off")
+                HudButton("Open", glyph: .link, size: .small) {
+                    if let url = SetupCapability.reminders.settingsURL { NSWorkspace.shared.open(url) }
+                }
+                .accessibilityLabel("Open Reminders privacy settings")
             }
         case .localAfterError(let message):
-            SettingsRow(title: "Reminders", detail: Text(message).foregroundStyle(Hud.Ink.live)) {
-                Button("Try again", action: crenelActions.tasks.connectReminders)
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
+            SettingsRow(title: "Reminders", detail: Text(verbatim: message)) {
+                HudStatusWord(.err, "Error")
+                HudButton("Try again", size: .small, action: crenelActions.tasks.connectReminders)
             }
         case .localByChoice:
             EmptyView()
@@ -380,215 +507,45 @@ struct TaskStorageSettingsView: View {
     }
 }
 
-// MARK: - Settings row system
+// MARK: - Word chips
 
-/// Shared layout values for every settings page.
-enum SettingsLayout {
-    /// Space between groups — groups are separated by air, never lines.
-    static let groupSpacing: CGFloat = Hud.Space.x7
-    /// Rows read best at a comfortable measure, not the full window width.
-    static let contentWidth: CGFloat = 600
-}
-
-/// A plain group: a small header, then its rows. No card, no rules.
-struct SettingsGroup<Content: View>: View {
-    let title: LocalizedStringKey?
-    @ViewBuilder let content: Content
-
-    init(_ title: LocalizedStringKey? = nil, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let title {
-                Text(title)
-                    .hud(.label, Hud.Ink.text3)
-                    .padding(.horizontal, Hud.Size.rowInset)
-                    .frame(height: 22, alignment: .bottom)
-                    .padding(.bottom, Hud.Space.x1)
-                    .accessibilityAddTraits(.isHeader)
-            }
-            content
-        }
-        .frame(maxWidth: SettingsLayout.contentWidth, alignment: .leading)
-    }
-}
-
-/// One setting: icon · name · optional one-line detail · control or status on the right.
-struct SettingsRow<Trailing: View>: View {
-    var glyph: CrenelGlyph?
-    let title: Text
-    var detail: Text?
-    @ViewBuilder let trailing: Trailing
-
-    init(glyph: CrenelGlyph? = nil, title: LocalizedStringKey, detail: Text? = nil,
-         @ViewBuilder trailing: () -> Trailing) {
-        self.glyph = glyph
-        self.title = Text(title)
-        self.detail = detail
-        self.trailing = trailing()
-    }
-
-    init(glyph: CrenelGlyph? = nil, title: String, detail: Text? = nil,
-         @ViewBuilder trailing: () -> Trailing) {
-        self.glyph = glyph
-        self.title = Text(verbatim: title)
-        self.detail = detail
-        self.trailing = trailing()
-    }
-
-    var body: some View {
-        HStack(spacing: Hud.Space.x3) {
-            Group {
-                if let glyph {
-                    CrenelIcon(glyph, size: Hud.Size.icon)
-                } else {
-                    Color.clear
-                }
-            }
-            .frame(width: Hud.Size.icon, height: Hud.Size.icon)
-            .foregroundStyle(Hud.Ink.text3)
-
-            VStack(alignment: .leading, spacing: 2) {
-                title.hud(.body).lineLimit(1)
-                if let detail {
-                    detail.hud(.meta, Hud.Ink.text3).lineLimit(1)
-                }
-            }
-            Spacer(minLength: Hud.Space.x4)
-            trailing
-        }
-        .padding(.horizontal, Hud.Size.rowInset)
-        .frame(minHeight: Hud.Size.row)
-        .accessibilityElement(children: .contain)
-    }
-}
-
-extension SettingsRow where Trailing == EmptyView {
-    init(glyph: CrenelGlyph? = nil, title: LocalizedStringKey, detail: Text? = nil) {
-        self.init(glyph: glyph, title: title, detail: detail) { EmptyView() }
-    }
-}
-
-/// A row holding a text field and its buttons, aligned with row text.
-struct SettingsFieldRow<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        HStack(spacing: Hud.Space.x2) { content }
-            .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3)
-            .padding(.trailing, Hud.Size.rowInset)
-            .padding(.vertical, Hud.Space.x1)
-    }
-}
-
-/// One short secondary line under a group.
-struct SettingsNote: View {
-    let text: Text
-    var color: Color = Hud.Ink.text3
-
-    init(_ key: LocalizedStringKey, color: Color = Hud.Ink.text3) {
-        self.text = Text(key)
-        self.color = color
-    }
-
-    init(_ string: String, color: Color = Hud.Ink.text3) {
-        self.text = Text(verbatim: string)
-        self.color = color
-    }
-
-    var body: some View {
-        text.hud(.meta, color)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.leading, Hud.Size.rowInset + Hud.Size.icon + Hud.Space.x3)
-            .padding(.trailing, Hud.Size.rowInset)
-            .padding(.vertical, Hud.Space.x1)
-    }
-}
-
-extension View {
-    /// A plain switch with a neutral tint.
-    func settingsSwitch() -> some View {
-        labelsHidden().toggleStyle(.switch).controlSize(.small).tint(Hud.Ink.text2)
-    }
-
-    /// A compact menu picker sitting at the right of a row.
-    func settingsMenu() -> some View {
-        labelsHidden().pickerStyle(.menu).fixedSize().controlSize(.small)
-    }
-
-    /// A text field on a faint fill — no border, focus lifts the fill only.
-    func settingsField(focused: Bool = false) -> some View {
-        textFieldStyle(.plain)
-            .font(Hud.Style.body.font)
-            .foregroundStyle(Hud.Ink.text1)
-            .padding(.horizontal, Hud.Space.x3)
-            .frame(height: Hud.Size.control)
-            .background(
-                RoundedRectangle(cornerRadius: Hud.Size.corner - 2, style: .continuous)
-                    .fill(focused ? Hud.Ink.selected : Hud.Ink.hover)
-            )
-            .animation(Hud.Motion.hover, value: focused)
-    }
-}
-
-private struct CrenelSaveStatus: View {
-    let message: String?
-    let failed: Bool
-
-    var body: some View {
-        if let message {
-            SettingsNote(message, color: failed ? Hud.Ink.live : Hud.Ink.text3)
-                .frame(maxWidth: SettingsLayout.contentWidth, alignment: .leading)
-        }
-    }
-}
-
-private struct FlowChips: View {
+/// The dictionary as removable chips.
+struct SettingsWordChips: View {
     let items: [String]
     let onRemove: (String) -> Void
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: Hud.Space.x1 + 2, alignment: .leading)],
-                  alignment: .leading, spacing: Hud.Space.x1 + 2) {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), spacing: 6, alignment: .leading)],
+                  alignment: .leading, spacing: 6) {
             ForEach(items, id: \.self) { item in
-                FlowChip(item: item) { onRemove(item) }
+                SettingsWordChip(item: item) { onRemove(item) }
             }
         }
     }
 }
 
-private struct FlowChip: View {
+private struct SettingsWordChip: View {
     let item: String
     let onRemove: () -> Void
     @State private var isHovering = false
 
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: Hud.Radius.s, style: .continuous)
         Button(action: onRemove) {
-            HStack(spacing: Hud.Space.x1 + 2) {
-                Text(item).lineLimit(1)
+            HStack(spacing: 6) {
+                Text(verbatim: item).lineLimit(1)
                 HudIcon(.close, size: 8)
-                    .foregroundStyle(isHovering ? Hud.Ink.text1 : Hud.Ink.text4)
+                    .foregroundStyle(isHovering ? Hud.Ink.ink1 : Hud.Ink.ink4)
             }
-            .hud(.meta, Hud.Ink.text2)
-            .padding(.horizontal, Hud.Space.x2)
+            .hud(.meta, Hud.Ink.ink2)
+            .padding(.horizontal, 8)
             .frame(height: 24)
-            .background(Capsule().fill(isHovering ? Hud.Ink.selected : Hud.Ink.hover))
-            .contentShape(Capsule())
+            .background(shape.fill(isHovering ? Hud.Ink.fieldFocus : Hud.Ink.field))
+            .contentShape(shape)
         }
         .buttonStyle(.plain)
-        .onHover { hovering in withAnimation(Hud.Motion.hover) { isHovering = hovering } }
+        .onHover { isHovering = $0 }
+        .animation(Hud.Motion.hover, value: isHovering)
         .accessibilityLabel("Remove \(item)")
-    }
-}
-
-private extension SettingsActionResult {
-    var message: String? {
-        switch self {
-        case .succeeded(let message): message
-        case .failed(let message): message
-        }
     }
 }

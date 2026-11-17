@@ -6,63 +6,72 @@ struct OpenAISettingsActions {
     var disconnect: () async -> SettingsActionResult = { .succeeded() }
 }
 
+/// Settings › AI › OpenAI: the key's state, a field with its save key beside it, and
+/// Remove on the status row.
 struct OpenAISettingsView: View {
     let actions: OpenAISettingsActions
+    /// nil while the key is being looked up. The AI page reads it for its fallback chain.
+    @Binding var connected: Bool?
+    var index = 4
+
     @State private var key = ""
     @FocusState private var keyFocused: Bool
-    @State private var connected = false
-    @State private var loading = true
     @State private var busy = false
     @State private var message: String?
     @State private var failed = false
 
+    private var isConnected: Bool { connected == true }
+
     var body: some View {
-        SettingsGroup("OpenAI") {
-            SettingsRow(glyph: .sparkle, title: "OpenAI", detail: Text("Summaries and tasks · billed to you")) {
-                if loading {
-                    Text("Checking…").hud(.label, Hud.Ink.text3)
-                } else if connected {
-                    Text("Connected").hud(.label, Hud.Ink.ok)
+        SettingsGroup("OpenAI", index: index) {
+            SettingsRow(glyph: .spark, title: "OpenAI", detail: Text("Notes and tasks · billed to you")) {
+                if connected == nil {
+                    HudStatusWord(.dim, "Checking…")
+                } else if isConnected {
+                    HudStatusWord(.ok, "Connected")
+                    HudButton("Remove", kind: .danger, size: .small) {
+                        busy = true
+                        Task { await finish(actions.disconnect()) }
+                    }
+                    .disabled(busy)
+                    .accessibilityLabel("Remove OpenAI key")
                 } else {
-                    Text("Key required").hud(.label, Hud.Ink.text3)
+                    HudStatusWord(.dim, "No key")
                 }
             }
             SettingsFieldRow {
-                SecureField(connected ? "New OpenAI API key" : "OpenAI API key", text: $key)
+                SecureField("", text: $key,
+                            prompt: Text(isConnected ? "New OpenAI API key" : "OpenAI API key").foregroundStyle(Hud.Ink.ink3))
+                    .textFieldStyle(.plain)
                     .textContentType(.password)
+                    .hud(.body)
                     .focused($keyFocused)
-                    .settingsField(focused: keyFocused)
+                    .hudField(isFocused: keyFocused)
+                    .onSubmit(save)
                     .accessibilityLabel("OpenAI API key")
-                if busy { ProgressView().controlSize(.small).accessibilityLabel("Working") }
-                Button(connected ? "Update" : "Connect") {
-                    busy = true
-                    let candidate = key.trimmingCharacters(in: .whitespacesAndNewlines)
-                    Task {
-                        let result = await actions.save(candidate)
-                        key = ""
-                        await finish(result)
-                    }
-                }
-                .buttonStyle(HudButtonStyle(kind: .primary))
-                .disabled(loading || busy || key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .help("Sends a small paid test request")
-                if connected {
-                    Button {
-                        busy = true
-                        Task { await finish(actions.disconnect()) }
-                    } label: {
-                        Text("Remove").foregroundStyle(Hud.Ink.live)
-                    }
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-                    .disabled(busy)
-                    .accessibilityLabel("Remove connection")
-                }
+                if busy { HudSpinner() }
+                HudButton(isConnected ? "Update" : "Connect", action: save)
+                    .disabled(!canSave)
+                    .help("Sends a small paid test request")
             }
-            if let message {
-                SettingsNote(message, color: failed ? Hud.Ink.live : Hud.Ink.text3)
-            }
+            SettingsMessage(message: message, failed: failed)
         }
-        .task { connected = await actions.hasKey(); loading = false }
+        .task { connected = await actions.hasKey() }
+    }
+
+    private var canSave: Bool {
+        connected != nil && !busy && !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func save() {
+        guard canSave else { return }
+        busy = true
+        let candidate = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            let result = await actions.save(candidate)
+            key = ""
+            await finish(result)
+        }
     }
 
     private func finish(_ result: SettingsActionResult) async {

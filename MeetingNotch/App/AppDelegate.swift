@@ -1064,7 +1064,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
         window.backgroundColor = .black
-        window.setContentSize(NSSize(width: 560, height: 680))
+        window.setContentSize(OnboardingView.windowSize)
         window.isReleasedWhenClosed = false
         window.center()
 
