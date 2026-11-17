@@ -15,7 +15,9 @@ struct DictationRefiner: DictationTextRefining {
     ///   - timeBudget: overrides the per-provider budget (tests).
     init(preferences: AgentPreferences, provider: (any LanguageModelProvider)?, timeBudget: TimeInterval? = nil) {
         self.preferences = preferences
-        self.provider = preferences.provider == .off ? nil : provider
+        // Command-line providers start a process per request: too slow for dictation, which
+        // keeps the deterministic pass with them.
+        self.provider = preferences.provider == .off || preferences.provider.usesLocalCLI ? nil : provider
         self.timeBudgetOverride = timeBudget
     }
 
@@ -115,6 +117,10 @@ enum AgentProviderFactory {
                 model: preferences.modelID(for: .anthropic) ?? AnthropicProvider.defaultModel,
                 keys: anthropicKeys, http: http
             )
+        case .claudeCode:
+            return CLIAgentProvider(tool: .claudeCode)
+        case .codex:
+            return CLIAgentProvider(tool: .codex)
         }
     }
 }

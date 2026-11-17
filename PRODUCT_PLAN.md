@@ -120,8 +120,9 @@ birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
 - [x] Varsayılan ve önerilen sağlayıcı "Otomatik": tek API anahtarı yeter (önce Anthropic
   Claude Haiku, yoksa OpenAI); anahtar yoksa cihazdaki Apple modeli. Anthropic varsayılan
   modeli `claude-haiku-5-5`. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
-- [ ] Sonra: isteyen kullanıcı Ayarlar'dan bilgisayarındaki Claude Code veya Codex
-  oturumunu sağlayıcı olarak seçebilsin (API anahtarı gerekmeden).
+- [x] İsteyen kullanıcı Ayarlar'dan bilgisayarındaki Claude Code veya Codex
+  oturumunu sağlayıcı olarak seçebilsin (API anahtarı gerekmeden). Süreç başına saniyeler
+  sürdüğü için yalnız özet ve agent işleri; dikte deterministik temizlikle kalır. — ✅ 2026-11-17 (otomatik test + gerçek Claude Code CLI duman testi; Codex komutu elle doğrulandı)
 
 ### C3.1 — Dikte düzeltmeleri (2026-11-16 kararları)
 
@@ -135,16 +136,17 @@ birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
 
 - [x] Yerel SpeechAnalyzer toplantı transkripsiyonu seçeneği. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
 - [x] Özet için agent sağlayıcısını (yerel / OpenAI / Anthropic) kullanmak. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
-- [ ] Karar (2026-11-16): aksiyon maddeleri yalnızca kullanıcının kendisine yöneltilenler;
-  başkalarının aksiyonları ilk sürümde gösterilmez. Kişi ayrımı için ek efor yok.
+- [x] Karar (2026-11-16): aksiyon maddeleri yalnızca kullanıcının kendisine yöneltilenler;
+  başkalarının aksiyonları ilk sürümde gösterilmez. Kişi ayrımı için ek efor yok. — ✅ 2026-11-17
+  (istem + `MeetingOwner` süzgeci; sahibi belirsiz maddeler korunur; gerçek toplantı kabulü C8'de)
 
 ### C6 — Açık kaynak ve yayın hazırlığı
 
 - [x] LICENSE: MIT (kullanıcı kararı 2026-11-16). — ✅ 2026-11-16
-- [ ] Katkı rehberi (CONTRIBUTING).
+- [x] Katkı rehberi (CONTRIBUTING). — ✅ 2026-11-17
 - [x] README'nin Crenel kapsamıyla yenilenmesi. — ✅ 2026-11-16
-- [ ] `project.yml` içindeki kişisel `DEVELOPMENT_TEAM` değerinin katkıcıların kendi
-  takımını verebileceği yerel bir ayara taşınması.
+- [x] `project.yml` içindeki kişisel `DEVELOPMENT_TEAM` değerinin katkıcıların kendi
+  takımını verebileceği yerel bir ayara taşınması (`Config/Signing.local.xcconfig`, git dışı). — ✅ 2026-11-17
 - [ ] Bundle kimliği, veri klasörü ve Keychain servislerinin Crenel'e taşınması (migration).
 
 ### C8 — Gerçek cihaz kabulü
@@ -195,9 +197,11 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     devam eden görev), Bugün (ışıklı sıradaki etkinlik kartı + ajanda + görev özeti),
     Görevler, canlı kayıt kartı, panel başlığı. — ✅ 2026-11-16 (ekran dışı render + test)
   - [ ] Dikte için genişleyen "canlı" ara boyut (orb + canlı transkript).
-  - [ ] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
-    taşınması (şu an eski `MeetingNotchTheme` ile).
-  - [ ] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması.
+  - [x] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
+    taşınması. — ✅ 2026-11-16 (`9dc6708`)
+  - [x] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması. — ✅ 2026-11-16 (`9dc6708`)
+  - [ ] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
+    uygulamaya geçirilmesi. — ⛔ Bloke: kullanıcı prototipi düzenliyor (2026-11-17)
 
 ## 2026-09-25 — Koyu tema parlaklık düzeltmesi
 

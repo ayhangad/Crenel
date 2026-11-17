@@ -15,3 +15,6 @@ MeetingNotch.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # Local xcodebuild output
 build/
+
+# Local signing team (see Config/Signing.xcconfig)
+Config/Signing.local.xcconfig

@@ -58,11 +58,13 @@ struct AgentMeetingSummaryService: MeetingSummaryGenerating {
     private let provider: any LanguageModelProvider
     let profile: Profile
     let modelLabel: String
+    let owner: MeetingOwner
 
-    init(provider: any LanguageModelProvider, profile: Profile, modelLabel: String) {
+    init(provider: any LanguageModelProvider, profile: Profile, modelLabel: String, owner: MeetingOwner = .current()) {
         self.provider = provider
         self.profile = profile
         self.modelLabel = modelLabel
+        self.owner = owner
     }
 
     /// Builds the service for the user's agent settings with production dependencies.
@@ -75,7 +77,7 @@ struct AgentMeetingSummaryService: MeetingSummaryGenerating {
         let kind = preferences.provider
         return AgentMeetingSummaryService(
             provider: provider,
-            profile: kind.isCloud ? .cloud : .onDevice,
+            profile: kind.hasLargeContext ? .cloud : .onDevice,
             modelLabel: preferences.modelID(for: kind) ?? (kind == .onDevice ? "apple-on-device" : kind.rawValue)
         )
     }
@@ -123,7 +125,7 @@ struct AgentMeetingSummaryService: MeetingSummaryGenerating {
 
     private func summarize(chunk: [TranscriptSegment], meetingDate: String?, language: String?) async throws -> MeetingSummary {
         let references = Self.references(for: chunk)
-        let content = Self.chunkContent(chunk, references: references, meetingDate: meetingDate, language: language)
+        let content = Self.chunkContent(chunk, references: references, meetingDate: meetingDate, language: language, owner: owner)
         return try await withValidationRetries {
             let text = try await request(instructions: Self.chunkInstructions, content: content)
             return try Self.parseAndValidate(text, segments: chunk, references: references)
@@ -287,7 +289,9 @@ struct AgentMeetingSummaryService: MeetingSummaryGenerating {
     "speakerID": string or null, "assignee": string or null, "dueDate": "yyyy-MM-dd" or null, \
     "sourceSegmentID": ref}]}
     Rules: decisions are explicit agreements only. Actions are concrete agreed tasks, not ideas or \
-    negated commitments. Every action MUST cite the exact ref (like "s3") of the line it comes from. \
+    negated commitments. Return ONLY actions owned by the owner described in the owner line: tasks the \
+    owner committed to or that were explicitly given to the owner; leave out tasks owned by anyone else. \
+    Every action MUST cite the exact ref (like "s3") of the line it comes from. \
     Set speakerID only when ownership is explicit; never guess identities. Use null when owner or \
     date is uncertain. Resolve relative dates against meetingDate only; never invent deadlines. \
     Keep the overview concise.
@@ -304,7 +308,8 @@ struct AgentMeetingSummaryService: MeetingSummaryGenerating {
         _ chunk: [TranscriptSegment],
         references: [String: UUID],
         meetingDate: String?,
-        language: String?
+        language: String?,
+        owner: MeetingOwner? = nil
     ) -> String {
         let referenceByID = Dictionary(references.map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
         let lines = chunk.map { segment -> String in
@@ -315,6 +320,7 @@ struct AgentMeetingSummaryService: MeetingSummaryGenerating {
         return """
         meetingDate: \(meetingDate ?? "unknown")
         language: \(language ?? "unknown")
+        owner: \(owner?.promptDescription ?? "unknown")
         <transcript>
         \(lines.joined(separator: "\n"))
         </transcript>

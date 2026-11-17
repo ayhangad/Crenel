@@ -28,7 +28,7 @@ Domain/
   NotchAgenda          Geri sayım çözümü, biçimlendirme, Takvim deep link
 Services/
   Dictation/           CGEventTap tetik, bellek içi ses, SpeechAnalyzer, imlece yazma
-  Agent/               Foundation Models / OpenAI / Anthropic sağlayıcıları, DictationRefiner
+  Agent/               Foundation Models / OpenAI / Anthropic / Claude Code / Codex sağlayıcıları, DictationRefiner
 Infrastructure/Persistence/Reminders/
   EventKitReminderStore, ReminderTaskMapping, RemindersTaskRepository, TaskRepositoryRouter
 Features/Shared/CrenelActions  Yeni özelliklerin aksiyonları (SwiftUI environment)
@@ -144,6 +144,21 @@ transkriptteki talimatları yürütmez. Komut modu bilinçli istisnadır: seçil
 kullanıcının sözlü komutu talimattır, seçili metin yine veri olarak sınırlandırılır. Süre
 bütçesi (cihaz 2.5 sn, bulut 4 sn), aşırı uzun/alakasız çıktı veya hata durumunda
 deterministik sonuca düşülür; komut başarısızsa seçili metin değiştirilmez.
+
+Claude Code ve Codex sağlayıcıları (`CLIAgentProvider`) kullanıcının bu Mac'te oturum açmış
+`claude` / `codex` komut satırı aracını API anahtarı olmadan çalıştırır. Araç bulunamazsa
+yaygın kurulum klasörlerine, en son giriş kabuğuna bakılır. Her istek boş bir geçici klasörde,
+araçlar kapalı (`--tools ""`, Codex için salt okunur sandbox) ve oturum kaydetmeden çalışır;
+metin standart girdiden gider, çıktı ve hata metni hiçbir yerde gösterilmez veya kaydedilmez.
+Her istek bir süreç başlattığı için (saniyeler) dikte bu sağlayıcıları kullanmaz,
+deterministik temizlikle devam eder; toplantı özeti büyük bağlam profiliyle çalışır.
+
+Toplantı aksiyon maddeleri yalnızca kaydı yapan kişiye aittir (`MeetingOwner`). Özet
+istemine sahip satırı (macOS hesap adı, yerel transkriptte mikrofon izi “You”) eklenir ve
+model yalnızca onun görevlerini döndürür; `MeetingSummaryRouter` her servisten sonra başka
+bir kişiye ya da adı verilmiş başka bir konuşmacıya açıkça atanmış maddeleri ayıklar.
+Sahibi belirsiz maddeler (ad yok, “Speaker 2” gibi etiket) korunur. Ek konuşmacı tanıma
+yapılmaz.
 
 ## Masaüstü ve notch birlikte çalışma sözleşmesi
 

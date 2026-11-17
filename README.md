@@ -49,6 +49,7 @@ satır doğrudan Sistem Ayarları’ndaki ilgili bölmeyi açar.
 - [Ürün geliştirme planı](PRODUCT_PLAN.md)
 - [Mimari rehber](ARCHITECTURE.md)
 - [Ortak geliştirme kuralları](AGENTS.md)
+- [Katkı rehberi](CONTRIBUTING.md)
 - [Hibrit sürüm kurulumu ve kabul kontrolleri](QA/HYBRID_SETUP.md)
 - [V1 release doğrulama runbook'u](QA/V1_RELEASE_RUNBOOK.md)
 - [İlk araştırma notları](project-overview.md)
@@ -75,8 +76,10 @@ open MeetingNotch.xcodeproj   # ürün adı Crenel; proje dosyası adı geçiş 
 
 `project.yml` Xcode projesinin tek yapılandırma kaynağıdır.
 `MeetingNotch.xcodeproj/project.pbxproj` elle düzenlenmemelidir.
-Debug uygulaması proje takımının Apple Development sertifikasıyla kararlı biçimde
-imzalanır. Hardened Runtime açıktır ve mikrofon kaydı için yalnızca gerekli
+İmza takımı depoda tutulmaz: `Config/Signing.local.xcconfig.example` dosyasını
+`Config/Signing.local.xcconfig` olarak kopyalayıp kendi takım kimliğinizi yazın (ayrıntı:
+[CONTRIBUTING.md](CONTRIBUTING.md)). Debug uygulaması bu takımın Apple Development
+sertifikasıyla kararlı biçimde imzalanır. Hardened Runtime açıktır ve mikrofon kaydı için yalnızca gerekli
 `com.apple.security.device.audio-input` entitlement'ı kullanılır.
 
 Notch paneli fiziksel notch bulunan ekranı otomatik algılar. Menü çubuğundan açma ve

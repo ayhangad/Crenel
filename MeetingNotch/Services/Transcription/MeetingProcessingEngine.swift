@@ -114,25 +114,29 @@ struct MeetingSummaryRouter: MeetingSummaryGenerating {
     private let agentPreferences: AgentPreferencesProvider
     private let openAI: any MeetingSummaryGenerating
     private let makeAgentService: AgentServiceFactory
+    private let owner: MeetingOwner
 
     init(
         preferences: @escaping MeetingProcessingPreferencesProvider,
         agentPreferences: @escaping AgentPreferencesProvider,
         openAI: any MeetingSummaryGenerating = OpenAIMeetingSummaryService(),
-        makeAgentService: @escaping AgentServiceFactory = { AgentMeetingSummaryService.make(for: $0) }
+        makeAgentService: @escaping AgentServiceFactory = { AgentMeetingSummaryService.make(for: $0) },
+        owner: MeetingOwner = .current()
     ) {
         self.preferences = preferences
         self.agentPreferences = agentPreferences
         self.openAI = openAI
         self.makeAgentService = makeAgentService
+        self.owner = owner
     }
 
+    /// Only the owner's action items are kept, whichever service wrote the notes.
     func generate(from transcript: Transcript) async throws -> MeetingSummary {
-        try await resolve().generate(from: transcript)
+        owner.ownActions(of: try await resolve().generate(from: transcript), in: transcript)
     }
 
     func generate(from transcript: Transcript, meeting: StoredMeeting) async throws -> MeetingSummary {
-        try await resolve().generate(from: transcript, meeting: meeting)
+        owner.ownActions(of: try await resolve().generate(from: transcript, meeting: meeting), in: transcript)
     }
 
     /// The agent path never silently falls back to OpenAI (the user may have chosen it to keep

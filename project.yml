@@ -10,6 +10,10 @@ configs:
   Debug: debug
   Release: release
 
+configFiles:
+  Debug: Config/Signing.xcconfig
+  Release: Config/Signing.xcconfig
+
 settings:
   base:
     MACOSX_DEPLOYMENT_TARGET: 26.0
@@ -35,7 +39,6 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: gad.MeetingNotch.BrowserAudioHost
         PRODUCT_NAME: MeetingNotchBrowserAudioHost
-        DEVELOPMENT_TEAM: 37G38FM2D2
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: YES
 
@@ -67,7 +70,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: gad.MeetingNotch
         PRODUCT_NAME: Crenel
         PRODUCT_MODULE_NAME: MeetingNotch
-        DEVELOPMENT_TEAM: 37G38FM2D2
         MARKETING_VERSION: 0.1.0
         CURRENT_PROJECT_VERSION: 1
         ENABLE_APP_SANDBOX: NO
@@ -100,7 +102,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: gad.MeetingNotchTests
         TEST_HOST: $(BUILT_PRODUCTS_DIR)/Crenel.app/Contents/MacOS/Crenel
         BUNDLE_LOADER: $(TEST_HOST)
-        DEVELOPMENT_TEAM: 37G38FM2D2
         GENERATE_INFOPLIST_FILE: YES
         ENABLE_APP_SANDBOX: NO
     dependencies:

@@ -8,6 +8,10 @@ enum AgentProviderKind: String, Codable, CaseIterable, Equatable, Sendable {
     case onDevice
     case openAI
     case anthropic
+    /// The user's signed-in Claude Code on this Mac (`claude` CLI); no API key.
+    case claudeCode
+    /// The user's signed-in Codex on this Mac (`codex` CLI); no API key.
+    case codex
     case off
 
     var displayName: String {
@@ -16,18 +20,27 @@ enum AgentProviderKind: String, Codable, CaseIterable, Equatable, Sendable {
         case .onDevice: "On-device (Apple Intelligence)"
         case .openAI: "OpenAI"
         case .anthropic: "Anthropic Claude"
+        case .claudeCode: "Claude Code"
+        case .codex: "Codex"
         case .off: "Off"
         }
     }
 
     var isCloud: Bool { self == .openAI || self == .anthropic }
 
+    /// Runs through a command-line tool installed on this Mac. Each request starts a process
+    /// (seconds, not milliseconds), so these are used for meeting summaries, not dictation.
+    var usesLocalCLI: Bool { self == .claudeCode || self == .codex }
+
+    /// Large context window and output budget (cloud APIs and the CLI tools behind them).
+    var hasLargeContext: Bool { isCloud || usesLocalCLI }
+
     /// Model used when the user has not set an override. `nil` for providers without model choice.
     var defaultModelID: String? {
         switch self {
         case .openAI: OpenAIProvider.defaultModel
         case .anthropic: AnthropicProvider.defaultModel
-        case .automatic, .onDevice, .off: nil
+        case .automatic, .onDevice, .claudeCode, .codex, .off: nil
         }
     }
 
@@ -67,7 +80,7 @@ struct AgentPreferences: Codable, Equatable, Sendable {
         let override: String? = switch kind {
         case .openAI: openAIModelID
         case .anthropic: anthropicModelID
-        case .automatic, .onDevice, .off: nil
+        case .automatic, .onDevice, .claudeCode, .codex, .off: nil
         }
         let trimmed = override?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let trimmed, !trimmed.isEmpty { return trimmed }

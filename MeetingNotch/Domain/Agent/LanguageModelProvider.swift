@@ -71,6 +71,8 @@ enum AgentError: Error, LocalizedError, Equatable, Sendable {
     case inputTooLong
     case unsupportedLanguage
     case onDeviceUnavailable(OnDeviceUnavailableReason)
+    /// The command-line tool for this provider isn't installed (or can't be found).
+    case toolNotFound(AgentProviderKind)
 
     var errorDescription: String? {
         switch self {
@@ -78,6 +80,8 @@ enum AgentError: Error, LocalizedError, Equatable, Sendable {
             "AI editing is off."
         case .missingKey(let kind):
             "No \(kind.displayName) API key. Add one in Settings."
+        case .authentication(let kind) where kind.usesLocalCLI:
+            "\(kind.displayName) isn’t signed in. Open Terminal, run “\(kind == .codex ? "codex" : "claude")” and sign in."
         case .authentication(let kind):
             "Couldn’t verify the \(kind.displayName) key. Check it in Settings."
         case .modelUnavailable(let kind):
@@ -104,6 +108,8 @@ enum AgentError: Error, LocalizedError, Equatable, Sendable {
             "The on-device model doesn’t support this language."
         case .onDeviceUnavailable(let reason):
             reason.message
+        case .toolNotFound(let kind):
+            "\(kind.displayName) isn’t installed on this Mac."
         }
     }
 }

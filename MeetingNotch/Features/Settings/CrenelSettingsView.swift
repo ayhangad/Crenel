@@ -181,6 +181,8 @@ struct AgentSettingsView: View {
     @State private var hasAnthropicKey = false
     @State private var keyMessage: String?
     @State private var onDeviceStatus: String?
+    /// Whether the selected command-line tool is installed (nil while checking).
+    @State private var toolInstalled: Bool?
     @FocusState private var keyFocused: Bool
 
     var body: some View {
@@ -192,6 +194,8 @@ struct AgentSettingsView: View {
                         Text("On-device (Apple)").tag(AgentProviderKind.onDevice)
                         Text("OpenAI (your key)").tag(AgentProviderKind.openAI)
                         Text("Anthropic (your key)").tag(AgentProviderKind.anthropic)
+                        Text("Claude Code (this Mac)").tag(AgentProviderKind.claudeCode)
+                        Text("Codex (this Mac)").tag(AgentProviderKind.codex)
                         Text("Off").tag(AgentProviderKind.off)
                     }.settingsMenu()
                 }
@@ -277,6 +281,12 @@ struct AgentSettingsView: View {
             hasAnthropicKey = await actions.hasAnthropicKey()
             onDeviceStatus = await actions.onDeviceModelStatus()
         }
+        .task(id: model.preferences.agent.provider) {
+            let kind = model.preferences.agent.provider
+            guard let tool = CLIAgentTool.allCases.first(where: { $0.kind == kind }) else { toolInstalled = nil; return }
+            toolInstalled = nil
+            toolInstalled = await Task.detached { CLIToolLocator.locate(tool) != nil }.value
+        }
     }
 
     private var providerDetail: Text? {
@@ -284,6 +294,12 @@ struct AgentSettingsView: View {
         case .automatic: Text("Anthropic, then OpenAI, then on-device")
         case .onDevice: onDeviceStatus.map { Text($0).foregroundStyle(Hud.Ink.signal) }
         case .openAI: Text("Uses the OpenAI key below")
+        case .claudeCode, .codex:
+            switch toolInstalled {
+            case .some(true): Text("Your sign-in on this Mac · summaries only, not dictation")
+            case .some(false): Text("Not installed on this Mac").foregroundStyle(Hud.Ink.signal)
+            case nil: nil
+            }
         default: nil
         }
     }
