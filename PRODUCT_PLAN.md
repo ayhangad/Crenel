@@ -200,6 +200,11 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
   - [x] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
     taşınması. — ✅ 2026-11-16 (`9dc6708`)
   - [x] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması. — ✅ 2026-11-16 (`9dc6708`)
+  - [x] HTML prototipin yeni dille yeniden tasarlanması: çağdaş ürün yapısı içinde retro
+    gösterge ayrıntıları (hayalet segmentli rakamlar, tarama göstergeleri, gösterge
+    lambaları), üç boyutlu notch (kompakt / şerit / açık), yeni ikon ailesi, hareket dili;
+    `docs/DESIGN.md` güncel spesifikasyon. — ✅ 2026-11-17 (110 durum headless tarayıcıda
+    hatasız render edildi; hover/sekme/görev/dikte/geri sayım etkileşimleri Playwright ile sürüldü)
   - [ ] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
     uygulamaya geçirilmesi. — ⛔ Bloke: kullanıcı prototipi düzenliyor (2026-11-17)
 
