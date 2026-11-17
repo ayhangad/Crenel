@@ -1,7 +1,7 @@
 // Draws the DMG window background ("notch dropping the icon", docs/DISTRIBUTION.md)
 // at 1x and 2x. Usage: swift background.swift <output-dir> <version> <fonts-dir>
 // Writes background.png and background@2x.png. Layout constants are shared with
-// settings.py: window 440×520 points, app icon at (220, 150), Applications at (220, 398).
+// settings.py: content 440×480 points, app icon at (220, 132), Applications at (220, 356).
 import AppKit
 import CoreText
 
@@ -20,10 +20,10 @@ for name in ["Geist-Regular.ttf", "Geist-Medium.ttf"] {
 // The layout is 440×520, but the image is drawn much taller: Finder may open the window
 // taller than asked (path and status bars follow the user's own Finder settings), and
 // whatever the image does not cover shows white.
-let layoutHeight: CGFloat = 520
+let layoutHeight: CGFloat = 480
 let size = CGSize(width: 440, height: 1100)
-let appCenter = CGPoint(x: 220, y: 150)
-let applicationsCenter = CGPoint(x: 220, y: 398)
+let appCenter = CGPoint(x: 220, y: 132)
+let applicationsCenter = CGPoint(x: 220, y: 356)
 let teal = NSColor(srgbRed: 0x34 / 255, green: 0xE6 / 255, blue: 0xCB / 255, alpha: 1)
 let tealCore = NSColor(srgbRed: 0xB9 / 255, green: 1, blue: 0xF3 / 255, alpha: 1)
 let ink1 = NSColor(srgbRed: 0xF3 / 255, green: 0xF1 / 255, blue: 0xEC / 255, alpha: 1)
@@ -85,7 +85,9 @@ func render(scale: CGFloat) -> NSBitmapImageRep {
     // The lamp trail: ghost cells light up towards Applications.
     let cells: [(alpha: CGFloat, lit: Bool)] = [(0.08, false), (0.12, false), (0.35, false), (1, true)]
     for (index, cell) in cells.enumerated() {
-        let rect = CGRect(x: appCenter.x - 5, y: 258 + CGFloat(index) * 17, width: 10, height: 10)
+        // Between the Crenel label (ends at appCenter + 85) and the Applications icon
+        // (starts at applicationsCenter − 56), with equal room above and below.
+        let rect = CGRect(x: appCenter.x - 5, y: appCenter.y + 98 + CGFloat(index) * 16, width: 10, height: 10)
         let path = CGPath(roundedRect: rect, cornerWidth: 2.5, cornerHeight: 2.5, transform: nil)
         if cell.lit {
             cg.saveGState()
@@ -140,7 +142,7 @@ func render(scale: CGFloat) -> NSBitmapImageRep {
     let footerSize = footer.size()
     // Flipped back, so y counts from the bottom of the tall image: the footer sits 16 pt
     // above the bottom of the 520 pt layout.
-    footer.draw(at: CGPoint(x: (size.width - footerSize.width) / 2, y: size.height - layoutHeight + 12))
+    footer.draw(at: CGPoint(x: (size.width - footerSize.width) / 2, y: size.height - layoutHeight + 14))
     cg.restoreGState()
 
     NSGraphicsContext.restoreGraphicsState()
