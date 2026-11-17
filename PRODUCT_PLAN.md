@@ -179,9 +179,15 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
   `gad.Crenel`), açık anahtar `project.yml`'de; feed `https://ayhangad.github.io/Crenel/appcast.xml`.
   Kalan: imzalı iki sürümle gerçek güncelleme denemesi (release hattından sonra).
 - [ ] Release hattı: archive → notarize → dmgbuild DMG → DMG imza/notarize/staple →
-  `generate_appcast` → GitHub Release + Pages.
+  `generate_appcast` → GitHub Release + Pages. — 🚧 Devam ediyor: 2026-11-17.
+  `Scripts/release-candidate.sh <sürüm> [--publish | --unsigned]` yazıldı; `--unsigned` uçtan
+  uca geçti (testler, Release build, DMG). İmzalı yol Developer ID sertifikası ve notary
+  profili gelince denenecek.
 - [ ] DMG tasarımı: koyu "notch'tan düşen ikon" prototipi; açık/koyu modda etiket okunurluk
-  testi (macOS 26 ve 27), okunmazsa açık zemine geçiş.
+  testi (macOS 26 ve 27), okunmazsa açık zemine geçiş. — 🚧 Devam ediyor: 2026-11-17.
+  `Scripts/dmg/background.swift` + `settings.py`. İlk denemede Finder etiketleri koyu
+  zeminde siyah çizildi ve pencere istenenden uzun açılıp alt kısım beyaz kaldı; arka plan
+  1100 pt uzun çiziliyor, etiketlerin altına açık zemin kondu. Kullanıcı onayı bekleniyor.
 
 ### C8 — Gerçek cihaz kabulü
 
