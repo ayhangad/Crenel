@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// One task row (`.task-row`): chamfered mark, title, and on the right what matters now
-/// — minutes on the task in progress, priority bars, repeat, due date, source meeting.
+/// — why a blocked task waits, minutes on the task in progress, priority bars, repeat,
+/// due date, source meeting.
 ///
 /// The row's actions (`.tray`) are attached to its right edge and wait off-screen. One
 /// click on the row gives it its own background and slides content, background and
@@ -53,13 +54,22 @@ struct TaskRowView: View {
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    if displayStatus == .blocked, let reason = task.blockedReason {
+                        // "waiting on QA": yields to the title, never pushes the meta out.
+                        Text(verbatim: reason)
+                            .hud(.meta)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .frame(maxWidth: 180, alignment: .trailing)
+                            .help(reason)
+                    }
                     TaskRowMeta(task: task, now: now, isOverdue: isOverdue, showsFinishedTime: showsFinishedTime)
                 }
                 .frame(maxHeight: .infinity)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(task.title), \(displayStatus.shortTitle)")
+            .accessibilityLabel(accessibilityTitle)
             .accessibilityHint(isRevealed ? "Hides the task's actions" : "Shows the task's actions")
             .accessibilityActions {
                 ForEach(TaskStatus.allCases) { status in
@@ -84,6 +94,13 @@ struct TaskRowView: View {
                     .fill(Hud.Ink.hover)
             }
         }
+    }
+
+    private var accessibilityTitle: String {
+        if displayStatus == .blocked, let reason = task.blockedReason {
+            return "\(task.title), \(displayStatus.shortTitle), \(reason)"
+        }
+        return "\(task.title), \(displayStatus.shortTitle)"
     }
 
     @ViewBuilder

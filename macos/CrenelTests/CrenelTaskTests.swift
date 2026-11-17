@@ -75,6 +75,70 @@ final class CrenelTaskTests: XCTestCase {
         XCTAssertEqual(restored.id, task.id)
     }
 
+    func testBlockedReasonRoundTripsThroughRemindersSidecar() throws {
+        let task = TaskItem(title: "Ship notarized build", createdAt: now, status: .blocked, blockedReason: "  waiting on QA ")
+        XCTAssertEqual(task.blockedReason, "waiting on QA")
+        let record = ReminderTaskMapper.record(from: task, identifier: "rem-2", calendar: calendar)
+        let sidecar = ReminderTaskMapper.sidecar(from: task)
+        XCTAssertEqual(sidecar.blockedReason, "waiting on QA")
+        // The reminder itself stays a plain reminder: the reason is not written into its notes.
+        XCTAssertNil(record.notes)
+
+        let encoded = try JSONEncoder().encode(sidecar)
+        let decodedSidecar = try JSONDecoder().decode(TaskSidecarEntry.self, from: encoded)
+        let restored = ReminderTaskMapper.task(from: record, sidecar: decodedSidecar, calendar: calendar)
+        XCTAssertEqual(restored.status, .blocked)
+        XCTAssertEqual(restored.blockedReason, "waiting on QA")
+    }
+
+    func testBlockedReasonIsDroppedWhenTheSidecarIsNoLongerBlocked() {
+        let task = TaskItem(title: "Onay", createdAt: now, status: .blocked, blockedReason: "Deniz")
+        var record = ReminderTaskMapper.record(from: task, identifier: "rem-3", calendar: calendar)
+        record.isCompleted = true
+        let restored = ReminderTaskMapper.task(from: record, sidecar: ReminderTaskMapper.sidecar(from: task), calendar: calendar)
+        XCTAssertEqual(restored.status, .completed)
+        XCTAssertNil(restored.blockedReason)
+    }
+
+    func testBlockedReasonClearsWhenStatusLeavesBlocked() throws {
+        var task = TaskItem(title: "Sözleşme", status: .blocked)
+        task.setBlockedReason("waiting on legal")
+        XCTAssertEqual(task.blockedReason, "waiting on legal")
+
+        let decoded = try JSONDecoder().decode(TaskItem.self, from: JSONEncoder().encode(task))
+        XCTAssertEqual(decoded.blockedReason, "waiting on legal")
+
+        task.setStatus(.blocked, at: now)
+        XCTAssertEqual(task.blockedReason, "waiting on legal", "Picking the same state keeps the reason")
+        task.setStatus(.inProgress, at: now)
+        XCTAssertNil(task.blockedReason)
+        task.setStatus(.blocked, at: now)
+        XCTAssertNil(task.blockedReason, "A reason does not come back with the state")
+
+        task.setBlockedReason("   ")
+        XCTAssertNil(task.blockedReason)
+    }
+
+    func testBlockedReasonNeedsTheBlockedState() {
+        var open = TaskItem(title: "Açık", blockedReason: "ignored")
+        XCTAssertNil(open.blockedReason)
+        open.setBlockedReason("still ignored")
+        XCTAssertNil(open.blockedReason)
+
+        let id = UUID()
+        let json = #"{"id":"\#(id.uuidString)","title":"Eski","createdAt":0,"status":"open","blockedReason":"stale"}"#
+        let decoded = try? JSONDecoder().decode(TaskItem.self, from: Data(json.utf8))
+        XCTAssertNotNil(decoded)
+        XCTAssertNil(decoded?.blockedReason)
+    }
+
+    func testRecurringCompletionDropsBlockedReason() throws {
+        let task = TaskItem(title: "Haftalık", status: .blocked, blockedReason: "QA", dueDate: now, recurrence: .daily)
+        let (_, next) = try XCTUnwrap(task.completingRecurrence(at: now, calendar: calendar))
+        XCTAssertEqual(next.status, .open)
+        XCTAssertNil(next.blockedReason)
+    }
+
     func testSidecarWrittenBeforeBlockedStateStillDecodes() throws {
         let id = UUID()
         let json = #"{"taskID":"\#(id.uuidString)","isInProgress":true}"#
@@ -82,6 +146,7 @@ final class CrenelTaskTests: XCTestCase {
         XCTAssertEqual(entry.taskID, id)
         XCTAssertTrue(entry.isInProgress)
         XCTAssertFalse(entry.isBlocked)
+        XCTAssertNil(entry.blockedReason)
     }
 
     func testCompletedTaskStaysInListUntilDayEndsAndArchiveMovesItToHistory() {

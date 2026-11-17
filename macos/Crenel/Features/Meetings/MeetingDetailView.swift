@@ -130,6 +130,8 @@ struct MeetingDetailMenuActions {
     var onRevealAudio: (URL) -> Void
     var onRetry: (StoredMeeting) -> Void
     var onDelete: (StoredMeeting) -> Void
+    /// PDF and plain-text exports; built from the stored transcription.
+    var onExport: (MeetingExportFormat) -> Void = { _ in }
 }
 
 /// The band and the body of a meeting detail are siblings, and only the body is handed
@@ -227,8 +229,8 @@ struct MeetingDetailToolbar: View {
     }
 }
 
-/// The "more" menu (`menu-more`): Copy as text · Save as Markdown · Show audio in
-/// Finder · Retry processing — Delete meeting.
+/// The "more" menu (`menu-more`): Copy as text · Save as Markdown · Save as PDF · Save
+/// as plain text · Show audio in Finder · Retry processing — Delete meeting.
 ///
 ///     MeetingDetailMoreMenu(content: detail, onCopyText: copy, actions: actions)
 struct MeetingDetailMoreMenu: View {
@@ -245,6 +247,10 @@ struct MeetingDetailMoreMenu: View {
             if let actions {
                 if let markdown = content.markdown {
                     Button("Save as Markdown") { actions.onExportMarkdown(markdown) }
+                }
+                if content.storedTranscription != nil {
+                    Button("Save as PDF") { actions.onExport(.pdf) }
+                    Button("Save as plain text") { actions.onExport(.plainText) }
                 }
                 Button("Show audio in Finder") { actions.onRevealAudio(content.audioURL) }
                 if content.meeting.processingStatus != .processing {
@@ -274,6 +280,7 @@ struct MeetingDetailView: View {
     let content: MeetingDetailContent
     let onCopyText: (String) -> Void
     let onExportMarkdown: (String) -> Void
+    let onExport: (MeetingExportFormat) -> Void
     let onRevealAudio: (URL) -> Void
     let onRetry: (StoredMeeting) -> Void
     let onDelete: (StoredMeeting) -> Void
@@ -301,6 +308,7 @@ struct MeetingDetailView: View {
         content: MeetingDetailContent,
         onCopyText: @escaping (String) -> Void,
         onExportMarkdown: @escaping (String) -> Void,
+        onExport: @escaping (MeetingExportFormat) -> Void = { _ in },
         onRevealAudio: @escaping (URL) -> Void,
         onRetry: @escaping (StoredMeeting) -> Void,
         onDelete: @escaping (StoredMeeting) -> Void,
@@ -313,6 +321,7 @@ struct MeetingDetailView: View {
         self.content = content
         self.onCopyText = onCopyText
         self.onExportMarkdown = onExportMarkdown
+        self.onExport = onExport
         self.onRevealAudio = onRevealAudio
         self.onRetry = onRetry
         self.onDelete = onDelete
@@ -420,7 +429,13 @@ struct MeetingDetailView: View {
     }
 
     private var menuActions: MeetingDetailMenuActions {
-        MeetingDetailMenuActions(onExportMarkdown: onExportMarkdown, onRevealAudio: onRevealAudio, onRetry: onRetry, onDelete: onDelete)
+        MeetingDetailMenuActions(
+            onExportMarkdown: onExportMarkdown,
+            onRevealAudio: onRevealAudio,
+            onRetry: onRetry,
+            onDelete: onDelete,
+            onExport: onExport
+        )
     }
 
     // MARK: Notes

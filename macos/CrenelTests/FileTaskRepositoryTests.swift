@@ -52,6 +52,25 @@ final class FileTaskRepositoryTests: XCTestCase {
         XCTAssertEqual(json["schemaVersion"] as? Int, 3)
     }
 
+    func testBlockedReasonSurvivesRestartAndClearsWhenUnblocked() async throws {
+        var task = TaskItem(
+            title: "Ship notarized build",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+            status: .blocked,
+            blockedReason: "waiting on QA"
+        )
+        try await repository.save(task)
+
+        var loaded = try await FileTaskRepository(rootURL: root).loadAll()
+        XCTAssertEqual(loaded.first?.blockedReason, "waiting on QA")
+
+        task.setStatus(.open, at: Date(timeIntervalSince1970: 1_700_000_100))
+        try await repository.save(task)
+        loaded = try await FileTaskRepository(rootURL: root).loadAll()
+        XCTAssertEqual(loaded.first?.status, .open)
+        XCTAssertNil(loaded.first?.blockedReason)
+    }
+
     func testSaveUpdatesExistingTaskWithoutChangingItsPosition() async throws {
         let first = TaskItem(title: "İlk", createdAt: Date(timeIntervalSince1970: 1))
         let second = TaskItem(title: "İkinci", createdAt: Date(timeIntervalSince1970: 2))

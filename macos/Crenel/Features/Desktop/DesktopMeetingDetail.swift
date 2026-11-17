@@ -302,6 +302,10 @@ struct DesktopMeetingDetail: View {
             if let markdown = content.markdown {
                 Button("Save as Markdown") { actions.exportMarkdown(markdown, meeting) }
             }
+            if let stored {
+                Button("Save as PDF") { actions.exportMeeting(.pdf, meeting, stored) }
+                Button("Save as plain text") { actions.exportMeeting(.plainText, meeting, stored) }
+            }
             Button("Show audio in Finder") { actions.revealAudio(content.audioURL) }
             if canRetry {
                 Button("Retry processing") { actions.retryProcessing(meeting) }
@@ -323,6 +327,10 @@ struct DesktopMeetingDetail: View {
         Menu {
             if let markdown = content.markdown {
                 Button("Markdown…") { actions.exportMarkdown(markdown, meeting) }
+            }
+            if let stored {
+                Button("PDF…") { actions.exportMeeting(.pdf, meeting, stored) }
+                Button("Plain text…") { actions.exportMeeting(.plainText, meeting, stored) }
             }
             Divider()
             Button("Audio in Finder") { actions.revealAudio(content.audioURL) }

@@ -23,6 +23,8 @@ struct TaskSidecarEntry: Codable, Equatable, Sendable {
     var taskID: UUID
     var isInProgress: Bool = false
     var isBlocked: Bool = false
+    /// Why the task is blocked; Reminders has no field for it.
+    var blockedReason: String?
     var startedAt: Date?
     var archivedAt: Date?
     var sortOrder: Double?
@@ -35,7 +37,7 @@ struct TaskSidecarEntry: Codable, Equatable, Sendable {
 
 extension TaskSidecarEntry {
     private enum CodingKeys: String, CodingKey {
-        case taskID, isInProgress, isBlocked, startedAt, archivedAt, sortOrder, assignee
+        case taskID, isInProgress, isBlocked, blockedReason, startedAt, archivedAt, sortOrder, assignee
         case sourceMeetingID, sourceActionID, sourceTime, sourceSpeakerID
     }
 
@@ -45,6 +47,7 @@ extension TaskSidecarEntry {
         taskID = try container.decode(UUID.self, forKey: .taskID)
         isInProgress = try container.decodeIfPresent(Bool.self, forKey: .isInProgress) ?? false
         isBlocked = try container.decodeIfPresent(Bool.self, forKey: .isBlocked) ?? false
+        blockedReason = try container.decodeIfPresent(String.self, forKey: .blockedReason)
         startedAt = try container.decodeIfPresent(Date.self, forKey: .startedAt)
         archivedAt = try container.decodeIfPresent(Date.self, forKey: .archivedAt)
         sortOrder = try container.decodeIfPresent(Double.self, forKey: .sortOrder)
@@ -84,6 +87,7 @@ enum ReminderTaskMapper {
             taskID: task.id,
             isInProgress: task.status == .inProgress,
             isBlocked: task.status == .blocked,
+            blockedReason: task.blockedReason,
             startedAt: task.startedAt,
             archivedAt: task.archivedAt,
             sortOrder: task.sortOrder,
@@ -123,6 +127,7 @@ enum ReminderTaskMapper {
             notes: record.notes?.isEmpty == true ? nil : record.notes,
             createdAt: createdAt,
             status: status,
+            blockedReason: status == .blocked ? sidecar?.blockedReason : nil,
             startedAt: status == .inProgress ? sidecar?.startedAt : nil,
             completedAt: record.isCompleted ? (record.completionDate ?? createdAt) : nil,
             archivedAt: sidecar?.archivedAt,
