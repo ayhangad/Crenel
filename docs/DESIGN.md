@@ -358,8 +358,20 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   Hatada: Recordings · **Try again ↩**.
 - **Kayıtlar.**
   - Üstte haftalık gösterge bulunur: toplam saat ve gün çubukları, bugün yanar.
-  - Satırlar tarife düzenindedir (saat / süre). Lamba yalnızca dikkat isteyen satırda
-    görünür.
+  - Kayıtlar ay başlıklarıyla gruplanır (ay adı solda, sayı sağda, meta / ink-4).
+  - Satır (`RecordingRow`, örnek `docs/design/recordings-mock.html`):
+    - Solda 40 pt genişliğinde tarih karosu: segment gün (15 pt, hayalet 8'ler) ve
+      altında ay. Kuyu zemini, 0.5 pt çerçeve. Yüksekliği satırdaki metnin toplam
+      yüksekliğine eşittir. Köşedeki lamba: turkuaz notlar hazır, amber notlar bakılmayı
+      bekliyor, kırmızı başarısız, yanıp sönen amber işleniyor, sönük henüz yazıya
+      dökülmedi.
+    - Ortada başlık (body), altında saat · platform · aksiyon sayısı ya da durum
+      (şekil + kelime), altında notların ilk satırı (meta / ink-4).
+    - Sağda 140 pt'lik sütun: süre ve 34 çubukluk gerçek dalga formu. Hover'da dalga
+      formunun yerini Play (satırda çalar, çalan kısım ink-1 yanar) ve **Open ↩** alır;
+      sütun sabit genişlikte olduğu için metin kaymaz.
+    - Satır içi dikey boşluk 7 pt, satırlar arası 4 pt. Hover zemini satırın içinde
+      kalır, komşu satırın zeminine değmez.
 - **Toplantı detayı.**
   - Dalga formu çubuklarıyla tüm toplantı gösterilir. Çalınan kısım ink-1'dir, amber iğne
     konumu gösterir; tıklamak o noktaya atlar. Altında konuşma süresi çubuğu ve

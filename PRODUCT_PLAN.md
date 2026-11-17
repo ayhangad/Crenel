@@ -223,6 +223,11 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
   - [x] Açık panelde sekmeler kamera bandının altında kendi satırında; Recordings ikon
     değil üçüncü sekme (Today · Recordings · Tasks, ⌘1/⌘2/⌘3). — ✅ 2026-11-17 (571 test,
     5 atlandı, 0 hata; band render'ları incelendi; gerçek notch'ta kullanıcı kabulü bekliyor)
+  - [ ] Recordings satırları (`docs/design/recordings-mock.html`): ay grupları, segment gün
+    karosu metin yüksekliğinde, başlık + saat · platform · aksiyon/durum + özetten tek satır,
+    süre ve gerçek dalga formu; hover'da Play/Open; satırlar arası boşluk, zeminler çakışmaz. — ✅ 2026-11-17
+    (572 test, 5 atlandı, 0 hata; normal ve hover galerisi render'ları incelendi; gerçek
+    notch'ta kullanıcı kabulü bekliyor)
   - [x] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
     taşınması. — ✅ 2026-11-16 (`9dc6708`)
   - [x] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması. — ✅ 2026-11-16 (`9dc6708`)

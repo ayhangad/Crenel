@@ -202,6 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
                 .environmentObject(self.appState)
                 .environment(\.crenelActions, self.crenelActions)
+                .environment(\.recordingPreviewLoader, self.recordingPreviewLoader)
         )
         },
         compact: { [unowned self] in
@@ -212,6 +213,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
         }
     )
+
+    /// Recordings rows read the notes' overview, the action count and the audio location.
+    private var recordingPreviewLoader: RecordingPreviewLoader {
+        let repository = meetingRepository
+        return RecordingPreviewLoader { meeting in
+            let transcription = try? await repository.loadTranscription(for: meeting.id)
+            let audio = await repository.audioFileURL(for: meeting)
+            return RecordingPreview(
+                overview: transcription?.summary?.overview,
+                actionCount: transcription?.summary?.actionItems.count,
+                audioURL: FileManager.default.fileExists(atPath: audio.path) ? audio : nil
+            )
+        }
+    }
 
     /// The strip under the closed notch answers with the same actions as the panel.
     private var notchStripActions: NotchStripActions {

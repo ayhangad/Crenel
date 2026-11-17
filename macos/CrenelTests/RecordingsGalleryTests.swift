@@ -108,19 +108,32 @@ final class RecordingsGalleryTests: XCTestCase {
 
     // MARK: Gallery — Recordings
 
-    func testRecordingsStatesRender() throws {
-        let list = { (recovery: RecordingRecoverySummary?, meetings: [StoredMeeting]) in
+    func testRecordingsStatesRender() async throws {
+        let audio = try sampleAudio()
+        _ = await MeetingWaveformPeaks.shared.peaks(for: audio, bars: RecordingMiniWaveform.bars)
+        let loader = RecordingPreviewLoader { meeting in
+            RecordingPreview(
+                overview: meeting.processingStatus == .completed && meeting.summaryNeedsAttention != true
+                    ? "The team agreed to ship the notch redesign behind a flag next week." : nil,
+                actionCount: meeting.processingStatus == .completed ? 3 : nil,
+                audioURL: audio
+            )
+        }
+        let list = { (recovery: RecordingRecoverySummary?, meetings: [StoredMeeting], hover: UUID?) in
             RecentMeetingsList(meetings: meetings, onOpen: { _ in }, onDelete: { _ in }, onRetry: { _ in },
-                               recovery: recovery, now: self.now)
+                               recovery: recovery, now: self.now, forcedHover: hover)
+                .environment(\.recordingPreviewLoader, loader)
         }
         let recovered = RecordingRecoverySummary(report: RecordingRecoveryReport(
             recoveredMeetings: [meeting("A", start: now, seconds: 60), meeting("B", start: now, seconds: 60)], preservedCount: 1
         ))
-        try export(panel(list(nil, historyMeetings)), "o-history", height: 470)
-        try export(panel(list(recovered, historyMeetings)), "o-history-recovery", height: 534)
-        try export(panel(list(nil, [])), "o-history-empty", height: 110)
+        let history = historyMeetings
+        try await exportLoaded(panel(list(nil, history, nil)), "o-history", height: 640)
+        try await exportLoaded(panel(list(nil, history, history[0].id)), "o-history-hover", height: 640)
+        try await exportLoaded(panel(list(recovered, history, nil)), "o-history-recovery", height: 704)
+        try await exportLoaded(panel(list(nil, [], nil)), "o-history-empty", height: 110)
         // `a-delete-meeting` is a native NSAlert raised by AppDelegate over this list.
-        try export(panel(list(nil, historyMeetings)), "a-delete-meeting", height: 470)
+        try await exportLoaded(panel(list(nil, history, nil)), "a-delete-meeting", height: 640)
     }
 
     // MARK: Gallery — Detail
@@ -206,7 +219,8 @@ final class RecordingsGalleryTests: XCTestCase {
             meeting("Partner call", start: date(17, 9, 0), seconds: 1_900, status: .processing),
             meeting("Weekly sync", start: date(16, 15, 30), seconds: 62, status: .failed),
             noNotes,
-            meeting("Quick note", start: date(16, 8, 20), seconds: 68, status: .recorded)
+            meeting("Quick note", start: date(16, 8, 20), seconds: 68, status: .recorded),
+            meeting("Onboarding research debrief", start: date(16, 12, 16).addingTimeInterval(-40 * 86_400), seconds: 3_420)
         ]
     }
 
@@ -264,6 +278,31 @@ final class RecordingsGalleryTests: XCTestCase {
 
     /// Hosts the scene in a window (lazy stacks, timelines and appear animations need
     /// one), lets the entrance settle, and writes the PNG when exporting.
+    /// Like `export`, but suspends instead of spinning the run loop, so tasks the rows
+    /// start on the main actor (preview and waveform loading) get to finish.
+    private func exportLoaded(_ view: some View, _ name: String, height: CGFloat) async throws {
+        let size = CGSize(width: Hud.Notch.openWidth, height: height)
+        let host = NSHostingView(rootView: view.frame(height: height, alignment: .top).environment(\.colorScheme, .dark))
+        host.sizingOptions = []
+        host.appearance = NSAppearance(named: .darkAqua)
+        host.frame = CGRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = host
+        defer { window.contentView = nil }
+        for _ in 0..<30 {
+            host.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertLessThanOrEqual(host.fittingSize.height, height + 0.5, "\(name) is taller than its frame")
+        let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        guard FileManager.default.fileExists(atPath: "/tmp/CrenelExportUIAudit") else { return }
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let path = root.appending(path: "artifacts/ui-audit/recordings/\(name).png")
+        try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try XCTUnwrap(bitmap.representation(using: .png, properties: [:])).write(to: path)
+    }
+
     private func export(_ view: some View, _ name: String, height: CGFloat) throws {
         let size = CGSize(width: Hud.Notch.openWidth, height: height)
         let host = NSHostingView(rootView: view.frame(height: height, alignment: .top).environment(\.colorScheme, .dark))

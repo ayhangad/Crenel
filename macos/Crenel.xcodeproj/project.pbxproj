@@ -129,6 +129,7 @@
 		749A9C89AA5A09ED8AE1AF66 /* RecordingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70A90B6E4BAFD1F3CA126AE9 /* RecordingSession.swift */; };
 		7593C1E9EDA6ACBF637AB469 /* DictationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BF49A822461E06B3B981A3E /* DictationState.swift */; };
 		75B7817FAF9B9078CC7CDB05 /* CrenelApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD38E3D86B9FB4E3465A0581 /* CrenelApp.swift */; };
+		78FEC3F49B6F9C5A8FF3C709 /* RecordingRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FD450292631DB5C7D53D69 /* RecordingRow.swift */; };
 		798D2A6FEB889A03C3F73D5B /* LocalSpeechTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 984DBABFA8817CF5358F2D6D /* LocalSpeechTranscriber.swift */; };
 		7C076B6636A862674AE95EBA /* CLIAgentProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00352784D2077F703222D5A /* CLIAgentProviderTests.swift */; };
 		7C49D8C563A5C87407264341 /* CrenelComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF26D641AB72ED8E1B42514C /* CrenelComponents.swift */; };
@@ -282,6 +283,7 @@
 		05EBA6A6FD525FEDD9911331 /* HudSegmentDigits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HudSegmentDigits.swift; sourceTree = "<group>"; };
 		061201910A55FB95F2FCEE06 /* CrenelCompactView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrenelCompactView.swift; sourceTree = "<group>"; };
 		07D8AE1105108F96AC25B028 /* MeetingSessionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingSessionCoordinatorTests.swift; sourceTree = "<group>"; };
+		07FD450292631DB5C7D53D69 /* RecordingRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingRow.swift; sourceTree = "<group>"; };
 		08742B0F2B6D0231DFE9D087 /* DictationControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationControllerTests.swift; sourceTree = "<group>"; };
 		08B281698DA079846EA50C0C /* DictationPrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationPrompts.swift; sourceTree = "<group>"; };
 		09F944E2B1AD0D5127F5E026 /* CrenelTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrenelTaskTests.swift; sourceTree = "<group>"; };
@@ -629,6 +631,7 @@
 				D98834B2F820B4E29BEF9090 /* MeetingDetailSections.swift */,
 				FFBF80A0429DC748C944DB9E /* MeetingDetailView.swift */,
 				5A3C883D2E07A7F0F6038F26 /* MeetingWaveform.swift */,
+				07FD450292631DB5C7D53D69 /* RecordingRow.swift */,
 				A50A65228BF5F99C5949A7C9 /* RecordingsList.swift */,
 			);
 			path = Meetings;
@@ -1434,6 +1437,7 @@
 				9ABC9D607DBC4CE8384B8AA4 /* RecordingMeetingContext.swift in Sources */,
 				7C7C0F5557BEE3E14213CCB0 /* RecordingRecovery.swift in Sources */,
 				14FE37CE561ABF421037DDF4 /* RecordingRecoveryService.swift in Sources */,
+				78FEC3F49B6F9C5A8FF3C709 /* RecordingRow.swift in Sources */,
 				749A9C89AA5A09ED8AE1AF66 /* RecordingSession.swift in Sources */,
 				27E92B6C2EB57247CABC69CE /* RecordingSurface.swift in Sources */,
 				35C2E0602BE88C210C18AEF6 /* RecordingsList.swift in Sources */,

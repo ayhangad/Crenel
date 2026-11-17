@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Crenel · Recordings mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink1:#f3f1ec; --ink2:#aaa7a1; --ink3:#76736e; --ink4:#4c4a47; --ink5:#2e2d2b;
+    --amber:#ffad33; --red:#ff5a47; --teal:#34e6cb;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:Geist, -apple-system, sans-serif; color:var(--ink1);
+    background:linear-gradient(160deg,#1d2440,#2b2f45 40%,#3a3d4c);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center; gap:28px; padding-bottom:60px;
+  }
+  .menubar { width:100%; height:32px; background:rgba(20,22,34,.55); }
+  .panel {
+    width:560px; margin-top:-32px; background:#000; border-radius:0 0 24px 24px;
+    padding:0 14px 16px; box-shadow:0 24px 60px rgba(0,0,0,.45);
+  }
+  /* band */
+  .band { height:32px; display:flex; align-items:center; justify-content:space-between; position:relative; }
+  .band .cam { position:absolute; left:50%; transform:translateX(-50%); top:0; width:186px; height:32px; background:#000; }
+  .brand { display:flex; align-items:center; gap:8px; font-weight:600; font-size:12.5px; margin-left:-2px; }
+  .mark { width:15px; height:9.4px; background:#14f0d4; box-shadow:0 0 2.5px #14f0d4;
+          clip-path:polygon(0 0,25% 0,25% 40%,40% 40%,40% 0,60% 0,60% 40%,75% 40%,75% 0,100% 0,100% 100%,0 100%); }
+  .tools { display:flex; gap:12px; color:var(--ink3); }
+  .tools svg { width:15px; height:15px; }
+  .tabs { height:30px; display:flex; gap:16px; align-items:flex-start; padding-top:7px; font-size:13px; font-weight:500; }
+  .tabs span { color:var(--ink3); position:relative; }
+  .tabs .on { color:var(--ink1); }
+  .tabs .on::after { content:""; position:absolute; left:0; right:0; bottom:-10px; height:2px; border-radius:2px;
+                     background:var(--ink1); box-shadow:0 0 3px rgba(243,241,236,.6); }
+  .tabs .badge { color:var(--ink4); font-size:11.5px; margin-left:3px; }
+
+  /* list */
+  .list { margin-top:12px; }
+  .group { font-size:11.5px; color:var(--ink4); padding:10px 8px 6px; display:flex; justify-content:space-between; }
+  .row {
+    display:grid; grid-template-columns:40px 1fr 128px; gap:12px; align-items:center;
+    padding:9px 8px; border-radius:10px; position:relative;
+  }
+  .row:hover, .row.hover { background:#121211; }
+
+  /* date tile: segment-like day over month */
+  .tile {
+    width:40px; height:44px; border-radius:8px; background:linear-gradient(#050505,#0a0a09);
+    border:0.5px solid #1c1b1a; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    position:relative;
+  }
+  .day { position:relative; font-family:"Geist Mono", monospace; font-size:17px; line-height:1; letter-spacing:.5px; }
+  .day .ghost { color:rgba(243,241,236,.075); }
+  .day .lit { position:absolute; inset:0; color:var(--ink1); text-shadow:0 0 1.5px rgba(243,241,236,.6), 0 0 7px rgba(243,241,236,.24); }
+  .mon { font-size:9.5px; font-weight:500; color:var(--ink3); }
+  .lamp { position:absolute; top:-2px; right:-2px; width:7px; height:7px; border-radius:50%; }
+  .lamp.teal { background:radial-gradient(#b9fff3,var(--teal) 70%); box-shadow:0 0 6px var(--teal); }
+  .lamp.amber { background:radial-gradient(#ffe2b3,var(--amber) 70%); box-shadow:0 0 6px var(--amber); }
+
+  .body { min-width:0; }
+  .title { font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .meta { font-size:11.5px; color:var(--ink3); margin-top:2px; display:flex; gap:6px; align-items:center; white-space:nowrap; }
+  .meta .dot { color:var(--ink5); }
+  .meta .acts { color:var(--ink2); }
+  .meta .warn { color:var(--amber); }
+  .gist { font-size:11.5px; color:var(--ink4); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+  .right { display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .dur { font-family:"Geist Mono", monospace; font-size:12px; color:var(--ink2); }
+  .wave { display:flex; align-items:center; gap:1.5px; height:18px; }
+  .wave i { display:block; width:2px; border-radius:1px; background:var(--ink4); }
+  .actions { display:none; gap:6px; }
+  .row:hover .wave, .row.hover .wave { display:none; }
+  .row:hover .actions, .row.hover .actions { display:flex; }
+  .key {
+    font-size:11.5px; font-weight:500; padding:4px 9px; border-radius:7px; display:flex; gap:6px; align-items:center;
+    background:rgba(255,255,255,.055); color:var(--ink2); border:0.5px solid #262523;
+  }
+  .key.primary { background:linear-gradient(#fdfcf9,#e2dfd8); color:#111; border-color:#000; box-shadow:0 0 16px rgba(243,241,236,.09); }
+  .key kbd { font-family:Geist; font-size:10px; opacity:.5; }
+
+  .note { width:560px; color:rgba(243,241,236,.7); font-size:12px; line-height:1.6; }
+  .note b { color:#fff; }
+</style>
+</head>
+<body>
+<div class="menubar"></div>
+
+<div class="panel">
+  <div class="band">
+    <div class="brand"><div class="mark"></div>Crenel</div>
+    <div class="cam"></div>
+    <div class="tools">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2.5" width="13" height="11"/><path d="M1.5 5.5h13"/></svg>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9.5 1.5l5 5-2 1-3 3-.5 3-6-6 3-.5 3-3z M4.5 11.5l-3 3"/></svg>
+    </div>
+  </div>
+  <div class="tabs"><span>Today</span><span class="on">Recordings</span><span>Tasks<span class="badge">5</span></span></div>
+
+  <div class="list" id="list"></div>
+</div>
+
+<div class="note">
+  <b>Mock — yalnız bu ekran.</b> Başlıklar örnek: takvim etkinliğinin adı ya da özetten çıkan kısa başlık
+  (şu an hepsi "İsimsiz Toplantı"). Tarih, saat ve süreler gerçek kayıtlarından. İkinci satır hover halinde
+  gösteriliyor: dalga formunun yerini Play ve Open alır. Karonun köşesindeki lamba: turkuaz = notlar hazır,
+  amber = özet sana bakılmayı bekliyor.
+</div>
+
+<script>
+const groups = [
+  { name: "September", count: "2", rows: [
+    { d:"25", m:"Sep", title:"Analytics review before the demo", time:"16:31", venue:"Google Meet", acts:6, gist:"Day-by-day numbers are still noisy; demo after the headline metrics.", dur:"1h 02m", lamp:"teal", seed:3, hover:false },
+    { d:"09", m:"Sep", title:"CMS migration sync", time:"14:02", venue:"Zoom", acts:4, gist:"Manual path for now; content moves into the CMS next.", dur:"42m", lamp:"amber", warn:true, seed:7, hover:true },
+  ]},
+  { name: "August", count: "2", rows: [
+    { d:"19", m:"Aug", title:"Evening planning call", time:"21:02", venue:"Google Meet", acts:3, gist:"Scope for the next sprint and who owns the rollout.", dur:"52m", lamp:"teal", seed:11 },
+    { d:"15", m:"Aug", title:"Onboarding research debrief", time:"12:16", venue:"Zoom", acts:5, gist:"Users drop off at step three; shorten the questions.", dur:"57m", lamp:"teal", seed:19 },
+  ]},
+];
+function wave(seed) {
+  let s = seed, out = "";
+  for (let i = 0; i < 34; i++) {
+    s = (s * 9301 + 49297) % 233280;
+    const h = 3 + Math.round((s / 233280) * 15 * (0.55 + 0.45 * Math.sin(i / 3 + seed)));
+    out += `<i style="height:${Math.max(3, Math.abs(h))}px"></i>`;
+  }
+  return out;
+}
+const list = document.getElementById("list");
+for (const g of groups) {
+  list.insertAdjacentHTML("beforeend", `<div class="group"><span>${g.name}</span><span>${g.count}</span></div>`);
+  for (const r of g.rows) {
+    list.insertAdjacentHTML("beforeend", `
+      <div class="row ${r.hover ? "hover" : ""}">
+        <div class="tile"><span class="lamp ${r.lamp}"></span>
+          <div class="day"><span class="ghost">88</span><span class="lit">${r.d}</span></div>
+          <div class="mon">${r.m}</div>
+        </div>
+        <div class="body">
+          <div class="title">${r.title}</div>
+          <div class="meta">${r.time}<span class="dot">·</span>${r.venue}<span class="dot">·</span>
+            ${r.warn ? `<span class="warn">◆ Check summary</span>` : `<span class="acts">${r.acts} actions</span>`}</div>
+          <div class="gist">${r.gist}</div>
+        </div>
+        <div class="right">
+          <div class="dur">${r.dur}</div>
+          <div class="wave">${wave(r.seed)}</div>
+          <div class="actions"><span class="key">▶ Play</span><span class="key primary">Open <kbd>↩</kbd></span></div>
+        </div>
+      </div>`);
+  }
+}
+</script>
+</body>
+</html>

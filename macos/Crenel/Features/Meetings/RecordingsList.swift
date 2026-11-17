@@ -3,8 +3,10 @@ import SwiftUI
 // MARK: - Recordings (history)
 
 /// Recorded meetings, newest first (`tpl-history`): the week on tape on top (only when
-/// something was recorded this week), then one-line rows — date, time, title, and the
-/// length at the trailing edge; a status shape only on rows that need attention.
+/// something was recorded this week), then the recordings grouped by month. Each row is
+/// a `RecordingRow`: date tile, title, when · where · what came of it, the first line of
+/// the notes, and the length over the waveform. Rows keep a small gap between them so
+/// the hover slab never touches the next one.
 ///
 ///     RecentMeetingsList(meetings: stored, onOpen: open, onDelete: delete, onRetry: retry)
 ///     RecentMeetingsList(meetings: stored, …, recovery: summary, onOpenRecovery: show, onDismissRecovery: dismiss)
@@ -24,9 +26,12 @@ struct RecentMeetingsList: View {
     /// (people, open action items). The built-in line only names what is missing.
     var detail: ((StoredMeeting) -> String?)?
     var now: Date = Date()
+    /// Galleries: show this row as hovered.
+    var forcedHover: UUID?
 
     @State private var hovered: AnyHashable?
     @State private var appeared = false
+    @StateObject private var playback = RecordingInlinePlayback()
     @Namespace private var glide
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -40,8 +45,10 @@ struct RecentMeetingsList: View {
         onOpenRecovery: @escaping () -> Void = {},
         onDismissRecovery: @escaping () -> Void = {},
         detail: ((StoredMeeting) -> String?)? = nil,
-        now: Date = Date()
+        now: Date = Date(),
+        forcedHover: UUID? = nil
     ) {
+        self.forcedHover = forcedHover
         self.meetings = meetings
         self.onOpen = onOpen
         self.onDelete = onDelete
@@ -72,17 +79,33 @@ struct RecentMeetingsList: View {
                         .padding(.bottom, 12)
                         .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
                 }
-                // Newest first, no day groups: every row carries its own date.
+                let groups = RecordingsMonth.groups(meetings, now: now)
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(meetings) { meeting in
-                        row(meeting)
-                            .hudGlide(meeting.id, hovered: $hovered, in: glide)
+                    ForEach(groups) { group in
+                        HStack {
+                            Text(verbatim: group.title)
+                            Spacer(minLength: 8)
+                            Text(verbatim: "\(group.meetings.count)").monospacedDigit()
+                        }
+                        .hud(.meta, Hud.Ink.ink4)
+                        .padding(.horizontal, Hud.Row.inset)
+                        .padding(.top, group.id == groups.first?.id ? 2 : 10)
+                        .padding(.bottom, 4)
+                        .accessibilityAddTraits(.isHeader)
+
+                        VStack(alignment: .leading, spacing: RecordingRow.spacing) {
+                            ForEach(group.meetings) { meeting in
+                                row(meeting)
+                                    .hudGlide(meeting.id, hovered: $hovered, in: glide, forced: forcedHover.map(AnyHashable.init))
+                            }
+                        }
                     }
                 }
                 .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
             }
         }
         .onAppear { appeared = true }
+        .onDisappear { playback.stop() }
     }
 
     private var emptyState: some View {
@@ -97,38 +120,11 @@ struct RecentMeetingsList: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// Date · time · title, and the length at the trailing edge. A status shape and its
-    /// word sit before the length only on rows that need attention.
     private func row(_ meeting: StoredMeeting) -> some View {
         let attention = RecordingAttention(meeting)
-        let line = detail?(meeting)
-        return HudRow(.task) {
-            // When it was: quiet, small, and close together, so the title leads the row.
-            HStack(spacing: 6) {
-                Text(verbatim: RecordingsFormat.date(meeting.startedAt, now: now))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .frame(width: RecordingsFormat.dateColumn, alignment: .leading)
-                Text(verbatim: HudFormat.clock(meeting.startedAt))
-                    .frame(width: RecordingsFormat.timeColumn, alignment: .leading)
-            }
-            .hud(.meta)
-            .monospacedDigit()
-            Text(meeting.title).hud(.body).lineLimit(1)
-            if let line {
-                Text(line).hud(.meta).lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            if let word = attention.word {
-                HStack(spacing: 8) {
-                    attention.shape
-                    Text(word).hud(.meta, Hud.Ink.ink2).fixedSize()
-                }
-            }
-            Text(verbatim: RecordingsFormat.length(meeting.duration))
-                .hud(.meta)
-                .fixedSize()
-                .frame(minWidth: 52, alignment: .trailing)
+        return RecordingRow(meeting: meeting, isHovered: (forcedHover.map(AnyHashable.init) ?? hovered) == AnyHashable(meeting.id),
+                     playback: playback) {
+            onOpen(meeting)
         }
         .onTapGesture { onOpen(meeting) }
         .contextMenu {
@@ -143,9 +139,38 @@ struct RecentMeetingsList: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(
             [meeting.title, RecordingsFormat.date(meeting.startedAt, now: now), HudFormat.clock(meeting.startedAt),
-             attention.word, line, RecordingsFormat.length(meeting.duration)]
+             attention.word, detail?(meeting), RecordingsFormat.length(meeting.duration)]
                 .compactMap { $0 }.joined(separator: ", ")
         )
+    }
+}
+
+/// Recordings of one calendar month, newest first. The title is the month's name, with
+/// the year when it is not this one.
+struct RecordingsMonth: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let meetings: [StoredMeeting]
+
+    static func groups(_ meetings: [StoredMeeting], now: Date, calendar: Calendar = .current) -> [RecordingsMonth] {
+        let formatter = DateFormatter()
+        formatter.locale = AppLanguage.locale
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        var result: [RecordingsMonth] = []
+        for meeting in meetings.sorted(by: { $0.startedAt > $1.startedAt }) {
+            let parts = calendar.dateComponents([.year, .month], from: meeting.startedAt)
+            let id = "\(parts.year ?? 0)-\(parts.month ?? 0)"
+            if let last = result.last, last.id == id {
+                result[result.count - 1] = RecordingsMonth(id: id, title: last.title, meetings: last.meetings + [meeting])
+            } else {
+                formatter.setLocalizedDateFormatFromTemplate(
+                    calendar.isDate(meeting.startedAt, equalTo: now, toGranularity: .year) ? "MMMM" : "MMMM yyyy"
+                )
+                result.append(RecordingsMonth(id: id, title: formatter.string(from: meeting.startedAt), meetings: [meeting]))
+            }
+        }
+        return result
     }
 }
 
