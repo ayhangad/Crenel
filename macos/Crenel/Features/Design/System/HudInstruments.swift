@@ -379,6 +379,7 @@ struct HudCapsules: View {
 /// Recording › Level only.
 ///
 ///     HudCapacityScale(level: inputLevel).frame(width: 232)
+///     HudCapacityScale(level: 0, isOff: true)     // no mic access: every cell a ghost
 struct HudCapacityScale: View {
     var level: Double
     var cells = 24
@@ -386,6 +387,7 @@ struct HudCapacityScale: View {
     var maxLabel = "0 dB"
     var glyph: HudGlyph = .mic
     var peak: Double?
+    var isOff = false
 
     var body: some View {
         VStack(spacing: 5) {
@@ -396,7 +398,7 @@ struct HudCapacityScale: View {
                 Spacer(minLength: 0)
                 Text(verbatim: maxLabel).hud(.micro)
             }
-            HudVUMeter(level: level, cells: cells, peak: peak)
+            HudVUMeter(level: level, cells: cells, isOff: isOff, peak: peak)
             GeometryReader { proxy in
                 // flex 17 : 4 : 3 with 2 pt gaps.
                 let unit = (proxy.size.width - 4) / 24

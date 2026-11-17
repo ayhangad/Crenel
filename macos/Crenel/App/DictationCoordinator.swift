@@ -25,7 +25,12 @@ final class DictationCoordinator {
         self.taskCoordinator = taskCoordinator
         self.controller = controller ?? DictationController.live()
         self.controller.onCreateTask = { [weak taskCoordinator] text in
-            taskCoordinator?.add(Self.taskParseResult(from: text))
+            taskCoordinator?.add(Self.taskParseResult(from: text))?.id
+        }
+        self.controller.onUndoCreatedTask = { [weak appState, weak taskCoordinator] id in
+            guard let task = appState?.tasks.first(where: { $0.id == id }), let taskCoordinator else { return false }
+            taskCoordinator.delete(task)
+            return true
         }
         mirrorStateIntoAppState()
     }
@@ -79,6 +84,11 @@ final class DictationCoordinator {
 
     func copyLastDictation() {
         controller.copyLastDictation()
+    }
+
+    /// Undo ⌘Z on the inserted strip.
+    func undoLastDictation() {
+        Task { await controller.undoLastDictation() }
     }
 
     func prepareSpeechAssets() {

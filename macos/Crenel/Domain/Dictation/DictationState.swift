@@ -37,6 +37,8 @@ struct DictationResultSummary: Equatable, Sendable {
     let text: String
     let delivery: DictationDelivery
     let appName: String?
+    /// True while the result can still be taken back (the strip offers Undo ⌘Z).
+    var canUndo = false
 
     var message: String {
         switch delivery {
@@ -69,6 +71,8 @@ enum DictationFailure: Error, Equatable, Sendable {
     case sessionTooLong
     case transcriptionFailed
     case insertionFailed
+    /// Undo was asked for but the text (or task) had already changed.
+    case undoFailed
 
     var message: String {
         switch self {
@@ -100,6 +104,8 @@ enum DictationFailure: Error, Equatable, Sendable {
             return "Couldn’t transcribe speech."
         case .insertionFailed:
             return "Couldn’t insert text. Copied to clipboard."
+        case .undoFailed:
+            return "Couldn’t undo. The text has changed since."
         }
     }
 

@@ -1408,7 +1408,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 cancel: { [weak self] in self?.dictationCoordinator.cancel() },
                 copyLast: { [weak self] in self?.dictationCoordinator.copyLastDictation() },
                 requestInputMonitoring: { [weak self] in self?.dictationCoordinator.requestInputMonitoringAccess() },
-                prepareSpeechAssets: { [weak self] in self?.dictationCoordinator.prepareSpeechAssets() }
+                prepareSpeechAssets: { [weak self] in self?.dictationCoordinator.prepareSpeechAssets() },
+                undoLast: { [weak self] in self?.dictationCoordinator.undoLastDictation() }
             ),
             restartToUpdate: { [weak self] in self?.updateCoordinator.restartToUpdate() },
             checkForUpdates: { [weak self] in self?.updateCoordinator.checkForUpdates() }

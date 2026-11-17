@@ -62,6 +62,11 @@ struct CrenelCompactView: View {
             crenelActions.dictation.prepareSpeechAssets()
             download()
         }
+        let undo = actions.undoDictation
+        resolved.undoDictation = {
+            crenelActions.dictation.undoLast()
+            undo()
+        }
         return resolved
     }
 
