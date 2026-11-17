@@ -12,3 +12,6 @@ MeetingNotch.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# Local xcodebuild output
+build/
