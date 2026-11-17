@@ -177,8 +177,8 @@ struct TodaySurface: View {
                     .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
                 nothingElseRow(agenda, now: now, canRecord: console == nil)
                     .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
-                if agenda.later.count > 1 {
-                    group(String(localized: "Later"), Array(agenda.later.dropFirst()), now: now, isFirst: false)
+                if !agenda.later.isEmpty {
+                    group(String(localized: "Later"), agenda.later, now: now, isFirst: false)
                         .hudStagger(4, shown: appeared, reduceMotion: reduceMotion)
                 }
             } else {
@@ -227,11 +227,6 @@ struct TodaySurface: View {
             HudLamp(.teal)
             Text("Nothing else today").hud(.body, Hud.Ink.ink2)
             Spacer(minLength: 8)
-            if let next = agenda.later.first {
-                Text(verbatim: "\(next.title) · \(TodayText.dayAndTime(next, now: now))")
-                    .hud(.meta)
-                    .lineLimit(1)
-            }
             if canRecord {
                 TodayRecordButton(action: onStartRecording)
             }
@@ -422,7 +417,7 @@ private struct TodayRecordButton: View {
             HudButtonLabel("Record", lamp: .red, key: "⌘R")
         }
         .buttonStyle(HudButtonStyle(kind: .secondary, size: .small))
-            .keyboardShortcut("r", modifiers: .command)
+            .hudShortcut("r")
             .accessibilityLabel("Record")
     }
 }
@@ -613,12 +608,12 @@ private struct TodayConsole: View {
         } buttons: {
             if model.canRecord {
                 HudButton("Record", lamp: .red, key: "⌘R", size: .small, action: onRecord)
-                    .keyboardShortcut("r", modifiers: .command)
+                    .hudShortcut("r")
                     .accessibilityLabel("Record")
             }
             if model.canJoin, let onJoin {
                 HudButton("Join", key: "⌘J", kind: .primary, size: .small, action: onJoin)
-                    .keyboardShortcut("j", modifiers: .command)
+                    .hudShortcut("j")
                     .accessibilityLabel("Join")
             }
         }
@@ -808,7 +803,7 @@ private struct TodayEmptyState: View {
         switch state {
         case .connect:
             HudButton("Connect", key: "↩", kind: .primary, size: .small, action: onConnect)
-                .keyboardShortcut(.defaultAction)
+                .hudShortcut(.defaultAction)
         case .accessOff:
             HudButton("Privacy settings", glyph: .link, size: .small, action: fixes.openPrivacySettings)
         case .failed:

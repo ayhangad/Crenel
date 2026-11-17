@@ -55,7 +55,7 @@ struct ProcessingSurface: View {
             } buttons: {
                 if let onStop {
                     HudButton("Stop", key: "esc", size: .small, action: onStop)
-                        .keyboardShortcut(.cancelAction)
+                        .hudShortcut(.cancelAction)
                         .accessibilityLabel("Stop processing")
                 }
             }
@@ -125,7 +125,7 @@ struct PreparingSurface: View {
             Text("Starting the recording")
         } buttons: {
             HudButton("Cancel", key: "esc", size: .small, action: onCancel)
-                .keyboardShortcut(.cancelAction)
+                .hudShortcut(.cancelAction)
         }
         .padding(.leading, 10)
         .padding(.trailing, 2)
@@ -198,10 +198,10 @@ struct ReadySurface: View {
                 Text("Kept in Recordings")
             } buttons: {
                 HudButton("Done", key: "esc", action: onDone)
-                    .keyboardShortcut(.cancelAction)
+                    .hudShortcut(.cancelAction)
                 if let onOpen {
                     HudButton("Open notes", key: "↩", kind: .primary, action: onOpen)
-                        .keyboardShortcut(.defaultAction)
+                        .hudShortcut(.defaultAction)
                 }
             }
             .padding(.leading, 10)
@@ -266,7 +266,7 @@ struct FlowOutcomeSurface: View {
                 }
                 if let primary {
                     HudButton(primary.title, glyph: primary.glyph, key: "↩", kind: .primary, action: primary.run)
-                        .keyboardShortcut(.defaultAction)
+                        .hudShortcut(.defaultAction)
                 }
             }
             .padding(.trailing, 2)

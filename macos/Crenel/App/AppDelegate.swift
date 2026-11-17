@@ -1,3 +1,4 @@
+import os
 import AppKit
 import EventKit
 import Combine
@@ -315,6 +316,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Start keeping the recording level history now, so a recording begun from the
         // strip has its chart before the panel is first opened.
         _ = appState.todayFlowMemory
+        #if DEBUG
+        installPerformanceProbe()
+        #endif
         desktopSettingsObserver = NotificationCenter.default.addObserver(
             forName: .openDesktopSettings, object: nil, queue: .main
         ) { [weak self] notification in
@@ -1211,6 +1215,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         await notch.expand(on: targetScreen)
     }
+
+    #if DEBUG
+    /// Debug builds only: `gad.Crenel.debug.tabCycle` (a distributed notification) opens
+    /// and pins the panel, then switches Today → Recordings → Tasks every 1.2 s for five
+    /// rounds, marking each switch as a Points of Interest signpost. Lets a profiler
+    /// measure tab switches the same way every time:
+    ///
+    ///     xcrun xctrace record --template SwiftUI --attach <pid> --time-limit 25s
+    ///     swift -e 'import Foundation; DistributedNotificationCenter.default().postNotificationName(.init("gad.Crenel.debug.tabCycle"), object: nil, deliverImmediately: true)'
+    private func installPerformanceProbe() {
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name("gad.Crenel.debug.tabCycle"), object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.runTabCycle() }
+        }
+    }
+
+    private func runTabCycle() async {
+        let signposter = OSSignposter(subsystem: "gad.Crenel", category: .pointsOfInterest)
+        if !appState.isNotchPinned { toggleNotchPin() }
+        await expandNotch(followPointer: false)
+        try? await Task.sleep(for: .seconds(1.5))
+        for _ in 0..<5 {
+            for tab in AppState.PanelTab.allCases {
+                signposter.emitEvent("Tab", "\(tab.rawValue)")
+                appState.selectedTab = tab
+                try? await Task.sleep(for: .seconds(1.2))
+            }
+        }
+        appState.selectedTab = .meetings
+        if appState.isNotchPinned { toggleNotchPin() }
+    }
+    #endif
 
     private func toggleNotchPin() {
         let isPinned = appState.toggleNotchPin()

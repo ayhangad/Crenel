@@ -1,6 +1,12 @@
 import Foundation
 
 @MainActor
+@Observable
+final class PanelNavigation {
+    var tab: AppState.PanelTab = .meetings
+}
+
+@MainActor
 final class AppState: ObservableObject {
     @Published var isCalendarEnabled = true
     enum PanelTab: String, CaseIterable, Identifiable {
@@ -11,7 +17,13 @@ final class AppState: ObservableObject {
         var id: Self { self }
     }
 
-    @Published var selectedTab: PanelTab = .meetings
+    /// The selected panel tab lives in its own observable, so a tab switch redraws only
+    /// the band and the panel's tab host, not every view that watches AppState.
+    let panelNavigation = PanelNavigation()
+    var selectedTab: PanelTab {
+        get { panelNavigation.tab }
+        set { panelNavigation.tab = newValue }
+    }
     @Published private(set) var isNotchPinned = false
     @Published private(set) var notchPanelAvailableSize = CGSize(width: 1_024, height: 768)
     @Published private(set) var notchPanelHasPhysicalNotch = false

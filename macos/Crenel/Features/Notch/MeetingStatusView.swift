@@ -150,6 +150,7 @@ struct MeetingStatusView: View {
             guard let meeting = appState.completedMeeting else { return }
             resultStats = await (loadResultStats ?? Self.storedResultStats)(meeting)
         }
+        .modifier(SuppressIgnitionWhenHidden())
         .onDisappear {
             // Leaving for Tasks or a meeting's detail is not closing the panel.
             TodayIgnition.suppressNext = appState.selectedTab != .meetings || appState.presentedMeetingDetail != nil
@@ -474,5 +475,16 @@ struct RecordingRecoveryNoticeView: View {
         .padding(.horizontal, Hud.Size.rowInset)
         .frame(minHeight: Hud.Size.row)
         .background(RoundedRectangle(cornerRadius: Hud.Size.corner + 2, style: .continuous).fill(Hud.Ink.hover))
+    }
+}
+
+/// Hidden behind another tab is not closing the panel: the gauges should not sweep again
+/// when Today shows. A modifier of its own, so Today does not re-render on the switch.
+private struct SuppressIgnitionWhenHidden: ViewModifier {
+    @Environment(\.hudVisibility) private var visibility
+    private var hidden: Bool { visibility?.isHidden ?? false }
+
+    func body(content: Content) -> some View {
+        content.onChange(of: hidden) { _, hidden in if hidden { TodayIgnition.suppressNext = true } }
     }
 }

@@ -393,10 +393,12 @@ struct CrenelOrb: View {
     var level: Double = 0
     var density: Double = 16
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.hudVisibility) private var visibility
+    private var motionPaused: Bool { visibility?.isHidden ?? false }
     @State private var start = Date()
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 60, paused: reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 60, paused: reduceMotion || motionPaused)) { context in
             let time = Float(context.date.timeIntervalSince(start))
             GeometryReader { proxy in
                 Rectangle()
@@ -431,10 +433,12 @@ struct CrenelAura: View {
 private struct ShimmerModifier: ViewModifier {
     var active: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.hudVisibility) private var visibility
+    private var motionPaused: Bool { visibility?.isHidden ?? false }
     @State private var start = Date()
 
     func body(content: Content) -> some View {
-        if active && !reduceMotion {
+        if active && !reduceMotion && !motionPaused {
             TimelineView(.animation(minimumInterval: 1 / 60)) { context in
                 let time = Float(context.date.timeIntervalSince(start))
                 content.visualEffect { view, proxy in
@@ -473,9 +477,11 @@ struct CrenelLevelBars: View {
     var barCount = 5
     var height: CGFloat = 14
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.hudVisibility) private var visibility
+    private var motionPaused: Bool { visibility?.isHidden ?? false }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || motionPaused)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
             HStack(alignment: .center, spacing: 2) {
                 ForEach(0..<barCount, id: \.self) { index in

@@ -1050,9 +1050,11 @@ struct HudIconTile: View {
 /// longer use `HudBusy` or the scanner.
 struct HudSpinner: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.hudVisibility) private var visibility
+    private var motionPaused: Bool { visibility?.isHidden ?? false }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { timeline in
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || motionPaused)) { timeline in
             ZStack {
                 Circle().stroke(Color(white: 1, opacity: 0.2), lineWidth: 1.5)
                 Circle().trim(from: 0, to: 0.25).stroke(Color(white: 1, opacity: 0.8), style: StrokeStyle(lineWidth: 1.5, lineCap: .round))

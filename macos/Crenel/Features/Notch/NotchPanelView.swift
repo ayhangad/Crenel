@@ -70,6 +70,8 @@ struct NotchPanelView: View {
 
     @Environment(\.crenelNotchMetrics) private var notchMetrics
     @Environment(\.crenelNotchOpenedAt) private var notchOpenedAt
+    /// Tabs built so far in this opening of the panel.
+    @State private var mountedTabs: Set<AppState.PanelTab> = []
 
     var body: some View {
         let layout = NotchPanelLayout(
@@ -120,40 +122,16 @@ struct NotchPanelView: View {
                         )
                         .id(detail.id)
                         .transition(.opacity)
-                    } else {
-                        switch appState.selectedTab {
-                        case .meetings:
-                            MeetingStatusView(
-                                onRequestCalendarAccess: onRequestCalendarAccess,
-                                onOpenMeetingURL: onOpenMeetingURL,
-                                onStartRecording: onStartRecording,
-                                onStopRecording: onStopRecording,
-                                onToggleMeetingMicrophone: onToggleMeetingMicrophone,
-                                onDismissMeetingPrompt: onDismissMeetingPrompt,
-                                onContinueRecording: onContinueRecording,
-                                onConfirmMeetingEnded: onConfirmMeetingEnded,
-                                onCancelFlow: onCancelFlow,
-                                onRecoverFromFailure: onRecoverFromFailure,
-                                onOpenStoredMeeting: onOpenStoredMeeting,
-                                onRelaunchApplication: onRelaunchApplication,
-                                onShowRecordings: { appState.selectedTab = .recordings }
-                            )
-                            .transition(.opacity)
-                        case .recordings:
-                            RecentMeetingsList(
-                                meetings: Array(appState.storedMeetings.prefix(30)),
-                                onOpen: onOpenStoredMeeting,
-                                onDelete: onDeleteStoredMeeting,
-                                onRetry: onRetryStoredMeeting,
-                                weekMeetings: appState.storedMeetings,
-                                recovery: appState.recordingRecoverySummary,
-                                onOpenRecovery: onOpenRecovery,
-                                onDismissRecovery: appState.dismissRecordingRecoverySummary
-                            )
-                            .transition(.opacity)
-                        case .tasks:
-                            TasksView()
-                                .transition(.opacity)
+                    }
+                    // Tabs stay built once shown: switching only changes which one is
+                    // visible, instead of building a whole surface (≈50 ms) on the click.
+                    ForEach(AppState.PanelTab.allCases) { tab in
+                        if mountedTabs.contains(tab) {
+                            tabContent(tab)
+                                .modifier(PanelTabVisibility(
+                                    isActive: appState.presentedMeetingDetail == nil && appState.selectedTab == tab,
+                                    animation: motion(Hud.Motion.content)
+                                ))
                         }
                     }
                 }
@@ -180,7 +158,50 @@ struct NotchPanelView: View {
             }
         }
         .animation(motion(Hud.Motion.content), value: appState.presentedMeetingDetail?.id)
-        .animation(motion(Hud.Motion.content), value: appState.selectedTab)
+        .onAppear { mountedTabs.insert(appState.selectedTab) }
+        .onChange(of: appState.selectedTab) { _, tab in mountedTabs.insert(tab) }
+        .task {
+            // Build the other tabs once the opening motion has settled, so the first
+            // switch to them is as quick as the rest.
+            try? await Task.sleep(for: .seconds(1.1))
+            mountedTabs.formUnion(AppState.PanelTab.allCases)
+        }
+    }
+
+    @ViewBuilder
+    private func tabContent(_ tab: AppState.PanelTab) -> some View {
+        switch tab {
+        case .meetings:
+            MeetingStatusView(
+                onRequestCalendarAccess: onRequestCalendarAccess,
+                onOpenMeetingURL: onOpenMeetingURL,
+                onStartRecording: onStartRecording,
+                onStopRecording: onStopRecording,
+                onToggleMeetingMicrophone: onToggleMeetingMicrophone,
+                onDismissMeetingPrompt: onDismissMeetingPrompt,
+                onContinueRecording: onContinueRecording,
+                onConfirmMeetingEnded: onConfirmMeetingEnded,
+                onCancelFlow: onCancelFlow,
+                onRecoverFromFailure: onRecoverFromFailure,
+                onOpenStoredMeeting: onOpenStoredMeeting,
+                onRelaunchApplication: onRelaunchApplication,
+                onShowRecordings: { appState.selectedTab = .recordings }
+            )
+        case .recordings:
+            RecentMeetingsList(
+                meetings: Array(appState.storedMeetings.prefix(30)),
+                onOpen: onOpenStoredMeeting,
+                onDelete: onDeleteStoredMeeting,
+                onRetry: onRetryStoredMeeting,
+                weekMeetings: appState.storedMeetings,
+                recovery: appState.recordingRecoverySummary,
+                onOpenRecovery: onOpenRecovery,
+                onDismissRecovery: appState.dismissRecordingRecoverySummary
+            )
+            .equatable()
+        case .tasks:
+            TasksView()
+        }
     }
 
     private var promptActions: NotchStripActions {
@@ -194,6 +215,27 @@ struct NotchPanelView: View {
 
     private func motion(_ animation: Animation) -> Animation {
         reduceMotion ? .linear(duration: 0.01) : animation
+    }
+}
+
+/// A built tab that is not selected: no height, invisible, no clicks, and its loops and
+/// shortcuts (`hudShortcut`) paused. `.disabled` is not used: it would re-resolve every
+/// button in the tab on each switch. Only the opacity animates, so switching is a crossfade.
+private struct PanelTabVisibility: ViewModifier {
+    let isActive: Bool
+    let animation: Animation
+    /// One per tab for the life of the panel; only its flag flips.
+    @State private var visibility = HudVisibility()
+
+    func body(content: Content) -> some View {
+        content
+            .environment(\.hudVisibility, visibility)
+            .frame(height: isActive ? nil : 0, alignment: .top)
+            .animation(animation) { $0.opacity(isActive ? 1 : 0) }
+            .allowsHitTesting(isActive)
+            .accessibilityHidden(!isActive)
+            .onAppear { visibility.isHidden = !isActive }
+            .onChange(of: isActive) { _, active in visibility.isHidden = !active }
     }
 }
 

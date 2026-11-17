@@ -10,7 +10,7 @@ import SwiftUI
 ///
 ///     RecentMeetingsList(meetings: stored, onOpen: open, onDelete: delete, onRetry: retry)
 ///     RecentMeetingsList(meetings: stored, …, recovery: summary, onOpenRecovery: show, onDismissRecovery: dismiss)
-struct RecentMeetingsList: View {
+struct RecentMeetingsList: View, Equatable {
     let meetings: [StoredMeeting]
     let onOpen: (StoredMeeting) -> Void
     let onDelete: (StoredMeeting) -> Void
@@ -25,7 +25,9 @@ struct RecentMeetingsList: View {
     /// Second line of a row, when the caller knows more than the stored meeting does
     /// (people, open action items). The built-in line only names what is missing.
     var detail: ((StoredMeeting) -> String?)?
-    var now: Date = Date()
+    /// The clock for "this week"; nil means now.
+    var fixedNow: Date?
+    private var now: Date { fixedNow ?? Date() }
     /// Galleries: show this row as hovered.
     var forcedHover: UUID?
 
@@ -45,7 +47,7 @@ struct RecentMeetingsList: View {
         onOpenRecovery: @escaping () -> Void = {},
         onDismissRecovery: @escaping () -> Void = {},
         detail: ((StoredMeeting) -> String?)? = nil,
-        now: Date = Date(),
+        now: Date? = nil,
         forcedHover: UUID? = nil
     ) {
         self.forcedHover = forcedHover
@@ -58,7 +60,16 @@ struct RecentMeetingsList: View {
         self.onOpenRecovery = onOpenRecovery
         self.onDismissRecovery = onDismissRecovery
         self.detail = detail
-        self.now = now
+        self.fixedNow = now
+    }
+
+    /// What the list draws. Actions are left out: they never change for a list. With
+    /// `.equatable()` a tab switch elsewhere in the panel does not redraw the rows.
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        MainActor.assumeIsolated {
+            lhs.meetings == rhs.meetings && lhs.weekMeetings == rhs.weekMeetings && lhs.recovery == rhs.recovery
+                && lhs.fixedNow == rhs.fixedNow && lhs.forcedHover == rhs.forcedHover && (lhs.detail == nil) == (rhs.detail == nil)
+        }
     }
 
     var body: some View {
@@ -97,6 +108,7 @@ struct RecentMeetingsList: View {
         }
         .onAppear { appeared = true }
         .onDisappear { playback.stop() }
+        .modifier(StopPlaybackWhenHidden(playback: playback))
     }
 
     private var emptyState: some View {
@@ -132,6 +144,18 @@ struct RecentMeetingsList: View {
              attention.word, detail?(meeting), RecordingsFormat.length(meeting.duration)]
                 .compactMap { $0 }.joined(separator: ", ")
         )
+    }
+}
+
+/// Stops inline playback when the Recordings tab is hidden behind another tab. A
+/// modifier of its own, so only it (not the list) re-renders on a tab switch.
+private struct StopPlaybackWhenHidden: ViewModifier {
+    let playback: RecordingInlinePlayback
+    @Environment(\.hudVisibility) private var visibility
+    private var hidden: Bool { visibility?.isHidden ?? false }
+
+    func body(content: Content) -> some View {
+        content.onChange(of: hidden) { _, hidden in if hidden { playback.stop() } }
     }
 }
 

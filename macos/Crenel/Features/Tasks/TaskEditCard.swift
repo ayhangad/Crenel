@@ -107,7 +107,7 @@ struct TaskEditCard: View {
                 }
             } buttons: {
                 HudButton("Done", key: "↩", kind: .primary, size: .small, action: close)
-                    .keyboardShortcut(.defaultAction)
+                    .hudShortcut(.defaultAction)
             }
         }
         .padding(.horizontal, Hud.Row.inset)

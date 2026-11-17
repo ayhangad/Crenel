@@ -228,11 +228,13 @@ struct HudScanner: View {
     /// A fixed 0…1 position instead of the sweep — for previews and tests.
     var fixedPhase: Double?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.hudVisibility) private var visibility
+    private var motionPaused: Bool { visibility?.isHidden ?? false }
 
     var body: some View {
         GeometryReader { proxy in
             let band = proxy.size.width * 0.22
-            TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { timeline in
+            TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion || motionPaused)) { timeline in
                 let period = Hud.Motion.scanPeriod
                 let raw = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period * 2) / period
                 let phase = raw > 1 ? 2 - raw : raw

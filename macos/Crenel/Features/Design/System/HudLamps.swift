@@ -27,12 +27,59 @@ enum HudLoop: Equatable, Sendable {
     }
 }
 
+/// Whether a kept-alive surface (a panel tab that is not selected) is hidden. It is an
+/// observable object put in the environment once, so flipping it redraws only the views
+/// that read it — loops, scanners, level bars, shortcuts — not the whole tab, as a
+/// changing environment value would.
+@MainActor
+@Observable
+final class HudVisibility {
+    var isHidden: Bool
+    init(isHidden: Bool = false) { self.isHidden = isHidden }
+}
+
+private struct HudVisibilityKey: EnvironmentKey {
+    static let defaultValue: HudVisibility? = nil
+}
+
+extension EnvironmentValues {
+    var hudVisibility: HudVisibility? {
+        get { self[HudVisibilityKey.self] }
+        set { self[HudVisibilityKey.self] = newValue }
+    }
+}
+
+/// A keyboard shortcut that is off while its view is kept alive but hidden
+/// (`hudVisibility`), so a hidden tab's ⌘R does not fire from another tab.
+private struct HudShortcutModifier: ViewModifier {
+    let shortcut: KeyboardShortcut
+    @Environment(\.hudVisibility) private var visibility
+    private var hidden: Bool { visibility?.isHidden ?? false }
+
+    func body(content: Content) -> some View {
+        content.keyboardShortcut(hidden ? nil : shortcut)
+    }
+}
+
+extension View {
+    /// `.keyboardShortcut` that switches off in a hidden panel tab.
+    func hudShortcut(_ key: KeyEquivalent, modifiers: EventModifiers = .command) -> some View {
+        modifier(HudShortcutModifier(shortcut: KeyboardShortcut(key, modifiers: modifiers)))
+    }
+
+    func hudShortcut(_ shortcut: KeyboardShortcut) -> some View {
+        modifier(HudShortcutModifier(shortcut: shortcut))
+    }
+}
+
 private struct HudLoopModifier: ViewModifier {
     let loop: HudLoop
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.hudVisibility) private var visibility
+    private var paused: Bool { visibility?.isHidden ?? false }
 
     func body(content: Content) -> some View {
-        if loop == .steady || reduceMotion {
+        if loop == .steady || reduceMotion || paused {
             content
         } else if loop == .blink {
             TimelineView(.periodic(from: Date(timeIntervalSinceReferenceDate: 0), by: Hud.Motion.blinkPeriod / 20)) { timeline in

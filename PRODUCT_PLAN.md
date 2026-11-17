@@ -237,6 +237,11 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     üst/alt), satırlar ortalı; hover düğmeleri satırın kendi hover'ıyla anında, Today
     listesi hover'ı kadranı yeniden çizdirmez. — ✅ 2026-11-17 (572 test, 5 atlandı, 0 hata;
     Today ve Recordings render'ları incelendi; gerçek notch'ta kabul bekliyor)
+  - [x] Tab geçişi performansı: tablar bellekte kalır, gizli tab'ın döngü ve kısayolları
+    `HudVisibility` ile durur, tab seçimi ayrı `PanelNavigation`'da; hover'da
+    `ignoresMouseEvents` yalnız değişince yazılır. "Nothing else today" satırı sıradaki
+    etkinliği yazmaz, o Later listesinde kalır. — ✅ 2026-11-17 (Instruments: ilk kare
+    50–67 ms → 9–12 ms; 572 test, 5 atlandı, 0 hata)
   - [x] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
     taşınması. — ✅ 2026-11-16 (`9dc6708`)
   - [x] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması. — ✅ 2026-11-16 (`9dc6708`)

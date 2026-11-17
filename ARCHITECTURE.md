@@ -202,6 +202,20 @@ DesktopWindowController 1120×680 içerik boyutuyla açılır, 960×540'a küç�
 NSHostingView.sizingOptions boş bırakılır: SwiftUI ideal/minimum içerik ölçüsü pencereyi
 kilitlemez. Eski autosave boyutu yüklenmez; aynı oturumda pencere yeniden kullanılır.
 
+Notch paneli performansı (2026-11-17 ölçümü, Instruments SwiftUI şablonu): Today ·
+Recordings · Tasks bir kez kurulduktan sonra panel açık kaldıkça bellekte tutulur
+(`PanelTabVisibility`); seçili olmayan tab yüksekliksiz, görünmez ve tıklanamaz olur,
+geçiş yalnız opaklığı canlandırır. Diğer tablar panel açıldıktan 1.1 sn sonra kurulur.
+Gizli tab'ın döngüleri, tarayıcıları ve kısayolları `HudVisibility` (ortamda bir kez
+verilen gözlemlenebilir nesne) ile durur; `.disabled` ya da değişen bir ortam değeri
+kullanılmaz, çünkü ikisi de tab'daki her düğmeyi yeniden çözer. Seçili tab `AppState`
+içinde `@Published` değil, ayrı bir `PanelNavigation` (`@Observable`) nesnesindedir; tab
+değişimi yalnız bandı ve tab kabını yeniden çizer. `RecentMeetingsList` `Equatable`'dır
+ve `.equatable()` ile kullanılır. Sonuç: tab geçişinin ilk karesi 50–67 ms'den 9–12 ms'ye,
+8 ms'yi aşan render sayısı 14'ten 3'e indi. Debug build'de
+`gad.Crenel.debug.tabCycle` dağıtık bildirimi paneli açıp tabları sırayla değiştirir ve
+her geçişi Points of Interest signpost'u olarak işaretler; ölçüm bu kancayla tekrarlanır.
+
 Notch sekme seçiminde tüm içerik animasyona alınmaz. ScrollView kimliği korunur,
 sekmeye bağlı root id kaldırılmıştır. İçerik transaction'ı layout animasyonunu kapatır;
 seçim kapsülünün animasyonu başlıkta kalır. Göstergeler gizlidir.
