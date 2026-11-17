@@ -226,9 +226,10 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         XCTAssertEqual(state.meetingFlow.phase, .transcribing)
         var completed = meeting
         completed.processingStatus = .completed
-        state.processingCompleted(completed)
+        state.processingCompleted(completed, actionItemCount: 2)
 
         XCTAssertEqual(state.meetingFlow, .completed(meetingID: meeting.id))
+        XCTAssertEqual(state.completedActionItemCount, 2)
         XCTAssertTrue(state.processingJobs.isEmpty)
         XCTAssertEqual(state.storedMeetings.first?.processingStatus, .completed)
     }

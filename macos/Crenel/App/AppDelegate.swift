@@ -1851,8 +1851,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             appState.processingBeganTranscribing()
         case .summarizing:
             appState.processingBeganSummarizing()
-        case .completed(let meeting):
-            appState.processingCompleted(meeting)
+        case .completed(let meeting, let actionItemCount):
+            appState.processingCompleted(meeting, actionItemCount: actionItemCount)
             if appState.presentedMeetingDetail?.id == meeting.id {
                 openStoredMeeting(meeting)
             }

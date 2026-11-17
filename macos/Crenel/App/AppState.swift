@@ -187,7 +187,12 @@ final class AppState: ObservableObject {
         send(.transcriptionCompleted)
     }
 
-    func processingCompleted(_ meeting: StoredMeeting) {
+    /// Action items of meetings processed in this run, for the "Notes and 3 action items"
+    /// strip. Set before the flow turns completed, so the strip reads it on first draw.
+    private var actionItemCounts: [UUID: Int] = [:]
+
+    func processingCompleted(_ meeting: StoredMeeting, actionItemCount: Int? = nil) {
+        actionItemCounts[meeting.id] = actionItemCount
         processingJobs.removeAll { $0.meetingID == meeting.id }
         storedMeetings.removeAll { $0.id == meeting.id }
         storedMeetings.append(meeting)
@@ -457,6 +462,12 @@ final class AppState: ObservableObject {
     var completedMeeting: StoredMeeting? {
         guard case .completed(let meetingID) = meetingFlow else { return nil }
         return storedMeetings.first { $0.id == meetingID }
+    }
+
+    /// Action items in the completed meeting's notes; nil when unknown or without notes.
+    var completedActionItemCount: Int? {
+        guard case .completed(let meetingID) = meetingFlow else { return nil }
+        return actionItemCounts[meetingID]
     }
 
     @discardableResult

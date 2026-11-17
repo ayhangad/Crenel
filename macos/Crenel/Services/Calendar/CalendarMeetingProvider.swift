@@ -96,7 +96,8 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
             location: event.location,
             notes: event.notes
         )
-        let otherAttendeeCount = event.attendees?.filter { !$0.isCurrentUser }.count ?? 0
+        let others = event.attendees?.filter { !$0.isCurrentUser } ?? []
+        let otherAttendeeCount = others.count
         let kind = CalendarEventClassifier.kind(
             hasMeetingURL: meetingURL != nil,
             otherAttendeeCount: otherAttendeeCount
@@ -129,7 +130,13 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
             isSuggestion: CalendarEventClassifier.isSuggestionCalendar(
                 typeRawValue: event.calendar.type.rawValue
             ),
-            eventIdentifier: event.eventIdentifier
+            eventIdentifier: event.eventIdentifier,
+            attendees: CalendarEventClassifier.attendeeNames(others.map {
+                (name: $0.name, url: $0.url, isPerson: $0.participantType != .room && $0.participantType != .resource)
+            }),
+            organizer: event.organizer.flatMap { organizer in
+                organizer.isCurrentUser ? nil : CalendarEventClassifier.participantName(name: organizer.name, url: organizer.url)
+            }
         )
     }
 
@@ -216,6 +223,29 @@ enum CalendarEventClassifier {
         case .pending: .pending
         case .declined, .unknown, .none: .none
         @unknown default: .none
+        }
+    }
+
+    /// A participant as people read it: the calendar's name, else the address from the
+    /// `mailto:` URL.
+    static func participantName(name: String?, url: URL?) -> String? {
+        if let name = name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty { return name }
+        guard let url, url.scheme?.lowercased() == "mailto" else { return nil }
+        let address = String(url.absoluteString.dropFirst("mailto:".count))
+            .removingPercentEncoding?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return address?.isEmpty == false ? address : nil
+    }
+
+    /// The other people invited, in calendar order: rooms and resources left out, each
+    /// name once.
+    static func attendeeNames(_ participants: [(name: String?, url: URL?, isPerson: Bool)]) -> [String] {
+        var seen = Set<String>()
+        return participants.compactMap { participant in
+            guard participant.isPerson,
+                  let name = participantName(name: participant.name, url: participant.url),
+                  seen.insert(name.lowercased()).inserted else { return nil }
+            return name
         }
     }
 

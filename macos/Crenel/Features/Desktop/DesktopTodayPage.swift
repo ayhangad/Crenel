@@ -163,6 +163,12 @@ struct DesktopTodayPage: View {
                     Text("Invite — waiting for your answer").hud(.meta)
                 }
                 .padding(.top, 8)
+            } else if let people = MeetingPeopleFormatter.short(item.attendees) {
+                HStack(spacing: 10) {
+                    HudFaces(initials: MeetingPeopleFormatter.initials(item.attendees))
+                    Text(verbatim: people).hud(.meta).lineLimit(1).truncationMode(.tail)
+                }
+                .padding(.top, 8)
             } else if let calendar = item.calendarTitle, DesktopFormat.venue(item) != calendar {
                 Text(verbatim: calendar).hud(.meta).lineLimit(1).padding(.top, 8)
             }
