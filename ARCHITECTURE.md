@@ -67,8 +67,8 @@ güncellenir); hover bölgesi şekil + kamera yuvasıdır (notch'suz ekranda üs
 API önceki kütüphaneyle aynıdır: `expand(on:)`, `compact(on:)`, `hide()`, `isHovering`.
 
 Notch'un üç boyu vardır (2026-11-17): kompakt (iki kulak, alt kenarda fitil), şerit (440 pt;
-kulaklar + tek satır) ve açık panel (560 pt; kamera bandı krom alanıdır: marka, sekmeler,
-Kayıtlar/pencere/sabitle). `NotchClosedState` kapalı durumu çözer: toplantı istemleri
+kulaklar + tek satır) ve açık panel (560 pt; kamera bandı krom alanıdır: marka ve
+pencere/sabitle; altında kendi satırında Today · Recordings · Tasks sekmeleri). `NotchClosedState` kapalı durumu çözer: toplantı istemleri
 (başlıyor, arama algılandı, bitti sanılıyor, otomatik durdurma), canlı dikte, sonuç ve hata
 artık paneli açmaz, şerit olarak görünür. Şeridin üstüne gelmek paneli açmaz
 (`hoverIntent`), kulaklara tıklamak açar. Panel kapalıdan açıldığında `notchPanelIgnites`
@@ -426,7 +426,7 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   taşıyan notch içi detail drill-down'ında değişmeyen 600 piksel genişlik kullanır. İçerik
   alanı 600 piksele kadar doğal yüksekliğinde kalır; yalnız bu üst sınırı
   aştığında kaydırılır. Daha küçük ekranlarda görünür alan sınırı aynı davranışın üst
-  yüksekliği olur. Sekmeler ok tuşları ve Komut-1/Komut-2 ile değiştirilebilir.
+  yüksekliği olur. Sekmeler ok tuşları ve Komut-1/Komut-2/Komut-3 ile değiştirilebilir.
 - DynamicNotchKit açılma, kapanma ve kompakt/geniş dönüşümleri uygulamanın hareket profiliyle
   yapılandırılır. macOS Reduce Motion değişikliği canlı izlenir ve etkin olduğunda hem panel
   içi hem pencere geçişleri algılanabilir hareket üretmeyecek kadar kısaltılır.

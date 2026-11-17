@@ -276,10 +276,11 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   - Sonuç şeritleri 8 sn sonra, "eklendi" şeridi 3 sn sonra kapanır.
 - **Açık panelin bandı.**
   - Kamera bandı panelin krom alanıdır. Solda marka bulunur: arka plansız işaret
-    (15×9.4, `#14f0d4`, 2.5 pt parıltı) ve "Crenel" (12.5/600). Yanında 16 pt arayla
-    sekmeler (Today · Tasks), sağda Kayıtlar, pencere ve sabitle yer alır.
-  - Marka ve sekmeler kamera boşluğunun solundaki ~173 pt'ye sığmalıdır. Panelin 560
-    pt olmasının sebebi budur; sol blok ile kamera arasında en az 3 pt kalır.
+    (15×9.4, `#14f0d4`, 2.5 pt parıltı) ve "Crenel" (12.5/600). Sağda pencere ve sabitle
+    yer alır.
+  - Sekmeler (Today · Recordings · Tasks, ⌘1/⌘2/⌘3) bandın altında, 30 pt'lik kendi
+    satırındadır; içerikle aynı 14 pt kenar boşluğundan başlar, aralarında 16 pt vardır.
+    Böylece kamera yuvasının yanına sıkışmazlar. Recordings ayrı bir ikon değil, sekmedir.
   - Seçili sekmenin altındaki ışıklı çizgi (lamba) sekmeler arasında yaylı kayar.
   - Band kaydırmada yapışık kalır.
 

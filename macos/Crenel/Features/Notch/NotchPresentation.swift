@@ -109,9 +109,10 @@ struct NotchPanelLayout: Equatable {
     /// Space between the camera band and the content under it.
     static let bandGap: CGFloat = 8
     // The band is the menu-bar row, which the viewport already leaves out. What remains
-    // outside the scroll view is the gap under the band, the bottom padding, and room for
-    // one strip line (a prompt arriving while the panel is open).
-    static let fixedVerticalSpace: CGFloat = bandGap + Hud.Notch.openBottom + Hud.Notch.stripHeight + bandGap
+    // outside the scroll view is the tab row under the band, the gap under it, the bottom
+    // padding, and room for one strip line (a prompt arriving while the panel is open).
+    static let fixedVerticalSpace: CGFloat = Hud.Notch.tabRowHeight + bandGap + Hud.Notch.openBottom
+        + Hud.Notch.stripHeight + bandGap
 
     let width: CGFloat
     let maximumContentHeight: CGFloat
@@ -276,7 +277,8 @@ enum NotchAccessibilityContract {
     static func tabShortcutDescription(_ tab: AppState.PanelTab) -> String {
         switch tab {
         case .meetings: "Command 1"
-        case .tasks: "Command 2"
+        case .recordings: "Command 2"
+        case .tasks: "Command 3"
         }
     }
 

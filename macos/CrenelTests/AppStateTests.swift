@@ -39,6 +39,9 @@ final class AppStateTests: XCTestCase {
         let state = AppState()
 
         state.selectPanelTab(offset: 1)
+        XCTAssertEqual(state.selectedTab, .recordings)
+
+        state.selectPanelTab(offset: 1)
         XCTAssertEqual(state.selectedTab, .tasks)
 
         state.selectPanelTab(offset: 1)

@@ -308,7 +308,8 @@ final class NotchShellGalleryTests: XCTestCase {
         try render(expanded: AnyView(NotchPanelView().environmentObject(tasks)), name: "band-tasks")
 
         let recordings = state()
-        try render(expanded: AnyView(NotchPanelView(showsHistory: true).environmentObject(recordings)), name: "band-recordings")
+        recordings.selectedTab = .recordings
+        try render(expanded: AnyView(NotchPanelView().environmentObject(recordings)), name: "band-recordings")
 
         let pinned = state()
         _ = pinned.toggleNotchPin()
@@ -326,13 +327,13 @@ final class NotchShellGalleryTests: XCTestCase {
         try renderRoot(model: model, expanded: AnyView(NotchPanelView().environmentObject(today)), compact: AnyView(EmptyView()),
                        name: "band-no-notch", size: CGSize(width: 860, height: 520))
 
-        // The band alone, as wide as the panel.
-        let band = NotchBand(showsHistory: .constant(false), onTogglePin: {})
+        // The band alone, as wide as the panel: the camera row, then the tab row.
+        let band = NotchBand(onTogglePin: {})
             .environmentObject(today)
             .frame(width: Hud.Notch.openWidth)
             .background(Color.black)
         let host = NSHostingView(rootView: band.environment(\.crenelNotchMetrics, metrics))
-        XCTAssertEqual(host.fittingSize.height, 32, accuracy: 0.5)
+        XCTAssertEqual(host.fittingSize.height, 32 + Hud.Notch.tabRowHeight, accuracy: 0.5)
     }
 
     // MARK: Rendering

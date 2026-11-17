@@ -5,6 +5,7 @@ final class AppState: ObservableObject {
     @Published var isCalendarEnabled = true
     enum PanelTab: String, CaseIterable, Identifiable {
         case meetings = "Today"
+        case recordings = "Recordings"
         case tasks = "Tasks"
 
         var id: Self { self }

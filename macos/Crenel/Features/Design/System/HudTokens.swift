@@ -82,6 +82,8 @@ enum Hud {
         static let openInset: CGFloat = 14
         static let openBottom: CGFloat = 16
         static let bandHeight: CGFloat = 32
+        /// The open panel's tab row, under the camera band.
+        static let tabRowHeight: CGFloat = 30
         static let consoleHeight: CGFloat = 44
         /// Top (outward flare) radius: compact, strip, open.
         static let topRadius: (compact: CGFloat, strip: CGFloat, open: CGFloat) = (6, 9, 14)

@@ -44,10 +44,8 @@ struct NotchPanelView: View {
         onOpenRecovery: @escaping () -> Void = {},
         onTogglePin: @escaping () -> Void = {},
         onRelaunchApplication: @escaping () -> Void = {},
-        analysisActions: MeetingAnalysisActions = MeetingAnalysisActions(),
-        showsHistory: Bool = false
+        analysisActions: MeetingAnalysisActions = MeetingAnalysisActions()
     ) {
-        _showsHistory = State(initialValue: showsHistory)
         self.analysisActions = analysisActions
         self.onRequestCalendarAccess = onRequestCalendarAccess
         self.onOpenMeetingURL = onOpenMeetingURL
@@ -72,8 +70,6 @@ struct NotchPanelView: View {
 
     @Environment(\.crenelNotchMetrics) private var notchMetrics
     @Environment(\.crenelNotchOpenedAt) private var notchOpenedAt
-    /// The Recordings page is showing instead of the selected tab.
-    @State private var showsHistory: Bool
 
     var body: some View {
         let layout = NotchPanelLayout(
@@ -94,7 +90,7 @@ struct NotchPanelView: View {
                     .padding(.horizontal, Hud.Notch.openInset)
                     .frame(minHeight: max(notchMetrics.topInset, Hud.Notch.bandHeight))
                 } else {
-                    NotchBand(showsHistory: $showsHistory, onTogglePin: onTogglePin)
+                    NotchBand(onTogglePin: onTogglePin)
                 }
             }
             .transition(.opacity)
@@ -124,18 +120,6 @@ struct NotchPanelView: View {
                         )
                         .id(detail.id)
                         .transition(.opacity)
-                    } else if showsHistory {
-                        RecentMeetingsList(
-                            meetings: Array(appState.storedMeetings.prefix(30)),
-                            onOpen: onOpenStoredMeeting,
-                            onDelete: onDeleteStoredMeeting,
-                            onRetry: onRetryStoredMeeting,
-                            weekMeetings: appState.storedMeetings,
-                            recovery: appState.recordingRecoverySummary,
-                            onOpenRecovery: onOpenRecovery,
-                            onDismissRecovery: appState.dismissRecordingRecoverySummary
-                        )
-                        .transition(.opacity)
                     } else {
                         switch appState.selectedTab {
                         case .meetings:
@@ -152,7 +136,19 @@ struct NotchPanelView: View {
                                 onRecoverFromFailure: onRecoverFromFailure,
                                 onOpenStoredMeeting: onOpenStoredMeeting,
                                 onRelaunchApplication: onRelaunchApplication,
-                                onShowRecordings: { showsHistory = true }
+                                onShowRecordings: { appState.selectedTab = .recordings }
+                            )
+                            .transition(.opacity)
+                        case .recordings:
+                            RecentMeetingsList(
+                                meetings: Array(appState.storedMeetings.prefix(30)),
+                                onOpen: onOpenStoredMeeting,
+                                onDelete: onDeleteStoredMeeting,
+                                onRetry: onRetryStoredMeeting,
+                                weekMeetings: appState.storedMeetings,
+                                recovery: appState.recordingRecoverySummary,
+                                onOpenRecovery: onOpenRecovery,
+                                onDismissRecovery: appState.dismissRecordingRecoverySummary
                             )
                             .transition(.opacity)
                         case .tasks:
@@ -176,19 +172,15 @@ struct NotchPanelView: View {
             guard appState.presentedMeetingDetail == nil else { return }
             switch direction {
             case .left:
-                showsHistory = false
                 appState.selectPanelTab(offset: -1)
             case .right:
-                showsHistory = false
                 appState.selectPanelTab(offset: 1)
             default:
                 break
             }
         }
-        .onChange(of: appState.selectedTab) { _, _ in showsHistory = false }
         .animation(motion(Hud.Motion.content), value: appState.presentedMeetingDetail?.id)
         .animation(motion(Hud.Motion.content), value: appState.selectedTab)
-        .animation(motion(Hud.Motion.content), value: showsHistory)
     }
 
     private var promptActions: NotchStripActions {

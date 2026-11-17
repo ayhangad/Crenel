@@ -1,81 +1,62 @@
 import SwiftUI
 
 /// The camera band of the open notch (`.band`): the row beside the camera housing is the
-/// panel's chrome. Brand and tabs on the left, Recordings · window · pin on the right;
-/// the middle belongs to the camera. It stays put while the content scrolls.
+/// panel's chrome. Brand on the left, window · pin on the right; the middle belongs to the
+/// camera. The tabs (Today · Recordings · Tasks) sit on their own row under it, so they
+/// never crowd the housing. Both stay put while the content scrolls.
 struct NotchBand: View {
     @EnvironmentObject private var appState: AppState
-    @Environment(\.crenelNotchMetrics) private var metrics
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Binding var showsHistory: Bool
     let onTogglePin: () -> Void
 
     var body: some View {
-        NotchBandRow {
-            // The brand and the tabs must fit beside the camera; on a wider housing the
-            // word goes and the lit mark stays.
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 0) {
+            NotchBandRow {
+                // On a housing too wide for the word, the lit mark stays.
+                ViewThatFits(in: .horizontal) {
                     HudBrand()
-                    tabs
-                }
-                HStack(spacing: 12) {
                     HudMark().accessibilityLabel(Text(verbatim: "Crenel"))
-                    tabs
                 }
-                tabs
-            }
-            .padding(.leading, -2)
-        } trailing: {
-            HStack(spacing: 2) {
-                HudIconButton(.tape, isOn: showsHistory, help: "Recordings") {
-                    showsHistory.toggle()
-                }
-                .accessibilityAddTraits(showsHistory ? .isSelected : [])
+                .padding(.leading, -2)
+            } trailing: {
+                HStack(spacing: 2) {
+                    HudIconButton(.window, help: "Open in window") {
+                        NotificationCenter.default.post(name: .openDesktopWorkspace, object: nil)
+                    }
 
-                HudIconButton(.window, help: "Open in window") {
-                    NotificationCenter.default.post(name: .openDesktopWorkspace, object: nil)
+                    Button(action: onTogglePin) {
+                        HudIcon(.pin, size: 16)
+                            .rotationEffect(.degrees(appState.isNotchPinned ? 0 : 30))
+                    }
+                    .buttonStyle(HudButtonStyle(kind: .icon, isOn: appState.isNotchPinned))
+                    .animation(reduceMotion ? nil : Hud.Motion.slab, value: appState.isNotchPinned)
+                    .help(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
+                    .accessibilityLabel(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
+                    .accessibilityValue(appState.isNotchPinned ? "Pinned" : "Not pinned")
                 }
-
-                Button(action: onTogglePin) {
-                    HudIcon(.pin, size: 16)
-                        .rotationEffect(.degrees(appState.isNotchPinned ? 0 : 30))
-                }
-                .buttonStyle(HudButtonStyle(kind: .icon, isOn: appState.isNotchPinned))
-                .animation(reduceMotion ? nil : Hud.Motion.slab, value: appState.isNotchPinned)
-                .help(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
-                .accessibilityLabel(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
-                .accessibilityValue(appState.isNotchPinned ? "Pinned" : "Not pinned")
             }
+
+            tabs
+                .frame(height: Hud.Notch.tabRowHeight, alignment: .bottom)
+                .padding(.horizontal, Hud.Notch.openInset)
         }
     }
 
     private var tabs: some View {
-        // On the Recordings page neither tab is lit: the lamp is under the tape icon.
-        HudTabs<AppState.PanelTab?>(
-            items: [
-                .init(tab: AppState.PanelTab.meetings, title: AppState.PanelTab.meetings.bandTitle),
-                .init(tab: AppState.PanelTab.tasks, title: AppState.PanelTab.tasks.bandTitle,
-                      badge: appState.activeTaskCount > 0 ? appState.activeTaskCount : nil)
-            ],
-            selection: Binding(
-                get: { showsHistory ? nil : appState.selectedTab },
-                set: { tab in
-                    showsHistory = false
-                    if let tab { appState.selectedTab = tab }
-                }
-            )
+        HudTabs<AppState.PanelTab>(
+            items: AppState.PanelTab.allCases.map { tab in
+                .init(tab: tab, title: tab.bandTitle,
+                      badge: tab == .tasks && appState.activeTaskCount > 0 ? appState.activeTaskCount : nil)
+            },
+            selection: $appState.selectedTab
         )
         .background {
-            // ⌘1 / ⌘2 switch surfaces.
+            // ⌘1 / ⌘2 / ⌘3 switch surfaces.
             ForEach(AppState.PanelTab.allCases) { tab in
-                Button("") {
-                    showsHistory = false
-                    appState.selectedTab = tab
-                }
-                .keyboardShortcut(tab.keyboardShortcut, modifiers: .command)
-                .opacity(0)
-                .accessibilityHidden(true)
+                Button("") { appState.selectedTab = tab }
+                    .keyboardShortcut(tab.keyboardShortcut, modifiers: .command)
+                    .opacity(0)
+                    .accessibilityHidden(true)
             }
         }
         .accessibilityElement(children: .contain)
@@ -105,13 +86,15 @@ private extension AppState.PanelTab {
     var keyboardShortcut: KeyEquivalent {
         switch self {
         case .meetings: "1"
-        case .tasks: "2"
+        case .recordings: "2"
+        case .tasks: "3"
         }
     }
 
     var bandTitle: String {
         switch self {
         case .meetings: String(localized: "Today")
+        case .recordings: String(localized: "Recordings")
         case .tasks: String(localized: "Tasks")
         }
     }

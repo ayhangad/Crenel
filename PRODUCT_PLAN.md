@@ -220,6 +220,9 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     devam eden görev), Bugün (ışıklı sıradaki etkinlik kartı + ajanda + görev özeti),
     Görevler, canlı kayıt kartı, panel başlığı. — ✅ 2026-11-16 (ekran dışı render + test)
   - [ ] Dikte için genişleyen "canlı" ara boyut (orb + canlı transkript).
+  - [x] Açık panelde sekmeler kamera bandının altında kendi satırında; Recordings ikon
+    değil üçüncü sekme (Today · Recordings · Tasks, ⌘1/⌘2/⌘3). — ✅ 2026-11-17 (571 test,
+    5 atlandı, 0 hata; band render'ları incelendi; gerçek notch'ta kullanıcı kabulü bekliyor)
   - [x] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
     taşınması. — ✅ 2026-11-16 (`9dc6708`)
   - [x] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması. — ✅ 2026-11-16 (`9dc6708`)
