@@ -127,6 +127,10 @@ final class DictationCoordinator {
         controller.$history
             .sink { [weak self] history in self?.appState.updateDictationHistory(history) }
             .store(in: &cancellables)
+        controller.$dailyWords
+            .removeDuplicates()
+            .sink { [weak self] days in self?.appState.updateDictationDailyWords(days) }
+            .store(in: &cancellables)
     }
 
     /// Parses spoken input in Turkish or English, e.g. "görev ekle yarın faturayı öde"

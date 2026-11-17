@@ -5,6 +5,7 @@ import Foundation
 ///
 /// All dependencies are protocols so the flow is unit-testable with fakes. Audio and
 /// transcripts stay in memory; only the last `historyLimit` results are kept, never persisted.
+/// Only per-day word counts (numbers, no text) outlive the app, for "your usual".
 @MainActor
 final class DictationController: ObservableObject {
     struct Configuration: Equatable, Sendable {
@@ -24,6 +25,9 @@ final class DictationController: ObservableObject {
     @Published private(set) var partialTranscript = ""
     @Published private(set) var level: Float = 0
     @Published private(set) var history: [DictationHistoryEntry] = []
+    /// Words per day, kept across launches when a store is attached.
+    @Published private(set) var dailyWords = DictationDailyWords()
+    private var dailyWordsStore: DictationDailyWordsStore?
     @Published private(set) var assetPreparationLocale: String?
 
     var refiner: any DictationTextRefining
@@ -85,6 +89,17 @@ final class DictationController: ObservableObject {
         }
     }
 
+    /// Loads and keeps the per-day word counts in `store`.
+    func attachDailyWords(_ store: DictationDailyWordsStore) {
+        dailyWordsStore = store
+        dailyWords = store.load()
+    }
+
+    private func tally(_ text: String, at date: Date, sign: Int) {
+        dailyWords.add(sign * DictationDailyWords.wordCount(text), at: date)
+        dailyWordsStore?.save(dailyWords)
+    }
+
     /// Convenience factory wiring the real on-device services.
     static func live(
         refiner: any DictationTextRefining = PassthroughDictationRefiner(),
@@ -92,7 +107,7 @@ final class DictationController: ObservableObject {
         onCreateTask: ((String) -> UUID?)? = nil
     ) -> DictationController {
         let transcriber = LocalSpeechTranscriber()
-        return DictationController(
+        let controller = DictationController(
             capture: DictationAudioCapture(),
             transcriber: transcriber,
             assets: transcriber,
@@ -101,6 +116,8 @@ final class DictationController: ObservableObject {
             triggerMonitor: DictationHotKeyMonitor(settings: triggerSettings),
             onCreateTask: onCreateTask
         )
+        controller.attachDailyWords(DictationDailyWordsStore())
+        return controller
     }
 
     var resolvedLocaleIdentifier: String {
@@ -226,6 +243,9 @@ final class DictationController: ObservableObject {
         }
 
         if undone {
+            if let entry = history.first(where: { $0.id == undo.entryID }) {
+                tally(entry.finalText, at: entry.createdAt, sign: -1)
+            }
             history.removeAll { $0.id == undo.entryID }
         }
         // A new session may have started meanwhile; it owns the state now.
@@ -501,6 +521,7 @@ final class DictationController: ObservableObject {
             appName: session.target.appName
         )
         history.insert(entry, at: 0)
+        tally(finalText, at: entry.createdAt, sign: 1)
         if history.count > configuration.historyLimit {
             history.removeLast(history.count - configuration.historyLimit)
         }

@@ -248,15 +248,16 @@ enum DesktopStats {
     /// "Your usual": the median words per day over the last 14 days that had any dictation,
     /// today left out. Nil with fewer than three such days — too little to call usual.
     static func usualDictationWords(_ history: [DictationHistoryEntry], now: Date, calendar: Calendar = .current) -> Double? {
+        var words = DictationDailyWords()
+        for entry in history { words.add(DesktopFormat.wordCount(entry.finalText), at: entry.createdAt, calendar: calendar) }
+        return usualDictationWords(words, now: now, calendar: calendar)
+    }
+
+    /// The same, from the per-day counts kept across launches.
+    static func usualDictationWords(_ daily: DictationDailyWords, now: Date, calendar: Calendar = .current) -> Double? {
         let today = calendar.startOfDay(for: now)
         guard let earliest = calendar.date(byAdding: .day, value: -14, to: today) else { return nil }
-        var words: [Date: Int] = [:]
-        for entry in history {
-            let day = calendar.startOfDay(for: entry.createdAt)
-            guard day >= earliest, day < today else { continue }
-            words[day, default: 0] += DesktopFormat.wordCount(entry.finalText)
-        }
-        let days = words.values.filter { $0 > 0 }.sorted()
+        let days = daily.days.filter { $0.key >= earliest && $0.key < today }.values.filter { $0 > 0 }.sorted()
         guard days.count >= 3 else { return nil }
         let middle = days.count / 2
         return days.count.isMultiple(of: 2)

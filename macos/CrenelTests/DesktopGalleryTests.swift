@@ -47,6 +47,28 @@ final class DesktopGalleryTests: XCTestCase {
                               delivery: .insertedViaPaste, appName: nil)
     }
 
+    func testDailyDictationWordsSurviveARelaunchAsCountsOnly() throws {
+        let suite = "DictationDailyWordsTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = DictationDailyWordsStore(defaults: defaults)
+        let now = Date()
+        var words = DictationDailyWords()
+        for back in 1...3 {
+            words.add(100 * back, at: Calendar.current.date(byAdding: .day, value: -back, to: now)!)
+        }
+        words.add(40, at: now)
+        words.add(-10, at: now)
+        store.save(words)
+
+        let loaded = store.load()
+        XCTAssertEqual(loaded, words)
+        XCTAssertEqual(loaded.words(on: now), 30)
+        XCTAssertEqual(DesktopStats.usualDictationWords(loaded, now: now), 200)
+        let raw = try XCTUnwrap(defaults.dictionary(forKey: DictationDailyWordsStore.key))
+        XCTAssertTrue(raw.values.allSatisfy { $0 is Int })
+    }
+
     func testUsualDictationIsTheMedianOfRecentDaysWithoutToday() {
         let history = [
             dictation(999, day: 0),                          // today: left out

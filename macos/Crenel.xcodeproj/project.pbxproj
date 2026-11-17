@@ -259,6 +259,7 @@
 		EDC0BE62A80D8D883E66B5A9 /* MicrophoneLevelMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D05C3F2926BDA9DC89486EBF /* MicrophoneLevelMonitorTests.swift */; };
 		EEB9FEAB3A8A35676176755F /* HudGauge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EAAB4602755CDC60FBAEFD5 /* HudGauge.swift */; };
 		F1CA04085412CAE1CE971BFA /* TasksGalleryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB9B7A099FED427A502B57D6 /* TasksGalleryTests.swift */; };
+		F20579CA268EE0CD9ED28CAD /* DictationDailyWords.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203511B071F16DB33D8C4071 /* DictationDailyWords.swift */; };
 		F5159912A66FA0AF3988C475 /* AudioCaptureSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DFB24D90C29C90DED6278B9 /* AudioCaptureSource.swift */; };
 		F63DF0A1165B56C3DE9E4B20 /* FileTaskRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44598FACD13961F4551C688D /* FileTaskRepositoryTests.swift */; };
 		F75F00B6569DF57280FE810C /* BrowserAudioStreamBroker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1631D3CC7A9FC20B76C5394 /* BrowserAudioStreamBroker.swift */; };
@@ -316,6 +317,7 @@
 		1C902980812DF718F9F855B9 /* NotchScreenResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchScreenResolver.swift; sourceTree = "<group>"; };
 		1D1873184777B40F356ADE42 /* MeetingSessionAcceptanceAudit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingSessionAcceptanceAudit.swift; sourceTree = "<group>"; };
 		1F09ACCA4EDEEB74F1E66F56 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
+		203511B071F16DB33D8C4071 /* DictationDailyWords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationDailyWords.swift; sourceTree = "<group>"; };
 		21BE417E39212E4978CA4619 /* GlobalHotKeyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalHotKeyMonitor.swift; sourceTree = "<group>"; };
 		22A7A86DD02C6CE722A43DC1 /* Crenel.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Crenel.entitlements; sourceTree = "<group>"; };
 		24BD460C75A6ED80BB59F5F2 /* RecordingsGalleryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingsGalleryTests.swift; sourceTree = "<group>"; };
@@ -923,6 +925,7 @@
 		986E393650BD3CA72D39A002 /* Dictation */ = {
 			isa = PBXGroup;
 			children = (
+				203511B071F16DB33D8C4071 /* DictationDailyWords.swift */,
 				4F5E43DCFA9989594E65293B /* DictationRefinement.swift */,
 				2BF49A822461E06B3B981A3E /* DictationState.swift */,
 				8AB06D5EB3B988C1D7323470 /* DictationTrigger.swift */,
@@ -1436,6 +1439,7 @@
 				0D39F58E24DE45663814F740 /* DictationAudioCapture.swift in Sources */,
 				36420B0758D59CC4208A1830 /* DictationController.swift in Sources */,
 				9B33F0A3A09D99FDB2BC9A7C /* DictationCoordinator.swift in Sources */,
+				F20579CA268EE0CD9ED28CAD /* DictationDailyWords.swift in Sources */,
 				281DB79D4C27E5808560E835 /* DictationHotKeyMonitor.swift in Sources */,
 				4D2990004BA6B579950A9895 /* DictationPrompts.swift in Sources */,
 				4D390E815FCF6EA8E109A4CE /* DictationRefinement.swift in Sources */,

@@ -237,7 +237,8 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
   - [x] Kompakt durumlar (dikte nokta küresi + seviye, kayıt, işleme, ajanda halkası,
     devam eden görev), Bugün (ışıklı sıradaki etkinlik kartı + ajanda + görev özeti),
     Görevler, canlı kayıt kartı, panel başlığı. — ✅ 2026-11-16 (ekran dışı render + test)
-  - [ ] Dikte için genişleyen "canlı" ara boyut (orb + canlı transkript). — 🚧 Devam ediyor: 2026-11-17
+  - [x] Dikte için genişleyen "canlı" ara boyut (orb + canlı transkript). — ✅ 2026-11-17 (626 test,
+    5 atlandı, 0 hata; ekran dışı render incelendi, orb shader'ı gerçek notch'ta kabul bekliyor)
   - [x] Açık panelde sekmeler kamera bandının altında kendi satırında; Recordings ikon
     değil üçüncü sekme (Today · Recordings · Tasks, ⌘1/⌘2/⌘3). — ✅ 2026-11-17 (571 test,
     5 atlandı, 0 hata; band render'ları incelendi; gerçek notch'ta kullanıcı kabulü bekliyor)
@@ -311,9 +312,11 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     - [x] Görevler (satır eylemleri, Edit kartı).
     - [x] Masaüstü penceresi 1240×760 (Today panosu, Meetings, Tasks, Dictation).
     - [x] Ayarlar ve onboarding.
-    - [ ] Tasarımın istediği ama uygulamada verisi olmayan parçalar: toplantı katılımcıları
+    - [x] Tasarımın istediği ama uygulamada verisi olmayan parçalar: toplantı katılımcıları
       ve davet eden, görevde bloke nedeni, dikte geri alma (Undo), sonuç şeridinde aksiyon
-      sayısı, PDF/düz metin dışa aktarma, mikrofon seviye testi, "your usual" dikte düzeyi. — 🚧 Devam ediyor: 2026-11-17
+      sayısı, PDF/düz metin dışa aktarma, mikrofon seviye testi, "your usual" dikte düzeyi. — ✅ 2026-11-17
+      (626 test, 5 atlandı, 0 hata; eski çıkarıcı notları yeniden yazım için işaretlenir; gerçek
+      cihazda Undo, mikrofon testi ve PDF görünümü C8'de denenecek)
 
 ## 2026-09-25 — Koyu tema parlaklık düzeltmesi
 

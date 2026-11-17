@@ -55,6 +55,7 @@ final class AppState: ObservableObject {
     @Published private(set) var dictationLevel: Float = 0
     @Published private(set) var dictationPartialTranscript = ""
     @Published private(set) var dictationHistory: [DictationHistoryEntry] = []
+    @Published private(set) var dictationDailyWords = DictationDailyWords()
     @Published private(set) var dictationAvailability: DictationAvailability = .disabled
     @Published private(set) var presentedMeetingDetail: MeetingDetailContent?
     @Published private(set) var meetingSessionDetection: MeetingSessionDetectionSnapshot?
@@ -417,6 +418,10 @@ final class AppState: ObservableObject {
 
     func updateDictationHistory(_ history: [DictationHistoryEntry]) {
         dictationHistory = history
+    }
+
+    func updateDictationDailyWords(_ days: DictationDailyWords) {
+        dictationDailyWords = days
     }
 
     /// Where an app update is (downloading, ready, restarting).

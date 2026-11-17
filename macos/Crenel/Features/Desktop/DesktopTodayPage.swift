@@ -390,7 +390,8 @@ struct DesktopTodayPage: View {
 
     private func dictationTile(now: Date) -> some View {
         let today = DesktopStats.dictationToday(appState.dictationHistory, now: now)
-        let usual = DesktopStats.usualDictationWords(appState.dictationHistory, now: now)
+        let usual = DesktopStats.usualDictationWords(appState.dictationDailyWords, now: now)
+            ?? DesktopStats.usualDictationWords(appState.dictationHistory, now: now)
         let scale = DesktopStats.dictationScale(todayWords: today.words, usual: usual)
         let last = appState.dictationHistory.first
         return tile(.waveform, "Dictation", help: "Open Dictation", action: { navigation.section = .dictation }) {
