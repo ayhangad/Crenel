@@ -40,6 +40,10 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     var isSuggestion: Bool
     /// EventKit identifier used to open the event in Calendar.
     var eventIdentifier: String?
+    /// Display names of the other people invited, without the current user.
+    var attendees: [String]
+    /// Who sent the invitation; nil when it was the current user or unknown.
+    var organizer: String?
 
     init(
         id: UUID = UUID(),
@@ -56,7 +60,9 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
         calendarTitle: String? = nil,
         calendarColorHex: String? = nil,
         isSuggestion: Bool = false,
-        eventIdentifier: String? = nil
+        eventIdentifier: String? = nil,
+        attendees: [String] = [],
+        organizer: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -74,6 +80,8 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
         self.calendarColorHex = calendarColorHex
         self.isSuggestion = isSuggestion
         self.eventIdentifier = eventIdentifier
+        self.attendees = attendees
+        self.organizer = organizer
     }
 
     /// Meetings (online or with attendees) get recording offers and join notifications;
@@ -90,7 +98,7 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, title, startDate, endDate, meetingURL, calendarIdentifier, externalIdentifier
         case kind, isAllDay, responseStatus, location, calendarTitle, calendarColorHex
-        case isSuggestion, eventIdentifier
+        case isSuggestion, eventIdentifier, attendees, organizer
     }
 
     init(from decoder: Decoder) throws {
@@ -112,6 +120,9 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
         calendarColorHex = try container.decodeIfPresent(String.self, forKey: .calendarColorHex)
         isSuggestion = try container.decodeIfPresent(Bool.self, forKey: .isSuggestion) ?? false
         eventIdentifier = try container.decodeIfPresent(String.self, forKey: .eventIdentifier)
+        // Documents written before attendees were read have none.
+        attendees = try container.decodeIfPresent([String].self, forKey: .attendees) ?? []
+        organizer = try container.decodeIfPresent(String.self, forKey: .organizer)
     }
 }
 

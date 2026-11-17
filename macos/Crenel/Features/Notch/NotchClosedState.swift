@@ -48,8 +48,8 @@ enum NotchClosedState: Equatable {
     case dictationInserted(DictationResultSummary)
     /// Strip: a short reason and one fix.
     case dictationFailed(DictationFailure)
-    /// Strip: notes are ready · Later · Open.
-    case ready(StoredMeeting?)
+    /// Strip: "Notes and 3 action items" · Later · Open. `actionItems` is nil when unknown.
+    case ready(StoredMeeting?, actionItems: Int?)
     /// Strip: reason · Retry.
     case failed(AppFailure, title: String?, audioSaved: Bool)
 
@@ -128,6 +128,8 @@ struct NotchClosedInput {
     var partialTranscript = ""
     var failure: AppFailure?
     var completedMeeting: StoredMeeting?
+    /// Action items in the completed meeting's notes, when they are known.
+    var completedActionItems: Int?
     var lastStoredMeeting: StoredMeeting?
     /// "Later" was pressed on this meeting's "Starting now" strip.
     var dismissedStartingMeetingID: UUID?
@@ -190,7 +192,7 @@ enum NotchClosedResolver {
         case .processing(let stage):
             return .processing(stage)
         case .completed:
-            return .ready(input.completedMeeting)
+            return .ready(input.completedMeeting, actionItems: input.completedActionItems)
         case .failed:
             guard let failure = input.failure else { return .idle }
             // Only failures after the recording was stored can promise the audio is safe.
@@ -377,6 +379,16 @@ enum NotchClosedText {
         formatter.calendar = calendar
         formatter.dateFormat = "EEE"
         return formatter.string(from: date)
+    }
+
+    /// The ready strip's sentence: "Notes and 3 action items", "Notes and 1 action item",
+    /// or "Notes are ready" when there are none or the count is unknown.
+    static func readySentence(actionItems: Int?) -> String {
+        switch actionItems ?? 0 {
+        case ...0: String(localized: "Notes are ready")
+        case 1: String(localized: "Notes and 1 action item")
+        case let count: String(localized: "Notes and \(count) action items")
+        }
     }
 
     /// Whole minutes of a stored meeting: "48 min".

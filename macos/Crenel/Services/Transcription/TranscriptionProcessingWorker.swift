@@ -5,7 +5,8 @@ enum TranscriptionProcessingEvent: Sendable {
     case uploadProgress(meetingID: UUID, progress: Double)
     case transcribing(meetingID: UUID)
     case summarizing(meetingID: UUID)
-    case completed(StoredMeeting)
+    /// `actionItemCount` is nil when no notes were written.
+    case completed(StoredMeeting, actionItemCount: Int?)
     case failed(ProcessingJob, TranscriptionServiceError)
 }
 
@@ -95,7 +96,7 @@ actor TranscriptionProcessingWorker {
                 try Task.checkCancellation()
                 let updatedMeeting = try await meetingRepository.saveAnalysis(stored, for: meeting)
                 try await queue.complete(meetingID: job.meetingID)
-                await onEvent(.completed(updatedMeeting))
+                await onEvent(.completed(updatedMeeting, actionItemCount: stored.summary?.actionItems.count))
             } catch is CancellationError {
                 if let failedJob = try? await queue.markFailed(
                     meetingID: job.meetingID,

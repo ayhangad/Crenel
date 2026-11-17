@@ -119,9 +119,15 @@ final class NotchShellGalleryTests: XCTestCase {
                        .dictationWorking(step: 1, text: ""))
 
         // Results.
-        XCTAssertEqual(NotchClosedResolver.state(NotchClosedInput(status: .completed, now: now)), .ready(nil))
+        XCTAssertEqual(NotchClosedResolver.state(NotchClosedInput(status: .completed, now: now)), .ready(nil, actionItems: nil))
         let stored = StoredMeeting(id: UUID(), title: "Design review", startedAt: now.addingTimeInterval(-2_880),
                                    endedAt: now, sourceMeeting: nil, audioFileName: "a.m4a")
+        // The strip counts the notes' action items when they are known.
+        XCTAssertEqual(
+            NotchClosedResolver.state(NotchClosedInput(status: .completed, completedMeeting: stored, completedActionItems: 3, now: now)),
+            .ready(stored, actionItems: 3)
+        )
+        XCTAssertEqual(NotchClosedText.readySentence(actionItems: 3), "Notes and 3 action items")
         let network = AppFailure.network("Couldn’t reach transcription")
         XCTAssertEqual(
             NotchClosedResolver.state(NotchClosedInput(status: .failed, failure: network, lastStoredMeeting: stored, now: now)),
@@ -246,7 +252,7 @@ final class NotchShellGalleryTests: XCTestCase {
             ("c-dict-failed", .dictationFailed(.microphonePermissionDenied), 0),
             ("c-dict-failed-nospeech", .dictationFailed(.noSpeechDetected), 0),
             ("c-dict-failed-model", .dictationFailed(.speechAssetsMissing(localeIdentifier: "en-US")), 0),
-            ("c-ready", .ready(stored), 0),
+            ("c-ready", .ready(stored, actionItems: 3), 0),
             ("c-failed", .failed(.network("Couldn’t reach transcription"), title: "Design review", audioSaved: true), 0),
             ("c-failed-permission", .failed(.permission("Microphone access is off.", settings: true), title: nil, audioSaved: false), 0)
         ]

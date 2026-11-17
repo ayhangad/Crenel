@@ -176,6 +176,7 @@ extension AppState {
             partialTranscript: dictationPartialTranscript,
             failure: failure,
             completedMeeting: completedMeeting,
+            completedActionItems: completedActionItemCount,
             lastStoredMeeting: lastStoredMeeting,
             dismissedStartingMeetingID: dismissedStartingMeetingID,
             upcomingItems: upcomingMeetings,

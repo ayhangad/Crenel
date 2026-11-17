@@ -243,8 +243,8 @@ struct DesktopMeetingDetail: View {
                     if let source = meeting.sourceMeeting, let venue = DesktopFormat.venue(source) {
                         HudChip(venue, glyph: DesktopFormat.venueGlyph(source), style: .tag)
                     }
-                    if !speakers.isEmpty {
-                        HudChip(speakers.prefix(4).joined(separator: ", "), glyph: .people, style: .tag)
+                    if let people = people {
+                        HudChip(people, glyph: .people, style: .tag)
                     }
                 }
             }
@@ -268,6 +268,12 @@ struct DesktopMeetingDetail: View {
         let day = Calendar.current.isDateInToday(meeting.startedAt) ? "Today"
             : (Calendar.current.isDateInYesterday(meeting.startedAt) ? "Yesterday" : DesktopFormat.format(meeting.startedAt, "EEE d MMM"))
         return "\(day) \(DesktopFormat.clock(meeting.startedAt))"
+    }
+
+    /// Who was invited, from the calendar ("Deniz, Ece, you"); else who spoke.
+    private var people: String? {
+        if let invited = meeting.sourceMeeting.flatMap({ MeetingPeopleFormatter.withYou($0.attendees) }) { return invited }
+        return speakers.isEmpty ? nil : speakers.prefix(4).joined(separator: ", ")
     }
 
     private var speakers: [String] {
@@ -614,6 +620,9 @@ struct DesktopMeetingDetail: View {
     private var details: some View {
         HudFrame("Details") {
             keyValue("Recorded from", meeting.sourceMeeting.flatMap(DesktopFormat.venue) ?? "This Mac")
+            if let organizer = meeting.sourceMeeting?.organizer {
+                keyValue("Invited by", organizer)
+            }
             keyValue("Audio", audioText)
             if let stored {
                 keyValue("Transcript", transcriptText(stored.transcript))

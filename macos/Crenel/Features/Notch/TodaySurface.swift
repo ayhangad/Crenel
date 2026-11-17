@@ -476,6 +476,13 @@ private struct TodayHero: View {
                         Text(verbatim: venue).hud(.meta).lineLimit(1)
                     }
                 }
+                if let people = MeetingPeopleFormatter.short(event.attendees) {
+                    HStack(spacing: 6) {
+                        HudIcon(.people, size: 12).foregroundStyle(Hud.Ink.ink4)
+                        Text(verbatim: people).hud(.meta).lineLimit(1).truncationMode(.tail)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
                 if event.responseStatus == .pending {
                     HStack(spacing: 8) {
                         HudStatusShape(.warn)

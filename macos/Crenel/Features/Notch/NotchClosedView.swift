@@ -154,7 +154,7 @@ struct NotchClosedView: View {
                 HudIcon(.mic, size: 14).foregroundStyle(Hud.Ink.ink2)
             }
             word(words.reason, lit: true)
-        case .ready(let meeting):
+        case .ready(let meeting, _):
             HudIcon(.transcript, size: 14).foregroundStyle(Hud.Ink.ink1)
             title(meeting?.title ?? String(localized: "Meeting"), lit: true)
         case .failed(let failure, let meetingTitle, _):
@@ -338,8 +338,8 @@ struct NotchClosedView: View {
                 EmptyView()
             }
 
-        case .ready(let meeting):
-            sentence(String(localized: "Notes are ready"), meta: meeting.map(NotchClosedText.duration))
+        case .ready(let meeting, let actionItems):
+            sentence(NotchClosedText.readySentence(actionItems: actionItems), meta: meeting.map(NotchClosedText.duration))
             Spacer(minLength: 0)
             NotchStripKey("Later", key: "esc", size: .small, action: actions.dismissResult)
                 .keyboardShortcut(.cancelAction)
@@ -447,7 +447,8 @@ struct NotchClosedView: View {
         case .dictationWorking: "Dictation writing"
         case .dictationInserted(let summary): summary.message
         case .dictationFailed(let failure): failure.message
-        case .ready(let meeting): "\(meeting?.title ?? "Meeting"), notes ready"
+        case .ready(let meeting, let actionItems):
+            "\(meeting?.title ?? "Meeting"), \(NotchClosedText.readySentence(actionItems: actionItems).lowercased())"
         case .failed(let failure, let title, _): "\(title ?? failure.title), failed"
         }
     }

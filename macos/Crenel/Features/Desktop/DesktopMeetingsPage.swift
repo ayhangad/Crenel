@@ -220,9 +220,13 @@ struct DesktopMeetingsPage: View {
         case .notTranscribed: return "Not transcribed"
         case .ready:
             var parts: [String] = []
-            if let entry = index.entries[meeting.id] {
-                if entry.actionCount > 0 { parts.append("\(entry.actionCount) for you") }
-                if !entry.speakers.isEmpty { parts.append(entry.speakers.prefix(3).joined(separator: ", ")) }
+            let entry = index.entries[meeting.id]
+            if let entry, entry.actionCount > 0 { parts.append("\(entry.actionCount) for you") }
+            if let speakers = entry?.speakers, !speakers.isEmpty {
+                parts.append(speakers.prefix(3).joined(separator: ", "))
+            } else if let people = meeting.sourceMeeting.flatMap({ MeetingPeopleFormatter.count($0.attendees) }) {
+                // No voices told apart: the calendar's head count ("5 people").
+                parts.append(people)
             }
             if parts.isEmpty, let source = meeting.sourceMeeting, let venue = DesktopFormat.venue(source) { parts.append(venue) }
             return parts.isEmpty ? "Notes ready" : parts.joined(separator: " · ")
