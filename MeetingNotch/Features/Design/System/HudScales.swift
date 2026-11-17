@@ -8,8 +8,9 @@ import SwiftUI
 /// the hour, a label every two hours; events are lit 6 pt blocks above the scale; "now"
 /// is an amber needle; the past is dimmed.
 ///
-/// The wide ruler (desktop, 62 pt) prints event names under their blocks; past events
-/// fade to 35 % instead of being masked.
+/// The wide ruler (desktop, 62 pt) prints event names under their blocks, each cut where
+/// the next block starts; hovering a block prints its name in full. Past events fade to
+/// 35 % instead of being masked.
 ///
 ///     HudDayRuler(now: 10.7, events: [.init(14.5, 15.25, .focus), .init(16, 17), .init(17.5, 18, .invite)])
 ///         .padding(.horizontal, 10)
@@ -50,6 +51,13 @@ struct HudDayRuler: View {
     var now: Double
     var events: [Event] = []
     var wide = false
+    /// Index of the hovered block on the wide ruler; `previewHover` fixes it for renders.
+    var previewHover: Int?
+    @State private var hoverState: Int?
+    private var hoveredEvent: Int? {
+        get { previewHover ?? hoverState }
+        nonmutating set { hoverState = newValue }
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -57,17 +65,9 @@ struct HudDayRuler: View {
             ZStack(alignment: .topLeading) {
                 Canvas { context, _ in draw(in: &context, width: width) }
                 if wide {
-                    ForEach(Array(events.enumerated()), id: \.offset) { _, event in
+                    ForEach(Array(events.enumerated()), id: \.offset) { index, event in
                         if let title = event.title {
-                            let share = (event.end - event.start) / (span.upperBound - span.lowerBound)
-                            Text(title)
-                                .hud(.micro, labelColor(event.kind))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                                .frame(maxWidth: width * max(share, 0.09), alignment: .leading)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .opacity(event.end <= now ? 0.35 : 1)
-                                .offset(x: x(event.start, width), y: 17)
+                            wideLabel(title, index: index, event: event, width: width)
                         }
                     }
                 }
@@ -82,6 +82,49 @@ struct HudDayRuler: View {
         }
         .frame(height: wide ? 62 : 46)
         .accessibilityHidden(true)
+    }
+
+    /// A name under its block. It may run only as far as the next block starts, and is
+    /// cut there; with no room at all it is left out. Hovering a block prints its name in
+    /// full and hides the others, so names never sit on top of each other.
+    @ViewBuilder
+    private func wideLabel(_ title: String, index: Int, event: Event, width: CGFloat) -> some View {
+        let startX = x(event.start, width), endX = x(event.end, width)
+        let nextStart = events.enumerated()
+            .filter { $0.offset != index && $0.element.title != nil
+                && ($0.element.start > event.start || ($0.element.start == event.start && $0.offset > index)) }
+            .map(\.element.start).min()
+        let room = (nextStart.map { x($0, width) } ?? width) - startX - 8
+        let isHovered = hoveredEvent == index
+        let fromTrailing = startX > width * 0.7
+        Group {
+            if isHovered {
+                Text(title)
+                    .hud(.micro, Hud.Ink.ink1)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .frame(width: fromTrailing ? max(endX, 1) : max(width - startX, 1), alignment: fromTrailing ? .trailing : .leading)
+                    .offset(x: fromTrailing ? 0 : startX, y: 17)
+            } else if room >= 26 {
+                Text(title)
+                    .hud(.micro, labelColor(event.kind))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(width: room, alignment: .leading)
+                    .opacity(hoveredEvent != nil ? 0 : (event.end <= now ? 0.35 : 1))
+                    .offset(x: startX, y: 17)
+            }
+        }
+        .allowsHitTesting(false)
+        .animation(Hud.Motion.hover, value: hoveredEvent)
+        // The block and the line under it are the hover target.
+        Color.clear
+            .frame(width: max(14, endX - startX), height: 32)
+            .contentShape(Rectangle())
+            .offset(x: startX, y: 0)
+            .onHover { inside in
+                if inside { hoveredEvent = index } else if hoveredEvent == index { hoveredEvent = nil }
+            }
     }
 
     private var labelHours: [Int] {

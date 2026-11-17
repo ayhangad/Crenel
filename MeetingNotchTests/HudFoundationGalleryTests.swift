@@ -492,6 +492,13 @@ final class HudFoundationGalleryTests: XCTestCase {
                 .init(19, 20, .normal, title: "Gym")
             ], wide: true)
                 .frame(width: 930)
+            caption("day ruler, wide: back-to-back events · the second hovered")
+            ForEach([Int?.none, 1], id: \.self) { hover in
+                HudDayRuler(now: 15.6, events: [
+                    .init(18, 18.5, .focus, title: "Edda Dev. Sync"), .init(18.5, 19, .normal, title: "BB Dev. Sync")
+                ], wide: true, previewHover: hover)
+                    .frame(width: 930)
+            }
             caption("ramp: in plan · past the plan")
             HStack(alignment: .bottom, spacing: 10) {
                 HudRamp(elapsed: 768, plan: 3600); Text(verbatim: "of 60 min").hud(.micro)
