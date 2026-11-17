@@ -1,4 +1,4 @@
-# MeetingNotch Architecture
+# Crenel Architecture
 
 Bu belge ürün vizyonunu uygulama yapısına dönüştüren yaşayan mimari rehberdir.
 Ürün kapsamının ana kaynağı `PRODUCT_PLAN.md`, araştırma notlarının kaynağı ise
@@ -9,9 +9,9 @@ değiştirilebilir.
 
 Bu bölüm aşağıdaki eski kararların takvim, görev ve yapay zekâ ile ilgili kısımlarının
 yerine geçer. Ürün adı Crenel'dir; Swift modül adı, bundle kimliği, Keychain servisleri ve
-`Application Support/MeetingNotch` veri klasörü, izinler ve kullanıcı verisi kaybolmasın diye
-yayın hazırlığına (C6) kadar korunur. `project.yml`: `PRODUCT_NAME: Crenel`,
-`PRODUCT_MODULE_NAME: MeetingNotch`, test hedefinin `TEST_HOST` değeri Crenel.app'tir.
+`Application Support/Crenel` veri klasörü, izinler ve kullanıcı verisi kaybolmasın diye
+yayın hazırlığına (C6) kadar korunur. `macos/project.yml`: `PRODUCT_NAME: Crenel`,
+`PRODUCT_MODULE_NAME: Crenel`, test hedefinin `TEST_HOST` değeri Crenel.app'tir.
 Minimum sistem macOS 26'dır.
 
 ### Katmanlar
@@ -215,13 +215,13 @@ alınamaz silme bilgileri korunur; ikincil kullanım açıklamaları tooltip'e t
 ## 2026-09-25 arayüz ve hareket sözleşmesi
 
 Ortak yüzeyler, tipografi, durum renkleri, düğmeler, satırlar, boş durumlar ve geri
-bildirimler `MeetingNotchTheme` katmanından gelir. İkincil metin RGB 163/255,
+bildirimler `CrenelTheme` katmanından gelir. İkincil metin RGB 163/255,
 başarı rengi RGB 95/216/151; workspace/sidebar yüzeyleri sırasıyla 0.035/0.055 gri.
 Özel düğme ve sekmeler en az 40 pt, metin alanları en az 44 pt yüksekliğindedir.
 Hover, klavye odağı, disabled ve basış geri bildirimi ortak modifier'lardadır.
 Alan odağı çağıran view'ın FocusState değeriyle açıkça bağlanır.
 
-`MeetingNotchMotion` etkileşim (0.14 sn) ve gezinme (0.24 sn, zıplamasız) geçişlerini
+`CrenelMotion` etkileşim (0.14 sn) ve gezinme (0.24 sn, zıplamasız) geçişlerini
 merkezileştirir. Yeni hareketler Reduce Motion durumunda kapanır. Notch sekmesi
 seçim kapsülü eşleşen geometriyle, kompakt mikrofon durumu opacity ile geçiş yapar.
 Ses seviyesi animasyonu yalnız seviye değişimine bağlıdır; tüm panel sürekli animasyon almaz.
@@ -236,7 +236,7 @@ klavye değişiklikleri doğrudan seek yapar. Kopyalama bildirimi tekrarlanan t�
 iptal edilebilir bir task ile sıfırlanır.
 
 Sentetik ekran matrisi `NotchPresentationTests` ve `DesktopWorkspaceTests` içindedir.
-İnceleme kapsamı ve sınırları: `QA/UI_POLISH_AUDIT.md`.
+İnceleme kapsamı ve sınırları: `macos/QA/UI_POLISH_AUDIT.md`.
 
 ## 2026-09-14 hibrit mimari kararı
 
@@ -259,10 +259,10 @@ okur. Kayıt tamamlandı durumu ile `summaryNeedsAttention` birbirinden ayrıdı
 
 ## Proje üretimi
 
-- Xcode projesinin tek yapılandırma kaynağı `project.yml` dosyasıdır.
-- `MeetingNotch.xcodeproj/project.pbxproj` elle düzenlenmez.
-- Proje değişikliklerinden sonra kök dizinde `xcodegen generate` çalıştırılır.
-- DynamicNotchKit sürümü `project.yml` içinde sabit bir alt sınırla tanımlanır.
+- Xcode projesinin tek yapılandırma kaynağı `macos/project.yml` dosyasıdır.
+- `macos/Crenel.xcodeproj/project.pbxproj` elle düzenlenmez.
+- Proje değişikliklerinden sonra `macos/` içinde `xcodegen generate` çalıştırılır.
+- DynamicNotchKit sürümü `macos/project.yml` içinde sabit bir alt sınırla tanımlanır.
 - Minimum sistem sürümü macOS 26'dır (Crenel kararı, 2026-11-16).
 - Uygulama `LSUIElement` agent olarak çalışır ve App Sandbox kapalıdır. V1 dağıtımı
   Developer ID imzası ve notarization ile doğrudan yapılır; Mac App Store hedeflenmez.
@@ -273,7 +273,7 @@ okur. Kayıt tamamlandı durumu ile `summaryNeedsAttention` birbirinden ayrıdı
 ## Katmanlar
 
 ```text
-MeetingNotch/
+macos/Crenel/
   App/              Uygulama yaşam döngüsü, AppDelegate ve ortak AppState
   Domain/           Saf ürün modelleri ve durum makinesi
   Features/
@@ -338,7 +338,7 @@ Takvim etkinliği yalnız planlanmış bağlamdır; gerçek çağrı yaşam dön
 Session detector dört yerel kaynaktan normalize kanıt toplar:
 
 - EventKit meeting kimliği, URL'si, başlangıç/bitiş aralığı.
-- MeetingNotch `Katıl` aksiyonunun açtığı URL ve ardından görülen process/window.
+- Crenel `Katıl` aksiyonunun açtığı URL ve ardından görülen process/window.
 - Core Audio process nesnesinin bundle ID/PID ve `isRunningInput` / `isRunningOutput`
   değişiklikleri.
 - Desteklenen istemciye ait Accessibility adapter'ının meeting window, call controls ve
@@ -395,7 +395,7 @@ veya helper tek başına kalıcı toplantı dosyası seçemez. Meeting URL'sinin
 DOM metni ve ses içeriği loglanmaz. Chrome Web Store kurulumu ve action tıklaması onboarding
 üzerinde açık bir Google Meet önkoşuludur.
 
-Native sınır iki ayrı doğrulamadan oluşur. `MeetingNotchBrowserAudioHost`, Chrome'un 4-byte
+Native sınır iki ayrı doğrulamadan oluşur. `CrenelBrowserAudioHost`, Chrome'un 4-byte
 little-endian framed stdio mesajını sabit extension origin, session UUID, sequence, PCM boyutu,
 sample rate ve kanal sayısıyla doğrular. Doğrulanmış event, yalnız o kullanıcı için `0700`
 geçici dizin ve `0600` Unix socket üzerinden `BrowserAudioIPCServer`'a taşınır; socket yazımı
@@ -520,7 +520,7 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 
 - Takvim entegrasyonu doğrudan Google/Gmail OAuth'u kullanmaz. EventKit, yalnız kullanıcının
   macOS İnternet Hesapları'na ekleyip Takvim için etkinleştirdiği iCloud, Google, Exchange,
-  CalDAV ve yerel kaynakları okur; MeetingNotch Gmail gelen kutusuna veya e-posta içeriğine
+  CalDAV ve yerel kaynakları okur; Crenel Gmail gelen kutusuna veya e-posta içeriğine
   erişmez. Ayarlar kaynak türü ve takvim sayısını gösterir fakat hesap adı/e-posta adresini
   domain'e, loglara veya kalıcı dosyalara taşımaz.
 - Yetkili EventKit sorgusu son 1 saat ile sonraki 24 saati kapsar; okunabilir takvim,
@@ -595,7 +595,7 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 - Mevcut global system tap V1 hedefinde gerçek toplantı kaydı için kullanılmaz. Zoom meeting
   session bir bundle ID/PID setine çözüldüğünde private `CATapDescription` yalnız bu process
   nesnelerinin output sesini yakalar. Google Meet system audio yalnız yukarıdaki extension
-  tab stream'inden gelir. MeetingNotch kendi sesi ve diğer uygulama/Chrome sekmesi sesleri
+  tab stream'inden gelir. Crenel kendi sesi ve diğer uygulama/Chrome sekmesi sesleri
   capture dışında kalır.
 - Meeting process'i restart olur veya child process değiştirirse session detector yeni PID
   setini doğrular. Yeniden bağlama sırasında uygulama sessizce global tap'e düşmez; kullanıcı
@@ -706,14 +706,14 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 - Calendar matcher, meeting session detector, mute adapter ve ElevenLabs parser gerçek
   servis olmadan fixture ile test edilir.
 - Ses yakalama ve notch davranışı gerçek macOS donanımında entegrasyon testi gerektirir.
-- Gerçek mikrofon testi `Scripts/audio-integration-tests.sh` opt-in runner'ıyla
+- Gerçek mikrofon testi `macos/Scripts/audio-integration-tests.sh` opt-in runner'ıyla
   `MicrophoneCaptureSource` sınırını coordinator'dan bağımsız çalıştırır; runner yalnız test
   süresince `/tmp` sentinel'i oluşturur ve her çıkış yolunda temizler. Normal regresyon
   koşularında TCC istemi oluşturmamak için test atlanır.
 - Gerçek sistem sesi testi aynı runner ile harici bir sistem sesi oynatır ve
   `SystemAudioCaptureSource` çıktısının seviye, timestamp, süre, audio track ve M4A dosya
   bütünlüğünü doğrular; normal regresyon koşularında TCC istemi oluşturmamak için atlanır.
-- Otomatik recovery matrisi `Scripts/recovery-matrix-tests.sh` ile disk, capture recovery,
+- Otomatik recovery matrisi `macos/Scripts/recovery-matrix-tests.sh` ile disk, capture recovery,
   queue restore/idempotency, transport retry, cihaz/gate kesintisi, pipeline heartbeat,
   drift/limiter ve privacy canary testlerini tek koşuda toplar; log ile sonuç özetini
   `artifacts/qa/` altında üretir.
@@ -728,7 +728,7 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 
 ## Dil
 
-Geliştirme dili İngilizce (`project.yml` → `developmentLanguage: en`); arayüz metinleri kodda
+Geliştirme dili İngilizce (`macos/project.yml` → `developmentLanguage: en`); arayüz metinleri kodda
 İngilizce yazılır. Türkçe ve diğer diller String Catalog çevirisi olarak eklenecek. Tarih ve
 sayı biçimleri arayüz diliyle eşleşsin diye `AppLanguage.locale` kullanır. Kullanıcı girdisini
 tanıyan kod (görev ayrıştırıcı, dikte komutları, özet kalıpları) Türkçe ve İngilizce ifadeleri

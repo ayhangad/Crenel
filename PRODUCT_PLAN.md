@@ -1,6 +1,6 @@
-# MeetingNotch — Product Development Plan
+# Crenel — Product Development Plan
 
-Bu dosya MeetingNotch v1 tamamlanana kadar kullanılacak ortak ilerleme planıdır.
+Bu dosya Crenel v1 tamamlanana kadar kullanılacak ortak ilerleme planıdır.
 Yeni bir sohbet veya geliştirici çalışmaya başlamadan önce bu dosyayı okumalı,
 uygun görevi seçmeli ve çalışmanın durumunu yine bu dosyada güncellemelidir.
 
@@ -60,16 +60,16 @@ birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
 - Görev deposu: Apple Hatırlatıcılar (EventKit reminders) + yerel yan veri; izin yoksa
   yerel JSON. Eski görevler bir defalık taşınır, eski dosya yedek olarak bırakılır.
 - Tasarım son aşamada kullanıcıyla birlikte güncellenir. O zamana kadar yeni yüzeyler mevcut
-  `MeetingNotchTheme` diline uyar.
+  `CrenelTheme` diline uyar.
 - Ad değişimi: görünen ad ve ürün adı Crenel olur. Bundle kimliği, Keychain servisleri ve
   veri klasörü, macOS izinleri ve kullanıcı verisi kaybolmasın diye yayın hazırlığına kadar
-  korunur. Kod içi `MeetingNotch` adlandırması kademeli olarak değişir.
+  korunur. Kod içi `Crenel` adlandırması kademeli olarak değişir.
 
 ### C0 — Kapsam ve temel
 
 - [x] Crenel ürün kapsamını, kararları ve faz planını belgelemek.
 - [x] macOS 26 hedefi, Crenel görünen adı, Hatırlatıcılar/konuşma/Input Monitoring izin
-  metinlerini `project.yml` üzerinden uygulamak. — ✅ 2026-11-16
+  metinlerini `macos/project.yml` üzerinden uygulamak. — ✅ 2026-11-16
 - [x] Mimari belgeye Crenel katmanlarını (Dictation, Agent, Reminders, takvim
   sınıflandırması) eklemek. — ✅ 2026-11-16 (otomatik test; gerçek cihaz kabulü C8'de)
 
@@ -145,9 +145,30 @@ birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
 - [x] LICENSE: MIT (kullanıcı kararı 2026-11-16). — ✅ 2026-11-16
 - [x] Katkı rehberi (CONTRIBUTING). — ✅ 2026-11-17
 - [x] README'nin Crenel kapsamıyla yenilenmesi. — ✅ 2026-11-16
-- [x] `project.yml` içindeki kişisel `DEVELOPMENT_TEAM` değerinin katkıcıların kendi
-  takımını verebileceği yerel bir ayara taşınması (`Config/Signing.local.xcconfig`, git dışı). — ✅ 2026-11-17
-- [ ] Bundle kimliği, veri klasörü ve Keychain servislerinin Crenel'e taşınması (migration).
+- [x] `macos/project.yml` içindeki kişisel `DEVELOPMENT_TEAM` değerinin katkıcıların kendi
+  takımını verebileceği yerel bir ayara taşınması (`macos/Config/Signing.local.xcconfig`, git dışı). — ✅ 2026-11-17
+- [x] Bundle kimliği (`gad.Crenel`), veri klasörü, defaults, Keychain servisleri ve Chrome
+  native host adının Crenel'e taşınması; ilk açılışta tek seferlik migration
+  (`LegacyIdentityMigration`). Depo monorepo yapısına geçti: `macos/`, `browser-extension/`,
+  `website/` (yakında). — ✅ 2026-11-17
+
+### C10 — Dağıtım: imza, otomatik güncelleme, DMG (2026-11-17 kararları)
+
+Kararlar: Developer ID + notarization ile doğrudan dağıtım. Güncellemeler Sparkle 2 ile;
+DMG'ler GitHub Releases'ta, appcast GitHub Pages'te. Güncelleme arka planda iner,
+hazır olunca amber "Update ready · Restart" hatırlatması çıkar; kayıt sürerken yeniden
+başlatılmaz. "Coming soon" sağlayıcılar disable halde görünür kalır. Uygulama
+Applications dışından (ör. DMG içinden) açılırsa Applications'a taşımayı önerir.
+
+- [ ] Developer ID Application sertifikası ve `Crenel-Notary` notarytool profili.
+  — ⛔ Bloke: kullanıcının Apple hesabında adım adım yapılacak.
+- [ ] Applications dışından açılınca taşıma önerisi.
+- [ ] Sparkle 2 entegrasyonu (EdDSA anahtarı, appcast, nazik hatırlatma, kayıt sırasında erteleme,
+  Ayarlar › About'ta "Check for Updates").
+- [ ] Release hattı: archive → notarize → dmgbuild DMG → DMG imza/notarize/staple →
+  `generate_appcast` → GitHub Release + Pages.
+- [ ] DMG tasarımı: koyu "notch'tan düşen ikon" prototipi; açık/koyu modda etiket okunurluk
+  testi (macOS 26 ve 27), okunmazsa açık zemine geçiş.
 
 ### C8 — Gerçek cihaz kabulü
 
@@ -213,7 +234,7 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     halo, iç noktalar, sıcak çekirdekli lambalar, kuyu, LED yığını). — ✅ 2026-11-17
     (112 durum headless tarayıcıda hatasız; etkileşim testi geçti)
   - [x] Kullanıcının lamba-mazgal ikonunun uygulama ikonu yapılması: Icon Composer
-    `MeetingNotch/AppIcon.icon` (boş `AppIcon.appiconset` kaldırıldı), "hazır" lambası
+    `macos/Crenel/AppIcon.icon` (boş `AppIcon.appiconset` kaldırıldı), "hazır" lambası
     ikonun turkuazına çekildi. — ✅ 2026-11-17 (`ictool` render incelendi; Debug build
     başarılı, paket `AppIcon.icns` + `CFBundleIconName` içeriyor)
   - [x] Prototipte üçüncü tur: köşeli ikon seti (Remix dilinde, pahlı köşeler; her ikonun
@@ -272,7 +293,7 @@ Doğrulama: 3 masaüstü testi geçti; imzalı Debug build başarılı. Ayar gö
 Doğrulama: 333 test (3 opt-in atlandı), 0 hata; son 25 görsel UI testi ve yeni
 sekme/scroll regresyon testi ayrıca geçti. Gerçek NSWindow 1120×680 açılış ve
 960×540 küçültme doğrulandı. İmzalı Debug build başarılı. Fiziksel notch hareket
-akıcılığı henüz canlı toplantıda doğrulanmadı. Ayrıntılar: `QA/UI_POLISH_AUDIT.md`.
+akıcılığı henüz canlı toplantıda doğrulanmadı. Ayrıntılar: `macos/QA/UI_POLISH_AUDIT.md`.
 
 ## 2026-09-25 — Arayüz ve etkileşim kalitesi
 
@@ -289,7 +310,7 @@ Doğrulama: 333 test, 3 opt-in fiziksel ses testi atlandı, 0 hata. Son görsel
 düzeltmelerden sonra 25 UI testi tekrar geçti; development imzalı Debug build başarılı.
 59 ek durum görseli ve önce/sonra galerisi üretildi. Erişilebilirlik kontrolü kod/test
 seviyesindedir; fiziksel VoiceOver, yeni build ile gerçek toplantı ve hareket akıcılığı
-kapsamı ayrı kalır. Ayrıntılar: `QA/UI_POLISH_AUDIT.md`.
+kapsamı ayrı kalır. Ayrıntılar: `macos/QA/UI_POLISH_AUDIT.md`.
 
 ## 2026-09-14 — Masaüstü çalışma alanı
 
@@ -329,11 +350,11 @@ bildirildi; fiziksel uzun kayıt kapsamı sıfırdan başlamıyor.
 Doğrulama: 327 XCTest, 3 fiziksel ses testi opt-in nedeniyle atlandı, 0 hata;
 Chrome köprüsü 6/6 test ve paket doğrulaması başarılı. Apple Development imzalı Debug
 build başarılı; sentetik Ayarlar ve toplantı detay render’ları incelendi. Gerçek API
-çağrısı/kayıt kalite testi yapılmadı. Kurulum ve kalan fiziksel kabul: `QA/HYBRID_SETUP.md`.
+çağrısı/kayıt kalite testi yapılmadı. Kurulum ve kalan fiziksel kabul: `macos/QA/HYBRID_SETUP.md`.
 
 ## Ürün özeti
 
-MeetingNotch, macOS notch çevresinde Dynamic Island benzeri çalışan hafif bir toplantı
+Crenel, macOS notch çevresinde Dynamic Island benzeri çalışan hafif bir toplantı
 kayıt uygulamasıdır. Takvim ve yerel macOS sinyalleriyle desteklenen toplantıyı algılar,
 toplantının başladığını/bittiğini kullanıcıya görünür biçimde bildirir, yalnızca toplantıya
 ait sesi kaydeder ve kaydı konuşmacı ayrımlı transkript ile kısa özete dönüştürür. Kullanıcı
@@ -405,7 +426,7 @@ detector aşağıdaki bağımsız sinyalleri birleştirir:
    `isRunningOutput` durumu gerçek istemci aktivitesine aday sinyal verir.
 3. İstemci adaptörünün Accessibility ağacında meeting window/call controls bulması güçlü
    katılım sinyalidir.
-4. Kullanıcının MeetingNotch içindeki `Katıl` aksiyonu toplantı URL'si ile process/window
+4. Kullanıcının Crenel içindeki `Katıl` aksiyonu toplantı URL'si ile process/window
    ilişkilendirmesini güçlendirir.
 5. Meeting UI'ın kaybolması, ilgili process audio IO'nun durması ve takvim bağlamı birlikte
    bitiş güvenini yükseltir. Yalnızca sessizlik bitiş sayılmaz.
@@ -497,13 +518,13 @@ hang-up ayrı ayrı beşer ardışık koşuda doğru algılanır; yalnız sessiz
 
 — 🧪 Fiziksel kanıt hattı hazır: 2026-08-11 / privacy-safe OSLog collector + 4/4 Swift ve
 CLI pass/fail session auditor; istemci/senaryo başına gerçek 5× koşular bekliyor
-— ⛔ Bloke: Kullanıcı kontrollü sentetik Zoom/Meet görüşmeleri ve `QA/Evidence` fiziksel
+— ⛔ Bloke: Kullanıcı kontrollü sentetik Zoom/Meet görüşmeleri ve `macos/QA/Evidence` fiziksel
 kanıtları yok; uygulama görüşmeye veya kullanıcı hesabına kendiliğinden katılamaz
 
 #### C — Privacy-first toplantı sesi
 
 - [x] Global system tap yerine belirlenen meeting process'lerini içeren private Core Audio
-  process tap oluşturmak; MeetingNotch ve toplantı dışı uygulama sesini dışarıda bırakmak.
+  process tap oluşturmak; Crenel ve toplantı dışı uygulama sesini dışarıda bırakmak.
   — ✅ Tamamlandı: 2026-08-11 / private meeting-process tap and fail-closed scope
 - [x] `MeetingMicrophoneGate` state machine ve timestamp'li gate event modelini oluşturmak.
   — ✅ Tamamlandı: 2026-08-11 / fail-closed microphone gate domain
@@ -579,7 +600,7 @@ kontroller klavye ve VoiceOver ile kullanılabilir kalır.
 - [ ] Zoom ve Google Meet/Chrome'da ayrı ayrı 60+ dakikalık toplantıda güvenli kapsamlı
   system audio, gated mic, finalize, ElevenLabs upload, diarization, özet ve detay akışını
   uçtan uca tamamlamak.
-  — ⛔ Bloke: `QA/V1_RELEASE_RUNBOOK.md` hazır; kullanıcı kontrollü iki fiziksel 65 dk
+  — ⛔ Bloke: `macos/QA/V1_RELEASE_RUNBOOK.md` hazır; kullanıcı kontrollü iki fiziksel 65 dk
   görüşme ve test ElevenLabs anahtarı bekliyor
 - [ ] İnternet kesintisi, 401/429/5xx, disk dolması, force quit, sleep/wake ve audio device
   değişimi recovery matrisini geçirmek.
@@ -607,7 +628,7 @@ kontroller klavye ve VoiceOver ile kullanılabilir kalır.
 - [ ] İmzalı/notarize release candidate'ı temiz kullanıcı hesabında notch ve harici ekranda
   doğrulamak.
   — ⛔ Bloke: RC script + evidence template hazır; Keychain'de Developer ID Application
-  sertifikası ve `MeetingNotch-Notary` profili yok, temiz hesap fiziksel testi bekliyor
+  sertifikası ve `Crenel-Notary` profili yok, temiz hesap fiziksel testi bekliyor
 
 **E çıkış kriteri:** İlk kurulumdan sonuç ekranına gerçek toplantı akışı veri sızıntısı
 olmadan tamamlanır ve V1 tamamlanma tanımındaki bütün maddeler geçer.
@@ -621,7 +642,7 @@ olmadan tamamlanır ve V1 tamamlanma tanımındaki bütün maddeler geçer.
 - [x] Bu dosyayı geliştirme boyunca tek ana ilerleme planı olarak benimsemek.
 - [x] `ARCHITECTURE.md` oluşturup mevcut ürün belgelerinden türetilen uygulama katmanlarını
   ve bağımlılık kurallarını belgelemek.
-- [x] `project.yml` dosyasını Xcode projesinin tek yapılandırma kaynağı yapmak ve
+- [x] `macos/project.yml` dosyasını Xcode projesinin tek yapılandırma kaynağı yapmak ve
   `project.pbxproj` dosyasını yalnızca XcodeGen ile üretmek.
 - [x] `README.md` oluşturup ürün özeti, geliştirme gereksinimleri ve plan bağlantısını eklemek.
 - [x] Kaynak kontrolüne girmemesi gereken kullanıcı/Xcode dosyaları için `.gitignore` hazırlamak.
@@ -711,7 +732,7 @@ kanalı değildir.
 - [x] Standart `WindowGroup` başlangıcını menü çubuğu/agent uygulaması yapısına dönüştürmek.
 - [x] Dock ikonunun gösterilip gösterilmeyeceğini ürün kararına göre yapılandırmak.
 - [x] Menü çubuğu ikonunu ve temel menüyü eklemek.
-- [x] Menüye `MeetingNotch'u Aç`, `Kaydı Başlat`, `Ayarlar` ve `Çıkış` aksiyonlarını eklemek.
+- [x] Menüye `Crenel'u Aç`, `Kaydı Başlat`, `Ayarlar` ve `Çıkış` aksiyonlarını eklemek.
 - [x] Kayıt devam ederken çıkış davranışını güvenli şekilde ele almak.
 - [x] Uygulamanın login sırasında otomatik açılma seçeneği için altyapı hazırlamak.
 - [x] Tek uygulama instance'ı ve temel app coordinator yapısını oluşturmak.
@@ -1405,10 +1426,10 @@ Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şe
   testten 284'ü geçti, üç opt-in donanım testi beklendiği gibi atlandı ve imzalı Debug build
   üretildi.
 
-- 2026-08-11 — V1 completion/blocker audit'i yapıldı. `QA/Evidence` altında gerçek Zoom/Meet
+- 2026-08-11 — V1 completion/blocker audit'i yapıldı. `macos/QA/Evidence` altında gerçek Zoom/Meet
   kabul kanıtı bulunmadı; kurulu Zoom Workplace 6.7.7 ve Chrome 151 fiziksel görüşme için
   kullanıcı hesabı/etkileşimi bekliyor. Keychain'de yalnız Apple Development kimliği var;
-  Developer ID Application sertifikası ve `MeetingNotch-Notary` profili bulunmuyor. Chrome
+  Developer ID Application sertifikası ve `Crenel-Notary` profili bulunmuyor. Chrome
   Web Store publisher/dashboard ID ile public HTTPS gizlilik, destek ve geliştirici alanları
   da dış hesap bilgisi bekliyor. Kod, otomasyon, kanıt collector'ları ve imzalı Debug kapısı
   yeşil kaldı; fiziksel ses kaydı, destructive sistem koşulları veya hesap yayını kullanıcı
@@ -1485,7 +1506,7 @@ Tamamlanan önemli kilometre taşları buraya en yeniden eskiye doğru kısa şe
   görünür kalıyor. Toplam 211 testten 208'i geçti, üç opt-in donanım testi atlandı; imzalı
   Debug build ve codesign bütünlüğü doğrulandı.
 
-- 2026-08-11 — Takvim, MeetingNotch `Katıl` aksiyonu, Core Audio process IO ve normalize
+- 2026-08-11 — Takvim, Crenel `Katıl` aksiyonu, Core Audio process IO ve normalize
   Accessibility adapter snapshot'larını tek deterministic `MeetingSessionCoordinator`
   altında birleştiren production hattı tamamlandı. Meeting controls, mevcut session PID'si,
   URL ile eşleşen istemci ve aktif IO için kararlı seçim sırası uygulandı; sıradan boşta

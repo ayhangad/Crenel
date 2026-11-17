@@ -20,24 +20,25 @@ Gereksinimler: macOS 26+, güncel Xcode, [XcodeGen](https://github.com/yonaskolb
 1. İmza takımınızı yerel ayara yazın. Takım kimliği depoda tutulmaz:
 
    ```sh
-   cp Config/Signing.local.xcconfig.example Config/Signing.local.xcconfig
+   cp macos/Config/Signing.local.xcconfig.example macos/Config/Signing.local.xcconfig
    # dosyadaki DEVELOPMENT_TEAM değerini kendi takım kimliğinizle değiştirin
    ```
 
-   `Config/Signing.local.xcconfig` git'e girmez. Takım vermezseniz Xcode derlerken sorar;
+   `macos/Config/Signing.local.xcconfig` git'e girmez. Takım vermezseniz Xcode derlerken sorar;
    yalnızca test için imzasız derleme de yapabilirsiniz (aşağıda).
 
 2. Projeyi üretip açın:
 
    ```sh
+   cd macos
    xcodegen generate
-   open MeetingNotch.xcodeproj
+   open Crenel.xcodeproj
    ```
 
 ## Kurallar
 
-- Xcode ayarlarını yalnızca `project.yml` üzerinden değiştirin ve ardından
-  `xcodegen generate` çalıştırın. `MeetingNotch.xcodeproj/project.pbxproj` elle düzenlenmez.
+- Xcode ayarlarını yalnızca `macos/project.yml` üzerinden değiştirin ve ardından
+  `xcodegen generate` çalıştırın. `macos/Crenel.xcodeproj/project.pbxproj` elle düzenlenmez.
 - Kullanıcı verisi (ses, transkript, takvim, görev) uygulamadan yalnızca kullanıcının seçtiği
   sağlayıcıya gider. Günlüklere, hata mesajlarına ve testlere gerçek kişisel veri yazmayın.
 - API anahtarları yalnızca Keychain'de tutulur.
@@ -50,14 +51,14 @@ Gereksinimler: macOS 26+, güncel Xcode, [XcodeGen](https://github.com/yonaskolb
 
 ```sh
 xcodebuild \
-  -project MeetingNotch.xcodeproj \
-  -scheme MeetingNotch \
+  -project macos/Crenel.xcodeproj \
+  -scheme Crenel \
   -destination 'platform=macOS' \
   CODE_SIGNING_ALLOWED=NO \
   build test
 ```
 
-Arayüz değişikliğinin görüntülerini almak için `touch /tmp/MeetingNotchExportUIAudit`
+Arayüz değişikliğinin görüntülerini almak için `touch /tmp/CrenelExportUIAudit`
 çalıştırıp testleri koşun; görüntüler `artifacts/ui-audit/` altına yazılır.
 
 İzin, takvim hesabı, dikte modeli veya başka uygulamaya yazma gerektiren davranışlar otomatik

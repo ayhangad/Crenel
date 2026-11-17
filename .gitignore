@@ -8,7 +8,7 @@ xcuserdata/
 *.xccheckout
 *.xcscmblueprint
 
-MeetingNotch.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+macos/Crenel.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 
 # Claude Code agent worktrees
 .claude/worktrees/
@@ -16,5 +16,5 @@ MeetingNotch.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
 # Local xcodebuild output
 build/
 
-# Local signing team (see Config/Signing.xcconfig)
-Config/Signing.local.xcconfig
+# Local signing team (see macos/Config/Signing.xcconfig)
+macos/Config/Signing.local.xcconfig

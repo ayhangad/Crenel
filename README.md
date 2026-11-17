@@ -21,6 +21,17 @@ Adı, sur dişleri arasındaki çentikten (*crenel*) gelir. Dört şeyi tek yüz
 Güncel kapsam ve ilerleme [`PRODUCT_PLAN.md`](PRODUCT_PLAN.md) içindeki
 “2026-11-16 — Crenel” bölümündedir.
 
+## Depo yapısı
+
+Bu depo bir monorepo'dur:
+
+| Klasör | İçerik |
+| --- | --- |
+| `macos/` | macOS uygulaması: `project.yml`, kaynak (`Crenel/`), testler, betikler, QA |
+| `browser-extension/` | Google Meet sesi için Chrome uzantısı, Store paketi ve betikleri |
+| `docs/` | Tasarım dili ve prototip |
+| `website/` | (yakında) crenel web sitesi |
+
 ## Masaüstü çalışma alanı
 
 Uygulama ilk açıldığında notch çalışır. Notch’taki pencere düğmesi veya menü çubuğundaki
@@ -50,8 +61,8 @@ satır doğrudan Sistem Ayarları’ndaki ilgili bölmeyi açar.
 - [Mimari rehber](ARCHITECTURE.md)
 - [Ortak geliştirme kuralları](AGENTS.md)
 - [Katkı rehberi](CONTRIBUTING.md)
-- [Hibrit sürüm kurulumu ve kabul kontrolleri](QA/HYBRID_SETUP.md)
-- [V1 release doğrulama runbook'u](QA/V1_RELEASE_RUNBOOK.md)
+- [Hibrit sürüm kurulumu ve kabul kontrolleri](macos/QA/HYBRID_SETUP.md)
+- [V1 release doğrulama runbook'u](macos/QA/V1_RELEASE_RUNBOOK.md)
 - [İlk araştırma notları](project-overview.md)
 
 ## Gereksinimler
@@ -70,14 +81,15 @@ brew install xcodegen
 ## Projeyi üretme
 
 ```sh
+cd macos
 xcodegen generate
-open MeetingNotch.xcodeproj   # ürün adı Crenel; proje dosyası adı geçiş sürecinde korunuyor
+open Crenel.xcodeproj
 ```
 
-`project.yml` Xcode projesinin tek yapılandırma kaynağıdır.
-`MeetingNotch.xcodeproj/project.pbxproj` elle düzenlenmemelidir.
-İmza takımı depoda tutulmaz: `Config/Signing.local.xcconfig.example` dosyasını
-`Config/Signing.local.xcconfig` olarak kopyalayıp kendi takım kimliğinizi yazın (ayrıntı:
+`macos/project.yml` Xcode projesinin tek yapılandırma kaynağıdır.
+`macos/Crenel.xcodeproj/project.pbxproj` elle düzenlenmemelidir.
+İmza takımı depoda tutulmaz: `macos/Config/Signing.local.xcconfig.example` dosyasını
+`macos/Config/Signing.local.xcconfig` olarak kopyalayıp kendi takım kimliğinizi yazın (ayrıntı:
 [CONTRIBUTING.md](CONTRIBUTING.md)). Debug uygulaması bu takımın Apple Development
 sertifikasıyla kararlı biçimde imzalanır. Hardened Runtime açıktır ve mikrofon kaydı için yalnızca gerekli
 `com.apple.security.device.audio-input` entitlement'ı kullanılır.
@@ -112,14 +124,14 @@ aksiyonları vardır. Uygulama yaklaşan etkinlikleri yenilemek için çalışı
 
 Doğrudan Google hesabı bağlantısı da uygulanmıştır. Bu seçenek yalnız yayıncının
 Google OAuth Desktop client kimliği build’e tanımlandığında görünür. Son kullanıcıdan
-Google geliştirici projesi oluşturması istenmez; yayıncı kurulumu [rehberdedir](QA/HYBRID_SETUP.md).
+Google geliştirici projesi oluşturması istenmez; yayıncı kurulumu [rehberdedir](macos/QA/HYBRID_SETUP.md).
 
 ## Doğrulama
 
 ```sh
 xcodebuild \
-  -project MeetingNotch.xcodeproj \
-  -scheme MeetingNotch \
+  -project macos/Crenel.xcodeproj \
+  -scheme Crenel \
   -destination 'platform=macOS' \
   CODE_SIGNING_ALLOWED=NO \
   build test
@@ -128,21 +140,21 @@ xcodebuild \
 Google Meet extension protokolü ve Chrome Web Store kod paketi için:
 
 ```sh
-Scripts/chrome-extension-tests.sh
-Scripts/chrome-web-store-package.sh
+browser-extension/scripts/chrome-extension-tests.sh
+browser-extension/scripts/chrome-web-store-package.sh
 ```
 
 İkinci komut checksum'lı Store ZIP'ini `artifacts/chrome-store/` altında üretir. Listeleme
 metni, gizlilik politikası taslağı, ikon/promosyon varlıkları ve yayın checklist'i
-`BrowserExtension/ChromeWebStore/` altındadır.
+`browser-extension/chrome-web-store/` altındadır.
 
 Gerçek privacy canary çıktılarını 997 Hz, minimum süre ve yasaklı transcript cümlesi için
-denetlemek üzere `Scripts/privacy-canary-audit.sh --help` kullanılabilir. Araç 65+ dakikalık
+denetlemek üzere `macos/Scripts/privacy-canary-audit.sh --help` kullanılabilir. Araç 65+ dakikalık
 dosyaları belleğe bütünüyle almadan parça parça okur ve JSON + Markdown kanıtı üretir.
 
 Gerçek Zoom/Meet session başlangıç–bitiş koşularından sonra privacy-safe OSLog kanıtını
 toplayıp beşli `ready/confirmed → ended/confirmed` zincirini doğrulamak için
-`Scripts/session-acceptance-collect.sh --help` kullanılabilir.
+`macos/Scripts/session-acceptance-collect.sh --help` kullanılabilir.
 
 ## Yerel kayıt prototipi
 
@@ -158,7 +170,7 @@ iki ayrı ham M4A kaynak dosyası, ortak timeline'a birleştirilmiş okunabilir 
 sürümlü `metadata.json` ile kalıcı arşive atomik olarak taşınır:
 
 ```text
-~/Library/Application Support/MeetingNotch/Meetings/<session-id>/   (klasör adı geçiş sürecinde korunuyor)
+~/Library/Application Support/Crenel/Meetings/<session-id>/   (klasör adı geçiş sürecinde korunuyor)
 ```
 
 Yarım kalan yazımlar ve bozuk metadata kayıtları veri kaybını önlemek için `Recovery`

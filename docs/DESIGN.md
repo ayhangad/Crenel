@@ -1,7 +1,7 @@
 # Crenel tasarım dili — "gece sürüşü"
 
 Durum: uygulandı (2026-11-17). Kaynak tasarım: `docs/design/crenel-prototype.html`.
-Kod: `MeetingNotch/Features/Design/System/` (`Hud*`, API başvurusu aynı klasördeki
+Kod: `macos/Crenel/Features/Design/System/` (`Hud*`, API başvurusu aynı klasördeki
 `README.md`). Aşağıdaki ölçüler prototipteki CSS ve çizim kodunun
 karşılığıdır. Çelişki olursa prototip esastır.
 
@@ -127,7 +127,7 @@ butonu yoktur.
 ## Uygulama ikonu
 
 - Altı lamba bir mazgal (crenel) gülümsemesi çizer. Bu, notch'taki lamba dilinin
-  kendisidir. Kaynak: `MeetingNotch/AppIcon.icon` (Icon Composer, macOS 26).
+  kendisidir. Kaynak: `macos/Crenel/AppIcon.icon` (Icon Composer, macOS 26).
 - Zemin: `#131313 → #030303` doğrusal degrade, sol üstten sağ alta.
 - Lambalar: 472×296 birimlik glif, 118 birimlik kareler, her biri radyal degradeli
   (orta `#3BFFE8`, %38'de `#05F0D2`, kenar `#00A891`; sağdaki en parlak lamba camgöbeği:
@@ -466,6 +466,6 @@ detay sayfası (`#121211`, bir kat yukarıda, yarıçap 14).
 
 - Prototip: tarayıcıda açılır, sağdaki menüden her duruma gidilir. `[`/`]` ile adım
   atılır; Flows bir senaryoyu oynatır.
-- Swift render'ları: `touch /tmp/MeetingNotchExportUIAudit` sonrası
+- Swift render'ları: `touch /tmp/CrenelExportUIAudit` sonrası
   `CrenelDesignGalleryTests` ve `DesktopWorkspaceTests` çalıştırılırsa `artifacts/ui-audit/`
   altına yazılır.

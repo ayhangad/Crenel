@@ -1,4 +1,4 @@
-# MeetingNotch — Mimari Özet
+# Crenel — Mimari Özet
 
 > Aktif ürün geliştirme planı ve ortak checklist: [PRODUCT_PLAN.md](PRODUCT_PLAN.md)
 
