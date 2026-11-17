@@ -154,6 +154,8 @@ birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
 
 ### C10 — Dağıtım: imza, otomatik güncelleme, DMG (2026-11-17 kararları)
 
+Ayrıntı, araştırma ve sıradaki adımlar: `docs/DISTRIBUTION.md`.
+
 Kararlar: Developer ID + notarization ile doğrudan dağıtım. Güncellemeler Sparkle 2 ile;
 DMG'ler GitHub Releases'ta, appcast GitHub Pages'te. Güncelleme arka planda iner,
 hazır olunca amber "Update ready · Restart" hatırlatması çıkar; kayıt sürerken yeniden
