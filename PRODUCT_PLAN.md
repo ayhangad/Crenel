@@ -183,11 +183,12 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
   `Scripts/release-candidate.sh <sürüm> [--publish | --unsigned]` yazıldı; `--unsigned` uçtan
   uca geçti (testler, Release build, DMG). İmzalı yol Developer ID sertifikası ve notary
   profili gelince denenecek.
-- [ ] DMG tasarımı: koyu "notch'tan düşen ikon" prototipi; açık/koyu modda etiket okunurluk
-  testi (macOS 26 ve 27), okunmazsa açık zemine geçiş. — 🚧 Devam ediyor: 2026-11-17.
+- [x] DMG tasarımı: koyu "notch'tan düşen ikon" prototipi; açık/koyu modda etiket okunurluk
+  testi (macOS 26 ve 27), okunmazsa açık zemine geçiş. — ✅ 2026-11-17 (kullanıcı Finder'da
+  onayladı; macOS 27'de denendi, macOS 26 denemesi C8'de).
   `Scripts/dmg/background.swift` + `settings.py`. İlk denemede Finder etiketleri koyu
   zeminde siyah çizildi ve pencere istenenden uzun açılıp alt kısım beyaz kaldı; arka plan
-  1100 pt uzun çiziliyor, etiketlerin altına açık zemin kondu. Kullanıcı onayı bekleniyor.
+  1100 pt uzun çiziliyor, etiketlerin altına açık zemin kondu; pencere 600 pt, yerleşim 480 pt.
 
 ### C8 — Gerçek cihaz kabulü
 
