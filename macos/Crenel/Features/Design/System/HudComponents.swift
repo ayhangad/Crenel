@@ -279,6 +279,9 @@ struct HudDateTile: View {
                     HudSegmentDigits(String(format: "%02d", calendar.component(.day, from: date)), height: 15, cells: 2)
                     Text(verbatim: word).hud(.micro, Hud.Ink.ink3)
                 }
+                // The word's line box keeps room for descenders it does not have, so the
+                // visible ink sat 1.5 pt high (measured 6 pt above, 9 pt below).
+                .offset(y: 1.5)
             case .time:
                 HudSegmentDigits(HudFormat.clock(date), height: 12)
             case .allDay:
