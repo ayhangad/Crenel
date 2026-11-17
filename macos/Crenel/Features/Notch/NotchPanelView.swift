@@ -16,6 +16,7 @@ struct NotchPanelView: View {
     let onOpenStoredMeeting: (StoredMeeting) -> Void
     let onCopyText: (String) -> Void
     let onExportMarkdown: (String, StoredMeeting) -> Void
+    let onExportMeeting: (MeetingExportFormat, StoredMeeting, StoredTranscription) -> Void
     let onRevealAudio: (URL) -> Void
     let onDeleteStoredMeeting: (StoredMeeting) -> Void
     let onRetryStoredMeeting: (StoredMeeting) -> Void
@@ -38,6 +39,7 @@ struct NotchPanelView: View {
         onOpenStoredMeeting: @escaping (StoredMeeting) -> Void = { _ in },
         onCopyText: @escaping (String) -> Void = { _ in },
         onExportMarkdown: @escaping (String, StoredMeeting) -> Void = { _, _ in },
+        onExportMeeting: @escaping (MeetingExportFormat, StoredMeeting, StoredTranscription) -> Void = { _, _, _ in },
         onRevealAudio: @escaping (URL) -> Void = { _ in },
         onDeleteStoredMeeting: @escaping (StoredMeeting) -> Void = { _ in },
         onRetryStoredMeeting: @escaping (StoredMeeting) -> Void = { _ in },
@@ -60,6 +62,7 @@ struct NotchPanelView: View {
         self.onOpenStoredMeeting = onOpenStoredMeeting
         self.onCopyText = onCopyText
         self.onExportMarkdown = onExportMarkdown
+        self.onExportMeeting = onExportMeeting
         self.onRevealAudio = onRevealAudio
         self.onDeleteStoredMeeting = onDeleteStoredMeeting
         self.onRetryStoredMeeting = onRetryStoredMeeting
@@ -112,6 +115,10 @@ struct NotchPanelView: View {
                             onCopyText: onCopyText,
                             onExportMarkdown: { markdown in
                                 onExportMarkdown(markdown, detail.meeting)
+                            },
+                            onExport: { format in
+                                guard let transcription = detail.storedTranscription else { return }
+                                onExportMeeting(format, detail.meeting, transcription)
                             },
                             onRevealAudio: onRevealAudio,
                             onRetry: onRetryStoredMeeting,

@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The task opened in place by Edit (`.task-card`): title, When, Priority, note and the
-/// source meeting. State and delete are not here — they live in the row's actions. The
-/// single exit is Done ↩. Title and note save when a field loses focus and on Done;
-/// nothing saves on every keystroke.
+/// The task opened in place by Edit (`.task-card`): title, what a blocked task is waiting
+/// on, When, Priority, note and the source meeting. State and delete are not here — they
+/// live in the row's actions. The single exit is Done ↩. Title, reason and note save when
+/// a field loses focus and on Done; nothing saves on every keystroke.
 struct TaskEditCard: View {
     let task: TaskItem
     let now: Date
@@ -14,9 +14,10 @@ struct TaskEditCard: View {
     @Environment(\.crenelActions) private var actions
     @State private var title: String
     @State private var notes: String
+    @State private var blockedReason: String
     @FocusState private var focus: Field?
 
-    private enum Field { case title, notes }
+    private enum Field { case title, blockedReason, notes }
 
     init(task: TaskItem, now: Date, sourceMeetingTitle: String? = nil, onClose: @escaping () -> Void) {
         self.task = task
@@ -25,6 +26,7 @@ struct TaskEditCard: View {
         self.onClose = onClose
         _title = State(initialValue: task.title)
         _notes = State(initialValue: task.notes ?? "")
+        _blockedReason = State(initialValue: task.blockedReason ?? "")
     }
 
     var body: some View {
@@ -40,6 +42,24 @@ struct TaskEditCard: View {
                     .focused($focus, equals: .title)
                     .onSubmit(close)
                     .accessibilityLabel("Title")
+            }
+
+            if task.status == .blocked {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Blocked").hud(.meta)
+                    TextField("", text: $blockedReason, prompt: Text("Waiting on…").foregroundColor(Hud.Ink.ink3))
+                        .textFieldStyle(.plain)
+                        .hud(.body, Hud.Ink.ink2)
+                        .lineLimit(1)
+                        .focused($focus, equals: .blockedReason)
+                        .onSubmit(close)
+                        .padding(.horizontal, 10)
+                        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(white: 1, opacity: 0.04)))
+                        .contentShape(Rectangle())
+                        .onTapGesture { focus = .blockedReason }
+                        .accessibilityLabel("Waiting on")
+                }
             }
 
             VStack(alignment: .leading, spacing: 8) {
@@ -121,6 +141,9 @@ struct TaskEditCard: View {
         .onChange(of: task.title) { _, newValue in
             if focus != .title { title = newValue }
         }
+        .onChange(of: task.blockedReason) { _, newValue in
+            if focus != .blockedReason { blockedReason = newValue ?? "" }
+        }
         .onDisappear(perform: commit)
     }
 
@@ -167,6 +190,13 @@ struct TaskEditCard: View {
         if newNotes != task.notes {
             updated.notes = newNotes
             changed = true
+        }
+        if task.status == .blocked {
+            let newReason = TaskItem.normalizedBlockedReason(blockedReason)
+            if newReason != task.blockedReason {
+                updated.setBlockedReason(newReason)
+                changed = true
+            }
         }
         if changed { actions.tasks.save(updated) }
     }

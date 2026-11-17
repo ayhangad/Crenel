@@ -38,6 +38,8 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
     var notes: String?
     let createdAt: Date
     private(set) var status: TaskStatus
+    /// Why a blocked task is waiting ("waiting on QA"). Kept only while blocked.
+    private(set) var blockedReason: String?
     private(set) var startedAt: Date?
     private(set) var completedAt: Date?
     /// Set only by an explicit archive action; completing a task never archives it.
@@ -63,6 +65,7 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
         notes: String? = nil,
         createdAt: Date = Date(),
         status: TaskStatus = .open,
+        blockedReason: String? = nil,
         startedAt: Date? = nil,
         completedAt: Date? = nil,
         archivedAt: Date? = nil,
@@ -83,6 +86,7 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
         self.notes = notes
         self.createdAt = createdAt
         self.status = completedAt == nil ? status : .completed
+        self.blockedReason = self.status == .blocked ? Self.normalizedBlockedReason(blockedReason) : nil
         self.startedAt = self.status == .inProgress ? (startedAt ?? createdAt) : nil
         self.completedAt = self.status == .completed ? (completedAt ?? createdAt) : nil
         self.archivedAt = archivedAt
@@ -106,6 +110,7 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
     mutating func setStatus(_ newStatus: TaskStatus, at date: Date = Date()) {
         guard newStatus != status else { return }
         status = newStatus
+        if newStatus != .blocked { blockedReason = nil }
         switch newStatus {
         case .open, .blocked:
             startedAt = nil
@@ -117,6 +122,21 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
             completedAt = date
             startedAt = nil
         }
+    }
+
+    /// Sets why the task is blocked. Ignored unless the task is blocked; blank clears it.
+    mutating func setBlockedReason(_ reason: String?) {
+        guard status == .blocked else { return }
+        blockedReason = Self.normalizedBlockedReason(reason)
+    }
+
+    static let maximumBlockedReasonLength = 200
+
+    static func normalizedBlockedReason(_ reason: String?) -> String? {
+        guard let trimmed = reason?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        return String(trimmed.prefix(maximumBlockedReasonLength))
     }
 
     mutating func archive(at date: Date = Date()) {
@@ -185,7 +205,7 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, notes, createdAt, status, startedAt, completedAt, archivedAt
+        case id, title, notes, createdAt, status, blockedReason, startedAt, completedAt, archivedAt
         case dueDate, dueHasTime, recurrence, priority, sortOrder, reminderIdentifier
         case assignee, sourceMeetingID, sourceActionID, sourceTime, sourceSpeakerID
     }
@@ -202,6 +222,9 @@ struct TaskItem: Identifiable, Codable, Equatable, Sendable {
         } else {
             status = legacyCompletedAt == nil ? .open : .completed
         }
+        blockedReason = status == .blocked
+            ? Self.normalizedBlockedReason(try container.decodeIfPresent(String.self, forKey: .blockedReason))
+            : nil
         startedAt = status == .inProgress
             ? try container.decodeIfPresent(Date.self, forKey: .startedAt) ?? createdAt
             : nil

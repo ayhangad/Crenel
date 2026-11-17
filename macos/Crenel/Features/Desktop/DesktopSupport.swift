@@ -13,6 +13,8 @@ struct DesktopActions {
     var openMeetingURL: (URL) -> Void = { _ in }
     var copyText: (String) -> Void = { _ in }
     var exportMarkdown: (String, StoredMeeting) -> Void = { _, _ in }
+    /// PDF and plain-text exports of a meeting with a transcript.
+    var exportMeeting: (MeetingExportFormat, StoredMeeting, StoredTranscription) -> Void = { _, _, _ in }
     var revealAudio: (URL) -> Void = { _ in }
     /// Shows a meeting's audio in Finder when its detail could not be loaded.
     var revealMeetingAudio: (StoredMeeting) -> Void = { _ in }
@@ -37,6 +39,7 @@ extension DesktopActions {
             openMeetingURL: { [weak delegate] in delegate?.openMeetingURL($0) },
             copyText: { [weak delegate] in delegate?.copyToPasteboard($0) },
             exportMarkdown: { [weak delegate] in delegate?.exportMarkdown($0, for: $1) },
+            exportMeeting: { [weak delegate] in delegate?.exportMeeting($1, transcription: $2, as: $0) },
             revealAudio: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
             revealMeetingAudio: { [weak delegate] meeting in
                 Task { @MainActor in

@@ -211,6 +211,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onExportMarkdown: { [weak self] markdown, meeting in
                     self?.exportMarkdown(markdown, for: meeting)
                 },
+                onExportMeeting: { [weak self] format, meeting, transcription in
+                    self?.exportMeeting(meeting, transcription: transcription, as: format)
+                },
                 onRevealAudio: { url in
                     NSWorkspace.shared.activateFileViewerSelecting([url])
                 },
@@ -1738,6 +1741,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = "Couldn't save Markdown"
+            alert.informativeText = "Check that you can write to the selected folder and try again."
+            alert.runModal()
+        }
+    }
+
+    /// Saves the meeting as PDF or plain text where the user chooses.
+    func exportMeeting(_ meeting: StoredMeeting, transcription: StoredTranscription, as format: MeetingExportFormat) {
+        let panel = NSSavePanel()
+        panel.title = "Save Meeting as \(format.displayName)"
+        panel.nameFieldStringValue = URL(fileURLWithPath: meeting.audioFileName)
+            .deletingPathExtension()
+            .lastPathComponent + "." + format.fileExtension
+        panel.allowedContentTypes = [format == .pdf ? .pdf : .plainText]
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+
+        do {
+            try format.data(meeting: meeting, transcription: transcription).write(to: destination, options: .atomic)
+        } catch {
+            AppLogger.persistenceFailed(operation: "export-meeting-\(format.fileExtension)", error: error)
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "Couldn't save \(format.displayName)"
             alert.informativeText = "Check that you can write to the selected folder and try again."
             alert.runModal()
         }
