@@ -2,19 +2,23 @@ import AppKit
 import SwiftUI
 
 enum DesktopSection: String, CaseIterable, Identifiable {
-    case meetings, tasks, settings
+    case today, meetings, tasks, dictation, settings
     var id: Self { self }
-    var title: LocalizedStringKey {
+    var title: String {
         switch self {
+        case .today: "Today"
         case .meetings: "Meetings"
         case .tasks: "Tasks"
+        case .dictation: "Dictation"
         case .settings: "Settings"
         }
     }
-    var glyph: CrenelGlyph {
+    var glyph: HudGlyph {
         switch self {
-        case .meetings: .mic
-        case .tasks: .tasks
+        case .today: .gauge
+        case .meetings: .tape
+        case .tasks: .queue
+        case .dictation: .waveform
         case .settings: .sliders
         }
     }
@@ -22,7 +26,7 @@ enum DesktopSection: String, CaseIterable, Identifiable {
 
 @MainActor
 final class DesktopNavigation: ObservableObject {
-    @Published var section: DesktopSection = .meetings
+    @Published var section: DesktopSection = .today
     @Published var selectedMeeting: UUID?
     @Published var isVisible = false
     @Published var settingsCategory = SettingsCategory.general
@@ -46,17 +50,20 @@ struct DesktopSettingsLink<Label: View>: View {
 final class DesktopWindowController: NSWindowController, NSWindowDelegate {
     let navigation = DesktopNavigation()
 
+    /// The smallest content size the three-column Meetings page still reads at.
+    static let minimumSize = NSSize(width: 1_100, height: 680)
+
     init(delegate: AppDelegate) {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 680),
+        let size = NSSize(width: Hud.Window.size.width, height: Hud.Window.size.height)
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered, defer: false)
         super.init(window: window)
         window.title = "Crenel"
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.toolbar = NSToolbar(identifier: "MeetingNotchWorkspace")
-        window.toolbarStyle = .unified
-        window.contentMinSize = NSSize(width: 960, height: 540)
+        window.backgroundColor = NSColor(Hud.Layer.window)
+        window.contentMinSize = Self.minimumSize
         window.isReleasedWhenClosed = false
         window.isRestorable = false
         window.appearance = NSAppearance(named: .darkAqua)
@@ -66,10 +73,9 @@ final class DesktopWindowController: NSWindowController, NSWindowDelegate {
                 .environmentObject(delegate.appState))
         hostingView.sizingOptions = []
         window.contentView = hostingView
-        window.setContentSize(NSSize(width: 1120, height: 680))
+        window.setContentSize(size)
         window.delegate = self
         window.center()
-
     }
 
     required init?(coder: NSCoder) { nil }
@@ -93,438 +99,167 @@ final class DesktopWindowController: NSWindowController, NSWindowDelegate {
     }
 }
 
-/// Window surfaces: pure greys, separated by tone and space instead of lines.
-enum DesktopInk {
-    static let content = Color(white: 0.06)
-    static let sidebar = Color(white: 0.04)
-}
-
+/// The desktop window: a sidebar rail and one page beside it. Three layers — sidebar,
+/// window floor, and the meeting sheet one layer up.
 struct DesktopWorkspaceView: View {
-    let delegate: AppDelegate
+    let actions: DesktopActions
     @ObservedObject var navigation: DesktopNavigation
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Namespace private var sidebarSpace
-    @State private var hoveredItem: AnyHashable?
+    @StateObject private var preferences: DesktopPreferencesModel
+    @StateObject private var index = DesktopMeetingIndex()
+
+    @MainActor
+    init(delegate: AppDelegate, navigation: DesktopNavigation) {
+        self.init(actions: DesktopActions(delegate: delegate), navigation: navigation)
+    }
+
+    @MainActor
+    init(actions: DesktopActions, navigation: DesktopNavigation, preferences: DesktopPreferencesModel? = nil) {
+        self.actions = actions
+        self.navigation = navigation
+        _preferences = StateObject(wrappedValue: preferences ?? DesktopPreferencesModel())
+    }
 
     var body: some View {
         HStack(spacing: 0) {
-            sidebar
-            Group {
-                switch navigation.section {
-                case .meetings:
-                    DesktopMeetingsView(delegate: delegate, selection: $navigation.selectedMeeting)
-                case .tasks:
-                    VStack(alignment: .leading, spacing: Hud.Space.x5) {
-                        Text("Tasks").font(Hud.font(20, .semibold)).foregroundStyle(Hud.Ink.text1)
-                        ScrollView {
-                            TasksView()
-                        }
-                        .scrollIndicators(.never)
-                    }
-                    .padding(Hud.Space.x8)
-                    .frame(maxWidth: 900, maxHeight: .infinity, alignment: .topLeading)
-                case .settings:
-                    delegate.desktopSettings(category: navigation.settingsCategory).id(navigation.settingsCategory)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(DesktopInk.content)
-            .transition(.opacity)
+            DesktopSidebar(actions: actions, navigation: navigation, preferences: preferences, openSettings: openSettings)
+            page
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Hud.Layer.window)
+                .hudSurface(Hud.Layer.window)
         }
-        .foregroundStyle(Hud.Ink.text1)
+        .ignoresSafeArea()
+        .foregroundStyle(Hud.Ink.ink1)
         .preferredColorScheme(.dark)
-        .tint(Hud.Ink.text2)
-        .animation(reduceMotion ? nil : Hud.Motion.change, value: navigation.section)
+        .tint(Hud.Ink.ink2)
+        .task { await preferences.load(actions) }
+        .task(id: indexKey) { index.refresh(meetings: appState.storedMeetings, load: actions.loadMeeting) }
+        .onChange(of: navigation.section) { _, section in
+            // Shortcut, mode or words may have changed in Settings.
+            if section != .settings { Task { await preferences.load(actions) } }
+        }
     }
 
-    private var sidebar: some View {
-        VStack(alignment: .leading, spacing: Hud.Space.x6) {
-            HStack(spacing: Hud.Space.x2) {
-                CrenelIcon(.logo, size: 16)
-                    .foregroundStyle(Hud.Ink.text1)
-                Text("Crenel").hud(.title, Hud.Ink.text1)
-            }
-            .padding(.horizontal, Hud.Size.rowInset)
-            .padding(.top, Hud.Space.x8)
-
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(DesktopSection.allCases) { section in
-                    sectionRow(section)
-                }
-            }
-
-            Spacer()
-
-            if case .recording(let startedAt) = appState.meetingFlow {
-                VStack(alignment: .leading, spacing: Hud.Space.x2) {
-                    HStack(spacing: Hud.Space.x2) {
-                        HudPulse(color: Hud.Ink.live)
-                        Text("Recording").hud(.label, Hud.Ink.live)
-                    }
-                    Text(startedAt, style: .timer)
-                        .font(Hud.Style.display.font).monospacedDigit()
-                        .foregroundStyle(Hud.Ink.text1)
-                    Button(action: delegate.stopRecordingFlow) {
-                        HStack(spacing: Hud.Space.x2) {
-                            HudIcon(.stop, size: Hud.Size.smallIcon)
-                            Text("Stop recording")
-                        }
-                        .foregroundStyle(Hud.Ink.live)
-                    }
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-                    .padding(.leading, -Hud.Space.x3)
-                }
-                .padding(.horizontal, Hud.Size.rowInset)
-                .transition(.opacity)
-            }
-
-            Button(action: delegate.showMeetingNotch) {
-                HStack(spacing: Hud.Space.x3) {
-                    HudIcon(.window, size: Hud.Size.icon)
-                        .foregroundStyle(Hud.Ink.text3)
-                    Text("Show notch").hud(.label, Hud.Ink.text2)
-                    Spacer(minLength: 0)
-                    HudIcon(.link, size: Hud.Size.smallIcon)
-                        .foregroundStyle(Hud.Ink.text4)
-                }
-                .padding(.horizontal, Hud.Size.rowInset)
-                .frame(height: 36)
-                .hudGlide("notch", hovered: $hoveredItem, in: sidebarSpace)
-            }
-            .buttonStyle(.plain)
+    @ViewBuilder private var page: some View {
+        // Each page is a fresh view, so its gauges ignite and its sections stagger once
+        // per page change — never when a page moves between its own states.
+        switch navigation.section {
+        case .today:
+            DesktopTodayPage(actions: actions, navigation: navigation, preferences: preferences, index: index)
+        case .meetings:
+            DesktopMeetingsPage(actions: actions, selection: $navigation.selectedMeeting, index: index, openSettings: openSettings)
+        case .tasks:
+            DesktopTasksPage(actions: actions, openSettings: openSettings)
+        case .dictation:
+            DesktopDictationPage(actions: actions, preferences: preferences, openSettings: openSettings)
+        case .settings:
+            actions.settings(navigation.settingsCategory).id(navigation.settingsCategory)
         }
-        .padding(.horizontal, Hud.Space.x3)
-        .padding(.bottom, Hud.Space.x4)
-        .frame(width: 206)
-        .background(DesktopInk.sidebar)
     }
 
-    private func sectionRow(_ section: DesktopSection) -> some View {
-        let isSelected = navigation.section == section
-        return Button {
-            withAnimation(reduceMotion ? nil : Hud.Motion.glide) { navigation.section = section }
-        } label: {
-            HStack(spacing: Hud.Space.x3) {
-                CrenelIcon(section.glyph, size: Hud.Size.icon)
-                    .foregroundStyle(isSelected ? Hud.Ink.text1 : Hud.Ink.text3)
-                    .frame(width: Hud.Size.icon + 2)
-                Text(section.title)
-                    .hud(.label, isSelected ? Hud.Ink.text1 : Hud.Ink.text2)
-                Spacer(minLength: Hud.Space.x1)
-                if section == .tasks, appState.activeTaskCount > 0 {
-                    Text("\(appState.activeTaskCount)").hud(.meta, Hud.Ink.text4)
-                }
-            }
-            .padding(.horizontal, Hud.Size.rowInset)
-            .frame(height: 36)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
-                        .fill(Hud.Ink.selected)
-                        .matchedGeometryEffect(id: "desktop.section", in: sidebarSpace)
-                }
-            }
-            .hudGlide(section, hovered: $hoveredItem, in: sidebarSpace)
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    private var indexKey: String {
+        appState.storedMeetings.map { "\($0.id)|\($0.title)|\($0.processingStatus.rawValue)|\($0.summaryNeedsAttention == true)" }.joined(separator: ",")
+    }
+
+    private func openSettings(_ category: SettingsCategory) {
+        navigation.settingsCategory = category
+        navigation.section = .settings
     }
 }
 
-/// A quiet empty or error state: an icon, a line, an optional detail.
-private struct DesktopEmptyState: View {
-    let glyph: CrenelGlyph
-    let title: LocalizedStringKey
-    var detail: LocalizedStringKey?
+// MARK: - Meeting index
 
-    var body: some View {
-        VStack(spacing: Hud.Space.x2) {
-            CrenelIcon(glyph, size: 18)
-                .foregroundStyle(Hud.Ink.text4)
-                .padding(.bottom, Hud.Space.x1)
-            Text(title).hud(.body, Hud.Ink.text2)
-            if let detail {
-                Text(detail).hud(.meta, Hud.Ink.text3)
-                    .multilineTextAlignment(.center)
+/// What the list and the dashboard know about each processed meeting without opening it:
+/// how many tasks it left you, who spoke, and the words to search.
+@MainActor
+final class DesktopMeetingIndex: ObservableObject {
+    struct Entry: Equatable {
+        var key: String
+        var actionCount = 0
+        var speakers: [String] = []
+        var hasNotes = false
+        var haystack = ""
+    }
+
+    @Published private(set) var entries: [UUID: Entry] = [:]
+    private var task: Task<Void, Never>?
+
+    func refresh(meetings: [StoredMeeting], load: @escaping (StoredMeeting) async throws -> MeetingDetailContent) {
+        task?.cancel()
+        let ids = Set(meetings.map(\.id))
+        entries = entries.filter { ids.contains($0.key) }
+        let pending = meetings.filter { $0.processingStatus == .completed && entries[$0.id]?.key != Self.key($0) }
+        guard !pending.isEmpty else { return }
+        task = Task { [weak self] in
+            for meeting in pending {
+                guard !Task.isCancelled else { return }
+                let entry = await Self.entry(for: meeting, load: load)
+                guard !Task.isCancelled else { return }
+                self?.entries[meeting.id] = entry
             }
         }
-        .frame(maxWidth: 260)
-        .accessibilityElement(children: .combine)
+    }
+
+    /// Forces a reload of one meeting (after a speaker was renamed or a summary rewritten).
+    func invalidate(_ id: UUID) {
+        entries[id]?.key = ""
+    }
+
+    func update(_ content: MeetingDetailContent) {
+        entries[content.id] = Self.entry(Self.key(content.meeting), content.storedTranscription)
+    }
+
+    private static func key(_ meeting: StoredMeeting) -> String {
+        "\(meeting.title)|\(meeting.processingStatus.rawValue)|\(meeting.summaryNeedsAttention == true)"
+    }
+
+    private static func entry(for meeting: StoredMeeting, load: (StoredMeeting) async throws -> MeetingDetailContent) async -> Entry {
+        let stored = try? await load(meeting).storedTranscription
+        return entry(key(meeting), stored)
+    }
+
+    private static func entry(_ key: String, _ stored: StoredTranscription?) -> Entry {
+        guard let stored else { return Entry(key: key) }
+        let owner = MeetingOwner.current()
+        var seen = Set<String>()
+        let speakers = stored.transcript.segments.compactMap { segment -> String? in
+            guard let name = segment.speakerName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty,
+                  !owner.speakerIDs.contains(segment.speakerID), !owner.isOwner(name: name),
+                  !MeetingOwner.isGenericSpeakerName(name), seen.insert(name).inserted else { return nil }
+            return name
+        }
+        let text = stored.transcript.segments.isEmpty ? stored.transcript.text : stored.transcript.segments.map(\.text).joined(separator: " ")
+        return Entry(key: key, actionCount: stored.summary?.actionItems.count ?? 0, speakers: speakers,
+                     hasNotes: stored.summary != nil, haystack: [stored.summary?.overview ?? "", text].joined(separator: " "))
     }
 }
+
+// MARK: - Search and filter
 
 enum DesktopMeetingSearch {
-    static func filter(_ meetings: [StoredMeeting], query: String) -> [StoredMeeting] {
+    static func filter(_ meetings: [StoredMeeting], query: String, transcripts: [UUID: String] = [:]) -> [StoredMeeting] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return meetings }
-        return meetings.filter { $0.title.localizedStandardContains(query) }
+        return meetings.filter {
+            $0.title.localizedStandardContains(query) || (transcripts[$0.id]?.localizedStandardContains(query) ?? false)
+        }
     }
 }
 
-private struct DesktopMeetingsView: View {
-    let delegate: AppDelegate
-    @EnvironmentObject private var appState: AppState
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var query = ""
-    @FocusState private var searchFocused: Bool
-    @Binding var selection: UUID?
-    @State private var detail: MeetingDetailContent?
-    @State private var loadError = false
-    @State private var revision = 0
-    @State private var hoveredRow: AnyHashable?
-    @Namespace private var listSpace
+enum DesktopMeetingFilter: Hashable, CaseIterable {
+    case all, needsYou, forYou
 
-    private var filtered: [StoredMeeting] { DesktopMeetingSearch.filter(appState.storedMeetings, query: query) }
-    private var selected: StoredMeeting? { appState.storedMeetings.first { $0.id == selection } }
-    private var processing: Bool { appState.processingJobs.contains { $0.meetingID == selection && $0.state != .failed } }
-    private var requestID: String { "\(selection?.uuidString ?? "")|\(selected?.title ?? "")|\(processing)|\(revision)" }
-
-    var body: some View {
-        HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: Hud.Space.x4) {
-                header
-                searchField
-                if filtered.isEmpty && (appState.upcomingMeetings.isEmpty || !query.isEmpty) {
-                    DesktopEmptyState(glyph: query.isEmpty ? .waveform : .history,
-                        title: query.isEmpty ? "No recordings yet" : "No results",
-                        detail: query.isEmpty ? "Your first recorded meeting will show up here." : "Try another meeting name.")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    list
-                }
-            }
-            .padding(.top, Hud.Space.x8)
-            .padding(.horizontal, Hud.Space.x4)
-            .frame(width: 300)
-            detailPane
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .task(id: requestID) { await loadSelection() }
-        .onChange(of: appState.storedMeetings.map(\.id)) { _, ids in
-            if let selection, !ids.contains(selection) { self.selection = nil; detail = nil }
-        }
+    /// Failed or without notes: the recordings that wait for the user.
+    static func needsUser(_ meeting: StoredMeeting) -> Bool {
+        meeting.processingStatus == .failed || meeting.summaryNeedsAttention == true
     }
 
-    // MARK: List column
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("Meetings").font(Hud.font(20, .semibold)).foregroundStyle(Hud.Ink.text1)
-            Text("\(appState.storedMeetings.count)").hud(.meta, Hud.Ink.text4)
-                .accessibilityLabel(Text("^[\(appState.storedMeetings.count) recording](inflect: true)"))
-            Spacer()
-            Button(action: delegate.startManualRecording) { HudIcon(.plus, size: Hud.Size.icon) }
-                .buttonStyle(HudButtonStyle(kind: .icon))
-                .help("New recording").accessibilityLabel("New recording")
-                .disabled(appState.requiresTerminationConfirmation)
+    func matches(_ meeting: StoredMeeting, actionCount: Int) -> Bool {
+        switch self {
+        case .all: true
+        case .needsYou: Self.needsUser(meeting)
+        case .forYou: actionCount > 0
         }
-        .padding(.horizontal, Hud.Size.rowInset)
-    }
-
-    private var searchField: some View {
-        HStack(spacing: Hud.Space.x2) {
-            TextField("Search meetings", text: $query)
-                .textFieldStyle(.plain)
-                .font(Hud.Style.body.font)
-                .foregroundStyle(Hud.Ink.text1)
-                .focused($searchFocused)
-                .accessibilityLabel("Search meetings")
-            if !query.isEmpty {
-                Button { query = ""; searchFocused = true } label: { HudIcon(.close, size: Hud.Size.smallIcon) }
-                    .buttonStyle(HudButtonStyle(kind: .icon))
-                    .help("Clear search").accessibilityLabel("Clear search")
-            }
-        }
-        .padding(.leading, Hud.Size.rowInset)
-        .padding(.trailing, 2)
-        .frame(height: 32)
-        .background(
-            RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
-                .fill(searchFocused ? Hud.Ink.selected : Hud.Ink.hover)
-        )
-        .animation(Hud.Motion.hover, value: searchFocused)
-    }
-
-    private var list: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                if !appState.upcomingMeetings.isEmpty && query.isEmpty {
-                    groupHeader("Upcoming")
-                    ForEach(appState.upcomingMeetings.prefix(2)) { meeting in
-                        upcomingRow(meeting)
-                    }
-                    if !filtered.isEmpty {
-                        groupHeader("Recorded").padding(.top, Hud.Space.x3)
-                    }
-                }
-                ForEach(filtered) { meeting in
-                    meetingRow(meeting)
-                }
-            }
-            .padding(.bottom, Hud.Space.x4)
-        }
-        .scrollIndicators(.never)
-        .focusable()
-        .focusEffectDisabled()
-        .onKeyPress(.downArrow) { moveSelection(by: 1) }
-        .onKeyPress(.upArrow) { moveSelection(by: -1) }
-    }
-
-    private func groupHeader(_ title: LocalizedStringKey) -> some View {
-        Text(title)
-            .hud(.label, Hud.Ink.text3)
-            .padding(.horizontal, Hud.Size.rowInset)
-            .frame(height: 22, alignment: .bottom)
-            .padding(.bottom, Hud.Space.x1)
-            .accessibilityAddTraits(.isHeader)
-    }
-
-    private func upcomingRow(_ meeting: Meeting) -> some View {
-        HStack(spacing: Hud.Space.x3) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(meeting.title).hud(.body, Hud.Ink.text1).lineLimit(1)
-                Text(HudFormat.day(meeting.startDate, now: .now)).hud(.meta, Hud.Ink.text3)
-            }
-            Spacer(minLength: Hud.Space.x2)
-            if let url = meeting.meetingURL {
-                Button("Join") { delegate.openMeetingURL(url) }
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-            }
-            Text(HudFormat.clock(meeting.startDate)).hud(.value, Hud.Ink.text2)
-        }
-        .padding(.horizontal, Hud.Size.rowInset)
-        .frame(height: Hud.Size.row)
-        .hudGlide(AnyHashable("upcoming-\(meeting.id)"), hovered: $hoveredRow, in: listSpace)
-        .accessibilityElement(children: .combine)
-    }
-
-    private func meetingRow(_ meeting: StoredMeeting) -> some View {
-        let isSelected = selection == meeting.id
-        let isProcessing = appState.processingJobs.contains(where: { $0.meetingID == meeting.id && $0.state != .failed })
-        return Button {
-            selection = meeting.id
-        } label: {
-            HStack(alignment: .firstTextBaseline, spacing: Hud.Space.x3) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(meeting.title).hud(.body, Hud.Ink.text1).lineLimit(1)
-                    meta(for: meeting, isProcessing: isProcessing)
-                }
-                Spacer(minLength: Hud.Space.x2)
-                Text(HudFormat.clock(meeting.startedAt))
-                    .hud(.value, isSelected ? Hud.Ink.text1 : Hud.Ink.text2)
-            }
-            .padding(.horizontal, Hud.Size.rowInset)
-            .frame(height: Hud.Size.row)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
-                        .fill(Hud.Ink.selected)
-                        .matchedGeometryEffect(id: "desktop.meeting", in: listSpace)
-                }
-            }
-            .hudGlide(meeting.id, hovered: $hoveredRow, in: listSpace)
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .contextMenu {
-            if meeting.processingStatus == .failed {
-                Button("Retry processing") { delegate.retryProcessing(meeting) }
-            }
-            Button("Delete meeting…", role: .destructive) { delegate.deleteStoredMeeting(meeting) }
-        }
-    }
-
-    /// Second line: day and length, or the state that needs attention in its colour.
-    @ViewBuilder private func meta(for meeting: StoredMeeting, isProcessing: Bool) -> some View {
-        if isProcessing {
-            Text("Processing").hud(.meta, Hud.Ink.signal)
-        } else if meeting.processingStatus == .failed {
-            Text("Processing failed").hud(.meta, Hud.Ink.live)
-        } else if meeting.summaryNeedsAttention == true {
-            Text("Summary pending").hud(.meta, Hud.Ink.signal)
-        } else {
-            Text("\(HudFormat.day(meeting.startedAt, now: .now)) · \(TranscriptTextFormatter.timestamp(meeting.duration))")
-                .hud(.meta, Hud.Ink.text3)
-        }
-    }
-
-    private func moveSelection(by offset: Int) -> KeyPress.Result {
-        let ids = filtered.map(\.id)
-        guard !ids.isEmpty else { return .ignored }
-        let next: Int
-        if let selection, let index = ids.firstIndex(of: selection) {
-            next = min(max(index + offset, 0), ids.count - 1)
-        } else {
-            next = offset > 0 ? 0 : ids.count - 1
-        }
-        withAnimation(reduceMotion ? nil : Hud.Motion.glide) { selection = ids[next] }
-        return .handled
-    }
-
-    // MARK: Detail
-
-    @ViewBuilder private var detailPane: some View {
-        if let detail, detail.id == selection {
-            VStack(spacing: 0) {
-                MeetingDetailToolbar(content: detail, onBack: { selection = nil }, onCopyText: delegate.copyToPasteboard)
-                    .padding(.horizontal, Hud.Space.x6)
-                    .padding(.top, Hud.Space.x6)
-                    .padding(.bottom, Hud.Space.x2)
-                ScrollView {
-                    MeetingDetailView(content: detail, onCopyText: delegate.copyToPasteboard,
-                        onExportMarkdown: { delegate.exportMarkdown($0, for: detail.meeting) },
-                        onRevealAudio: { NSWorkspace.shared.activateFileViewerSelecting([$0]) },
-                        onRetry: delegate.retryProcessing, onDelete: delegate.deleteStoredMeeting,
-                        analysisActions: MeetingAnalysisActions(renameSpeaker: { id, speaker, name in
-                            let result = await delegate.meetingAnalysisActions.renameSpeaker(id, speaker, name)
-                            revision += 1
-                            return result
-                        }, importAction: delegate.meetingAnalysisActions.importAction),
-                        isProcessing: processing,
-                        importedActionIDs: Set(appState.tasks.filter { $0.sourceMeetingID == detail.id }.compactMap(\.sourceActionID)))
-                        .id(detail.id)
-                        .padding(.horizontal, Hud.Space.x6)
-                        .padding(.vertical, Hud.Space.x4)
-                }
-                .scrollIndicators(.never)
-            }
-        } else if selection != nil {
-            if loadError {
-                VStack(spacing: Hud.Space.x4) {
-                    DesktopEmptyState(glyph: .warning, title: "Couldn’t open meeting",
-                        detail: "Couldn’t read the files. Try opening it again.")
-                    Button("Try again") { revision += 1 }
-                        .buttonStyle(HudButtonStyle(kind: .primary))
-                }
-            } else {
-                HStack(spacing: Hud.Space.x2) {
-                    ProgressView().controlSize(.small)
-                    Text("Opening meeting…").hud(.meta, Hud.Ink.text3)
-                }
-            }
-        } else {
-            VStack(spacing: Hud.Space.x4) {
-                DesktopEmptyState(glyph: .waveform, title: "Select a meeting")
-                Button(action: delegate.startManualRecording) {
-                    HStack(spacing: Hud.Space.x2) {
-                        HudIcon(.plus, size: Hud.Size.smallIcon)
-                        Text("New recording")
-                    }
-                }
-                .buttonStyle(HudButtonStyle(kind: .primary))
-                .disabled(appState.requiresTerminationConfirmation)
-            }
-        }
-    }
-
-    private func loadSelection() async {
-        guard let meeting = selected else { detail = nil; return }
-        loadError = false
-        do {
-            let loaded = try await delegate.loadDesktopMeeting(meeting)
-            guard !Task.isCancelled, selection == meeting.id else { return }
-            detail = loaded
-        } catch { if !Task.isCancelled, selection == meeting.id { loadError = true; detail = nil } }
     }
 }
