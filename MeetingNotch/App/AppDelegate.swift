@@ -270,6 +270,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             markdown: markdown, audioURL: audio)
     }
 
+    func desktopAudioURL(for meeting: StoredMeeting) async -> URL {
+        await meetingRepository.audioFileURL(for: meeting)
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         Hud.registerFonts()
         // XCTest must not start real calendar/account/audio services or drain user queues.

@@ -18,16 +18,16 @@ final class DesktopWorkspaceTests: XCTestCase {
         let controller = DesktopWindowController(delegate: delegate)
         XCTAssertFalse(controller.window?.isVisible ?? true)
         XCTAssertFalse(controller.navigation.isVisible)
-        XCTAssertEqual(controller.navigation.section, .meetings)
+        XCTAssertEqual(controller.navigation.section, .today)
         XCTAssertFalse(delegate.applicationShouldTerminateAfterLastWindowClosed(NSApplication.shared))
-        XCTAssertEqual(controller.window?.contentMinSize.width, 960)
-        XCTAssertEqual(controller.window?.contentMinSize.height, 540)
+        XCTAssertEqual(controller.window?.contentMinSize.width, 1_100)
+        XCTAssertEqual(controller.window?.contentMinSize.height, 680)
         guard let window = controller.window else { return XCTFail("Window missing") }
-        XCTAssertEqual(window.contentView?.frame.size, NSSize(width: 1120, height: 680))
-        window.setContentSize(NSSize(width: 960, height: 540))
+        XCTAssertEqual(window.contentView?.frame.size, NSSize(width: 1_240, height: 760))
+        window.setContentSize(NSSize(width: 1_100, height: 680))
         window.contentView?.layoutSubtreeIfNeeded()
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
-        XCTAssertEqual(window.contentView?.frame.size, NSSize(width: 960, height: 540))
+        XCTAssertEqual(window.contentView?.frame.size, NSSize(width: 1_100, height: 680))
     }
 
     @MainActor
@@ -43,11 +43,12 @@ final class DesktopWorkspaceTests: XCTestCase {
             TaskItem(title: "Yeni onboarding tasarımını tamamla", status: .inProgress, assignee: "Deniz")
         ])
         let navigation = DesktopNavigation()
-        try render(AnyView(DesktopWorkspaceView(delegate: delegate, navigation: navigation)
-            .environmentObject(delegate.appState)), name: "meetings", size: CGSize(width: 960, height: 540))
-        navigation.section = .tasks
-        try render(AnyView(DesktopWorkspaceView(delegate: delegate, navigation: navigation)
-            .environmentObject(delegate.appState)), name: "tasks", size: CGSize(width: 960, height: 540))
+        let minimum = CGSize(width: DesktopWindowController.minimumSize.width, height: DesktopWindowController.minimumSize.height)
+        for section in DesktopSection.allCases where section != .settings {
+            navigation.section = section
+            try render(AnyView(DesktopWorkspaceView(delegate: delegate, navigation: navigation)
+                .environmentObject(delegate.appState)), name: section.rawValue, size: minimum)
+        }
         for category in SettingsCategory.allCases {
             try render(AnyView(SettingsView(initialCategory: category).environmentObject(AppState())),
                 name: "settings-\(category.id)", size: CGSize(width: 754, height: 500))
