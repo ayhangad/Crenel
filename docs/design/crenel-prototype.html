@@ -137,18 +137,19 @@
     .busy { @apply inline-flex flex-none items-center gap-[2px]; }
     .busy > i { @apply block w-[3px] h-[7px] rounded-[1px]; background: rgba(255,173,51,.16); animation: run 1.05s steps(1) infinite; }
     .busy > i:nth-child(2) { animation-delay: .35s; } .busy > i:nth-child(3) { animation-delay: .7s; }
-    /* ── Task row actions: one click slides the row left; states, Edit and Delete sit underneath on the right.
-       Leaving the row slides it back. No swipe — click only, one direction. */
+    /* ── Task row actions. The actions are attached to the row's right edge, waiting off-screen. One click
+       slides the row — its own background, its content and the actions — left as one piece; the left half
+       leaves the list. Leaving the row slides it home. Click only, one direction. */
     .task-row { position: relative; border-radius: 10px; overflow: hidden; }
-    .task-row > .trow { transition: transform .34s cubic-bezier(.3,1.12,.4,1); }
-    .task-row.rev > .trow { transform: translateX(calc(-1 * var(--tw, 196px))); -webkit-mask-image: linear-gradient(90deg, transparent, #000 56px); mask-image: linear-gradient(90deg, transparent, #000 56px); }
-    .tray { @apply absolute right-0 top-0 h-[38px] flex items-center gap-1.5 pr-1; opacity: 0; transform: translateX(18px); pointer-events: none;
-      transition: opacity .18s, transform .34s cubic-bezier(.3,1.12,.4,1); }
-    .task-row.rev > .tray { opacity: 1; transform: none; pointer-events: auto; transition-delay: .04s; }
-    .tray-states { @apply flex gap-[2px] p-[2px] rounded-[9px]; background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
-    .tray-states > button { @apply w-[26px] h-[26px] rounded-[7px] flex items-center justify-center transition-colors hover:bg-white/[.07]; }
-    .tray-states > button.on { background: rgba(255,255,255,.11); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
-    .tray-sep { @apply block w-px h-4 mx-0.5; background: rgba(255,255,255,.08); }
+    .task-row > .trow { transition: transform .38s cubic-bezier(.3,1.08,.4,1), border-radius .2s; }
+    .task-row.held > .trow { background: rgba(255,255,255,.055); border-radius: 10px 0 0 10px; }
+    .task-row.rev > .trow { transform: translateX(calc(-1 * var(--tw, 360px))); }
+    .tray { @apply absolute top-0 left-full h-full flex items-center gap-1 pl-1.5 pr-1.5; background: rgba(255,255,255,.055); border-radius: 0 10px 10px 0; }
+    .tray-states { @apply flex gap-[2px] p-[2px] rounded-[9px]; background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+    .tray-states > button { @apply h-[26px] pl-1.5 pr-2 gap-1.5 rounded-[7px] flex items-center t-label text-ink-3 whitespace-nowrap transition-colors hover:text-ink-1 hover:bg-white/[.06]; }
+    .tray-states > button > svg { @apply w-[14px] h-[14px]; }
+    .tray-states > button.on { @apply text-ink-1; background: rgba(255,255,255,.1); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+    .tray-sep { @apply block w-px h-4 mx-1; background: rgba(255,255,255,.08); }
 
     /* ── Telltales: an icon that lights. Unlit = line glyph as a ghost; lit = solid glyph in its colour, glowing.
        paren = system/permission fault, drawn as angled brackets; data-mod adds a corner badge (! or ×). */
@@ -1074,10 +1075,10 @@
 <template id="tpl-tray">
   <div class="tray">
     <div class="tray-states">
-      <button data-tstate="open" title="To do"><svg class="ico"><use href="#m-open"/></svg></button>
-      <button data-tstate="progress" title="Doing"><svg class="ico"><use href="#m-progress"/></svg></button>
-      <button data-tstate="blocked" title="Blocked"><svg class="ico"><use href="#m-blocked"/></svg></button>
-      <button data-tstate="done" title="Done"><svg class="ico"><use href="#m-done"/></svg></button>
+      <button data-tstate="open"><svg><use href="#m-open"/></svg>To do</button>
+      <button data-tstate="progress"><svg><use href="#m-progress"/></svg>Doing</button>
+      <button data-tstate="blocked"><svg><use href="#m-blocked"/></svg>Blocked</button>
+      <button data-tstate="done"><svg><use href="#m-done"/></svg>Done</button>
     </div>
     <i class="tray-sep"></i>
     <button class="btn-icon framed sm" data-tedit title="Edit"><svg class="ico-s"><use href="#i-edit"/></svg></button>
@@ -2240,7 +2241,7 @@ nwrap.addEventListener('click', e => { const s = S[cur.notch]; if (s.tpl === 'tp
 document.addEventListener('mouseover', e => {
   const box = e.target.closest('[data-slide]'); if (!box) return
   const row = e.target.closest('.row, .trow'); const slab = box.querySelector(':scope > .slab'); if (!slab) return
-  if (!row || !box.contains(row) || row.closest('[data-slide]') !== box) { slab.style.opacity = 0; return }
+  if (!row || !box.contains(row) || row.closest('[data-slide]') !== box || row.closest('.task-row.held')) { slab.style.opacity = 0; return }
   const br = box.getBoundingClientRect(), rr = row.getBoundingClientRect()
   const first = slab.style.opacity !== '1'
   if (first) slab.style.transition = 'opacity .15s'
@@ -2267,7 +2268,7 @@ document.addEventListener('click', e => {
     if (picker) { setStatus(picker._row, status.dataset.status); picker.remove(); return }
   }
   const ts = t.closest('[data-tstate]'); if (ts) { pickState(ts); return }
-  const te = t.closest('[data-tedit]'); if (te) { const row = te.closest('.task-row'); closeTray(row); setTimeout(() => openCard(row), 160); return }
+  const te = t.closest('[data-tedit]'); if (te) { const row = te.closest('.task-row'); closeTray(row); setTimeout(() => { row.classList.remove('held'); openCard(row) }, 360); return }
   const td = t.closest('[data-tdelete]'); if (td) { deleteRow(td.closest('.task-row')); return }
   const rowHit = t.closest('.task-row > .trow')
   if (rowHit && !t.closest('[data-go]')) { toggleTray(rowHit.parentNode); return }
@@ -2350,21 +2351,27 @@ function bumpCells(row, d) {
 function toggleTray(row) {
   if (row.classList.contains('rev')) return closeTray(row)
   document.querySelectorAll('.task-row.rev').forEach(closeTray)
-  let tray = row.querySelector(':scope > .tray')
-  if (!tray) { tray = document.getElementById('tpl-tray').content.firstElementChild.cloneNode(true); row.appendChild(tray) }
+  const trow = row.querySelector(':scope > .trow')
+  let tray = trow.querySelector(':scope > .tray')
+  if (!tray) { tray = document.getElementById('tpl-tray').content.firstElementChild.cloneNode(true); trow.appendChild(tray) }
   const st = row.querySelector('[data-mark]').dataset.mark
   tray.querySelectorAll('[data-tstate]').forEach(b => b.classList.toggle('on', b.dataset.tstate === st))
-  requestAnimationFrame(() => {   // measure once laid out: slide exactly as far as the actions need
-    row.style.setProperty('--tw', tray.offsetWidth + 12 + 'px')
-    row.classList.add('rev')
-  })
+  clearTimeout(row._t)
+  row.classList.add('held')   // the row takes its own background (the list's hover slab steps aside) …
+  hideSlab(row)
+  requestAnimationFrame(() => { row.style.setProperty('--tw', tray.offsetWidth + 'px'); row.classList.add('rev') })   // … then everything slides together
 }
-function closeTray(row) { row && row.classList.remove('rev') }
+function closeTray(row) {
+  if (!row || !row.classList.contains('rev')) return
+  row.classList.remove('rev')
+  row._t = setTimeout(() => row.classList.remove('held'), 380)   // background leaves only once the row is home
+}
+function hideSlab(row) { const s = row.closest('[data-slide]')?.querySelector(':scope > .slab'); if (s) s.style.opacity = 0 }
 function pickState(btn) {
   const row = btn.closest('.task-row'), st = btn.dataset.tstate
   btn.parentNode.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn))
   row.querySelector('[data-mark] use').setAttribute('href', '#' + MARK[st])   // the mark changes in place first…
-  setTimeout(() => { closeTray(row); setTimeout(() => setStatus(row, st), 260) }, 220)   // …then the row slides home and moves group
+  setTimeout(() => { closeTray(row); setTimeout(() => setStatus(row, st), 400) }, 240)   // …then the row slides home and moves group
 }
 function deleteRow(row) {
   const h = row.offsetHeight

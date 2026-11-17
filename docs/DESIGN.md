@@ -373,18 +373,27 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
   - Altta eylem satırı bulunur. Solda depo lambası ("Synced with Reminders" ya da "On
     this Mac only"), sağda Finished ya da Connect Reminders. Finished görünümünde:
     Clear (danger) · Open tasks.
-  - **Satır eylemleri.** Satıra (işarete ya da başlığa) tek tıklayınca satır, eylemlerin
-    genişliği kadar sola kayar. Süre 0.34 sn, `cubic-bezier(.3,1.12,.4,1)`; sol kenar
-    56 pt'de solar. Altından sağda eylemler çıkar:
-    - dört durum işaretinden oluşan bir grup (geçerli olan vurgulu),
-    - ince bir ayraç,
-    - Edit (kalem),
-    - Delete (kırmızı çöp).
+  - **Satır eylemleri.**
+    - **Yerleşim.** Eylemler satırın sağ kenarına yapışıktır ve ekranın dışında bekler.
+      Sırayla:
+      - isimli dört durum (işaret + To do / Doing / Blocked / Done, geçerli olan
+        vurgulu, koyu bir yuvada),
+      - ince bir ayraç,
+      - Edit (kalem),
+      - Delete (kırmızı çöp).
 
-    Fare satırdan çıkınca ya da satıra yeniden tıklanınca satır geri kayar. Yalnızca
-    tıklamayla açılır, kaydırma (swipe) yoktur; tek yön sağdır. Durum seçilince önce
-    işaret yerinde değişir, sonra satır geri kayar ve gerekirse grubunu değiştirir.
-    Delete satırı yükseklikten söndürerek kaldırır.
+      Eylem şeridi satırla aynı zemini paylaşır (beyaz %5.5): satırın sol köşeleri ve
+      şeridin sağ köşeleri yuvarlaktır, aradaki ek görünmez.
+    - **Açılış.** Satıra (işarete ya da başlığa) tek tıklayınca satır, hover zeminini
+      kendi üzerine alır; listenin kayan hover zemini kenara çekilir. Ardından satır
+      içeriği, zemini ve eylemleriyle tek parça halinde, eylemlerin genişliği kadar sola
+      kayar. Süre 0.38 sn, `cubic-bezier(.3,1.08,.4,1)`. Satırın sol yarısı listenin
+      dışına taşar ve kırpılır; solma yoktur.
+    - **Kapanış.** Fare satırdan çıkınca ya da satıra yeniden tıklanınca aynı parça geri
+      kayar. Zemin, satır yerine oturduktan sonra kalkar.
+    - Yalnızca tıklamayla açılır, kaydırma (swipe) yoktur; tek yön sağdır.
+    - Durum seçilince önce işaret yerinde değişir, sonra satır geri kayar ve gerekirse
+      grubunu değiştirir. Delete satırı yükseklikten söndürerek kaldırır.
   - **Edit.** Satır yalnızca Edit ile yerinde genişler. Kartta başlık, When, Priority,
     not ve kaynak çipi bulunur; durum ve silme kartta yoktur (satır eylemlerinde
     dururlar). Tek çıkış **Done ↩**.
