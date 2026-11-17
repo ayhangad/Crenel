@@ -297,7 +297,11 @@ final class CrenelNotchController: ObservableObject {
         let mouse = NSEvent.mouseLocation
         let shape = screenRect(fromWindowRect: shapeFrameInWindow, in: panel)
         let insideShape = model.presentation != .hidden && shape.contains(mouse)
-        panel.ignoresMouseEvents = !insideShape
+        // Only on a change: re-setting it on every move makes the window server rebuild
+        // the panel's mouse handling and delays SwiftUI's hover inside it.
+        if panel.ignoresMouseEvents == insideShape {
+            panel.ignoresMouseEvents = !insideShape
+        }
 
         let hoverZone: CGRect
         switch model.presentation {
