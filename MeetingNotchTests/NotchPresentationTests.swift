@@ -226,11 +226,16 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(Hud.Size.row, 44)
     }
 
-    func testInkIsOneNeutralGreyScale() {
-        for ink in [Hud.Ink.text1, Hud.Ink.text2, Hud.Ink.text3, Hud.Ink.text4] {
+    func testInkIsOneWarmBacklitScale() {
+        // "Gece sürüşü": ink is a hair warm (never pure grey) and steps down evenly.
+        var previous = 2.0
+        for ink in [Hud.Ink.text1, Hud.Ink.text2, Hud.Ink.text3, Hud.Ink.text4, Hud.Ink.ink5] {
             let color = NSColor(ink).usingColorSpace(.sRGB)!
-            XCTAssertEqual(color.redComponent, color.greenComponent, accuracy: 0.001)
-            XCTAssertEqual(color.greenComponent, color.blueComponent, accuracy: 0.001)
+            XCTAssertGreaterThan(color.redComponent, color.greenComponent)
+            XCTAssertGreaterThan(color.greenComponent, color.blueComponent)
+            XCTAssertLessThan(color.redComponent - color.blueComponent, 0.04)
+            XCTAssertLessThan(Double(color.redComponent), previous)
+            previous = Double(color.redComponent)
         }
     }
 

@@ -235,8 +235,10 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     doğrulandı; 112 durum hatasız)
   - [ ] Kullanıcının HTML prototipindeki (`docs/design/crenel-prototype.html`) son tasarımın
     ("gece sürüşü", `docs/DESIGN.md`) uygulamaya geçirilmesi. — 🚧 Devam ediyor: 2026-11-17
-    - [ ] Temel: `Hud` token'ları, ikon ailesi (çizgi + dolu), lambalar, durum şekilleri,
-      tuş butonlar, segment rakam, tik halkası ve diğer göstergeler.
+    - [x] Temel: `Hud` token'ları, ikon ailesi (çizgi + dolu), lambalar, durum şekilleri,
+      tuş butonlar, segment rakam, tik halkası ve diğer göstergeler. — ✅ 2026-11-17
+      (`Features/Design/System/README.md` API başvurusu; `HudFoundationGalleryTests`
+      render'ları prototip görüntüleriyle karşılaştırıldı; 521 test, 0 hata)
     - [ ] Notch: üç boy (kompakt / şerit / açık 560), bant, hareket.
     - [ ] Today, kayıt, işleme ve sonuç yüzeyleri.
     - [ ] Kayıtlar ve toplantı detayı.

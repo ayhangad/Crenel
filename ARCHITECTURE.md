@@ -66,17 +66,23 @@ yalnız görünen şeklin içinde alır (`ignoresMouseEvents` global/yerel fare 
 güncellenir); hover bölgesi şekil + kamera yuvasıdır (notch'suz ekranda üst ortada 200 pt).
 API önceki kütüphaneyle aynıdır: `expand(on:)`, `compact(on:)`, `hide()`, `isHovering`.
 
-Tasarım dili ("enstrüman", 2026-11-16, C7) `Features/Design/System/` altındadır ve
-`docs/DESIGN.md`'de tarif edilir. Kaynak `Hud`'dur: `HudTokens` (4 pt ızgara, satır/ikon/
-panel ölçüleri, tek nötr gri skala ve yalnız durum renkleri — amber "seni bekliyor",
-kırmızı canlı/hata, yeşil onay —, gömülü Geist yazı stilleri, hareket yayları),
-`HudIcons` (16 birimlik ızgarada tek çizgi ağırlığında ikon ailesi), `HudComponents`
-(grup başlığı, segmentli ve ses seviyesi göstergeleri, görev durum işareti, kayan hover
-zemini, butonlar, ortalı sekmeler, nabız, kapalı notch kulak yerleşimi, biçimleyiciler).
+Tasarım dili ("gece sürüşü", 2026-11-17) `Features/Design/System/` altındadır;
+`docs/DESIGN.md`'de tarif edilir, kaynağı `docs/design/crenel-prototype.html`'dir. API
+başvurusu aynı klasördeki `README.md`'dir. Kaynak `Hud`'dur: `HudTokens` (sıcak mürekkep
+skalası, lamba renkleri ve sıcak çekirdekleri, pencere katmanları, Geist yazı stilleri,
+yarıçaplar, notch/pencere ölçüleri, hareket eğrileri), `HudSVGPath` + `HudIcons`
+(prototipin sprite'ından birebir taşınan çizgi ve dolu ikonlar, rozetler, işaret),
+`HudLamps` (lamba, hücreler, durum şekilleri, durum kelimeleri, uyarı lambası ikonları,
+görev işaretleri), `HudButtons` (tuş butonlar, tuş kapağı, topuz, eylem satırı, konsol),
+`HudComponents` (lambalı sekmeler ve ray, satırlar ve kayan hover zemini, anahtar, seçim,
+alanlar, çipler, segment kontrol, mod göstergesi, çerçeve, kuyu, panel), göstergeler:
+`HudSegmentDigits`, `HudGauge`, `HudInstruments` (fitil, VU, merdiven, şerit kaydedici,
+tarayıcı, LED yığını, nokta matrisi, kapsüller, kapasite ölçeği, istasyonlar) ve
+`HudScales` (gün cetveli, yükselen bant, radyo ölçeği, dalga formu, sistem şeması).
 `CrenelTokens`/`CrenelComponents`/`CrenelIcons` eski çağrı yerleri için korunur ve
-değerlerini `Hud`'dan alır; `MeetingNotchTheme` ve Figma görselleri kaldırıldı. Açık
-notch 490 pt'dir; alt köşe yarıçapı açıkken 20, kapalıyken 10'dur; şekil içeriği yayla
-kapsar, içerik şekilden sonra belirir.
+değerlerini `Hud`'dan alır. Ekranlar yeni dile aşamalı taşınıyor; o zamana dek açık notch
+490 pt'dir (hedef 560), alt köşe yarıçapı açıkken 20, kapalıyken 10'dur; şekil içeriği
+yayla kapsar, içerik şekilden sonra belirir.
 
 ### Kurulum ve izinler (C9)
 

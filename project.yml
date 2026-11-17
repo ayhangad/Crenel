@@ -50,6 +50,7 @@ targets:
       - path: MeetingNotch
         excludes:
           - Info.plist
+          - "**/*.md"
     info:
       path: MeetingNotch/Info.plist
       properties:
