@@ -211,7 +211,8 @@ struct HudTimeColumn: View {
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 3) {
-            Text(verbatim: top).hud(.body, dim ? Hud.Ink.ink2 : Hud.Ink.ink1)
+            // "24 Nov" is a little wider than the column: shrink it rather than cut it.
+            Text(verbatim: top).hud(.body, dim ? Hud.Ink.ink2 : Hud.Ink.ink1).minimumScaleFactor(0.8)
             if let bottom {
                 Text(verbatim: bottom).hud(.meta)
             }
@@ -243,8 +244,17 @@ struct HudGlide: ViewModifier {
             }
             .contentShape(Rectangle())
             .onHover { inside in
-                withAnimation(Hud.Motion.slab) {
-                    if inside { hovered = id } else if hovered == id { hovered = nil }
+                if inside {
+                    withAnimation(Hud.Motion.slab) { hovered = id }
+                } else {
+                    // Leaving one row and entering the next arrive as two events in either
+                    // order. Clearing at once would drop the slab between them, so it fades
+                    // out and back in instead of sliding. Wait a beat: if another row took
+                    // over meanwhile, there is nothing to clear.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+                        guard hovered == id else { return }
+                        withAnimation(Hud.Motion.slab) { hovered = nil }
+                    }
                 }
             }
     }
