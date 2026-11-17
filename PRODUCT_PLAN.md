@@ -233,6 +233,10 @@ ayarlanmaz, tek onboarding hepsini kurar; görevin basit durumu vardır; notch t
     Join, davette amber lamba). Kapalı notch boşta kapanmaz: işaret + görev sayısı, yoksa
     başka gündeki ilk etkinlik, yoksa dikte tuşu. — ✅ 2026-11-17 (572 test, 5 atlandı,
     0 hata; Today ve kapalı notch render'ları incelendi; gerçek notch'ta kabul bekliyor)
+  - [x] Bugünkü etkinliklerin karosunda yalnız saat; karo içeriğine göre yükselir (6 pt
+    üst/alt), satırlar ortalı; hover düğmeleri satırın kendi hover'ıyla anında, Today
+    listesi hover'ı kadranı yeniden çizdirmez. — ✅ 2026-11-17 (572 test, 5 atlandı, 0 hata;
+    Today ve Recordings render'ları incelendi; gerçek notch'ta kabul bekliyor)
   - [x] Toplantı detayı, işleme/hata/teklif yüzeyleri ve kurtarma uyarısının yeni sisteme
     taşınması. — ✅ 2026-11-16 (`9dc6708`)
   - [x] Masaüstü çalışma alanı ve Ayarlar'ın yeni sistemle yeniden yapılması. — ✅ 2026-11-16 (`9dc6708`)

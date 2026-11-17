@@ -94,9 +94,7 @@ struct TodaySurface: View {
     /// A row (its event id) or the hero (`TodaySurface.heroHoverID`) drawn as hovered, for renders.
     var previewHover: AnyHashable?
     static let heroHoverID: AnyHashable = "today.hero"
-    @State private var hovered: AnyHashable?
     @State private var appeared = false
-    @Namespace private var glide
 
     init(
         events: [Meeting],
@@ -219,19 +217,8 @@ struct TodaySurface: View {
     }
 
     private func group(_ title: String, _ events: [Meeting], now: Date, isFirst: Bool) -> some View {
-        VStack(alignment: .leading, spacing: RecordingRow.spacing) {
-            HudListHeader(title, count: events.count, isFirst: isFirst)
-                .padding(.bottom, -RecordingRow.spacing)
-            ForEach(events) { event in
-                TodayEventRow(
-                    event: event, now: now,
-                    isHovered: (previewHover ?? hovered) == AnyHashable(event.id),
-                    onJoin: join(event)
-                )
-                .modifier(EventActions(event: event, join: join(event), onStartRecording: onStartRecording))
-                    .hudGlide(event.id, hovered: $hovered, in: glide)
-            }
-        }
+        TodayEventGroup(title: title, events: events, now: now, isFirst: isFirst, previewHover: previewHover,
+                        onOpenMeetingURL: onOpenMeetingURL, onStartRecording: onStartRecording)
     }
 
     /// Calendars are connected and today is clear: say so, and name what comes next.
@@ -367,6 +354,34 @@ enum TodayText {
     }
 }
 
+/// One group of the timetable. It owns its hover slab, so hovering a row redraws the
+/// rows and not the hero's gauge and the ruler above them.
+private struct TodayEventGroup: View {
+    let title: String
+    let events: [Meeting]
+    let now: Date
+    let isFirst: Bool
+    let previewHover: AnyHashable?
+    let onOpenMeetingURL: (URL) -> Void
+    let onStartRecording: () -> Void
+
+    @State private var hovered: AnyHashable?
+    @Namespace private var glide
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: RecordingRow.spacing) {
+            HudListHeader(title, count: events.count, isFirst: isFirst)
+                .padding(.bottom, -RecordingRow.spacing)
+            ForEach(events) { event in
+                let join = event.meetingURL.map { url in { onOpenMeetingURL(url) } }
+                TodayEventRow(event: event, now: now, isHovered: previewHover == AnyHashable(event.id), onJoin: join)
+                    .modifier(EventActions(event: event, join: join, onStartRecording: onStartRecording))
+                    .hudGlide(event.id, hovered: $hovered, in: glide, forced: previewHover)
+            }
+        }
+    }
+}
+
 /// A click on an event does nothing: joining is the Join button that shows on hover.
 /// The context menu holds the rest.
 private struct EventActions: ViewModifier {
@@ -428,7 +443,8 @@ private struct TodayHoverJoin: View {
             .allowsHitTesting(shown)
             .accessibilityHidden(!shown)
             .accessibilityLabel("Join")
-            .animation(Hud.Motion.hover, value: shown)
+            // Appears with the pointer, not after it.
+            .transaction { $0.animation = nil }
     }
 }
 
@@ -626,12 +642,14 @@ private struct TodayEventRow: View {
     }
     private var isDimmed: Bool { event.isSuggestion || event.responseStatus == .tentative }
     private var isPending: Bool { event.responseStatus == .pending }
-    private var showsJoin: Bool { isHovered && onJoin != nil }
+    /// The row's own hover, so Join follows the pointer at once.
+    @State private var hovering = false
+    private var hovered: Bool { isHovered || hovering }
+    private var showsJoin: Bool { hovered && onJoin != nil }
 
     var body: some View {
-        HStack(alignment: .top, spacing: Hud.Row.gap) {
-            HudDateTile(date: event.isAllDay ? max(event.startDate, now) : event.startDate,
-                        caption: .weekday, lamp: isPending ? .amber : nil)
+        HStack(alignment: .center, spacing: Hud.Row.gap) {
+            tile
             VStack(alignment: .leading, spacing: 2) {
                 Text(event.title).hud(.body).lineLimit(1).truncationMode(.tail)
                 metaLine
@@ -653,21 +671,38 @@ private struct TodayEventRow: View {
         .overlay(alignment: .trailing) {
             // Over the row, not in it: the row keeps its height and nothing shifts.
             if let onJoin {
-                TodayHoverJoin(shown: isHovered, action: onJoin)
+                TodayHoverJoin(shown: hovered, action: onJoin)
                     .padding(.trailing, 6)
             }
         }
+        .onHover { hovering = $0 }
     }
 
-    private var metaLine: some View {
+    /// Today: just the start time (or "All day"). Other days: the date and weekday.
+    @ViewBuilder private var tile: some View {
+        let lamp: Hud.LampColor? = isPending ? .amber : nil
+        if isToday {
+            if event.isAllDay {
+                HudDateTile(allDay: now, lamp: lamp)
+            } else {
+                HudDateTile(time: event.startDate, lamp: lamp)
+            }
+        } else {
+            HudDateTile(date: event.isAllDay ? max(event.startDate, now) : event.startDate, caption: .weekday, lamp: lamp)
+        }
+    }
+
+    /// Today the tile already says when, so the line starts with the place.
+    @ViewBuilder private var metaLine: some View {
+        let parts = (isToday ? [] : [when]) + [place].compactMap { $0 }
+        if !parts.isEmpty || isPending {
         HStack(spacing: 6) {
-            Text(verbatim: when).monospacedDigit()
-            if let place {
-                Text(verbatim: "·").foregroundStyle(Hud.Ink.ink5)
-                Text(verbatim: place)
+            ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                if index > 0 { Text(verbatim: "·").foregroundStyle(Hud.Ink.ink5) }
+                Text(verbatim: part).monospacedDigit()
             }
             if isPending {
-                Text(verbatim: "·").foregroundStyle(Hud.Ink.ink5)
+                if !parts.isEmpty { Text(verbatim: "·").foregroundStyle(Hud.Ink.ink5) }
                 HStack(spacing: 5) {
                     HudStatusShape(.warn).scaleEffect(0.8)
                     Text("Invite").foregroundStyle(Hud.Ink.signal)
@@ -677,6 +712,7 @@ private struct TodayEventRow: View {
         }
         .hud(.meta)
         .lineLimit(1)
+        }
     }
 
     /// "18:30", or "All day".

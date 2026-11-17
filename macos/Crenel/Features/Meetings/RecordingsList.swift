@@ -113,8 +113,7 @@ struct RecentMeetingsList: View {
 
     private func row(_ meeting: StoredMeeting) -> some View {
         let attention = RecordingAttention(meeting)
-        return RecordingRow(meeting: meeting, isHovered: (forcedHover.map(AnyHashable.init) ?? hovered) == AnyHashable(meeting.id),
-                     playback: playback) {
+        return RecordingRow(meeting: meeting, forcedHover: forcedHover == meeting.id, playback: playback) {
             onOpen(meeting)
         }
         .onTapGesture { onOpen(meeting) }

@@ -133,8 +133,17 @@ struct RecordingMiniWaveform: View {
     var progress: Double = 0
 
     init(seed: UUID, progress: Double = 0) {
-        peaks = Self.pattern(seed: seed)
+        peaks = Self.cachedPattern(seed: seed)
         self.progress = progress
+    }
+
+    @MainActor private static var patterns: [UUID: [Double]] = [:]
+
+    @MainActor private static func cachedPattern(seed: UUID) -> [Double] {
+        if let hit = patterns[seed] { return hit }
+        let made = pattern(seed: seed)
+        patterns[seed] = made
+        return made
     }
 
     /// Bursts and pauses like speech, from a seed: same meeting, same bars.
@@ -186,12 +195,16 @@ struct RecordingMiniWaveform: View {
 /// lights up as it goes.
 struct RecordingRow: View {
     let meeting: StoredMeeting
-    let isHovered: Bool
+    /// Galleries: draw the row as hovered.
+    var forcedHover = false
     @ObservedObject var playback: RecordingInlinePlayback
     let onOpen: () -> Void
 
     @Environment(\.recordingPreviewLoader) private var loader
     @State private var preview: RecordingPreview?
+    /// The row's own hover: the buttons follow the pointer at once, without waiting on
+    /// the list's sliding slab.
+    @State private var hovering = false
 
     /// Vertical padding inside the row; the list adds `RecordingRow.spacing` between rows
     /// so hover slabs never touch.
@@ -202,8 +215,8 @@ struct RecordingRow: View {
     var body: some View {
         let attention = RecordingAttention(meeting)
         let isPlaying = playback.playingID == meeting.id
-        let isHovered = isHovered
-        HStack(alignment: .top, spacing: Hud.Row.gap) {
+        let isHovered = forcedHover || hovering
+        HStack(alignment: .center, spacing: Hud.Row.gap) {
             RecordingDateTile(date: meeting.startedAt, attention: attention)
 
             VStack(alignment: .leading, spacing: 2) {
@@ -220,15 +233,17 @@ struct RecordingRow: View {
                     .hud(.meta, Hud.Ink.ink2)
                     .monospacedDigit()
                     .fixedSize()
+                // Both stay in the tree; hover only swaps which one shows, with no animation.
                 ZStack(alignment: .trailing) {
                     RecordingMiniWaveform(seed: meeting.id, progress: isPlaying ? playback.progress : 0)
                         .opacity(isHovered ? 0 : 1)
-                    if isHovered {
-                        buttons(isPlaying: isPlaying)
-                            .transition(.opacity)
-                    }
+                    buttons(isPlaying: isPlaying)
+                        .opacity(isHovered ? 1 : 0)
+                        .allowsHitTesting(isHovered)
+                        .accessibilityHidden(!isHovered)
                 }
                 .frame(height: RecordingMiniWaveform.size.height)
+                .transaction { $0.animation = nil }
             }
             // Wide enough for Play and Open, so hovering never moves the text.
             .frame(width: Self.trailingWidth, alignment: .trailing)
@@ -238,6 +253,7 @@ struct RecordingRow: View {
         .padding(.horizontal, Hud.Row.inset)
         .padding(.vertical, Self.verticalPadding)
         .contentShape(Rectangle())
+        .onHover { hovering = $0 }
         .task(id: "\(meeting.id)|\(meeting.processingStatus.rawValue)") { await load() }
     }
 

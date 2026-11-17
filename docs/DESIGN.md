@@ -340,8 +340,10 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
     yalnızca üzerine gelince sağ kenarda belirir; katılmak yalnızca bu tuşladır (ve sağ
     tık menüsünden).
   - Altında gün cetveli, sonra Recordings ile aynı satır dilinde bir liste gelir: solda
-    tarih karosu (segment gün + haftanın günü), başlık, altında "18:30 · Zoom" ya da
-    "All day · Work", sağ kenarda süre. Hover'da süre yerine Join belirir. Kahramanda tek
+    karo, başlık, altında yer, sağ kenarda süre. Bugünkü etkinliğin karosunda yalnız
+    başlangıç saati (segment) ya da "All day" yazar, ikinci satır yalnız yeri söyler
+    ("Zoom"). Başka günlerde karo segment gün + haftanın günüdür, ikinci satır "10:00 ·
+    Zoom" ya da "All day · Work" olur. Hover'da süre yerine Join belirir. Kahramanda tek
     saat bulunur; süren toplantıda "Until 11:00" yazar. Gruplar Today ve Later'dır; ad
     solda, sayı sağ kenarda, ikisi de sönük. Karonun köşesinde amber lamba yalnız cevap
     bekleyen davette yanar; ikinci satırda elmas + "Invite" bulunur.
@@ -378,6 +380,11 @@ satırın ya da göstergenin yerini alırlar. Başka yüzeylere yayılmaları ge
       sütun sabit genişlikte olduğu için metin kaymaz.
     - Satır içi dikey boşluk 7 pt, satırlar arası 4 pt. Hover zemini satırın içinde
       kalır, komşu satırın zeminine değmez.
+    - Satırlar dikeyde ortalıdır. Karo en az kendi içeriği + üstte ve altta 6 pt kadar
+      yüksektir, satır daha yüksekse uzar.
+    - Hover düğmeleri satırın kendi hover'ını izler ve animasyonsuz, imleçle aynı anda
+      belirir; kayan zemin ayrıca kayar. Today'de her grup kendi hover durumunu tutar,
+      böylece satır hover'ı kadranı ve cetveli yeniden çizdirmez.
 - **Toplantı detayı.**
   - Dalga formu çubuklarıyla tüm toplantı gösterilir. Çalınan kısım ink-1'dir, amber iğne
     konumu gösterir; tıklamak o noktaya atlar. Altında konuşma süresi çubuğu ve

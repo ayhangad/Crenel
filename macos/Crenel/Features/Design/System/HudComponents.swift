@@ -225,29 +225,68 @@ struct HudTimeColumn: View {
 // MARK: - Date tile
 
 /// A day as a small well (`.dtile`): the day of the month in segment digits over a short
-/// word — the month in Recordings, the weekday in Today. It stretches to the height of
-/// the row's text, so put it in an `HStack(alignment: .top)` that is
-/// `.fixedSize(horizontal: false, vertical: true)`. An optional corner lamp marks a row
+/// word — the month in Recordings, the weekday in Today's later events — or, for an
+/// event today, just its start time. It is at least as tall as its own content plus
+/// 6 pt above and below, and stretches to the row when the row is taller; centre the
+/// row (`HStack(alignment: .center)`) and fix its height
+/// (`.fixedSize(horizontal: false, vertical: true)`). An optional corner lamp marks a row
 /// that needs something; rows that are fine have none.
 ///
 ///     HudDateTile(date: meeting.startedAt, caption: .month)
 ///     HudDateTile(date: event.startDate, caption: .weekday, lamp: .amber)
+///     HudDateTile(time: event.startDate)          // today: "16:00"
+///     HudDateTile(allDay: Date())                 // today, all day
 struct HudDateTile: View {
     enum Caption { case month, weekday }
+    enum Content { case day(Caption), time, allDay }
 
     let date: Date
-    var caption: Caption = .month
+    var content: Content = .day(.month)
     var lamp: Hud.LampColor?
     var lampLoop: HudLoop = .steady
     var calendar: Calendar = .current
 
-    static let width: CGFloat = 40
+    static let width: CGFloat = 44
+    static let verticalPadding: CGFloat = 6
+
+    init(date: Date, caption: Caption = .month, lamp: Hud.LampColor? = nil, lampLoop: HudLoop = .steady,
+         calendar: Calendar = .current) {
+        self.date = date
+        content = .day(caption)
+        self.lamp = lamp
+        self.lampLoop = lampLoop
+        self.calendar = calendar
+    }
+
+    init(time: Date, lamp: Hud.LampColor? = nil, lampLoop: HudLoop = .steady) {
+        date = time
+        content = .time
+        self.lamp = lamp
+        self.lampLoop = lampLoop
+    }
+
+    init(allDay date: Date, lamp: Hud.LampColor? = nil) {
+        self.date = date
+        content = .allDay
+        self.lamp = lamp
+    }
 
     var body: some View {
-        VStack(spacing: 4) {
-            HudSegmentDigits(String(format: "%02d", calendar.component(.day, from: date)), height: 15, cells: 2)
-            Text(verbatim: word).hud(.micro, Hud.Ink.ink3)
+        Group {
+            switch content {
+            case .day:
+                VStack(spacing: 4) {
+                    HudSegmentDigits(String(format: "%02d", calendar.component(.day, from: date)), height: 15, cells: 2)
+                    Text(verbatim: word).hud(.micro, Hud.Ink.ink3)
+                }
+            case .time:
+                HudSegmentDigits(HudFormat.clock(date), height: 12)
+            case .allDay:
+                Text("All day").hud(.micro, Hud.Ink.ink3).multilineTextAlignment(.center)
+            }
         }
+        .lineLimit(2)
+        .padding(.vertical, Self.verticalPadding)
         .frame(width: Self.width)
         .frame(maxHeight: .infinity)
         .background {
@@ -271,7 +310,7 @@ struct HudDateTile: View {
         formatter.locale = AppLanguage.locale
         formatter.calendar = calendar
         formatter.timeZone = calendar.timeZone
-        formatter.dateFormat = caption == .month ? "MMM" : "EEE"
+        if case .day(.weekday) = content { formatter.dateFormat = "EEE" } else { formatter.dateFormat = "MMM" }
         return formatter.string(from: date)
     }
 }
