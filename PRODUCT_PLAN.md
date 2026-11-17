@@ -173,7 +173,11 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
   Translocation ve diğer yerler; eski kopya Çöp'e, yeni yerden yeniden açılış; Debug'da
   kapalı). — ✅ 2026-11-17 (birim testleri ve Release build; gerçek DMG'den açılış C8'de)
 - [ ] Sparkle 2 entegrasyonu (EdDSA anahtarı, appcast, nazik hatırlatma, kayıt sırasında erteleme,
-  Ayarlar › About'ta "Check for Updates").
+  Ayarlar › About'ta "Check for Updates"). — 🚧 Devam ediyor: 2026-11-17. Kod tamam: Sparkle
+  2.10.1 (SPM, tam sürüm), `SparkleAppUpdater` özel `SPUUserDriver` ile notch durumlarını
+  sürer, Restart kayıt sırasında reddedilir; EdDSA anahtarı login Keychain'de (hesap
+  `gad.Crenel`), açık anahtar `project.yml`'de; feed `https://ayhangad.github.io/Crenel/appcast.xml`.
+  Kalan: imzalı iki sürümle gerçek güncelleme denemesi (release hattından sonra).
 - [ ] Release hattı: archive → notarize → dmgbuild DMG → DMG imza/notarize/staple →
   `generate_appcast` → GitHub Release + Pages.
 - [ ] DMG tasarımı: koyu "notch'tan düşen ikon" prototipi; açık/koyu modda etiket okunurluk

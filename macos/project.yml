@@ -14,6 +14,11 @@ configFiles:
   Debug: Config/Signing.xcconfig
   Release: Config/Signing.xcconfig
 
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.1
+
 settings:
   base:
     MACOSX_DEPLOYMENT_TARGET: 26.0
@@ -66,6 +71,11 @@ targets:
         NSRemindersUsageDescription: Crenel keeps your tasks in Apple Reminders so they sync across your devices.
         NSRemindersFullAccessUsageDescription: Crenel keeps your tasks in Apple Reminders so they sync across your devices.
         NSSpeechRecognitionUsageDescription: Crenel transcribes your dictation on this Mac.
+        SUFeedURL: https://ayhangad.github.io/Crenel/appcast.xml
+        SUPublicEDKey: D+TpR15F20jV5kLgiS2GKnKEItB6icPnz7WbIm8Nu9M=
+        SUEnableAutomaticChecks: true
+        SUAutomaticallyUpdate: false
+        SUVerifyUpdateBeforeExtraction: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: gad.Crenel
@@ -84,6 +94,7 @@ targets:
       - target: CrenelBrowserAudioHost
         link: false
         embed: false
+      - package: Sparkle
     postBuildScripts:
       - name: Embed browser audio native host
         basedOnDependencyAnalysis: false

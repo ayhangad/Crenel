@@ -328,6 +328,14 @@ extension SettingsView {
         HStack(spacing: 12) {
             HudAppTile(size: 22)
             Text(verbatim: versionLine).hud(.meta)
+            Spacer(minLength: 8)
+            if case .ready(let version) = appState.updatePhase {
+                HudButton("Restart to update to \(version.shortVersion)", lamp: .teal, size: .small,
+                          action: appActions.restartToUpdate)
+            } else {
+                HudButton("Check for Updates", size: .small, action: appActions.checkForUpdates)
+                    .disabled(appState.updatePhase != .idle)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.top, 4)

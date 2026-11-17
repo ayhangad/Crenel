@@ -3,6 +3,7 @@ import SwiftUI
 /// Settings, hosted to the right of the app sidebar (`tpl-desktop`, `s-*`): its own
 /// title and search row, a second rail with a lamp per section, and the page.
 struct SettingsView: View {
+    @Environment(\.crenelActions) var appActions
     @EnvironmentObject var appState: AppState
     @Environment(\.accessibilityReduceMotion) var reduceMotion
 

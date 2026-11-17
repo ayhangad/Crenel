@@ -54,6 +54,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     #if DEBUG
     private var simulatedUpdater: SimulatedAppUpdater?
     #endif
+    private var sparkleUpdater: SparkleAppUpdater?
+
+    /// Release builds: Sparkle checks the appcast daily and drives the notch's update
+    /// states through `SparkleAppUpdater`.
+    private func startSparkle() {
+        let updater = SparkleAppUpdater()
+        do {
+            try updater.start()
+            updateCoordinator.attach(updater)
+            sparkleUpdater = updater
+        } catch {
+            AppLogger.updateFailed(error)
+        }
+    }
     /// Release notes for every version.
     static let releaseNotesURL = URL(string: "https://github.com/ayhangad/Crenel/releases")
     private(set) lazy var taskCoordinator = TaskCoordinator.live(appState: appState)
@@ -334,6 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if !DEBUG
         // Debug builds run from DerivedData on purpose.
         ApplicationsMover.offerIfNeeded()
+        startSparkle()
         #endif
         desktopSettingsObserver = NotificationCenter.default.addObserver(
             forName: .openDesktopSettings, object: nil, queue: .main

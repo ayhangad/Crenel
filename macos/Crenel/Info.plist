@@ -38,5 +38,15 @@
 	<string>Crenel keeps your tasks in Apple Reminders so they sync across your devices.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Crenel transcribes your dictation on this Mac.</string>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://ayhangad.github.io/Crenel/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>D+TpR15F20jV5kLgiS2GKnKEItB6icPnz7WbIm8Nu9M=</string>
+	<key>SUVerifyUpdateBeforeExtraction</key>
+	<true/>
 </dict>
 </plist>

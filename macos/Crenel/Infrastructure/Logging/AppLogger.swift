@@ -74,6 +74,11 @@ enum AppLogger {
         )
     }
 
+    static func updateFailed(_ error: Error) {
+        let diagnostic = PrivacySafeDiagnostic(error: error)
+        persistence.error("Update failure type=\(diagnostic.errorType, privacy: .public)")
+    }
+
     static func persistenceFailed(operation: String, error: Error) {
         let diagnostic = PrivacySafeDiagnostic(error: error)
         persistence.error(

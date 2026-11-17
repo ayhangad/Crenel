@@ -247,8 +247,21 @@ Bunlar başka bir oturumdan devreden işlerdir; dağıtımdan bağımsızdır.
   - `esc`/`↩` yalnız notch paneli odaktayken çalışıyor,
   - `docs/DESIGN.md` bugünkü AI ayarları ve Recordings satır düzeniyle eşitlenmedi.
 
+## Durum (2026-11-17, ikinci oturum)
+
+- **Barındırma kararı:** repo public olacak; DMG'ler GitHub Releases'ta, appcast GitHub
+  Pages'te (`https://ayhangad.github.io/Crenel/appcast.xml`). Görünürlük ilk sürüm hazır
+  olunca, geçmişte gizli anahtar taraması yapıldıktan sonra kullanıcı onayıyla değişir.
+- **Notch güncelleme arayüzü:** tamam (`docs/design/update-mock.html`, `AppUpdatePhase`).
+- **Applications'a taşıma:** tamam (`ApplicationsMover`, yalnız Release).
+- **Sparkle:** 2.10.1 SPM ile eklendi. Sparkle'ın pencereleri yok; `SparkleAppUpdater`
+  (`SPUUserDriver`) bulunan güncellemeyi hemen indirir, ilerlemeyi notch'a verir, kurulum
+  için Restart'ı bekler. `SUAutomaticallyUpdate` kapalı, çünkü indirmeyi sürücü başlatır.
+- **EdDSA anahtarı:** `generate_keys --account gad.Crenel` ile login Keychain'de. Açık
+  anahtar `D+TpR15F20jV5kLgiS2GKnKEItB6icPnz7WbIm8Nu9M=`. **Özel anahtarın yedeği
+  alınmalı** (`generate_keys --account gad.Crenel -x crenel-sparkle.key`, ardından şifre
+  yöneticisine); kaybolursa mevcut kullanıcılara güncelleme gönderilemez.
+
 ## Açık sorular (kullanıcıya)
 
-1. Repo private. Güncellemeler için public mi yapılacak, yoksa DMG/appcast başka yerde
-   (web sitesi, Cloudflare R2) mi barındırılacak?
-2. DMG konsepti: prototipten sonra kesin onay.
+1. DMG konsepti: prototipten sonra kesin onay.
