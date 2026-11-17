@@ -23,42 +23,8 @@ struct TaskStateGlyph: View {
     }
 }
 
-private struct PieSlice: Shape {
-    var fraction: Double
-
-    var animatableData: Double {
-        get { fraction }
-        set { fraction = newValue }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        guard fraction > 0.001 else { return path }
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        path.move(to: center)
-        path.addArc(
-            center: center,
-            radius: min(rect.width, rect.height) / 2,
-            startAngle: .degrees(-90),
-            endAngle: .degrees(-90 + 360 * fraction),
-            clockwise: false
-        )
-        path.closeSubpath()
-        return path
-    }
-}
-
-private struct CheckStroke: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX, y: rect.midY + rect.height * 0.04))
-        path.addLine(to: CGPoint(x: rect.minX + rect.width * 0.38, y: rect.maxY - rect.height * 0.1))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.12))
-        return path
-    }
-}
-
-/// The state picker that unfolds from a task's glyph: four states, one tap.
+/// A standalone state picker: four states, one tap. The task list itself offers the
+/// states in the row's actions (`TaskRowView`).
 struct TaskStatePicker: View {
     let current: TaskStatus
     let onSelect: (TaskStatus) -> Void
@@ -72,7 +38,7 @@ struct TaskStatePicker: View {
                 } label: {
                     HStack(spacing: 6) {
                         TaskStateGlyph(status: status, size: 12)
-                        Text(status.title)
+                        Text(status.shortTitle)
                             .font(Hud.Style.label.font)
                             .foregroundStyle(status == current ? Crenel.Palette.textPrimary : Crenel.Palette.textSecondary)
                     }
@@ -86,7 +52,7 @@ struct TaskStatePicker: View {
                 }
                 .buttonStyle(.plain)
                 .onHover { hovered = $0 ? status : (hovered == status ? nil : hovered) }
-                .accessibilityLabel(status.title)
+                .accessibilityLabel(status.shortTitle)
                 .accessibilityAddTraits(status == current ? .isSelected : [])
             }
         }
