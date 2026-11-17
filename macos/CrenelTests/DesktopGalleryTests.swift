@@ -41,6 +41,46 @@ final class DesktopGalleryTests: XCTestCase {
         XCTAssertEqual(today.count, 1)
     }
 
+    private func dictation(_ words: Int, day: Int, hour: Int = 9) -> DictationHistoryEntry {
+        DictationHistoryEntry(id: UUID(), createdAt: at(hour, day: day), transcript: "",
+                              finalText: Array(repeating: "söz", count: words).joined(separator: " "),
+                              delivery: .insertedViaPaste, appName: nil)
+    }
+
+    func testUsualDictationIsTheMedianOfRecentDaysWithoutToday() {
+        let history = [
+            dictation(999, day: 0),                          // today: left out
+            dictation(100, day: -1), dictation(50, day: -1), // one day, 150 words
+            dictation(40, day: -2),
+            dictation(300, day: -5),
+            dictation(10, day: -14),                         // 14 days back: still in
+            dictation(5_000, day: -15)                       // too old
+        ]
+        // Days: 10, 40, 150, 300 → median of an even count is the mean of the middle two.
+        XCTAssertEqual(DesktopStats.usualDictationWords(history, now: now, calendar: calendar), 95)
+        XCTAssertEqual(DesktopStats.usualDictationWords(Array(history.dropLast(2)), now: now, calendar: calendar), 150)
+    }
+
+    func testUsualDictationNeedsThreeDays() {
+        let history = [dictation(80, day: -1), dictation(120, day: -3), dictation(500, day: 0), dictation(70, day: -20)]
+        XCTAssertNil(DesktopStats.usualDictationWords(history, now: now, calendar: calendar))
+        XCTAssertNil(DesktopStats.usualDictationWords([], now: now, calendar: calendar))
+    }
+
+    func testDictationScaleFillsTodayAgainstTheUsualDay() {
+        let quiet = DesktopStats.dictationScale(todayWords: 50, usual: 100)
+        XCTAssertEqual(quiet.value, 50.0 / 150, accuracy: 0.0001)
+        XCTAssertEqual(quiet.mark ?? -1, 100.0 / 150, accuracy: 0.0001)
+
+        let busy = DesktopStats.dictationScale(todayWords: 400, usual: 100)
+        XCTAssertEqual(busy.value, 1, accuracy: 0.0001)
+        XCTAssertEqual(busy.mark ?? -1, 0.25, accuracy: 0.0001)
+
+        let unknown = DesktopStats.dictationScale(todayWords: 160, usual: nil)
+        XCTAssertNil(unknown.mark)
+        XCTAssertEqual(unknown.value, 160.0 / 1_560, accuracy: 0.0001)
+    }
+
     func testTalkTimeSharesAndLaneFollowTheTranscript() {
         let transcript = Transcript(text: "", languageCode: "en", segments: [
             TranscriptSegment(speakerID: "a", speakerName: "You", startTime: 0, endTime: 30, text: "x"),

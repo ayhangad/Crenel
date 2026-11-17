@@ -245,6 +245,37 @@ enum DesktopStats {
         return (today.reduce(0) { $0 + DesktopFormat.wordCount($1.finalText) }, today.count)
     }
 
+    /// "Your usual": the median words per day over the last 14 days that had any dictation,
+    /// today left out. Nil with fewer than three such days — too little to call usual.
+    static func usualDictationWords(_ history: [DictationHistoryEntry], now: Date, calendar: Calendar = .current) -> Double? {
+        let today = calendar.startOfDay(for: now)
+        guard let earliest = calendar.date(byAdding: .day, value: -14, to: today) else { return nil }
+        var words: [Date: Int] = [:]
+        for entry in history {
+            let day = calendar.startOfDay(for: entry.createdAt)
+            guard day >= earliest, day < today else { continue }
+            words[day, default: 0] += DesktopFormat.wordCount(entry.finalText)
+        }
+        let days = words.values.filter { $0 > 0 }.sorted()
+        guard days.count >= 3 else { return nil }
+        let middle = days.count / 2
+        return days.count.isMultiple(of: 2)
+            ? Double(days[middle - 1] + days[middle]) / 2
+            : Double(days[middle])
+    }
+
+    /// The Dictation tile's dot matrix: today's fill and where "your usual" sits on the same
+    /// scale. The scale is the larger of today and one and a half usual days, so the usual
+    /// mark lands two thirds along until today passes it.
+    static func dictationScale(todayWords: Int, usual: Double?) -> (value: Double, mark: Double?) {
+        guard let usual, usual > 0 else {
+            // No usual yet: one dot for every 20 words, a printed scale and not a comparison.
+            return (min(1, Double(todayWords) / Double(78 * 20)), nil)
+        }
+        let scale = max(usual * 1.5, Double(todayWords))
+        return (Double(todayWords) / scale, usual / scale)
+    }
+
     struct TalkShare: Equatable, Identifiable {
         let speakerID: String
         let name: String

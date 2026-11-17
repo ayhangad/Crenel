@@ -26,9 +26,12 @@ final class DictationAudioCapture: DictationAudioCapturing, @unchecked Sendable 
     private var levelContinuation: AsyncStream<Float>.Continuation?
     private var lastLevelHostTime: UInt64 = 0
     private let levelInterval: TimeInterval
+    /// False for a level meter only: buffers are not copied out and the stream ends at once.
+    private let deliversBuffers: Bool
 
-    init(levelInterval: TimeInterval = 0.05) {
+    init(levelInterval: TimeInterval = 0.05, deliversBuffers: Bool = true) {
         self.levelInterval = levelInterval
+        self.deliversBuffers = deliversBuffers
     }
 
     func start(deviceID: String?) async throws -> DictationAudioStream {
@@ -67,9 +70,10 @@ final class DictationAudioCapture: DictationAudioCapturing, @unchecked Sendable 
             bufferingPolicy: .bufferingNewest(1)
         )
 
+        if !deliversBuffers { bufferContinuation.finish() }
         lock.withLock {
             self.engine = engine
-            self.bufferContinuation = bufferContinuation
+            self.bufferContinuation = deliversBuffers ? bufferContinuation : nil
             self.levelContinuation = levelContinuation
             self.lastLevelHostTime = 0
         }
@@ -106,6 +110,10 @@ final class DictationAudioCapture: DictationAudioCapturing, @unchecked Sendable 
     }
 
     private func handle(buffer: AVAudioPCMBuffer, hostTime: UInt64) {
+        guard deliversBuffers else {
+            reportLevelOnly(of: buffer, hostTime: hostTime)
+            return
+        }
         guard let copy = Self.copy(buffer) else { return }
         let (buffers, levels, shouldReportLevel) = lock.withLock { () -> (
             AsyncStream<AVAudioPCMBuffer>.Continuation?,
@@ -122,6 +130,18 @@ final class DictationAudioCapture: DictationAudioCapturing, @unchecked Sendable 
         if shouldReportLevel {
             levels?.yield(Self.normalizedLevel(of: copy))
         }
+    }
+
+    /// The level is read from the tap's own buffer; nothing is kept.
+    private func reportLevelOnly(of buffer: AVAudioPCMBuffer, hostTime: UInt64) {
+        let levels: AsyncStream<Float>.Continuation? = lock.withLock {
+            let elapsed = AVAudioTime.seconds(forHostTime: hostTime)
+                - AVAudioTime.seconds(forHostTime: lastLevelHostTime)
+            guard lastLevelHostTime == 0 || elapsed >= levelInterval else { return nil }
+            lastLevelHostTime = hostTime
+            return levelContinuation
+        }
+        levels?.yield(Self.normalizedLevel(of: buffer))
     }
 
     // MARK: - Helpers

@@ -155,6 +155,124 @@ final class TextInsertionTests: XCTestCase {
         XCTAssertEqual(pasteboard.lastWrittenText, "kalmalı")
     }
 
+    // MARK: Undo
+
+    func testUndoRestoresAccessibilityInsertionAndSelection() async {
+        let field = FakeTextElement(role: "AXTextArea", value: "Merhaba  nasılsın",
+                                    selectedRange: NSRange(location: 8, length: 0))
+        elements.element = field
+
+        _ = await service.insert("dünya")
+        XCTAssertEqual(field.value, "Merhaba dünya nasılsın")
+        XCTAssertTrue(service.canUndoLastInsertion)
+
+        let undone = await service.undoLastInsertion()
+
+        XCTAssertTrue(undone)
+        XCTAssertEqual(field.value, "Merhaba  nasılsın")
+        XCTAssertEqual(field.selectedRange, NSRange(location: 8, length: 0))
+        XCTAssertEqual(field.setValueCount, 0, "The range path keeps the field's formatting")
+        XCTAssertFalse(service.canUndoLastInsertion)
+    }
+
+    func testUndoPutsBackTheReplacedSelection() async {
+        let field = FakeTextElement(role: "AXTextArea", value: "selam ekip", selectedText: "selam",
+                                    selectedRange: NSRange(location: 0, length: 5))
+        elements.element = field
+
+        _ = await service.insert("Merhabalar")
+        XCTAssertEqual(field.value, "Merhabalar ekip")
+        let undone = await service.undoLastInsertion()
+
+        XCTAssertTrue(undone)
+        XCTAssertEqual(field.value, "selam ekip")
+        XCTAssertEqual(field.selectedRange, NSRange(location: 0, length: 5))
+    }
+
+    func testUndoFallsBackToTheWholeValueWithoutARange() async {
+        let field = FakeTextElement(role: "AXTextField", value: "abc")
+        elements.element = field
+
+        _ = await service.insert("def")
+        let undone = await service.undoLastInsertion()
+
+        XCTAssertTrue(undone)
+        XCTAssertEqual(field.value, "abc")
+        XCTAssertEqual(field.setValueCount, 1)
+    }
+
+    func testUndoRefusesWhenTheFieldChangedSince() async {
+        let field = FakeTextElement(role: "AXTextArea", value: "a", selectedRange: NSRange(location: 1, length: 0))
+        elements.element = field
+
+        _ = await service.insert("b")
+        field.value = "ab and more typing"
+        let undone = await service.undoLastInsertion()
+
+        XCTAssertFalse(undone)
+        XCTAssertEqual(field.value, "ab and more typing")
+    }
+
+    func testUndoRefusesWhenAnotherFieldIsFocused() async {
+        let field = FakeTextElement(role: "AXTextArea", value: "a", selectedRange: NSRange(location: 1, length: 0))
+        elements.element = field
+
+        _ = await service.insert("b")
+        let other = FakeTextElement(role: "AXTextArea", value: "ab", selectedRange: NSRange(location: 2, length: 0))
+        elements.element = other
+        let undone = await service.undoLastInsertion()
+
+        XCTAssertFalse(undone)
+        XCTAssertEqual(field.value, "ab")
+        XCTAssertEqual(other.value, "ab")
+    }
+
+    func testUndoAfterPasteSendsCommandZToTheSameApp() async {
+        elements.app = ("com.tinyspeck.slackmacgap", "Slack")
+        elements.element = nil
+
+        _ = await service.insert("selam ekip")
+        XCTAssertTrue(service.canUndoLastInsertion)
+        let undone = await service.undoLastInsertion()
+
+        XCTAssertTrue(undone)
+        XCTAssertEqual(keystrokes.undoCount, 1)
+    }
+
+    func testUndoAfterPasteIsRefusedInAnotherApp() async {
+        elements.app = ("com.tinyspeck.slackmacgap", "Slack")
+        elements.element = nil
+
+        _ = await service.insert("selam ekip")
+        elements.app = ("com.apple.Safari", "Safari")
+        let undone = await service.undoLastInsertion()
+
+        XCTAssertFalse(undone)
+        XCTAssertEqual(keystrokes.undoCount, 0)
+    }
+
+    func testUndoAfterPasteIsRefusedWhenTheReadableFieldChanged() async {
+        let field = FakeTextElement(role: "AXGroup", value: "x", selectedTextSettable: false)
+        elements.element = field
+
+        _ = await service.insert("web")
+        field.value = "x and the user kept typing"
+        let undone = await service.undoLastInsertion()
+
+        XCTAssertFalse(undone)
+        XCTAssertEqual(keystrokes.undoCount, 0)
+    }
+
+    func testNothingToUndoAfterClipboardFallback() async {
+        elements.isAccessibilityTrusted = false
+
+        _ = await service.insert("izin yok")
+
+        XCTAssertFalse(service.canUndoLastInsertion)
+        let undone = await service.undoLastInsertion()
+        XCTAssertFalse(undone)
+    }
+
     func testCurrentContextReadsSelectionButNotFromSecureFields() {
         elements.app = ("com.apple.Notes", "Notlar")
         elements.element = FakeTextElement(role: "AXTextArea", value: "abc", selectedText: "b")
@@ -179,30 +297,61 @@ final class FakeTextElement: FocusedTextElement {
     let isSelectedTextSettable: Bool
     var isValueSettable: Bool { isSelectedTextSettable }
     var ignoresWrites = false
+    /// nil: the element reports no range and writes land at the end of the value.
+    var selectedRange: NSRange?
+    var rangeSettable = true
     private(set) var setCount = 0
+    private(set) var setValueCount = 0
 
     init(
         role: String?,
         subrole: String? = nil,
         value: String?,
         selectedText: String? = nil,
-        selectedTextSettable: Bool = true
+        selectedTextSettable: Bool = true,
+        selectedRange: NSRange? = nil
     ) {
         self.role = role
         self.subrole = subrole
         self.value = value
         self.selectedText = selectedText
         self.isSelectedTextSettable = selectedTextSettable
+        self.selectedRange = selectedRange
     }
 
     func setSelectedText(_ text: String) -> Bool {
         setCount += 1
         guard isSelectedTextSettable else { return false }
         if !ignoresWrites {
-            value = (value ?? "") + text
+            let current = (value ?? "") as NSString
+            let range = selectedRange ?? NSRange(location: current.length, length: 0)
+            value = current.replacingCharacters(in: range, with: text)
+            if selectedRange != nil {
+                selectedRange = NSRange(location: range.location + (text as NSString).length, length: 0)
+            }
             selectedText = nil
         }
         return true
+    }
+
+    func setSelectedRange(_ range: NSRange) -> Bool {
+        guard rangeSettable, selectedRange != nil else { return false }
+        let current = (value ?? "") as NSString
+        guard NSMaxRange(range) <= current.length else { return false }
+        selectedRange = range
+        selectedText = current.substring(with: range)
+        return true
+    }
+
+    func setValue(_ value: String) -> Bool {
+        setValueCount += 1
+        guard isValueSettable, !ignoresWrites else { return false }
+        self.value = value
+        return true
+    }
+
+    func isSame(as other: any FocusedTextElement) -> Bool {
+        self === other
     }
 }
 
@@ -253,10 +402,17 @@ final class FakePasteboard: DictationPasteboard {
 final class FakeKeystrokes: PasteKeystrokeSending {
     var succeeds = true
     private(set) var pasteCount = 0
+    private(set) var undoCount = 0
 
     func sendPaste() -> Bool {
         guard succeeds else { return false }
         pasteCount += 1
+        return true
+    }
+
+    func sendUndo() -> Bool {
+        guard succeeds else { return false }
+        undoCount += 1
         return true
     }
 }

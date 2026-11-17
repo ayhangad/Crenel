@@ -19,6 +19,8 @@ struct CrenelActions {
         var copyLast: () -> Void = {}
         var requestInputMonitoring: () -> Void = {}
         var prepareSpeechAssets: () -> Void = {}
+        /// Takes back the dictation the strip is showing.
+        var undoLast: () -> Void = {}
     }
 
     struct TaskActions {

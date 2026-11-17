@@ -21,8 +21,14 @@ protocol FocusedTextElement: AnyObject {
     var isValueSettable: Bool { get }
     var value: String? { get }
     var selectedText: String? { get }
+    /// The selection in UTF-16 units; nil when the element does not report it.
+    var selectedRange: NSRange? { get }
     /// Replaces the selection (or inserts at the caret when the selection is empty).
     func setSelectedText(_ text: String) -> Bool
+    func setSelectedRange(_ range: NSRange) -> Bool
+    func setValue(_ value: String) -> Bool
+    /// True when both wrap the same UI element (the wrappers themselves are recreated).
+    func isSame(as other: any FocusedTextElement) -> Bool
 }
 
 @MainActor
@@ -51,6 +57,8 @@ protocol DictationPasteboard: AnyObject {
 @MainActor
 protocol PasteKeystrokeSending: AnyObject {
     func sendPaste() -> Bool
+    /// ⌘Z to the frontmost app.
+    func sendUndo() -> Bool
 }
 
 @MainActor
@@ -58,6 +66,11 @@ protocol DictationTextInserting: AnyObject {
     func currentContext() -> DictationTargetSnapshot
     func insert(_ text: String) async -> TextInsertionResult
     func copyToClipboard(_ text: String)
+    /// Whether the last successful `insert` left enough behind to take it back.
+    var canUndoLastInsertion: Bool { get }
+    /// Takes back the last insertion if it is still exactly where it was put. Returns false
+    /// (and changes nothing) when the field has moved on.
+    func undoLastInsertion() async -> Bool
 }
 
 // MARK: - Policy
@@ -100,6 +113,22 @@ final class TextInsertionService: DictationTextInserting {
     private let keystrokes: any PasteKeystrokeSending
     private let restoreDelay: Duration
     private let sleep: @Sendable (Duration) async -> Void
+    /// What the last insertion changed, kept only until the next one.
+    private var undoRecord: UndoRecord?
+
+    private enum UndoRecord {
+        /// The field's value before and after, and where the text went.
+        case accessibility(
+            element: any FocusedTextElement,
+            valueBefore: String,
+            valueAfter: String,
+            selectionBefore: NSRange?,
+            replacedText: String,
+            insertedLength: Int
+        )
+        /// ⌘V went to this app; ⌘Z takes it back while the field still shows the paste.
+        case paste(bundleIdentifier: String, valueAfter: String?)
+    }
 
     init(
         elements: any FocusedElementProviding = SystemFocusedElementProvider(),
@@ -135,6 +164,7 @@ final class TextInsertionService: DictationTextInserting {
     }
 
     func insert(_ text: String) async -> TextInsertionResult {
+        undoRecord = nil
         guard elements.isAccessibilityTrusted else {
             copyToClipboard(text)
             return .copiedToClipboard(.accessibilityPermissionMissing)
@@ -156,7 +186,7 @@ final class TextInsertionService: DictationTextInserting {
                 copyToClipboard(text)
                 return .copiedToClipboard(.noFocusedTextField)
             }
-            return await paste(text)
+            return await paste(text, into: app.bundleIdentifier)
         }
 
         if TextInsertionPolicy.isEditable(element),
@@ -164,7 +194,43 @@ final class TextInsertionService: DictationTextInserting {
            await insertViaAccessibility(text, into: element) {
             return .insertedViaAccessibility
         }
-        return await paste(text)
+        return await paste(text, into: app.bundleIdentifier)
+    }
+
+    var canUndoLastInsertion: Bool { undoRecord != nil }
+
+    func undoLastInsertion() async -> Bool {
+        guard let record = undoRecord else { return false }
+        undoRecord = nil
+        guard elements.isAccessibilityTrusted, !elements.isSecureInputActive else { return false }
+        switch record {
+        case let .accessibility(element, valueBefore, valueAfter, selectionBefore, replacedText, insertedLength):
+            // Only the same field, untouched since: anything else would undo the user's own edits.
+            guard let focused = elements.focusedElement(), focused.isSame(as: element),
+                  focused.value == valueAfter else { return false }
+            // Select what was inserted and put back what it replaced, so formatting survives.
+            if let selectionBefore,
+               focused.setSelectedRange(NSRange(location: selectionBefore.location, length: insertedLength)),
+               focused.setSelectedText(replacedText),
+               focused.value == valueBefore {
+                _ = focused.setSelectedRange(selectionBefore)
+                return true
+            }
+            // Otherwise the whole value goes back.
+            guard focused.isValueSettable, focused.setValue(valueBefore), focused.value == valueBefore else {
+                return false
+            }
+            if let selectionBefore { _ = focused.setSelectedRange(selectionBefore) }
+            return true
+
+        case let .paste(bundleIdentifier, valueAfter):
+            guard elements.frontmostApplication().bundleIdentifier == bundleIdentifier else { return false }
+            // When the field is readable it must still show what the paste left there.
+            if let valueAfter, let current = elements.focusedElement()?.value, current != valueAfter {
+                return false
+            }
+            return keystrokes.sendUndo()
+        }
     }
 
     /// Writes through Accessibility only when the result can be checked; an unreadable value
@@ -173,16 +239,28 @@ final class TextInsertionService: DictationTextInserting {
     private func insertViaAccessibility(_ text: String, into element: any FocusedTextElement) async -> Bool {
         guard let before = element.value else { return false }
         let selectedBefore = element.selectedText
+        let rangeBefore = element.selectedRange
         guard element.setSelectedText(text) else { return false }
         // Replacing a selection with identical text legitimately leaves the value unchanged.
         if selectedBefore == text { return true }
-        if let after = element.value, after != before { return true }
-        await sleep(.milliseconds(80))
-        if let after = element.value, after != before { return true }
-        return false
+        var after = element.value
+        if after == nil || after == before {
+            await sleep(.milliseconds(80))
+            after = element.value
+        }
+        guard let after, after != before else { return false }
+        undoRecord = .accessibility(
+            element: element,
+            valueBefore: before,
+            valueAfter: after,
+            selectionBefore: rangeBefore,
+            replacedText: selectedBefore ?? "",
+            insertedLength: (text as NSString).length
+        )
+        return true
     }
 
-    private func paste(_ text: String) async -> TextInsertionResult {
+    private func paste(_ text: String, into bundleIdentifier: String?) async -> TextInsertionResult {
         let saved = pasteboard.snapshot()
         let writtenChangeCount = pasteboard.write(text: text, transient: true)
         guard keystrokes.sendPaste() else {
@@ -192,6 +270,9 @@ final class TextInsertionService: DictationTextInserting {
         await sleep(restoreDelay)
         if pasteboard.changeCount == writtenChangeCount {
             pasteboard.restore(saved)
+        }
+        if let bundleIdentifier {
+            undoRecord = .paste(bundleIdentifier: bundleIdentifier, valueAfter: elements.focusedElement()?.value)
         }
         return .insertedViaPaste
     }
@@ -254,12 +335,39 @@ final class AXFocusedTextElement: FocusedTextElement {
     var isSelectedTextSettable: Bool { isSettable(kAXSelectedTextAttribute) }
     var isValueSettable: Bool { isSettable(kAXValueAttribute) }
 
+    var selectedRange: NSRange? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &value) == .success,
+              let value, CFGetTypeID(value) == AXValueGetTypeID() else {
+            return nil
+        }
+        var range = CFRange()
+        let axValue = value as! AXValue // swiftlint:disable:this force_cast
+        guard AXValueGetValue(axValue, .cfRange, &range) else { return nil }
+        return NSRange(location: range.location, length: range.length)
+    }
+
     func setSelectedText(_ text: String) -> Bool {
         AXUIElementSetAttributeValue(
             element,
             kAXSelectedTextAttribute as CFString,
             text as CFString
         ) == .success
+    }
+
+    func setSelectedRange(_ range: NSRange) -> Bool {
+        var cfRange = CFRange(location: range.location, length: range.length)
+        guard let value = AXValueCreate(.cfRange, &cfRange) else { return false }
+        return AXUIElementSetAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, value) == .success
+    }
+
+    func setValue(_ value: String) -> Bool {
+        AXUIElementSetAttributeValue(element, kAXValueAttribute as CFString, value as CFString) == .success
+    }
+
+    func isSame(as other: any FocusedTextElement) -> Bool {
+        guard let other = other as? AXFocusedTextElement else { return false }
+        return CFEqual(element, other.element)
     }
 
     private func stringAttribute(_ name: String) -> String? {
@@ -339,9 +447,17 @@ final class SystemPasteKeystrokeSender: PasteKeystrokeSending {
     nonisolated init() {}
 
     func sendPaste() -> Bool {
+        sendCommand(CGKeyCode(kVK_ANSI_V))
+    }
+
+    func sendUndo() -> Bool {
+        sendCommand(CGKeyCode(kVK_ANSI_Z))
+    }
+
+    /// The key with ⌘ and nothing else.
+    private func sendCommand(_ keyCode: CGKeyCode) -> Bool {
         // Private state so physically held modifiers (e.g. the trigger key) don't leak into ⌘V.
         let source = CGEventSource(stateID: .privateState)
-        let keyCode = CGKeyCode(kVK_ANSI_V)
         guard let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else {
             return false

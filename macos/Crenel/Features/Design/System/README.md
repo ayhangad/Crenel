@@ -222,7 +222,7 @@ view.hudScanner(active, radius: 10)  /  HudScanner()          // `.scanner`
 HudLEDStack(lit: 5, cells: 8, tone: .today | .past, small: false)   // `.stack`, `.stack.dim`, `.stack.sm`
 HudDotMatrix(value: 0.64, count: 78, mark: 0.46)              // `.dots` + `.dots-mark`
 HudCapsules(done: 1, underWay: 1, total: 5)                   // `.caps`
-HudCapacityScale(level:, cells: 24, minLabel: "−60", maxLabel: "0 dB", glyph: .mic)   // `.cap` + `.zstrip`
+HudCapacityScale(level:, cells: 24, minLabel: "−60", maxLabel: "0 dB", glyph: .mic, isOff: false)   // `.cap` + `.zstrip`
 HudStations(titles: ["Saved", "Uploading", "Transcript", "Notes"], current: 1)       // processing rail
 HudTalkBar(shares: [0.46, 0.38, 0.16]) + HudSpeakerDot(index:) // notch talk-time bar + legend
 HudTrack(value: 0.46, tint:, glows:)                          // `.track`

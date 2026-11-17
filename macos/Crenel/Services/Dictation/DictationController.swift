@@ -14,6 +14,8 @@ final class DictationController: ObservableObject {
         var historyLimit = 20
         /// How long `.inserted` / `.failed` stay visible before returning to `.idle`; nil keeps them.
         var resultDisplayDuration: TimeInterval? = 2.5
+        /// How long a result that can be taken back stays up with its Undo; nil keeps it.
+        var undoWindow: TimeInterval? = 3
 
         static let `default` = Configuration()
     }
@@ -25,7 +27,10 @@ final class DictationController: ObservableObject {
     @Published private(set) var assetPreparationLocale: String?
 
     var refiner: any DictationTextRefining
-    var onCreateTask: ((String) -> Void)?
+    /// Creates a task from dictated words; returns its id so Undo can delete it.
+    var onCreateTask: ((String) -> UUID?)?
+    /// Deletes a task dictation created; false when it is already gone.
+    var onUndoCreatedTask: ((UUID) -> Bool)?
     var language: DictationLanguage = .automatic
     var vocabulary: [String] = []
     var microphoneDeviceID: String?
@@ -42,6 +47,8 @@ final class DictationController: ObservableObject {
 
     private var session: Session?
     private var resetTask: Task<Void, Never>?
+    /// What Undo takes back while `state` shows that result.
+    private var pendingUndo: PendingUndo?
     private var assetTask: Task<Void, Never>?
     /// Serializes use of the shared capture/transcriber across back-to-back sessions.
     private var pipelineBarrier: Task<Void, Never>?
@@ -59,7 +66,7 @@ final class DictationController: ObservableObject {
             try? await Task.sleep(for: .seconds(seconds))
         },
         preferredLanguages: @escaping () -> [String] = { Locale.preferredLanguages },
-        onCreateTask: ((String) -> Void)? = nil
+        onCreateTask: ((String) -> UUID?)? = nil
     ) {
         self.capture = capture
         self.transcriber = transcriber
@@ -82,7 +89,7 @@ final class DictationController: ObservableObject {
     static func live(
         refiner: any DictationTextRefining = PassthroughDictationRefiner(),
         triggerSettings: DictationTriggerSettings = .default,
-        onCreateTask: ((String) -> Void)? = nil
+        onCreateTask: ((String) -> UUID?)? = nil
     ) -> DictationController {
         let transcriber = LocalSpeechTranscriber()
         return DictationController(
@@ -131,6 +138,7 @@ final class DictationController: ObservableObject {
     func startListening() {
         guard !state.isBusy else { return }
         resetTask?.cancel()
+        pendingUndo = nil
 
         let localeIdentifier = resolvedLocaleIdentifier
         let target = inserter.currentContext()
@@ -191,6 +199,45 @@ final class DictationController: ObservableObject {
 
     func clearHistory() {
         history.removeAll()
+    }
+
+    /// Whether the result on screen can still be taken back.
+    var canUndoLastDictation: Bool {
+        guard pendingUndo != nil, case .inserted(let summary) = state else { return false }
+        return summary.canUndo
+    }
+
+    /// Undo ⌘Z on the inserted strip: removes the inserted text (or the created task) and
+    /// its history entry, then folds the strip away. When the text has changed since, the
+    /// strip says so instead and nothing is touched.
+    @discardableResult
+    func undoLastDictation() async -> Bool {
+        guard canUndoLastDictation, let undo = pendingUndo else { return false }
+        let shown = state
+        pendingUndo = nil
+        resetTask?.cancel()
+
+        let undone: Bool
+        switch undo.target {
+        case .insertion:
+            undone = await inserter.undoLastInsertion()
+        case .task(let id):
+            undone = onUndoCreatedTask?(id) ?? false
+        }
+
+        if undone {
+            history.removeAll { $0.id == undo.entryID }
+        }
+        // A new session may have started meanwhile; it owns the state now.
+        guard state == shown else { return undone }
+        if undone {
+            state = .idle
+            partialTranscript = ""
+        } else {
+            state = .failed(.undoFailed)
+            scheduleReset(after: configuration.resultDisplayDuration)
+        }
+        return undone
     }
 
     /// Downloads the on-device speech model for the current language.
@@ -314,13 +361,17 @@ final class DictationController: ObservableObject {
                 fail(session, with: .noSpeechDetected)
                 return
             }
-            onCreateTask?(text)
-            record(transcript: cleaned, finalText: text, delivery: .taskCreated, session: session)
+            let taskID = onCreateTask?(text)
+            let entryID = record(transcript: cleaned, finalText: text, delivery: .taskCreated, session: session)
+            let undo = taskID.flatMap { id in
+                onUndoCreatedTask == nil ? nil : PendingUndo(target: .task(id), entryID: entryID)
+            }
             complete(session, summary: DictationResultSummary(
                 text: text,
                 delivery: .taskCreated,
-                appName: session.target.appName
-            ))
+                appName: session.target.appName,
+                canUndo: undo != nil
+            ), undo: undo)
 
         case .insert(let text), .replaceSelection(let text):
             let isReplacement: Bool
@@ -351,12 +402,14 @@ final class DictationController: ObservableObject {
             } else {
                 delivery = result == .insertedViaAccessibility ? .insertedViaAccessibility : .insertedViaPaste
             }
-            record(transcript: transcript, finalText: text, delivery: delivery, session: session)
+            let entryID = record(transcript: transcript, finalText: text, delivery: delivery, session: session)
+            let undo = inserter.canUndoLastInsertion ? PendingUndo(target: .insertion, entryID: entryID) : nil
             complete(session, summary: DictationResultSummary(
                 text: text,
                 delivery: delivery,
-                appName: session.target.appName
-            ))
+                appName: session.target.appName,
+                canUndo: undo != nil
+            ), undo: undo)
         case .copiedToClipboard(let reason):
             record(transcript: transcript, finalText: text, delivery: nil, session: session)
             switch reason {
@@ -383,10 +436,12 @@ final class DictationController: ObservableObject {
         }
     }
 
-    private func complete(_ session: Session, summary: DictationResultSummary) {
+    private func complete(_ session: Session, summary: DictationResultSummary, undo: PendingUndo?) {
         finalize(session)
+        pendingUndo = undo
         state = .inserted(summary)
-        scheduleReset()
+        // A result that can be taken back stays up for the undo window, then folds away.
+        scheduleReset(after: undo == nil ? configuration.resultDisplayDuration : configuration.undoWindow)
     }
 
     private func fail(_ session: Session, with failure: DictationFailure) {
@@ -398,7 +453,7 @@ final class DictationController: ObservableObject {
         }
         state = .failed(failure)
         level = 0
-        scheduleReset()
+        scheduleReset(after: configuration.resultDisplayDuration)
     }
 
     private func finalize(_ session: Session) {
@@ -422,19 +477,21 @@ final class DictationController: ObservableObject {
         self.session === session
     }
 
-    private func scheduleReset() {
+    private func scheduleReset(after duration: TimeInterval?) {
         resetTask?.cancel()
-        guard let duration = configuration.resultDisplayDuration else { return }
+        guard let duration else { return }
         let expected = state
         resetTask = Task { [weak self, sleep] in
             await sleep(duration)
             guard !Task.isCancelled, let self, self.state == expected else { return }
+            self.pendingUndo = nil
             self.state = .idle
             self.partialTranscript = ""
         }
     }
 
-    private func record(transcript: String, finalText: String, delivery: DictationDelivery?, session: Session) {
+    @discardableResult
+    private func record(transcript: String, finalText: String, delivery: DictationDelivery?, session: Session) -> UUID {
         let entry = DictationHistoryEntry(
             id: UUID(),
             createdAt: now(),
@@ -447,6 +504,7 @@ final class DictationController: ObservableObject {
         if history.count > configuration.historyLimit {
             history.removeLast(history.count - configuration.historyLimit)
         }
+        return entry.id
     }
 
     private func startAssetPreparation(localeIdentifier: String) {
@@ -467,6 +525,16 @@ final class DictationController: ObservableObject {
 
     private static func failure(from error: Error, fallback: DictationFailure) -> DictationFailure {
         (error as? DictationFailure) ?? fallback
+    }
+
+    private struct PendingUndo {
+        enum Target {
+            case insertion
+            case task(UUID)
+        }
+
+        let target: Target
+        let entryID: UUID
     }
 
     @MainActor

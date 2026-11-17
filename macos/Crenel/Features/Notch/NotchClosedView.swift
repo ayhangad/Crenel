@@ -24,6 +24,8 @@ struct NotchStripActions {
     var openSettings: () -> Void = {}
     /// Download on a dictation strip that needs the speech model.
     var downloadSpeechModel: () -> Void = {}
+    /// Undo ⌘Z on "Inserted", while the result can still be taken back.
+    var undoDictation: () -> Void = {}
     /// Restart ↩ on "Crenel 1.2 is ready".
     var restartToUpdate: () -> Void = {}
     /// Later esc on the same.
@@ -330,7 +332,11 @@ struct NotchClosedView: View {
 
         case .dictationInserted(let summary):
             NotchStreamText(text: summary.text, showsCaret: false)
-                .padding(.trailing, 8)
+                .padding(.trailing, summary.canUndo ? 0 : 8)
+            if summary.canUndo {
+                NotchStripKey("Undo", key: "⌘Z", size: .small, action: actions.undoDictation)
+                    .keyboardShortcut("z", modifiers: .command)
+            }
 
         case .dictationFailed(let failure):
             let words = NotchClosedText.dictationFailure(failure)

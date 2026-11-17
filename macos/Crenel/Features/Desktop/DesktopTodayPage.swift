@@ -390,6 +390,8 @@ struct DesktopTodayPage: View {
 
     private func dictationTile(now: Date) -> some View {
         let today = DesktopStats.dictationToday(appState.dictationHistory, now: now)
+        let usual = DesktopStats.usualDictationWords(appState.dictationHistory, now: now)
+        let scale = DesktopStats.dictationScale(todayWords: today.words, usual: usual)
         let last = appState.dictationHistory.first
         return tile(.waveform, "Dictation", help: "Open Dictation", action: { navigation.section = .dictation }) {
             Text("today").hud(.meta)
@@ -400,9 +402,10 @@ struct DesktopTodayPage: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .leading, spacing: 8) {
-                // One dot for every 20 words; the matrix is a printed scale, not a comparison.
-                HudDotMatrix(value: min(1, Double(today.words) / Double(78 * 20)), count: 78)
+                // Today against your usual day (the triangle); a plain scale until there is one.
+                HudDotMatrix(value: scale.value, count: 78, mark: scale.mark)
                     .padding(.bottom, 8)
+                    .help(usual.map { "Your usual day: \(Int($0.rounded())) words" } ?? "")
                 if let last {
                     Text(verbatim: "“\(last.finalText)”" + (last.appName.map { " · \($0)" } ?? ""))
                         .hud(.meta).lineLimit(1).truncationMode(.tail)

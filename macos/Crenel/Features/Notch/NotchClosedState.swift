@@ -446,6 +446,8 @@ enum NotchClosedText {
             .init(reason: String(localized: "No speech"), accessWord: nil, sentence: failure.message, fix: .none)
         case .unsupportedLocale, .secureTextField, .sessionTooLong, .transcriptionFailed:
             .init(reason: String(localized: "Dictation failed"), accessWord: nil, sentence: failure.message, fix: .none)
+        case .undoFailed:
+            .init(reason: String(localized: "Not undone"), accessWord: nil, sentence: failure.message, fix: .none)
         }
     }
 }

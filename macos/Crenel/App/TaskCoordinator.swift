@@ -96,8 +96,10 @@ final class TaskCoordinator {
 
     // MARK: - Actions
 
-    func add(_ parsed: TaskInputParseResult) {
-        guard let title = TaskItem.normalizedTitle(parsed.title) else { return }
+    /// Returns the new task, or nil when the title is empty.
+    @discardableResult
+    func add(_ parsed: TaskInputParseResult) -> TaskItem? {
+        guard let title = TaskItem.normalizedTitle(parsed.title) else { return nil }
         var dueDate = parsed.dueDate
         var hasTime = parsed.dueHasTime
         if dueDate == nil, let recurrence = parsed.recurrence {
@@ -116,6 +118,7 @@ final class TaskCoordinator {
             priority: parsed.priority
         )
         persist(task, operation: "add-task")
+        return task
     }
 
     func rename(_ task: TaskItem, to title: String) {

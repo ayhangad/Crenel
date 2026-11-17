@@ -39,6 +39,8 @@ struct SettingsView: View {
     var crenelSettings = CrenelSettingsActions()
 
     @StateObject var crenel = CrenelSettingsModel()
+    /// Recording › Level: the selected mic, live while that page is on screen.
+    @StateObject var micLevelTest = MicrophoneLevelMonitor()
 
     @State var category = SettingsCategory.general
     @State var query = ""

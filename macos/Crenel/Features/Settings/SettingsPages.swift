@@ -190,10 +190,18 @@ extension SettingsView {
                     .disabled(isLoadingMicrophones || isSavingMicrophone || availableMicrophones.isEmpty)
                     .accessibilityLabel("Recording mic")
             }
-            SettingsRow(title: "Level", detail: Text(liveMicLevel == nil ? "Moves while Crenel is listening" : "Live")) {
-                HudCapacityScale(level: liveMicLevel ?? 0)
+            SettingsRow(title: "Level", detail: levelDetail) {
+                HudCapacityScale(level: liveMicLevel ?? micLevelTest.level, isOff: !canTestMicLevel)
                     .frame(width: 232)
+                    .opacity(canTestMicLevel ? 1 : 0.5)
             }
+            .accessibilityElement(children: .combine)
+            .disabled(!canTestMicLevel)
+            // Only while this page is on screen, and never when Crenel is already listening.
+            .onChange(of: micLevelTestKey, initial: true) { _, key in
+                if let key { micLevelTest.start(deviceID: key.deviceID) } else { micLevelTest.stop() }
+            }
+            .onDisappear { micLevelTest.stop() }
             SettingsMessage(message: microphoneSettingsMessage, failed: microphoneSettingsFailed)
         }
 
@@ -278,6 +286,28 @@ extension SettingsView {
             options.append((selectedMicrophoneID, "Selected mic not connected"))
         }
         return options
+    }
+
+    /// The level test needs mic access (it never asks) and a connected mic.
+    private var canTestMicLevel: Bool {
+        appState.audioCapturePermissions.microphone == .authorized
+            && (!availableMicrophones.isEmpty || isLoadingMicrophones)
+    }
+
+    /// The mic the level test listens to; nil when it should not run.
+    private var micLevelTestKey: MicLevelTestKey? {
+        guard canTestMicLevel, liveMicLevel == nil, !isLoadingMicrophones else { return nil }
+        return MicLevelTestKey(deviceID: selectedMicrophoneID)
+    }
+
+    private var levelDetail: Text {
+        if appState.audioCapturePermissions.microphone != .authorized {
+            return Text("Allow the microphone to test")
+        }
+        if !canTestMicLevel { return Text("No mic connected") }
+        if liveMicLevel != nil { return Text("Live") }
+        if micLevelTest.status == .unavailable { return Text("Can’t open this mic") }
+        return Text("Speak to test")
     }
 
     /// The mic level, only while Crenel is already listening (a recording or dictation).
@@ -518,4 +548,9 @@ struct SettingsPermissionRow: View {
         case .restricted: "Restricted by the system"
         }
     }
+}
+
+/// What the Recording › Level test listens to; a change restarts it.
+struct MicLevelTestKey: Equatable {
+    let deviceID: String?
 }

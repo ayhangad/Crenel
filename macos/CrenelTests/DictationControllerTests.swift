@@ -39,7 +39,10 @@ final class DictationControllerTests: XCTestCase {
             sleep: { _ in try? await Task.sleep(for: .seconds(3_600)) },
             preferredLanguages: { ["tr-TR"] }
         )
-        controller.onCreateTask = { [unowned self] text in self.createdTasks.append(text) }
+        controller.onCreateTask = { [unowned self] text in
+            self.createdTasks.append(text)
+            return nil
+        }
         return controller
     }
 
@@ -132,6 +135,154 @@ final class DictationControllerTests: XCTestCase {
         )
         let context = await refiner.lastContext
         XCTAssertEqual(context?.localeIdentifier, "tr-TR")
+    }
+
+    // MARK: Undo
+
+    func testUndoTakesBackAccessibilityInsertionAndItsHistoryEntry() async {
+        transcriber.finalText = "geri alınacak"
+        inserter.result = .insertedViaAccessibility
+        inserter.canUndoLastInsertion = true
+        inserter.context = DictationTargetSnapshot(bundleIdentifier: "com.apple.Notes", appName: "Notes")
+        let controller = makeController()
+
+        await runSession(controller)
+
+        XCTAssertEqual(
+            controller.state,
+            .inserted(DictationResultSummary(text: "geri alınacak", delivery: .insertedViaAccessibility,
+                                             appName: "Notes", canUndo: true))
+        )
+        XCTAssertTrue(controller.canUndoLastDictation)
+        XCTAssertEqual(controller.history.count, 1)
+
+        let undone = await controller.undoLastDictation()
+
+        XCTAssertTrue(undone)
+        XCTAssertEqual(inserter.undoCount, 1)
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertTrue(controller.history.isEmpty)
+        XCTAssertFalse(controller.canUndoLastDictation)
+        let again = await controller.undoLastDictation()
+        XCTAssertFalse(again, "Undo is one-shot")
+        XCTAssertEqual(inserter.undoCount, 1)
+    }
+
+    func testUndoIsNotOfferedWhenTheInserterCannotTakeItBack() async {
+        transcriber.finalText = "geri alınamaz"
+        inserter.result = .insertedViaPaste
+        inserter.canUndoLastInsertion = false
+        let controller = makeController()
+
+        await runSession(controller)
+
+        guard case .inserted(let summary) = controller.state else {
+            return XCTFail("Expected inserted, got \(controller.state)")
+        }
+        XCTAssertFalse(summary.canUndo)
+        XCTAssertFalse(controller.canUndoLastDictation)
+        let undone = await controller.undoLastDictation()
+        XCTAssertFalse(undone)
+        XCTAssertEqual(inserter.undoCount, 0)
+        XCTAssertEqual(controller.history.count, 1)
+    }
+
+    func testUndoThatNoLongerAppliesSaysSoAndKeepsHistory() async {
+        transcriber.finalText = "değişti"
+        inserter.canUndoLastInsertion = true
+        inserter.undoResult = false
+        let controller = makeController()
+
+        await runSession(controller)
+        let undone = await controller.undoLastDictation()
+
+        XCTAssertFalse(undone)
+        XCTAssertEqual(controller.state, .failed(.undoFailed))
+        XCTAssertEqual(controller.history.count, 1)
+    }
+
+    func testUndoDeletesTheTaskDictationCreated() async {
+        transcriber.finalText = "görev ekle faturayı öde"
+        let refiner = FixedRefiner(outcome: .createTask("Faturayı öde"))
+        let controller = makeController(refiner: refiner)
+        let taskID = UUID()
+        var deleted: [UUID] = []
+        controller.onCreateTask = { _ in taskID }
+        controller.onUndoCreatedTask = { id in
+            deleted.append(id)
+            return true
+        }
+
+        await runSession(controller)
+
+        XCTAssertEqual(
+            controller.state,
+            .inserted(DictationResultSummary(text: "Faturayı öde", delivery: .taskCreated, appName: nil, canUndo: true))
+        )
+        let undone = await controller.undoLastDictation()
+        XCTAssertTrue(undone)
+        XCTAssertEqual(deleted, [taskID])
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertTrue(controller.history.isEmpty)
+        XCTAssertEqual(inserter.undoCount, 0)
+    }
+
+    func testCreatedTaskWithoutDeleteHandlerOffersNoUndo() async {
+        transcriber.finalText = "görev ekle"
+        let controller = makeController(refiner: FixedRefiner(outcome: .createTask("Bir şey")))
+        controller.onCreateTask = { _ in UUID() }
+
+        await runSession(controller)
+
+        XCTAssertFalse(controller.canUndoLastDictation)
+    }
+
+    func testNewSessionEndsTheUndoWindow() async {
+        transcriber.finalText = "ilk"
+        inserter.canUndoLastInsertion = true
+        let controller = makeController()
+
+        await runSession(controller)
+        XCTAssertTrue(controller.canUndoLastDictation)
+        trigger.emit(.began)
+        await controller.waitForCurrentSession()
+
+        XCTAssertFalse(controller.canUndoLastDictation)
+        let undone = await controller.undoLastDictation()
+        XCTAssertFalse(undone)
+        XCTAssertEqual(inserter.undoCount, 0)
+        controller.cancel()
+    }
+
+    func testUndoableResultStaysForTheUndoWindowThenFolds() async {
+        transcriber.finalText = "katlanır"
+        inserter.canUndoLastInsertion = true
+        var configuration = DictationController.Configuration()
+        configuration.resultDisplayDuration = 1
+        configuration.undoWindow = 3
+        let slept = SleepLog()
+        let controller = DictationController(
+            capture: capture,
+            transcriber: transcriber,
+            inserter: inserter,
+            triggerMonitor: trigger,
+            configuration: configuration,
+            now: { [unowned self] in self.clock },
+            sleep: { seconds in
+                // The session timeout keeps waiting; result timers return at once.
+                if seconds > 60 { try? await Task.sleep(for: .seconds(3_600)) } else { await slept.append(seconds) }
+            },
+            preferredLanguages: { ["tr-TR"] }
+        )
+
+        await runSession(controller)
+        for _ in 0..<200 where controller.state != .idle { try? await Task.sleep(for: .milliseconds(5)) }
+
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertFalse(controller.canUndoLastDictation)
+        let durations = await slept.values
+        XCTAssertTrue(durations.contains(3), "\(durations)")
+        XCTAssertFalse(durations.contains(1), "\(durations)")
     }
 
     func testReplaceSelectionOutcomeReportsReplacement() async {
@@ -257,7 +408,7 @@ final class DictationControllerTests: XCTestCase {
             .accessibilityPermissionMissing, .speechAssetsMissing(localeIdentifier: "tr-TR"),
             .speechAssetsDownloading(localeIdentifier: "tr-TR"), .unsupportedLocale(localeIdentifier: "xx"),
             .noFocusedTextField, .secureTextField, .tooShort, .noSpeechDetected, .sessionTooLong,
-            .transcriptionFailed, .insertionFailed
+            .transcriptionFailed, .insertionFailed, .undoFailed
         ]
         for failure in failures {
             XCTAssertFalse(failure.message.isEmpty, "\(failure)")
@@ -359,8 +510,17 @@ final class FakeDictationTranscriber: DictationTranscribing, @unchecked Sendable
 final class FakeDictationInserter: DictationTextInserting {
     var context = DictationTargetSnapshot()
     var result: TextInsertionResult = .insertedViaAccessibility
+    var canUndoLastInsertion = false
+    var undoResult = true
     private(set) var insertedTexts: [String] = []
     private(set) var copiedTexts: [String] = []
+    private(set) var undoCount = 0
+
+    func undoLastInsertion() async -> Bool {
+        undoCount += 1
+        canUndoLastInsertion = false
+        return undoResult
+    }
 
     func currentContext() -> DictationTargetSnapshot { context }
 
@@ -384,6 +544,11 @@ final class FakeTriggerMonitor: DictationTriggerMonitoring {
     func stop() {}
     func sessionEndedExternally() { externalEndCount += 1 }
     func emit(_ event: DictationTriggerEvent) { onEvent?(event) }
+}
+
+actor SleepLog {
+    private(set) var values: [TimeInterval] = []
+    func append(_ value: TimeInterval) { values.append(value) }
 }
 
 actor FixedRefiner: DictationTextRefining {
