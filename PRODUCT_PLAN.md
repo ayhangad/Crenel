@@ -169,7 +169,9 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
   güncellendi şeridi; açık panelde "Restart to update". Sparkle'dan bağımsız durum modeli,
   Debug'da sahte güncelleme kaynağı. — ✅ 2026-11-17 (578 test, 5 atlandı, 0 hata; yedi
   durumun render'ı incelendi; Sparkle bağlantısı ayrı madde)
-- [ ] Applications dışından açılınca taşıma önerisi.
+- [x] Applications dışından açılınca taşıma önerisi (`ApplicationsMover`: DMG, App
+  Translocation ve diğer yerler; eski kopya Çöp'e, yeni yerden yeniden açılış; Debug'da
+  kapalı). — ✅ 2026-11-17 (birim testleri ve Release build; gerçek DMG'den açılış C8'de)
 - [ ] Sparkle 2 entegrasyonu (EdDSA anahtarı, appcast, nazik hatırlatma, kayıt sırasında erteleme,
   Ayarlar › About'ta "Check for Updates").
 - [ ] Release hattı: archive → notarize → dmgbuild DMG → DMG imza/notarize/staple →

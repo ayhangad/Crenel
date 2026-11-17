@@ -331,6 +331,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installSimulatedUpdater()
         #endif
         updateCoordinator.announceIfUpdated(releaseNotesURL: Self.releaseNotesURL)
+        #if !DEBUG
+        // Debug builds run from DerivedData on purpose.
+        ApplicationsMover.offerIfNeeded()
+        #endif
         desktopSettingsObserver = NotificationCenter.default.addObserver(
             forName: .openDesktopSettings, object: nil, queue: .main
         ) { [weak self] notification in
