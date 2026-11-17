@@ -133,7 +133,7 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(viewport.availableSize, CGSize(width: 812, height: 704))
         XCTAssertEqual(
             NotchPanelLayout(availableSize: viewport.availableSize),
-            NotchPanelLayout(width: Hud.Size.panelWidth, maximumContentHeight: 600)
+            NotchPanelLayout(width: Hud.Notch.openWidth, maximumContentHeight: 600)
         )
 
         let small = NotchHostViewport(windowSize: CGSize(width: 860, height: 612), topInset: 24)
@@ -145,7 +145,7 @@ final class NotchPresentationTests: XCTestCase {
 
         let constrained = NotchPanelLayout(availableSize: CGSize(width: 328, height: 250))
         XCTAssertEqual(constrained.width, 328)
-        XCTAssertEqual(constrained.maximumContentHeight, 150)
+        XCTAssertEqual(constrained.maximumContentHeight, 250 - NotchPanelLayout.fixedVerticalSpace)
         XCTAssertLessThanOrEqual(constrained.width, 328)
         XCTAssertLessThanOrEqual(
             constrained.maximumContentHeight + NotchPanelLayout.fixedVerticalSpace,
@@ -219,8 +219,8 @@ final class NotchPresentationTests: XCTestCase {
     }
 
     func testPanelTokensKeepTheCompactInstrumentGeometry() {
-        XCTAssertEqual(NotchPanelLayout.preferredWidth, Hud.Size.panelWidth)
-        XCTAssertEqual(NotchPanelLayout.preferredDetailWidth, Hud.Size.panelWidth)
+        XCTAssertEqual(NotchPanelLayout.preferredWidth, Hud.Notch.openWidth)
+        XCTAssertEqual(NotchPanelLayout.preferredDetailWidth, Hud.Notch.openWidth)
         // Hover fills bleed `rowInset` past the text and still clear the notch wall.
         XCTAssertGreaterThan(Hud.Size.panelInset - Hud.Size.rowInset, 12)
         XCTAssertGreaterThanOrEqual(Hud.Size.row, 44)

@@ -10,16 +10,97 @@ struct CrenelNotchMetrics: Equatable {
 
     /// Height of the band the notch shares with the menu bar.
     var topInset: CGFloat { hardware.height }
+
+    /// The space between the two ears: the camera housing, or a small gap on a screen
+    /// without a notch (the floating panel).
+    var earGap: CGFloat { hasPhysicalNotch ? hardware.width : Hud.Space.x3 }
 }
 
 private struct CrenelNotchMetricsKey: EnvironmentKey {
     static let defaultValue = CrenelNotchMetrics()
 }
 
+private struct CrenelNotchOpenedAtKey: EnvironmentKey {
+    static let defaultValue: Date? = nil
+}
+
 extension EnvironmentValues {
     var crenelNotchMetrics: CrenelNotchMetrics {
         get { self[CrenelNotchMetricsKey.self] }
         set { self[CrenelNotchMetricsKey.self] = newValue }
+    }
+
+    /// When the hosting notch last opened its panel from closed; nil outside a live notch.
+    var crenelNotchOpenedAt: Date? {
+        get { self[CrenelNotchOpenedAtKey.self] }
+        set { self[CrenelNotchOpenedAtKey.self] = newValue }
+    }
+}
+
+/// The three sizes of the notch (`#nwrap`, `#nwrap.peek`, `#nwrap.open`).
+enum CrenelNotchSize: Equatable {
+    case compact
+    case strip
+    case open
+
+    /// Outward flare radius where the notch meets the menu bar.
+    var topRadius: CGFloat {
+        switch self {
+        case .compact: Hud.Notch.topRadius.compact
+        case .strip: Hud.Notch.topRadius.strip
+        case .open: Hud.Notch.topRadius.open
+        }
+    }
+
+    var bottomRadius: CGFloat {
+        switch self {
+        case .compact: Hud.Notch.bottomRadius.compact
+        case .strip: Hud.Notch.bottomRadius.strip
+        case .open: Hud.Notch.bottomRadius.open
+        }
+    }
+}
+
+/// The bottom edge of the closed notch as a fuse: how much is left, and how urgent.
+struct CrenelNotchFuse: Equatable {
+    enum Tone: Equatable {
+        case white
+        case amber
+        case red
+
+        var color: Color {
+            switch self {
+            case .white: Hud.Ink.ink1
+            case .amber: Hud.Ink.signal
+            case .red: Hud.Ink.live
+            }
+        }
+    }
+
+    var fraction: Double
+    var tone: Tone = .white
+}
+
+/// Reported by the closed content to the shape that hosts it.
+struct CrenelNotchClosedTraits: Equatable {
+    /// Ears plus one line with buttons. A strip never opens the panel on hover.
+    var isStrip = false
+    var fuse: CrenelNotchFuse?
+}
+
+struct CrenelNotchClosedTraitsKey: PreferenceKey {
+    static let defaultValue = CrenelNotchClosedTraits()
+
+    static func reduce(value: inout CrenelNotchClosedTraits, nextValue: () -> CrenelNotchClosedTraits) {
+        let next = nextValue()
+        if next != defaultValue { value = next }
+    }
+}
+
+extension View {
+    /// Tells the notch shape what the closed content is: a strip, and its fuse.
+    func crenelNotchClosedTraits(_ traits: CrenelNotchClosedTraits) -> some View {
+        preference(key: CrenelNotchClosedTraitsKey.self, value: traits)
     }
 }
 
@@ -35,6 +116,12 @@ final class CrenelNotchModel: ObservableObject {
     @Published var metrics = CrenelNotchMetrics()
     /// Bumped to make the compact notch give a small bounce (new information arrived).
     @Published var pulse = 0
+    /// The pointer is on the compact notch: it leans in (14×4 pt) before it opens.
+    @Published var isApproaching = false
+    /// What the closed content last reported: a strip (ears + one line) and a fuse.
+    @Published var closedTraits = CrenelNotchClosedTraits()
+    /// When the panel last opened from closed. Gauges inside sweep once per open.
+    @Published var openedAt: Date?
 }
 
 /// Crenel's notch. One borderless panel at the top of the screen hosts a single shape
@@ -42,7 +129,13 @@ final class CrenelNotchModel: ObservableObject {
 /// panel. Replaces DynamicNotchKit so shape, motion and hit-testing are ours.
 @MainActor
 final class CrenelNotchController: ObservableObject {
+    /// The pointer is on the notch (or its trigger zone).
     @Published private(set) var isHovering = false
+    /// Hover that should open the panel or keep it open. A strip holds buttons, so
+    /// hovering it never opens the panel; clicking its ears does.
+    @Published private(set) var hoverIntent = false
+    /// The closed notch was clicked on its ears.
+    var onRequestExpand: (() -> Void)?
 
     let model = CrenelNotchModel()
     private var panel: CrenelNotchPanel?
@@ -63,7 +156,7 @@ final class CrenelNotchController: ObservableObject {
     }
 
     var availableContentSize: CGSize {
-        guard let screen else { return CGSize(width: 600, height: 560) }
+        guard let screen else { return CGSize(width: Hud.Notch.openWidth + 40, height: 560) }
         let frame = windowFrame(on: screen)
         return CGSize(width: frame.width - 48, height: frame.height - model.metrics.topInset - 24)
     }
@@ -94,8 +187,13 @@ final class CrenelNotchController: ObservableObject {
     private func set(_ presentation: CrenelNotchModel.Presentation) {
         guard model.presentation != presentation else { return }
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        withAnimation(Crenel.Motion.resolve(Crenel.Motion.morph, reduceMotion: reduceMotion)) {
+        if presentation == .expanded { model.openedAt = Date() }
+        withAnimation(Crenel.Motion.resolve(Hud.Motion.shape, reduceMotion: reduceMotion)) {
             model.presentation = presentation
+            if presentation != .compact {
+                model.isApproaching = false
+                model.closedTraits = CrenelNotchClosedTraits()
+            }
         }
         updateMouseHandling()
     }
@@ -145,6 +243,14 @@ final class CrenelNotchController: ObservableObject {
             onShapeFrameChange: { [weak self] frame in
                 self?.shapeFrameInWindow = frame
                 self?.updateMouseHandling()
+            },
+            onClosedTraitsChange: { [weak self] traits in
+                guard let self, self.model.closedTraits != traits else { return }
+                self.model.closedTraits = traits
+                self.updateMouseHandling()
+            },
+            onRequestExpand: { [weak self] in
+                self?.onRequestExpand?()
             }
         )
         let hostingView = NSHostingView(rootView: AnyView(root))
@@ -203,6 +309,36 @@ final class CrenelNotchController: ObservableObject {
         let hovering = hoverZone.contains(mouse)
         if hovering != isHovering {
             isHovering = hovering
+        }
+
+        let intent = Self.hoverIntent(
+            isHovering: hovering,
+            presentation: model.presentation,
+            isStrip: model.closedTraits.isStrip
+        )
+        if intent != hoverIntent {
+            hoverIntent = intent
+        }
+
+        // Approach: the compact notch leans in while the pointer waits on it.
+        let approaching = intent && model.presentation == .compact
+            && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        if approaching != model.isApproaching {
+            withAnimation(Hud.Motion.shape) { model.isApproaching = approaching }
+        }
+    }
+
+    /// Hovering opens the compact notch and keeps the open panel open. A strip stays a
+    /// strip: its buttons need the pointer, so only a click on its ears opens the panel.
+    static func hoverIntent(
+        isHovering: Bool,
+        presentation: CrenelNotchModel.Presentation,
+        isStrip: Bool
+    ) -> Bool {
+        guard isHovering else { return false }
+        switch presentation {
+        case .expanded, .hidden: return true
+        case .compact: return !isStrip
         }
     }
 
@@ -268,26 +404,36 @@ private extension NSScreen {
 /// Draws the one notch shape and places the current content inside it. The shape's size
 /// follows the content: content appears at its final size and the shape grows around it,
 /// clipping, which is what makes the transition read as the notch itself changing shape.
+///
+/// Three sizes: compact (ears), strip (ears + one line) and open (the panel). Width and
+/// height spring (0.52 s); content appears after the shape (0.18 s, delayed 0.115 s).
 struct CrenelNotchRootView: View {
     @ObservedObject var model: CrenelNotchModel
     let expanded: () -> AnyView
     let compact: () -> AnyView
     let onShapeFrameChange: (CGRect) -> Void
+    var onClosedTraitsChange: (CrenelNotchClosedTraits) -> Void = { _ in }
+    var onRequestExpand: () -> Void = {}
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var compactSize: CGSize = .zero
-    @State private var expandedSize: CGSize = CGSize(width: Hud.Size.panelWidth, height: 360)
+    @State private var expandedSize: CGSize = CGSize(width: Hud.Notch.openWidth, height: 360)
+    @State private var closedTraits = CrenelNotchClosedTraits()
     @State private var bounce = false
 
     var body: some View {
         let metrics = model.metrics
-        let size = shapeSize(metrics: metrics)
-        let radii = shapeRadii(metrics: metrics)
+        let notchSize = self.notchSize
+        let size = shapeSize(metrics: metrics, notchSize: notchSize)
+        let top = notchSize.topRadius
+        let bottom = notchSize.bottomRadius
 
         VStack(spacing: 0) {
-            CrenelNotchShape(topRadius: radii.top, bottomRadius: radii.bottom)
+            // The flares sit outside the body, so the shape is wider than its content by
+            // one top radius on each side (`#nwrap::before`, `::after`).
+            CrenelNotchShape(topRadius: top, bottomRadius: bottom)
                 .fill(Color.black)
-                .frame(width: size.width, height: size.height)
+                .frame(width: size.width + 2 * top, height: size.height)
                 .overlay(alignment: .top) {
                     ZStack(alignment: .top) {
                         switch model.presentation {
@@ -295,26 +441,42 @@ struct CrenelNotchRootView: View {
                             expanded()
                                 .fixedSize()
                                 .onGeometryChange(for: CGSize.self, of: \.size) { newSize in
-                                    withAnimation(motion(Hud.Motion.morph)) {
+                                    withAnimation(motion(Hud.Motion.shape)) {
                                         expandedSize = newSize
                                     }
                                 }
                                 // The shape grows first; content fades in once there is
                                 // room for it and leaves quickly so it never outruns the shape.
                                 .transition(.asymmetric(
-                                    insertion: .opacity.animation(.easeOut(duration: 0.24).delay(reduceMotion ? 0 : 0.12)),
+                                    insertion: .opacity.animation(contentAnimation),
                                     removal: .opacity.animation(.easeOut(duration: 0.08))
                                 ))
                         case .compact:
                             compact()
                                 .fixedSize()
                                 .onGeometryChange(for: CGSize.self, of: \.size) { newSize in
-                                    withAnimation(motion(Hud.Motion.morph)) {
+                                    withAnimation(motion(Hud.Motion.shape)) {
                                         compactSize = newSize
                                     }
                                 }
+                                .onPreferenceChange(CrenelNotchClosedTraitsKey.self) { traits in
+                                    withAnimation(motion(Hud.Motion.shape)) { closedTraits = traits }
+                                    onClosedTraitsChange(traits)
+                                }
+                                // The ears open the panel on click; a strip's buttons sit
+                                // below them and keep their own clicks.
+                                .overlay(alignment: .top) {
+                                    Color.clear
+                                        .frame(height: max(metrics.hardware.height, 1))
+                                        .contentShape(Rectangle())
+                                        .onTapGesture(perform: onRequestExpand)
+                                        .accessibilityElement()
+                                        .accessibilityLabel("Open Crenel")
+                                        .accessibilityAddTraits(.isButton)
+                                        .accessibilityAction(.default, onRequestExpand)
+                                }
                                 .transition(.asymmetric(
-                                    insertion: .opacity.animation(.easeOut(duration: 0.2).delay(reduceMotion ? 0 : 0.16)),
+                                    insertion: .opacity.animation(contentAnimation),
                                     removal: .opacity.animation(.easeOut(duration: 0.06))
                                 ))
                         case .hidden:
@@ -322,7 +484,17 @@ struct CrenelNotchRootView: View {
                         }
                     }
                 }
-                .clipShape(CrenelNotchShape(topRadius: radii.top, bottomRadius: radii.bottom))
+                .overlay(alignment: .bottom) {
+                    // The bottom edge as a fuse, between the corner radii.
+                    if model.presentation == .compact, let fuse = closedTraits.fuse {
+                        HudFuse(fraction: fuse.fraction, color: fuse.tone.color, cornerInset: bottom)
+                            .frame(width: size.width)
+                            .transition(.opacity.animation(
+                                .easeOut(duration: reduceMotion ? 0.01 : 0.4).delay(reduceMotion ? 0 : 0.25)
+                            ))
+                    }
+                }
+                .clipShape(CrenelNotchShape(topRadius: top, bottomRadius: bottom))
                 .shadow(
                     color: .black.opacity(model.presentation == .expanded ? 0.55 : 0),
                     radius: 24,
@@ -338,7 +510,12 @@ struct CrenelNotchRootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .coordinateSpace(.named("notchWindow"))
         .environment(\.crenelNotchMetrics, metrics)
+        .environment(\.crenelNotchOpenedAt, model.openedAt)
         .environment(\.colorScheme, .dark)
+        .onChange(of: model.presentation) { _, presentation in
+            guard presentation != .compact, closedTraits != CrenelNotchClosedTraits() else { return }
+            closedTraits = CrenelNotchClosedTraits()
+        }
         .onChange(of: model.pulse) { _, _ in
             guard !reduceMotion, model.presentation == .compact else { return }
             withAnimation(.spring(response: 0.22, dampingFraction: 0.5)) { bounce = true }
@@ -346,26 +523,35 @@ struct CrenelNotchRootView: View {
         }
     }
 
-    private func shapeSize(metrics: CrenelNotchMetrics) -> CGSize {
+    private var notchSize: CrenelNotchSize {
+        switch model.presentation {
+        case .expanded: .open
+        case .compact: closedTraits.isStrip ? .strip : .compact
+        case .hidden: .compact
+        }
+    }
+
+    /// Size of the notch body, without the flares.
+    private func shapeSize(metrics: CrenelNotchMetrics, notchSize: CrenelNotchSize) -> CGSize {
         let notch = CGSize(width: max(metrics.hardware.width, metrics.hasPhysicalNotch ? 0 : 120), height: metrics.hardware.height)
         switch model.presentation {
         case .hidden:
             return notch
         case .compact:
             guard compactSize.width > 0 else { return notch }
-            return CGSize(width: max(compactSize.width, metrics.hardware.width), height: max(compactSize.height, notch.height))
+            // Approach: the compact notch leans in before it opens. A strip never does.
+            let lean = model.isApproaching && notchSize == .compact ? Hud.Notch.lean : .zero
+            return CGSize(
+                width: max(compactSize.width, metrics.hardware.width) + lean.width,
+                height: max(compactSize.height, notch.height) + lean.height
+            )
         case .expanded:
             return expandedSize
         }
     }
 
-    private func shapeRadii(metrics: CrenelNotchMetrics) -> (top: CGFloat, bottom: CGFloat) {
-        switch model.presentation {
-        case .hidden, .compact:
-            (6, 10)
-        case .expanded:
-            (12, 20)
-        }
+    private var contentAnimation: Animation {
+        reduceMotion ? .linear(duration: 0.01) : Hud.Motion.content
     }
 
     private func motion(_ animation: Animation) -> Animation {

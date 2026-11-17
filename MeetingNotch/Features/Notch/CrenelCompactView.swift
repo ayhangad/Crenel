@@ -1,167 +1,106 @@
+import AppKit
 import SwiftUI
 
-/// The closed notch. Two equal ears flank the camera housing — a mark on the left, a
-/// value on the right, each centred in its ear — and the notch is only as wide as the
-/// current state needs. With nothing to say it is exactly the hardware notch.
+/// The closed notch. Two equal ears flank the camera housing — what on the left, the one
+/// number on the right — and the notch is only as wide as the current state needs. With
+/// nothing to say it is exactly the hardware notch. Prompts, live dictation and results
+/// drop one line under the ears (a strip) instead of opening the panel.
 struct CrenelCompactView: View {
     @EnvironmentObject private var appState: AppState
-    @Environment(\.crenelNotchMetrics) private var metrics
+    @Environment(\.crenelActions) private var crenelActions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var memory: NotchStripMemory
+    private let actions: NotchStripActions
+
+    init(actions: NotchStripActions = NotchStripActions(), memory: NotchStripMemory? = nil) {
+        self.actions = actions
+        self.memory = memory ?? .shared
+    }
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let status = appState.compactNotchStatus(now: context.date)
-            content(status, now: context.date)
-                .animation(reduceMotion ? nil : Hud.Motion.change, value: status.identity)
+            let state = appState.closedNotchState(
+                now: context.date,
+                dismissedStartingMeetingID: memory.dismissedStartingMeetingID
+            )
+            NotchClosedView(
+                state: state,
+                now: context.date,
+                level: level(for: state),
+                targetAppName: targetAppName(for: state),
+                actions: resolvedActions
+            )
+            // Content appears after the shape has started to move.
+            .id(state.identity)
+            .transition(.asymmetric(
+                insertion: .opacity.animation(reduceMotion ? .linear(duration: 0.01) : Hud.Motion.content),
+                removal: .opacity.animation(.easeOut(duration: 0.06))
+            ))
         }
     }
 
-    @ViewBuilder
-    private func content(_ status: NotchCompactStatus, now: Date) -> some View {
-        if case .idle = status {
-            Color.clear
-                .frame(width: metrics.hardware.width, height: metrics.hardware.height)
-        } else {
-            HudEarsLayout(gap: metrics.hasPhysicalNotch ? metrics.hardware.width : Hud.Space.x3, padding: Hud.Space.x4) {
-                leading(status, now: now)
-                    .id("leading." + status.identity)
-                    .transition(.opacity)
-                trailing(status, now: now)
-                    .id("trailing." + status.identity)
-                    .transition(.opacity)
-            }
-            .frame(height: metrics.hardware.height)
-            .accessibilityElement(children: .combine)
+    /// The strip's own choices live here; everything else is the app's.
+    private var resolvedActions: NotchStripActions {
+        var resolved = actions
+        let later = actions.dismissStartingMeeting
+        resolved.dismissStartingMeeting = { meeting in
+            memory.dismissedStartingMeetingID = meeting.id
+            later(meeting)
+        }
+        let dismissResult = actions.dismissResult
+        resolved.dismissResult = {
+            appState.resetFlow()
+            dismissResult()
+        }
+        let openSettings = actions.openSettings
+        resolved.openSettings = {
+            NotificationCenter.default.post(name: .openDesktopSettings, object: nil)
+            openSettings()
+        }
+        let download = actions.downloadSpeechModel
+        resolved.downloadSpeechModel = {
+            crenelActions.dictation.prepareSpeechAssets()
+            download()
+        }
+        return resolved
+    }
+
+    private func level(for state: NotchClosedState) -> Double {
+        switch state {
+        case .recording:
+            Double(max(appState.recordingCaptureStatus.microphone.level, appState.recordingCaptureStatus.systemAudio.level))
+        case .dictationListening:
+            Double(appState.dictationLevel)
+        default:
+            0
         }
     }
 
-    // MARK: Leading — what it is
-
-    @ViewBuilder
-    private func leading(_ status: NotchCompactStatus, now: Date) -> some View {
-        switch status {
-        case .dictation(let state):
-            switch state {
-            case .listening:
-                HudIcon(.mic).foregroundStyle(Hud.Ink.text1)
-            case .transcribing, .refining, .inserting:
-                HudIcon(.mic).foregroundStyle(Hud.Ink.text2).modifier(HudBreathing())
-            case .inserted:
-                HudIcon(.mic).foregroundStyle(Hud.Ink.text2)
-            case .failed:
-                HudIcon(.mic).foregroundStyle(Hud.Ink.live)
-            case .idle:
-                EmptyView()
-            }
-        case .recording(let recording):
-            HStack(spacing: 7) {
-                HudPulse(color: Hud.Ink.live)
-                Text(HudFormat.elapsed(now.timeIntervalSince(recording.startedAt)))
-                    .hud(.label)
-                    .contentTransition(.numericText())
-                    .accessibilityLabel(NotchAccessibilityContract.recordingDurationLabel(HudFormat.elapsed(now.timeIntervalSince(recording.startedAt))))
-            }
-        case .processing:
-            HudIcon(.transcript).foregroundStyle(Hud.Ink.text2).modifier(HudBreathing())
-                .accessibilityLabel("Processing")
-        case .completed:
-            HudIcon(.transcript).foregroundStyle(Hud.Ink.text1)
-        case .failed:
-            HudIcon(.transcript).foregroundStyle(Hud.Ink.live)
-        case .agenda(let agenda):
-            HStack(spacing: 7) {
-                MeetingKindIcon(meeting: agenda.item, tint: agenda.isUrgent ? Hud.Ink.signal : Hud.Ink.text3)
-                if agenda.phase.isOngoing {
-                    title(agenda.item.title)
-                } else {
-                    Text(HudFormat.clock(agenda.item.startDate)).hud(.label)
-                }
-            }
-        case .focus(let task):
-            HStack(spacing: 7) {
-                HudStateMark(state: .inProgress, size: 12)
-                title(task.title)
-            }
-        case .tasks:
-            HudIcon(.queue).foregroundStyle(Hud.Ink.text2)
-        case .idle:
-            EmptyView()
+    /// The notch never activates, so the frontmost app is where dictation types.
+    private func targetAppName(for state: NotchClosedState) -> String? {
+        switch state {
+        case .dictationListening, .dictationWorking, .dictationInserted:
+            let app = NSWorkspace.shared.frontmostApplication
+            guard app?.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
+            return app?.localizedName
+        default:
+            return nil
         }
-    }
-
-    // MARK: Trailing — how it is going
-
-    @ViewBuilder
-    private func trailing(_ status: NotchCompactStatus, now: Date) -> some View {
-        switch status {
-        case .dictation(let state):
-            switch state {
-            case .listening:
-                CrenelLevelBars(level: Double(appState.dictationLevel), tint: Hud.Ink.text1, height: 14)
-            case .transcribing, .refining, .inserting:
-                HudStepMeter(steps: 3, current: state == .transcribing ? 0 : (state == .refining ? 1 : 2))
-                    .help(DictationStatusText.title(for: state))
-            case .inserted:
-                Text("Inserted").hud(.label, Hud.Ink.ok)
-            case .failed(let failure):
-                Text(DictationStatusText.short(for: failure)).hud(.label, Hud.Ink.live)
-                    .lineLimit(1).fixedSize()
-                    .help(failure.message)
-            case .idle:
-                EmptyView()
-            }
-        case .recording(let recording):
-            HStack(spacing: 6) {
-                if recording.microphoneState != .open {
-                    CrenelIcon(.micOff, size: Hud.Size.smallIcon)
-                        .foregroundStyle(recording.microphoneState == .unknown ? Hud.Ink.signal : Hud.Ink.text3)
-                        .accessibilityLabel(NotchAccessibilityContract.microphoneGateLabel(recording.microphoneState))
-                }
-                CrenelLevelBars(level: recordingLevel, tint: Hud.Ink.text1, height: 14)
-            }
-        case .processing(let stage):
-            HudStepMeter(steps: 4, current: stage.stepIndex, progress: stage.stepProgress)
-                .help(stage.shortTitle)
-        case .completed:
-            Text("Ready").hud(.label, Hud.Ink.ok)
-        case .failed:
-            Text("Failed").hud(.label, Hud.Ink.live)
-        case .agenda(let agenda):
-            Text(agenda.compactValue)
-                .hud(.label, agenda.isUrgent ? Hud.Ink.signal : Hud.Ink.text2)
-                .lineLimit(1).fixedSize()
-                .contentTransition(.numericText(countsDown: true))
-                .accessibilityLabel(NotchAgendaFormatter.accessibilityText(for: agenda))
-        case .focus(let task):
-            Text(NotchAgendaFormatter.durationText(max(60, now.timeIntervalSince(task.startedAt ?? now))))
-                .hud(.label, Hud.Ink.text2)
-                .lineLimit(1).fixedSize()
-        case .tasks(let count):
-            Text("\(count)").hud(.label, Hud.Ink.text2)
-                .contentTransition(.numericText())
-                .accessibilityLabel("\(count) open tasks")
-        case .idle:
-            EmptyView()
-        }
-    }
-
-    // MARK: Pieces
-
-    private var recordingLevel: Double {
-        Double(max(appState.recordingCaptureStatus.microphone.level, appState.recordingCaptureStatus.systemAudio.level))
-    }
-
-    private func title(_ text: String) -> some View {
-        Text(text)
-            .hud(.label)
-            .lineLimit(1)
-            .frame(maxWidth: 110, alignment: .leading)
-            .fixedSize(horizontal: true, vertical: false)
     }
 
     static func elapsed(_ interval: TimeInterval) -> String {
         HudFormat.elapsed(interval)
     }
+}
+
+/// Answers given on a strip that must outlive the closed view (it is rebuilt every time
+/// the panel closes).
+@MainActor
+final class NotchStripMemory: ObservableObject {
+    static let shared = NotchStripMemory()
+
+    /// "Later" (or Join) was pressed on this meeting's "Starting now" strip.
+    @Published var dismissedStartingMeetingID: UUID?
 }
 
 /// Steps of a pipeline as short capsules: done steps grey, the current one longer and
@@ -216,6 +155,32 @@ extension AppState {
             now: now
         )
     }
+
+    /// The closed notch's state: the compact status, plus the prompts, dictation text and
+    /// results that turn it into a strip.
+    func closedNotchState(now: Date, dismissedStartingMeetingID: UUID? = nil) -> NotchClosedState {
+        var failure: AppFailure?
+        if case .failed(let flowFailure) = meetingFlow { failure = flowFailure }
+        var detectedTitle: String?
+        if case .recordingOffer = meetingLifecyclePrompt {
+            detectedTitle = RecordingMeetingContext.resolve(
+                meetings: upcomingMeetings + (nextMeeting.map { [$0] } ?? []),
+                session: meetingSessionDetection?.session,
+                now: now
+            )?.title
+        }
+        return NotchClosedResolver.state(NotchClosedInput(
+            status: compactNotchStatus(now: now),
+            prompt: meetingLifecyclePrompt,
+            detectedMeetingTitle: detectedTitle,
+            partialTranscript: dictationPartialTranscript,
+            failure: failure,
+            completedMeeting: completedMeeting,
+            lastStoredMeeting: lastStoredMeeting,
+            dismissedStartingMeetingID: dismissedStartingMeetingID,
+            now: now
+        ))
+    }
 }
 
 extension NotchCompactStatus {
@@ -244,6 +209,7 @@ extension NotchCompactStatus {
 }
 
 extension NotchCompactStatus.ProcessingStage {
+    /// The step word in the left ear.
     var shortTitle: String {
         switch self {
         case .preparing: "Preparing"
@@ -256,6 +222,7 @@ extension NotchCompactStatus.ProcessingStage {
 }
 
 extension NotchCompactStatus.ProcessingStage {
+    /// Which of the four stations is live: Saved, Uploaded, Transcribing, Notes.
     var stepIndex: Int {
         switch self {
         case .preparing, .finalizing: 0
