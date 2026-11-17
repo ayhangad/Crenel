@@ -122,100 +122,154 @@ final class MeetingAudioPlayer: ObservableObject {
     }
 }
 
+// MARK: - Menu actions
+
+/// What the band's "more" menu can do beyond copying.
+struct MeetingDetailMenuActions {
+    var onExportMarkdown: (String) -> Void
+    var onRevealAudio: (URL) -> Void
+    var onRetry: (StoredMeeting) -> Void
+    var onDelete: (StoredMeeting) -> Void
+}
+
+/// The band and the body of a meeting detail are siblings, and only the body is handed
+/// the export, retry and delete callbacks. The body leaves them here, keyed by meeting,
+/// so a `MeetingDetailToolbar` built without `menuActions` can still offer them.
+@MainActor
+final class MeetingDetailActionRelay: ObservableObject {
+    static let shared = MeetingDetailActionRelay()
+    @Published private(set) var actions: [UUID: MeetingDetailMenuActions] = [:]
+
+    func register(_ actions: MeetingDetailMenuActions, for id: UUID) { self.actions[id] = actions }
+    func unregister(_ id: UUID) { actions[id] = nil }
+}
+
+// MARK: - Band
+
+/// The detail's band (`tpl-detail` `.band`, 32 pt): back to Recordings on the left;
+/// Copy (xs) and the "more" menu on the right. The camera gap stays empty between them.
+///
+///     MeetingDetailToolbar(content: detail, onBack: close, onCopyText: copy)
+///     MeetingDetailToolbar(content: detail, onBack: close, onCopyText: copy, menuActions: actions)
 struct MeetingDetailToolbar: View {
     let content: MeetingDetailContent
     let onBack: () -> Void
     let onCopyText: (String) -> Void
+    /// Export, reveal, retry and delete for the "more" menu. When nil, the ones the
+    /// visible `MeetingDetailView` registered are used.
+    var menuActions: MeetingDetailMenuActions?
+    /// The word beside the back arrow: where it leads.
+    var backTitle: LocalizedStringKey = "Recordings"
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var copiedFormat: CopyFormat?
+    @ObservedObject private var relay = MeetingDetailActionRelay.shared
+    @State private var copied = false
     @State private var copyRevision = 0
 
-    private enum CopyFormat {
-        case text
-        case markdown
+    init(
+        content: MeetingDetailContent,
+        onBack: @escaping () -> Void,
+        onCopyText: @escaping (String) -> Void,
+        menuActions: MeetingDetailMenuActions? = nil,
+        backTitle: LocalizedStringKey = "Recordings"
+    ) {
+        self.content = content
+        self.onBack = onBack
+        self.onCopyText = onCopyText
+        self.menuActions = menuActions
+        self.backTitle = backTitle
     }
 
     var body: some View {
-        HStack(spacing: Hud.Space.x2) {
-            Button(action: onBack) {
-                CrenelIcon(.chevronLeft, size: Hud.Size.icon)
+        HStack(spacing: 4) {
+            HStack(spacing: 0) {
+                HudIconButton(.chevronLeft, help: "Back to recordings", action: onBack)
+                Text(backTitle).hud(.label, Hud.Ink.ink3).lineLimit(1)
             }
-            .buttonStyle(HudButtonStyle(kind: .icon))
-            .help("Back to meetings")
-            .accessibilityLabel("Back to meetings")
+            .padding(.leading, -6)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(content.meeting.title)
-                    .hud(.title)
-                    .lineLimit(1)
-                    .help(content.meeting.title)
+            Spacer(minLength: 8)
 
-                Text(detailLine)
-                    .hud(.meta, Hud.Ink.text3)
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            HStack(spacing: 2) {
-                if let transcription = content.storedTranscription {
-                    Button {
-                        copy(TranscriptTextFormatter.plainText(transcription.transcript), format: .text)
-                    } label: {
-                        copyLabel("TXT", format: .text)
-                    }
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-                    .help("Copy transcript as plain text")
-                    .accessibilityLabel("Copy transcript as plain text")
-                }
-
+            if content.storedTranscription != nil {
                 Button {
-                    guard let markdown = content.markdown else { return }
-                    copy(markdown, format: .markdown)
+                    onCopyText(copyText)
+                    copied = true
+                    copyRevision += 1
                 } label: {
-                    copyLabel("MD", format: .markdown)
+                    HStack(spacing: 4) {
+                        HudIcon(.copy, size: 12).foregroundStyle(copied ? Hud.Ink.ok : Hud.Ink.ink2)
+                        if copied {
+                            Text("Copied").foregroundStyle(Hud.Ink.ok)
+                        } else {
+                            Text("Copy")
+                        }
+                    }
                 }
-                .buttonStyle(HudButtonStyle(kind: .ghost))
-                .disabled(content.markdown == nil)
-                .opacity(content.markdown == nil ? 0.4 : 1)
-                .help("Copy meeting as Markdown")
-                .accessibilityLabel("Copy meeting as Markdown")
+                .buttonStyle(HudButtonStyle(kind: .secondary, size: .mini))
+                .help("Copy the notes and transcript")
+                .accessibilityLabel("Copy the notes and transcript")
             }
+
+            MeetingDetailMoreMenu(content: content, onCopyText: onCopyText, actions: menuActions ?? relay.actions[content.id])
         }
-        .animation(Crenel.Motion.resolve(Hud.Motion.hover, reduceMotion: reduceMotion), value: copiedFormat)
+        .frame(height: Hud.Notch.bandHeight)
+        .animation(Hud.Motion.hover, value: copied)
         .task(id: copyRevision) {
-            guard copiedFormat != nil else { return }
-            do { try await Task.sleep(for: .seconds(1.6)) } catch { return }
-            copiedFormat = nil
+            guard copied else { return }
+            do { try await Task.sleep(for: .seconds(1.4)) } catch { return }
+            copied = false
         }
     }
 
-    private var detailLine: String {
-        let date = content.meeting.startedAt.formatted(
-            Date.FormatStyle(date: .abbreviated, time: .shortened, locale: AppLanguage.locale)
-        )
-        let duration = TranscriptTextFormatter.timestamp(content.meeting.duration)
-        return "\(date) · \(duration)"
-    }
-
-    /// The label keeps its width; a copy is confirmed by the label turning green.
-    @ViewBuilder
-    private func copyLabel(_ label: String, format: CopyFormat) -> some View {
-        if copiedFormat == format {
-            Text(verbatim: label).foregroundStyle(Hud.Ink.ok)
-        } else {
-            // Inherits the button style's hover-aware colour.
-            Text(verbatim: label)
-        }
-    }
-
-    private func copy(_ value: String, format: CopyFormat) {
-        onCopyText(value)
-        copiedFormat = format
-        copyRevision += 1
+    /// Notes and transcript as Markdown when there are any, the plain transcript otherwise.
+    private var copyText: String {
+        if let markdown = content.markdown { return markdown }
+        return content.storedTranscription.map { TranscriptTextFormatter.plainText($0.transcript) } ?? ""
     }
 }
 
+/// The "more" menu (`menu-more`): Copy as text · Save as Markdown · Show audio in
+/// Finder · Retry processing — Delete meeting.
+///
+///     MeetingDetailMoreMenu(content: detail, onCopyText: copy, actions: actions)
+struct MeetingDetailMoreMenu: View {
+    let content: MeetingDetailContent
+    let onCopyText: (String) -> Void
+    let actions: MeetingDetailMenuActions?
+    var framed = false
+
+    var body: some View {
+        Menu {
+            if let transcription = content.storedTranscription {
+                Button("Copy as text") { onCopyText(TranscriptTextFormatter.plainText(transcription.transcript)) }
+            }
+            if let actions {
+                if let markdown = content.markdown {
+                    Button("Save as Markdown") { actions.onExportMarkdown(markdown) }
+                }
+                Button("Show audio in Finder") { actions.onRevealAudio(content.audioURL) }
+                if content.meeting.processingStatus != .processing {
+                    Button("Retry processing") { actions.onRetry(content.meeting) }
+                }
+                Divider()
+                Button("Delete meeting", role: .destructive) { actions.onDelete(content.meeting) }
+            }
+        } label: {
+            HudIcon(.more, size: framed ? 14 : 16)
+        }
+        .menuStyle(.button)
+        .menuIndicator(.hidden)
+        .buttonStyle(HudButtonStyle(kind: framed ? .iconFramed : .icon, size: framed ? .small : .regular))
+        .fixedSize()
+        .help("Export and actions")
+        .accessibilityLabel("Export and actions")
+    }
+}
+
+// MARK: - Detail
+
+/// The meeting detail inside the open notch (`tpl-detail` + `tpl-detail-body`): title and
+/// meta, the player, talk time, then Summary · Decided · For you · Transcript — or one
+/// line saying why there is no transcript yet.
 struct MeetingDetailView: View {
     let content: MeetingDetailContent
     let onCopyText: (String) -> Void
@@ -227,24 +281,21 @@ struct MeetingDetailView: View {
     let analysisActions: MeetingAnalysisActions
     let isProcessing: Bool
     let importedActionIDs: Set<UUID>
+    /// Title and meta above the player. The desktop prints its own header.
+    let showsHeader: Bool
+
     @State private var editingSpeakerID: String?
     @State private var editingSpeakerName = ""
-    @State private var analysisMessage: String?
+    @State private var analysisFailure: String?
     @State private var savingSpeaker = false
-    @State private var analysisFailed = false
-    @State private var copiedNotes = false
-    @State private var notesCopyRevision = 0
-    @FocusState private var speakerFieldFocused: Bool
-    @State private var importingActions = Set<UUID>()
-    @State private var showsAllActions = false
-    @State private var hoveredAction: AnyHashable?
-    @Namespace private var actionGlide
+    @State private var appeared = false
+    @State private var hoveredSegment: AnyHashable?
+    @Namespace private var segmentGlide
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // State keeps the controller alive without subscribing this entire detail tree to
-    // its 4 Hz playback updates. CompactAudioPlayer is the only observing view.
+    // its 4 Hz playback updates. MeetingPlayerView is the only observing view.
     @State private var player: MeetingAudioPlayer
-
-    private static let collapsedActionCount = 6
 
     init(
         content: MeetingDetailContent,
@@ -255,7 +306,9 @@ struct MeetingDetailView: View {
         onDelete: @escaping (StoredMeeting) -> Void,
         analysisActions: MeetingAnalysisActions = MeetingAnalysisActions(),
         isProcessing: Bool = false,
-        importedActionIDs: Set<UUID> = []
+        importedActionIDs: Set<UUID> = [],
+        showsHeader: Bool = true,
+        startAt: TimeInterval = 0
     ) {
         self.content = content
         self.onCopyText = onCopyText
@@ -266,634 +319,185 @@ struct MeetingDetailView: View {
         self.analysisActions = analysisActions
         self.isProcessing = isProcessing
         self.importedActionIDs = importedActionIDs
-        _player = State(
-            initialValue: MeetingAudioPlayer(
-                url: content.audioURL,
-                duration: content.meeting.duration
-            )
-        )
+        self.showsHeader = showsHeader
+        let player = MeetingAudioPlayer(url: content.audioURL, duration: content.meeting.duration)
+        // Opens with the needle at a moment (an action item's source), without playing.
+        if startAt > 0 { player.seek(to: startAt) }
+        _player = State(initialValue: player)
     }
 
     var body: some View {
+        // Rows stay direct children of the scroll view's LazyVStack: a nested stack
+        // would turn the whole transcript into one eager child.
         LazyVStack(alignment: .leading, spacing: 0) {
-            CompactAudioPlayer(player: player)
+            if showsHeader {
+                MeetingDetailHeader(meeting: content.meeting, transcript: content.storedTranscription?.transcript)
+                    .padding(.top, 4)
+                    .padding(.bottom, 16)
+                    .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
+            }
 
-            actionBar
-                .padding(.top, Hud.Space.x2)
+            MeetingPlayerView(player: player, audioURL: content.audioURL)
+                .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
 
-            if let storedTranscription = content.storedTranscription {
-                if let summary = storedTranscription.summary {
-                    summarySection(summary)
-                        .padding(.top, Hud.Space.x5)
+            if let stored = content.storedTranscription {
+                let transcript = stored.transcript
+                if !transcript.segments.isEmpty {
+                    MeetingTalkTimeBar(talk: MeetingTalkTime(transcript: transcript), isDisabled: isProcessing || savingSpeaker) { speaker in
+                        editingSpeakerID = speaker.id
+                        editingSpeakerName = speaker.storedName ?? ""
+                        analysisFailure = nil
+                    }
+                    .padding(.top, 12)
+                    .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
                 }
 
-                let transcript = storedTranscription.transcript
-                let allowsInlineTextSelection = TranscriptPresentationPolicy
-                    .allowsInlineTextSelection(segmentCount: transcript.segments.count)
+                if let analysisFailure, editingSpeakerID == nil {
+                    HStack(spacing: 8) {
+                        HudStatusShape(.err)
+                        Text(analysisFailure).hud(.meta, Hud.Ink.ink2).fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.horizontal, Hud.Row.inset)
+                    .padding(.top, 10)
+                    .transition(.opacity)
+                }
 
-                groupHeader("Transcript")
-                    .padding(.top, Hud.Space.x5)
+                notes(stored)
+                    .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
+
+                HudGroupHeader(title: "Transcript")
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.top, 16)
+                    .hudStagger(4, shown: appeared, reduceMotion: reduceMotion)
 
                 if transcript.segments.isEmpty {
                     Text(transcript.text)
-                        .font(Hud.font(13, .regular))
-                        .foregroundStyle(Hud.Ink.text1)
-                        .lineSpacing(3)
+                        .hud(.read)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, Hud.Size.rowInset)
-                        .padding(.vertical, Hud.Space.x2)
+                        .padding(.horizontal, Hud.Row.inset)
+                        .padding(.vertical, 8)
                 } else {
-                    // Rows stay direct children of the scroll view's outer LazyVStack.
-                    // A nested stack turns the whole transcript into one eager child.
+                    let selectable = TranscriptPresentationPolicy.allowsInlineTextSelection(segmentCount: transcript.segments.count)
                     ForEach(transcript.segments) { segment in
-                        TranscriptSegmentRow(
+                        MeetingTranscriptRow(
                             segment: segment,
-                            allowsInlineTextSelection: allowsInlineTextSelection,
-                            onSeek: { player.play(from: segment.startTime) },
-                            onCopy: {
-                                onCopyText(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))
-                            }
+                            allowsInlineTextSelection: selectable,
+                            onPlay: { player.play(from: segment.startTime) },
+                            onCopy: { onCopyText(segment.text.trimmingCharacters(in: .whitespacesAndNewlines)) }
                         )
                         .equatable()
+                        .hudGlide(segment.id, hovered: $hoveredSegment, in: segmentGlide)
                     }
                 }
             } else {
-                processingState
-                    .padding(.top, Hud.Space.x4)
+                MeetingTranscriptStateConsole(state: MeetingTranscriptState(content.meeting.processingStatus)) {
+                    onRetry(content.meeting)
+                }
+                .padding(.top, 16)
+                .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
             }
         }
-        .onDisappear { player.pause() }
+        .onAppear {
+            appeared = true
+            MeetingDetailActionRelay.shared.register(menuActions, for: content.id)
+        }
+        .onDisappear {
+            player.pause()
+            MeetingDetailActionRelay.shared.unregister(content.id)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .desktopDidClose)) { _ in player.pause() }
         .sheet(isPresented: Binding(get: { editingSpeakerID != nil }, set: { if !$0 { editingSpeakerID = nil } })) {
-            renameSpeakerSheet
+            MeetingRenameSpeakerSheet(
+                name: $editingSpeakerName,
+                isSaving: savingSpeaker,
+                message: analysisFailure,
+                isDisabled: isProcessing,
+                onCancel: { editingSpeakerID = nil },
+                onSave: saveSpeakerName
+            )
         }
-        .task(id: notesCopyRevision) {
-            guard copiedNotes else { return }
-            do { try await Task.sleep(for: .seconds(1.6)) } catch { return }
-            copiedNotes = false
+    }
+
+    private var menuActions: MeetingDetailMenuActions {
+        MeetingDetailMenuActions(onExportMarkdown: onExportMarkdown, onRevealAudio: onRevealAudio, onRetry: onRetry, onDelete: onDelete)
+    }
+
+    // MARK: Notes
+
+    /// Summary, Decided and For you — or, without notes, the reason and the way out.
+    @ViewBuilder
+    private func notes(_ stored: StoredTranscription) -> some View {
+        if let summary = stored.summary, stored.summaryFailure == nil {
+            VStack(alignment: .leading, spacing: 0) {
+                MeetingSummarySection(
+                    overview: summary.overview,
+                    isRewriting: isProcessing,
+                    isDisabled: savingSpeaker,
+                    onRewrite: { onRetry(content.meeting) }
+                )
+                .padding(.top, 16)
+
+                if !summary.decisions.isEmpty {
+                    MeetingDecidedSection(decisions: summary.decisions)
+                        .padding(.top, 12)
+                }
+
+                if !summary.actionItems.isEmpty {
+                    MeetingForYouSection(
+                        items: summary.actionItems,
+                        importedIDs: importedActionIDs,
+                        isDisabled: isProcessing,
+                        onPlay: { player.play(from: $0) },
+                        onAdd: addToTasks
+                    )
+                    .padding(.top, 12)
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                MeetingNotesMissingConsole(failure: stored.summaryFailure)
+                    .padding(.top, 16)
+                MeetingSummarySection(
+                    overview: nil,
+                    placeholder: MeetingNotesMissingConsole.remainder(stored.summaryFailure),
+                    isRewriting: isProcessing
+                )
+                .padding(.top, 16)
+            }
         }
     }
 
     // MARK: Actions
 
-    /// One line of controls under the player: summary on the left, speakers and the
-    /// overflow menu on the right. Messages appear underneath, in colour, without icons.
-    private var actionBar: some View {
-        VStack(alignment: .leading, spacing: Hud.Space.x1) {
-            HStack(spacing: 2) {
-                if let stored = content.storedTranscription {
-                    Button {
-                        onRetry(content.meeting)
-                    } label: {
-                        HStack(spacing: 7) {
-                            HudIcon(.spark, size: Hud.Size.smallIcon)
-                            Text(stored.summary?.model == nil ? "Create summary" : "Refresh summary")
-                        }
-                    }
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-                    .disabled(isProcessing || savingSpeaker)
+    private func addToTasks(_ item: ActionItem) async {
+        record(await analysisActions.importAction(content.id, item))
+    }
 
-                    if isProcessing {
-                        HudPulse(color: Hud.Ink.signal)
-                            .padding(.leading, Hud.Space.x1)
-                            .transition(.opacity)
-                    }
-                }
-
-                Spacer(minLength: Hud.Space.x2)
-
-                if let stored = content.storedTranscription {
-                    speakersMenu(stored)
-                }
-
-                moreMenu
-            }
-            .animation(Hud.Motion.change, value: isProcessing)
-
-            if let failure = content.storedTranscription?.summaryFailure {
-                HStack(spacing: Hud.Space.x2) {
-                    feedbackLine(failure, isFailure: true)
-                    Spacer(minLength: 0)
-                    DesktopSettingsLink(category: .ai) { Text("Open OpenAI settings") }
-                        .buttonStyle(HudButtonStyle(kind: .ghost))
-                }
-            }
-            if let analysisMessage {
-                feedbackLine(analysisMessage, isFailure: analysisFailed)
-            }
+    private func saveSpeakerName() {
+        guard let speakerID = editingSpeakerID else { return }
+        savingSpeaker = true
+        Task {
+            let result = await analysisActions.renameSpeaker(content.id, speakerID, editingSpeakerName)
+            record(result)
+            savingSpeaker = false
+            if case .succeeded = result { editingSpeakerID = nil }
         }
     }
 
-    private func speakersMenu(_ stored: StoredTranscription) -> some View {
-        Menu {
-            ForEach(Array(Set(stored.transcript.segments.map(\.speakerID))).sorted(), id: \.self) { id in
-                let name = stored.transcript.segments.first { $0.speakerID == id }?.speakerName
-                Button(name ?? TranscriptTextFormatter.fallbackSpeakerName(id)) {
-                    editingSpeakerID = id
-                    editingSpeakerName = name ?? ""
-                    analysisMessage = nil
-                }
-            }
-        } label: {
-            HStack(spacing: 7) {
-                CrenelIcon(.people, size: Hud.Size.smallIcon)
-                Text("Speakers")
-            }
-        }
-        .menuStyle(.button)
-        .menuIndicator(.hidden)
-        .buttonStyle(HudButtonStyle(kind: .ghost))
-        .fixedSize()
-        .disabled(isProcessing)
-    }
-
-    private var moreMenu: some View {
-        Menu {
-            Button("Show audio in Finder") {
-                onRevealAudio(content.audioURL)
-            }
-
-            if let markdown = content.markdown {
-                Button("Save Markdown") {
-                    onExportMarkdown(markdown)
-                }
-            }
-
-            if content.meeting.processingStatus == .failed
-                || content.meeting.processingStatus == .recorded {
-                Button("Retry processing") {
-                    onRetry(content.meeting)
-                }
-            }
-
-            Divider()
-
-            Button("Delete meeting", role: .destructive) {
-                onDelete(content.meeting)
-            }
-        } label: {
-            CrenelIcon(.more, size: Hud.Size.icon)
-        }
-        .menuStyle(.button)
-        .menuIndicator(.hidden)
-        .buttonStyle(HudButtonStyle(kind: .icon))
-        .fixedSize()
-        .help("Audio, export, and meeting actions")
-        .accessibilityLabel("More actions")
-    }
-
-    private func feedbackLine(_ message: String, isFailure: Bool) -> some View {
-        Text(message)
-            .hud(.meta, isFailure ? Hud.Ink.live : Hud.Ink.ok)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, Hud.Size.rowInset)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .transition(.opacity)
-    }
-
-    private func recordResult(_ result: SettingsActionResult) {
-        withAnimation(Hud.Motion.change) {
+    /// Success is visible where it happened (the lamp, the new name); only failures
+    /// are spelled out.
+    private func record(_ result: SettingsActionResult) {
+        withAnimation(Hud.Motion.hover) {
             switch result {
-            case .succeeded(let message): analysisMessage = message ?? "Saved."; analysisFailed = false
-            case .failed(let message): analysisMessage = message; analysisFailed = true
+            case .succeeded: analysisFailure = nil
+            case .failed(let message): analysisFailure = message
             }
         }
-    }
-
-    // MARK: Rename speaker
-
-    private var renameSpeakerSheet: some View {
-        VStack(alignment: .leading, spacing: Hud.Space.x4) {
-            Text("Rename speaker")
-                .hud(.title)
-
-            TextField("Name", text: $editingSpeakerName)
-                .textFieldStyle(.plain)
-                .hud(.body)
-                .focused($speakerFieldFocused)
-                .padding(.horizontal, Hud.Size.rowInset)
-                .frame(height: 34)
-                .background(
-                    RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
-                        .fill(speakerFieldFocused ? Hud.Ink.selected : Hud.Ink.hover)
-                )
-                .animation(Hud.Motion.hover, value: speakerFieldFocused)
-                .accessibilityLabel("Speaker name")
-
-            HStack(spacing: Hud.Space.x2) {
-                if savingSpeaker {
-                    HudPulse(color: Hud.Ink.signal)
-                        .accessibilityLabel("Saving…")
-                }
-                Spacer()
-                Button("Cancel") { editingSpeakerID = nil }
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-                    .disabled(savingSpeaker)
-                    .keyboardShortcut(.cancelAction)
-                Button("Save") {
-                    guard let speakerID = editingSpeakerID else { return }
-                    savingSpeaker = true
-                    Task {
-                        let result = await analysisActions.renameSpeaker(content.id, speakerID, editingSpeakerName)
-                        recordResult(result)
-                        savingSpeaker = false
-                        if case .succeeded = result { editingSpeakerID = nil }
-                    }
-                }
-                .buttonStyle(HudButtonStyle(kind: .primary))
-                .keyboardShortcut(.defaultAction)
-                .disabled(savingSpeaker || isProcessing || editingSpeakerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-
-            if let analysisMessage {
-                Text(analysisMessage)
-                    .hud(.meta, analysisFailed ? Hud.Ink.live : Hud.Ink.ok)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(Hud.Space.x6)
-        .frame(width: 380)
-        .background(Hud.Ink.canvas)
-        .preferredColorScheme(.dark)
-        .onAppear { speakerFieldFocused = true }
-    }
-
-    // MARK: Notes
-
-    private func summarySection(_ summary: MeetingSummary) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: Hud.Space.x2) {
-                groupHeader("Notes")
-                Spacer(minLength: 0)
-                Button {
-                    onCopyText(MeetingMarkdownFormatter.notes(summary))
-                    copiedNotes = true
-                    notesCopyRevision += 1
-                } label: {
-                    if copiedNotes {
-                        CrenelIcon(.copy, size: Hud.Size.smallIcon).foregroundStyle(Hud.Ink.ok)
-                    } else {
-                        CrenelIcon(.copy, size: Hud.Size.smallIcon)
-                    }
-                }
-                .buttonStyle(HudButtonStyle(kind: .icon))
-                .animation(Hud.Motion.hover, value: copiedNotes)
-                .help(copiedNotes ? "Notes copied" : "Copy notes")
-                .accessibilityLabel("Copy meeting notes")
-            }
-
-            Text(
-                summary.overview.isEmpty
-                    ? String(localized: "The transcript doesn’t have enough content to summarize.")
-                    : summary.overview
-            )
-            .font(Hud.font(13, .regular))
-            .foregroundStyle(summary.overview.isEmpty ? Hud.Ink.text3 : Hud.Ink.text1)
-            .textSelection(.enabled)
-            .lineSpacing(3)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, Hud.Size.rowInset)
-            .padding(.top, Hud.Space.x1)
-
-            if !summary.decisions.isEmpty {
-                groupHeader("Decisions")
-                    .padding(.top, Hud.Space.x4)
-                VStack(alignment: .leading, spacing: Hud.Space.x2) {
-                    ForEach(Array(summary.decisions.enumerated()), id: \.offset) { _, value in
-                        Text(value)
-                            .font(Hud.font(13, .regular))
-                            .foregroundStyle(Hud.Ink.text1)
-                            .lineSpacing(3)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                .padding(.horizontal, Hud.Size.rowInset)
-                .padding(.top, Hud.Space.x1)
-            }
-
-            if !summary.actionItems.isEmpty {
-                groupHeader("Action items")
-                    .padding(.top, Hud.Space.x4)
-                actionItemList(summary.actionItems)
-            }
-        }
-    }
-
-    private func actionItemList(_ items: [ActionItem]) -> some View {
-        let limit = Self.collapsedActionCount
-        let visible = showsAllActions ? items : Array(items.prefix(limit))
-        return VStack(alignment: .leading, spacing: 0) {
-            ForEach(visible) { action in
-                actionRow(action)
-                    .hudGlide(action.id, hovered: $hoveredAction, in: actionGlide)
-                    .transition(.opacity)
-            }
-            if items.count > limit {
-                Button {
-                    withAnimation(Hud.Motion.change) { showsAllActions.toggle() }
-                } label: {
-                    HStack(spacing: 7) {
-                        CrenelIcon(.chevronDown, size: Hud.Size.smallIcon)
-                            .rotationEffect(.degrees(showsAllActions ? 180 : 0))
-                        Text(showsAllActions ? "Show less" : "\(items.count - limit) more")
-                    }
-                }
-                .buttonStyle(HudButtonStyle(kind: .ghost))
-                .padding(.top, Hud.Space.x1)
-            }
-        }
-    }
-
-    private func actionRow(_ action: ActionItem) -> some View {
-        let imported = importedActionIDs.contains(action.id)
-        let importing = importingActions.contains(action.id)
-        return HStack(alignment: .top, spacing: Hud.Space.x3) {
-            Button {
-                importingActions.insert(action.id)
-                Task {
-                    recordResult(await analysisActions.importAction(content.id, action))
-                    importingActions.remove(action.id)
-                }
-            } label: {
-                // In tasks: the queue glyph. Not yet: a plus to add it.
-                HudIcon(imported ? .queue : .plus, size: Hud.Size.icon)
-                    .foregroundStyle(imported ? Hud.Ink.text3 : (importing ? Hud.Ink.text4 : Hud.Ink.text2))
-                    .frame(width: 18, height: 18)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help(imported ? "In tasks" : "Add to tasks")
-            .accessibilityLabel(imported ? Text("In tasks") : Text("Add to tasks: \(action.title)"))
-            .disabled(imported || importing || isProcessing)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(action.title)
-                    .hud(.body, imported ? Hud.Ink.text2 : Hud.Ink.text1)
-                    .fixedSize(horizontal: false, vertical: true)
-                if action.assignee != nil || action.dueDate != nil {
-                    HStack(spacing: Hud.Space.x2) {
-                        if let assignee = action.assignee { Text(assignee) }
-                        if let date = action.dueDate { Text(date, style: .date) }
-                    }
-                    .hud(.meta, Hud.Ink.text3)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            if let time = action.sourceTime {
-                HudTimeButton(time: time) { player.play(from: time) }
-                    .help("Play source")
-            }
-        }
-        .padding(.horizontal, Hud.Size.rowInset)
-        .padding(.vertical, Hud.Space.x2 + 1)
-        .frame(minHeight: Hud.Size.row)
-    }
-
-    // MARK: Processing
-
-    private var processingState: some View {
-        HStack(alignment: .center, spacing: Hud.Space.x3) {
-            processingMark
-                .frame(width: Hud.Size.icon, height: Hud.Size.icon)
-
-            Text(processingTitle)
-                .hud(.body, content.meeting.processingStatus == .failed ? Hud.Ink.live : Hud.Ink.text1)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            if content.meeting.processingStatus == .failed || content.meeting.processingStatus == .completed {
-                Button("Retry processing") { onRetry(content.meeting) }
-                    .buttonStyle(HudButtonStyle(kind: .ghost))
-            }
-        }
-        .padding(.horizontal, Hud.Size.rowInset)
-        .frame(minHeight: Hud.Size.row)
-        .background(
-            RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous).fill(Hud.Ink.hover)
-        )
-        .accessibilityElement(children: .combine)
-    }
-
-    @ViewBuilder
-    private var processingMark: some View {
-        switch content.meeting.processingStatus {
-        case .failed:
-            CrenelIcon(.warning, size: Hud.Size.icon).foregroundStyle(Hud.Ink.live)
-        case .completed:
-            CrenelIcon(.warning, size: Hud.Size.icon).foregroundStyle(Hud.Ink.signal)
-        case .processing:
-            HudPulse(color: Hud.Ink.signal)
-        case .recorded:
-            HudIcon(.transcript, size: Hud.Size.icon).foregroundStyle(Hud.Ink.text3)
-        }
-    }
-
-    private var processingTitle: LocalizedStringKey {
-        switch content.meeting.processingStatus {
-        case .failed: "Transcription didn’t finish"
-        case .recorded: "Transcription queued"
-        case .processing: "Preparing transcription"
-        case .completed: "Couldn’t read the transcript"
-        }
-    }
-
-    // MARK: Pieces
-
-    /// A plain group title in the row inset: no rule, no count, no tracking.
-    private func groupHeader(_ title: LocalizedStringKey) -> some View {
-        Text(title)
-            .hud(.label, Hud.Ink.text3)
-            .padding(.horizontal, Hud.Size.rowInset)
-            .frame(height: 22, alignment: .bottom)
-            .padding(.bottom, Hud.Space.x1)
-            .accessibilityAddTraits(.isHeader)
     }
 }
 
-/// A timestamp that plays from its moment. Quiet until hovered.
-private struct HudTimeButton: View {
-    let time: TimeInterval
-    let action: () -> Void
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: action) {
-            Text(TranscriptTextFormatter.timestamp(time))
-                .hud(.meta, isHovering ? Hud.Ink.text1 : Hud.Ink.text3)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in withAnimation(Hud.Motion.hover) { isHovering = hovering } }
-    }
-}
-
-private struct CompactAudioPlayer: View {
-    @ObservedObject var player: MeetingAudioPlayer
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var scrubbing = false
-    @State private var scrubTime: TimeInterval = 0
-
-    var body: some View {
-        HStack(spacing: Hud.Space.x3) {
-            Button(action: player.togglePlayback) {
-                CrenelIcon(player.isPlaying ? .pause : .play, size: Hud.Size.smallIcon)
-                    .foregroundStyle(Hud.Ink.text1)
-                    .contentTransition(.opacity)
-                    .animation(Crenel.Motion.resolve(Hud.Motion.hover, reduceMotion: reduceMotion), value: player.isPlaying)
-            }
-            .buttonStyle(HudButtonStyle(kind: .icon))
-            .accessibilityLabel(player.isPlaying ? "Pause audio" : "Play audio")
-
-            Text(TranscriptTextFormatter.timestamp(position))
-                .hud(.meta, Hud.Ink.text2)
-                .frame(width: timeWidth, alignment: .trailing)
-
-            HudScrubber(
-                value: position,
-                duration: player.duration,
-                isActive: player.isPlaying || scrubbing,
-                onScrub: { time in scrubTime = time; scrubbing = true },
-                onCommit: { time in player.seek(to: time); scrubbing = false }
-            )
-
-            Text(TranscriptTextFormatter.timestamp(player.duration))
-                .hud(.meta, Hud.Ink.text3)
-                .frame(width: timeWidth, alignment: .leading)
-        }
-        .padding(.leading, Hud.Size.rowInset - Hud.Space.x2)
-        .padding(.trailing, Hud.Size.rowInset)
-    }
-
-    private var position: TimeInterval { scrubbing ? scrubTime : player.currentTime }
-    private var timeWidth: CGFloat { player.duration >= 3600 ? 56 : 40 }
-}
-
-/// A thin track with a white fill. Click or drag anywhere to move the playhead.
-private struct HudScrubber: View {
-    let value: TimeInterval
-    let duration: TimeInterval
-    let isActive: Bool
-    let onScrub: (TimeInterval) -> Void
-    let onCommit: (TimeInterval) -> Void
-    @State private var isHovering = false
-
-    var body: some View {
-        GeometryReader { proxy in
-            let width = max(proxy.size.width, 1)
-            let fraction = duration > 0 ? min(1, max(0, value / duration)) : 0
-            ZStack(alignment: .leading) {
-                Capsule().fill(Hud.Ink.track)
-                Capsule()
-                    .fill(isActive || isHovering ? Hud.Ink.text1 : Hud.Ink.text2)
-                    .frame(width: width * fraction)
-            }
-            .frame(height: 3)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { onScrub(time(at: $0.location.x, width: width)) }
-                    .onEnded { onCommit(time(at: $0.location.x, width: width)) }
-            )
-        }
-        .frame(height: 18)
-        .onHover { hovering in withAnimation(Hud.Motion.hover) { isHovering = hovering } }
-        .accessibilityElement()
-        .accessibilityLabel("Playback position")
-        .accessibilityValue(Text(TranscriptTextFormatter.timestamp(value)))
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment: onCommit(min(duration, value + 5))
-            case .decrement: onCommit(max(0, value - 5))
-            @unknown default: break
-            }
-        }
-    }
-
-    private func time(at x: CGFloat, width: CGFloat) -> TimeInterval {
-        duration * Double(min(1, max(0, x / width)))
-    }
-}
-
-private struct TranscriptSegmentRow: View, Equatable {
-    let segment: TranscriptSegment
-    let allowsInlineTextSelection: Bool
-    let onSeek: () -> Void
-    let onCopy: () -> Void
-
-    @State private var isHovering = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: Hud.Space.x2) {
-                Text(displaySpeakerName)
-                    .hud(.label, Hud.Ink.text2)
-                    .lineLimit(1)
-
-                Spacer(minLength: Hud.Space.x2)
-
-                Button(action: onCopy) { CrenelIcon(.copy, size: Hud.Size.smallIcon) }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Hud.Ink.text3)
-                    .opacity(isHovering ? 1 : 0)
-                    .help("Copy this segment")
-                    .accessibilityLabel("Copy transcript segment")
-
-                HudTimeButton(time: segment.startTime, action: onSeek)
-                    .help("Play from here")
-                    .accessibilityLabel("Play from \(TranscriptTextFormatter.timestamp(segment.startTime))")
-            }
-
-            segmentText
-        }
-        .padding(.horizontal, Hud.Size.rowInset)
-        .padding(.vertical, Hud.Space.x2 + 1)
-        .background(
-            RoundedRectangle(cornerRadius: Hud.Size.corner, style: .continuous)
-                .fill(isHovering ? Hud.Ink.hover : .clear)
-        )
-        .contentShape(Rectangle())
-        .onHover { isHovering = $0 }
-        .animation(Crenel.Motion.resolve(Hud.Motion.hover, reduceMotion: reduceMotion), value: isHovering)
-        .contextMenu {
-            Button("Copy segment", action: onCopy)
-        }
-        .accessibilityElement(children: .contain)
-    }
-
-    @ViewBuilder
-    private var segmentText: some View {
-        let text = Text(segment.text.trimmingCharacters(in: .whitespacesAndNewlines))
-            .font(Hud.font(13, .regular))
-            .foregroundStyle(Hud.Ink.text1)
-            .lineSpacing(3)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .fixedSize(horizontal: false, vertical: true)
-
-        if allowsInlineTextSelection {
-            text.textSelection(.enabled)
-        } else {
-            text
-        }
-    }
-
-    static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.segment == rhs.segment
-            && lhs.allowsInlineTextSelection == rhs.allowsInlineTextSelection
-    }
-
-    private var displaySpeakerName: String {
-        let name = segment.speakerName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return name.flatMap { $0.isEmpty ? nil : $0 }
-            ?? TranscriptTextFormatter.fallbackSpeakerName(segment.speakerID)
-    }
-}
-
-#Preview("Compact meeting detail") {
+#Preview("Meeting detail") {
     let meeting = StoredMeeting(
         id: UUID(),
         title: "Product sync / transcription",
@@ -937,12 +541,8 @@ private struct TranscriptSegmentRow: View, Equatable {
         audioURL: URL(fileURLWithPath: "/tmp/meeting-notch-preview.m4a")
     )
 
-    VStack(spacing: Hud.Space.x4) {
-        MeetingDetailToolbar(
-            content: content,
-            onBack: {},
-            onCopyText: { _ in }
-        )
+    VStack(spacing: 8) {
+        MeetingDetailToolbar(content: content, onBack: {}, onCopyText: { _ in })
         ScrollView {
             MeetingDetailView(
                 content: content,
@@ -955,9 +555,9 @@ private struct TranscriptSegmentRow: View, Equatable {
         }
         .scrollIndicators(.hidden)
     }
-    .padding(.horizontal, Hud.Size.panelInset - Hud.Size.rowInset)
-    .padding(.vertical, Hud.Space.x4)
-    .frame(width: Hud.Size.panelWidth, height: 600)
-    .background(Hud.Ink.canvas)
+    .padding(.horizontal, Hud.Notch.openInset)
+    .padding(.bottom, Hud.Notch.openBottom)
+    .frame(width: Hud.Notch.openWidth, height: 600)
+    .background(Color.black)
     .environment(\.colorScheme, .dark)
 }

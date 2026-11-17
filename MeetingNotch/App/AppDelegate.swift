@@ -1631,7 +1631,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.alertStyle = .warning
         alert.messageText = "Delete meeting?"
-        alert.informativeText = "“\(meeting.title)” and its audio files will be deleted permanently."
+        alert.informativeText = "Audio, transcript and notes will be deleted permanently."
         alert.addButton(withTitle: "Delete")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
