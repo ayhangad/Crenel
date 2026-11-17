@@ -19,8 +19,10 @@ final class NotchHoverController {
     private(set) var presentationState: PresentationState = .compact
 
     init(
-        expansionDelay: Duration = .milliseconds(140),
-        compactionDelay: Duration = .milliseconds(700),
+        // The pointer leans the notch in, and it opens 180 ms later; it closes 380 ms
+        // after the pointer leaves.
+        expansionDelay: Duration = .milliseconds(Int(Hud.Motion.leanDelay * 1_000)),
+        compactionDelay: Duration = .milliseconds(380),
         onExpand: @escaping Transition,
         onCompact: @escaping Transition
     ) {

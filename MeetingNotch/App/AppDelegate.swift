@@ -204,12 +204,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         },
         compact: { [unowned self] in
             AnyView(
-                CrenelCompactView()
+                CrenelCompactView(actions: self.notchStripActions)
                     .environmentObject(self.appState)
                     .environment(\.crenelActions, self.crenelActions)
             )
         }
     )
+
+    /// The strip under the closed notch answers with the same actions as the panel.
+    private var notchStripActions: NotchStripActions {
+        NotchStripActions(
+            joinMeeting: { [weak self] url in self?.openMeetingURL(url) },
+            startRecording: { [weak self] in self?.beginRecording() },
+            dismissPrompt: { [weak self] in self?.dismissMeetingLifecyclePrompt() },
+            continueRecording: { [weak self] in self?.continueRecordingAfterMeetingSignal() },
+            confirmMeetingEnded: { [weak self] in self?.confirmMeetingEnded() },
+            openStoredMeeting: { [weak self] meeting in
+                self?.openStoredMeeting(meeting)
+                self?.presentNotch(followPointer: false)
+            },
+            recoverFromFailure: { [weak self] failure in self?.recover(from: failure) }
+        )
+    }
 
     private var desktopController: DesktopWindowController?
     private var desktopOpenObserver: NSObjectProtocol?
@@ -913,7 +929,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             meetingAutoStopTask?.cancel()
             meetingAutoStopTask = nil
             appState.presentMeetingLifecyclePrompt(prompt)
-            presentNotch(followPointer: false)
+            // The prompt is a strip under the closed notch; it never opens the panel.
+            notch.pulse()
             guard case .autoStop(_, _, let deadline) = prompt else { return }
             meetingAutoStopTask = Task { [weak self] in
                 let delay = max(0, deadline.timeIntervalSinceNow)
@@ -1121,7 +1138,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func configureNotchInteraction() {
         updateNotchTransitionConfiguration()
-        notchHoverObservation = notch.$isHovering
+        // A strip holds buttons, so hovering it does not open the panel; a click on its
+        // ears does.
+        notch.onRequestExpand = { [weak self] in self?.presentNotch(followPointer: false) }
+        notchHoverObservation = notch.$hoverIntent
             .dropFirst()
             .removeDuplicates()
             .sink { [weak self] isHovering in
@@ -1750,7 +1770,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         transientStatusTask?.cancel()
         transientStatusTask = Task { [weak self] in
             guard let self else { return }
-            await self.expandNotch(followPointer: false)
+            // Results are a strip under the closed notch; it folds away after 8 s.
+            self.notch.pulse()
             do {
                 try await Task.sleep(for: NotchTransientStatusPolicy.displayDuration)
             } catch {
@@ -1762,8 +1783,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if NotchTransientStatusPolicy.shouldResetAfterTimeout(state) {
                 self.appState.resetFlow()
             }
-            self.notchHoverController.markCompact()
-            await self.notch.compact(on: self.resolvedActiveNotchScreen())
         }
     }
 
@@ -1865,17 +1884,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func presentMeetingReminder() {
+        // The closed notch carries the reminder itself: amber minutes and a burning fuse,
+        // then the "Starting now" strip. It never opens the panel on its own.
         reminderPresentationTask?.cancel()
-        reminderPresentationTask = Task { [weak self] in
-            guard let self else { return }
-            await self.expandNotch(followPointer: true)
-            try? await Task.sleep(for: .seconds(8))
-            guard !Task.isCancelled, case .upcomingMeeting = self.appState.meetingFlow else {
-                return
-            }
-            guard !self.notch.isHovering, !self.appState.isNotchPinned else { return }
-            self.notchHoverController.markCompact()
-            await self.notch.compact(on: self.resolvedActiveNotchScreen())
-        }
+        reminderPresentationTask = nil
+        notch.pulse()
     }
 }

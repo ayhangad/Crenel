@@ -102,13 +102,16 @@ struct NotchStatusResolver {
 }
 
 struct NotchPanelLayout: Equatable {
-    static let preferredWidth: CGFloat = Hud.Size.panelWidth
+    static let preferredWidth: CGFloat = Hud.Notch.openWidth
     static let preferredDetailWidth: CGFloat = preferredWidth
     static let minimumWidth: CGFloat = 320
     static let preferredContentHeight: CGFloat = 600
-    // Header, header/content gap and the panel's vertical padding remain outside the
-    // scroll view. Reserve their tallest (detail) footprint before capping the viewport.
-    static let fixedVerticalSpace: CGFloat = 100
+    /// Space between the camera band and the content under it.
+    static let bandGap: CGFloat = 8
+    // The band is the menu-bar row, which the viewport already leaves out. What remains
+    // outside the scroll view is the gap under the band, the bottom padding, and room for
+    // one strip line (a prompt arriving while the panel is open).
+    static let fixedVerticalSpace: CGFloat = bandGap + Hud.Notch.openBottom + Hud.Notch.stripHeight + bandGap
 
     let width: CGFloat
     let maximumContentHeight: CGFloat
@@ -159,7 +162,8 @@ struct NotchHostViewport: Equatable {
 }
 
 struct NotchTransientStatusPolicy {
-    static let displayDuration: Duration = .seconds(8)
+    /// Result strips fold away after 8 s.
+    static let displayDuration: Duration = .seconds(Hud.Motion.stripDismiss)
 
     static func shouldPresent(_ state: MeetingFlowState) -> Bool {
         switch state {

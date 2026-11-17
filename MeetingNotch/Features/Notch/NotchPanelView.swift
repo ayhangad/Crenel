@@ -44,8 +44,10 @@ struct NotchPanelView: View {
         onOpenRecovery: @escaping () -> Void = {},
         onTogglePin: @escaping () -> Void = {},
         onRelaunchApplication: @escaping () -> Void = {},
-        analysisActions: MeetingAnalysisActions = MeetingAnalysisActions()
+        analysisActions: MeetingAnalysisActions = MeetingAnalysisActions(),
+        showsHistory: Bool = false
     ) {
+        _showsHistory = State(initialValue: showsHistory)
         self.analysisActions = analysisActions
         self.onRequestCalendarAccess = onRequestCalendarAccess
         self.onOpenMeetingURL = onOpenMeetingURL
@@ -69,16 +71,19 @@ struct NotchPanelView: View {
     }
 
     @Environment(\.crenelNotchMetrics) private var notchMetrics
-    @State private var showsHistory = false
+    @Environment(\.crenelNotchOpenedAt) private var notchOpenedAt
+    /// The Recordings page is showing instead of the selected tab.
+    @State private var showsHistory: Bool
 
     var body: some View {
-        let showsDetail = appState.presentedMeetingDetail != nil
         let layout = NotchPanelLayout(
             availableSize: appState.notchPanelAvailableSize,
-            preferredWidth: Hud.Size.panelWidth
+            preferredWidth: Hud.Notch.openWidth
         )
 
-        VStack(alignment: .leading, spacing: Hud.Space.x4) {
+        VStack(alignment: .leading, spacing: 0) {
+            // The camera band is the chrome. It sits outside the scroll view, so it stays
+            // in place while the content scrolls.
             Group {
                 if let detail = appState.presentedMeetingDetail {
                     MeetingDetailToolbar(
@@ -86,15 +91,21 @@ struct NotchPanelView: View {
                         onBack: appState.dismissMeetingDetail,
                         onCopyText: onCopyText
                     )
+                    .padding(.horizontal, Hud.Notch.openInset)
+                    .frame(minHeight: max(notchMetrics.topInset, Hud.Notch.bandHeight))
                 } else {
-                    NotchToolbar(showsHistory: $showsHistory, onTogglePin: onTogglePin)
+                    NotchBand(showsHistory: $showsHistory, onTogglePin: onTogglePin)
                 }
             }
             .transition(.opacity)
 
+            // A prompt that arrives while the panel is open shows its strip line here;
+            // with the panel closed it is the strip under the ears.
+            NotchPanelPromptLine(actions: promptActions)
+
             NotchPanelScrollableContent(
                 maximumHeight: layout.maximumContentHeight,
-                bottomContentInset: showsDetail ? Hud.Space.x4 : 0
+                bottomContentInset: 0
             ) {
                 ZStack(alignment: .top) {
                     if let detail = appState.presentedMeetingDetail {
@@ -112,7 +123,7 @@ struct NotchPanelView: View {
                             importedActionIDs: Set(appState.tasks.filter { $0.sourceMeetingID == detail.id }.compactMap(\.sourceActionID))
                         )
                         .id(detail.id)
-                        .transition(.opacity.combined(with: .offset(x: 14)))
+                        .transition(.opacity)
                     } else if showsHistory {
                         VStack(alignment: .leading, spacing: Hud.Space.x3) {
                             if let recoverySummary = appState.recordingRecoverySummary {
@@ -129,7 +140,7 @@ struct NotchPanelView: View {
                                 onRetry: onRetryStoredMeeting
                             )
                         }
-                        .transition(.opacity.combined(with: .offset(x: -14)))
+                        .transition(.opacity)
                     } else {
                         switch appState.selectedTab {
                         case .meetings:
@@ -147,23 +158,24 @@ struct NotchPanelView: View {
                                 onOpenStoredMeeting: onOpenStoredMeeting,
                                 onRelaunchApplication: onRelaunchApplication
                             )
-                            .transition(tabTransition(for: .meetings))
+                            .transition(.opacity)
                         case .tasks:
                             TasksView()
-                                .transition(tabTransition(for: .tasks))
+                                .transition(.opacity)
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .top)
+                // `#nc.open`: content sits 14 pt from the walls; rows add their own inset.
+                .padding(.horizontal, Hud.Notch.openInset)
             }
+            .padding(.top, NotchPanelLayout.bandGap)
         }
-        // Clear the menu-bar band (and camera housing) the notch starts under. Text sits
-        // `panelInset` from the walls; hover fills reach `rowInset` beyond the text.
-        .padding(.top, notchMetrics.topInset + Hud.Space.x2)
-        .padding(.horizontal, Hud.Size.panelInset - Hud.Size.rowInset)
-        .padding(.bottom, Hud.Space.x3)
+        .padding(.bottom, Hud.Notch.openBottom)
         .frame(width: layout.width)
         .environment(\.colorScheme, .dark)
+        // Gauges inside sweep once when the panel opens from closed, not on tab changes.
+        .environment(\.notchPanelIgnites, NotchPanelIgnition.ignites(openedAt: notchOpenedAt, reduceMotion: reduceMotion))
         .onMoveCommand { direction in
             guard appState.presentedMeetingDetail == nil else { return }
             switch direction {
@@ -178,19 +190,53 @@ struct NotchPanelView: View {
             }
         }
         .onChange(of: appState.selectedTab) { _, _ in showsHistory = false }
-        .animation(motion(Hud.Motion.change), value: appState.presentedMeetingDetail?.id)
-        .animation(motion(Hud.Motion.change), value: appState.selectedTab)
-        .animation(motion(Hud.Motion.change), value: showsHistory)
+        .animation(motion(Hud.Motion.content), value: appState.presentedMeetingDetail?.id)
+        .animation(motion(Hud.Motion.content), value: appState.selectedTab)
+        .animation(motion(Hud.Motion.content), value: showsHistory)
+    }
+
+    private var promptActions: NotchStripActions {
+        NotchStripActions(
+            startRecording: onStartRecording,
+            dismissPrompt: onDismissMeetingPrompt,
+            continueRecording: onContinueRecording,
+            confirmMeetingEnded: onConfirmMeetingEnded
+        )
     }
 
     private func motion(_ animation: Animation) -> Animation {
         reduceMotion ? .linear(duration: 0.01) : animation
     }
+}
 
-    /// Tabs slide in from the side they sit on.
-    private func tabTransition(for tab: AppState.PanelTab) -> AnyTransition {
-        guard !reduceMotion else { return .opacity }
-        return .opacity.combined(with: .offset(x: tab == .meetings ? -14 : 14))
+/// The strip's line inside the open panel: a call was detected, or a recorded call seems
+/// to have ended, while the panel was already open.
+private struct NotchPanelPromptLine: View {
+    @EnvironmentObject private var appState: AppState
+    let actions: NotchStripActions
+
+    var body: some View {
+        if appState.meetingLifecyclePrompt != nil {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                let state = appState.closedNotchState(now: context.date)
+                if state.isPrompt {
+                    NotchClosedView(state: state, now: context.date, actions: actions, showsEars: false)
+                        .padding(.horizontal, Hud.Notch.openInset)
+                        .padding(.top, NotchPanelLayout.bandGap)
+                }
+            }
+            .transition(.opacity)
+        }
+    }
+}
+
+private extension NotchClosedState {
+    var isPrompt: Bool {
+        switch self {
+        case .callDetected: true
+        case .recording(_, let prompt): prompt != nil
+        default: false
+        }
     }
 }
 
@@ -225,96 +271,6 @@ struct NotchPanelScrollableContent<Content: View>: View {
         .scrollBounceBehavior(.basedOnSize)
         .frame(height: contentHeight.map { min($0, maximumHeight) })
         .frame(maxHeight: maximumHeight)
-    }
-}
-
-/// One toolbar: the two surfaces centred under the camera, history on the left, window
-/// controls on the right.
-private struct NotchToolbar: View {
-    @EnvironmentObject private var appState: AppState
-    @Binding var showsHistory: Bool
-    let onTogglePin: () -> Void
-
-    var body: some View {
-        ZStack {
-            HudTabs(
-                items: [
-                    .init(tab: AppState.PanelTab.meetings, glyph: .calendar, title: AppState.PanelTab.meetings.title),
-                    .init(tab: .tasks, glyph: .queue, title: AppState.PanelTab.tasks.title,
-                          badge: appState.activeTaskCount > 0 ? appState.activeTaskCount : nil)
-                ],
-                selection: Binding(
-                    get: { appState.selectedTab },
-                    set: { tab in
-                        showsHistory = false
-                        appState.selectedTab = tab
-                    }
-                )
-            )
-            .background {
-                // ⌘1 / ⌘2 switch surfaces.
-                ForEach(AppState.PanelTab.allCases) { tab in
-                    Button("") {
-                        showsHistory = false
-                        appState.selectedTab = tab
-                    }
-                    .keyboardShortcut(tab.keyboardShortcut, modifiers: .command)
-                    .opacity(0)
-                    .accessibilityHidden(true)
-                }
-            }
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Panel tabs")
-
-            HStack(spacing: 2) {
-                Button {
-                    showsHistory.toggle()
-                } label: {
-                    HudIcon(.history)
-                }
-                .buttonStyle(HudButtonStyle(kind: showsHistory ? .iconFilled : .icon))
-                .help("Recordings")
-                .accessibilityLabel("Recordings")
-                .accessibilityAddTraits(showsHistory ? .isSelected : [])
-
-                Spacer(minLength: Hud.Space.x2)
-
-                Button {
-                    NotificationCenter.default.post(name: .openDesktopWorkspace, object: nil)
-                } label: {
-                    HudIcon(.window)
-                }
-                .buttonStyle(HudButtonStyle(kind: .icon))
-                .help("Open in window")
-                .accessibilityLabel("Open in window")
-
-                Button(action: onTogglePin) {
-                    HudIcon(.pin)
-                        .rotationEffect(.degrees(appState.isNotchPinned ? 0 : 30))
-                }
-                .buttonStyle(HudButtonStyle(kind: appState.isNotchPinned ? .iconFilled : .icon))
-                .animation(Hud.Motion.glide, value: appState.isNotchPinned)
-                .help(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
-                .accessibilityLabel(appState.isNotchPinned ? "Unpin panel" : "Keep panel open")
-                .accessibilityValue(appState.isNotchPinned ? "Pinned" : "Not pinned")
-            }
-        }
-    }
-}
-
-private extension AppState.PanelTab {
-    var keyboardShortcut: KeyEquivalent {
-        switch self {
-        case .meetings: "1"
-        case .tasks: "2"
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .meetings: String(localized: "Today")
-        case .tasks: String(localized: "Tasks")
-        }
     }
 }
 
