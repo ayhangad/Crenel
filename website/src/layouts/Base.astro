@@ -10,7 +10,9 @@ const {
   title = "Crenel: your Mac's notch, at work",
   description = 'Calendar, dictation, tasks and meeting notes in the MacBook notch. Free and open source. Your data stays on your Mac.',
 } = Astro.props;
-const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+// Pages are built as files (releases.html); the public URL has no extension.
+const path = Astro.url.pathname.replace(/index\.html$/, '').replace(/\.html$/, '');
+const canonical = Astro.site ? new URL(path, Astro.site).href : undefined;
 const og = Astro.site ? new URL('/og.jpg', Astro.site).href : '/og.jpg';
 ---
 <!doctype html>

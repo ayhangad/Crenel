@@ -279,7 +279,11 @@ p { margin: 0; text-wrap: pretty; }
 .points { list-style: none; margin: 26px 0 0; padding: 0; display: grid; gap: 12px; }
 .points li { display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: baseline; font-size: 15.5px; color: var(--pen-2); }
 .points li .lamp { translate: 0 -3px; }
-.story-stage .sticky { position: sticky; top: calc(50vh - 260px); }
+/* The frame starts beside the first step (not beside the section title), then stays centred
+   on screen while the steps scroll past. Its block is about 530px tall; each step is 78vh
+   with its text centred, so 39vh - 265px lines their middles up. */
+.story-stage { padding-top: calc(39vh - 265px); }
+.story-stage .sticky { position: sticky; top: calc(50vh - 265px); }
 .story-stage .stack { position: relative; aspect-ratio: 16 / 10; }
 .story-dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 20px; }
 .story-dots .dot { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font-size: 13px; color: var(--pen-4); transition: color .3s var(--ease), background .3s var(--ease); }
