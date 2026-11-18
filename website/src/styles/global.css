@@ -141,12 +141,18 @@ p { margin: 0; text-wrap: pretty; }
 
 /* ── Navigation: fixed, like the menu bar, with the notch in the middle. */
 .nav { position: fixed; inset: 0 0 auto; z-index: 50; height: var(--nav-h); pointer-events: none; }
-.nav::before {
-  content: ''; position: absolute; inset: 0; opacity: 0; transition: opacity .3s var(--ease);
-  background: rgba(255, 255, 255, .72); -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, .05), 0 10px 30px -20px rgba(0, 0, 0, .25);
-}
-.nav.scrolled::before { opacity: 1; }
+.nav-blur { position: absolute; inset: 0 0 auto; height: calc(var(--nav-h) + 48px); opacity: 0; transition: opacity .35s var(--ease); pointer-events: none; }
+.nav.scrolled .nav-blur { opacity: 1; }
+/* Each layer blurs more and covers less, so the blur fades out downward without an edge. */
+.nav-blur i { position: absolute; inset: 0; }
+.nav-blur i:nth-child(1) { -webkit-backdrop-filter: blur(.5px); backdrop-filter: blur(.5px); -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 62%, transparent 100%); mask-image: linear-gradient(180deg, #000 0%, #000 62%, transparent 100%); }
+.nav-blur i:nth-child(2) { -webkit-backdrop-filter: blur(1px); backdrop-filter: blur(1px); -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 52%, transparent 86%); mask-image: linear-gradient(180deg, #000 0%, #000 52%, transparent 86%); }
+.nav-blur i:nth-child(3) { -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 74%); mask-image: linear-gradient(180deg, #000 0%, #000 42%, transparent 74%); }
+.nav-blur i:nth-child(4) { -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 32%, transparent 62%); mask-image: linear-gradient(180deg, #000 0%, #000 32%, transparent 62%); }
+.nav-blur i:nth-child(5) { -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 22%, transparent 50%); mask-image: linear-gradient(180deg, #000 0%, #000 22%, transparent 50%); }
+.nav-blur i:nth-child(6) { -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 40%); mask-image: linear-gradient(180deg, #000 0%, transparent 40%); }
+/* A whisper of white at the top so the links stay readable over busy content. */
+.nav-blur::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255, 255, 255, .7) 0%, rgba(255, 255, 255, .35) 45%, rgba(255, 255, 255, 0) 100%); }
 .nav .wrap { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 100%; width: min(1360px, 100% - 40px); }
 .nav .left, .nav .right { display: flex; align-items: center; gap: 6px; pointer-events: auto; }
 .brand { display: inline-flex; align-items: center; gap: 10px; margin-right: 12px; font-weight: 600; font-size: 17px; letter-spacing: -.02em; text-decoration: none; color: var(--pen-1); }

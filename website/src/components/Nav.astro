@@ -9,6 +9,8 @@ const at = (hash: string) => (home ? hash : `/${hash}`);
 <!-- Fixed, and laid out like the macOS menu bar: the app and its menus on the left, the
      notch in the middle, status items on the right. -->
 <header class="nav" id="nav">
+  <!-- Progressive blur: stronger at the top edge, gone a little below the bar. -->
+  <div class="nav-blur" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
   <div class="wrap">
     <nav class="left" aria-label="Main">
       <a class="brand" href="/" aria-label="Crenel home"><img src="/media/app-icon.png" alt="" width="28" height="28" />Crenel</a>
