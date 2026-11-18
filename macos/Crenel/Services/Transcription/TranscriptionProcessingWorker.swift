@@ -62,7 +62,8 @@ actor TranscriptionProcessingWorker {
                 let preferences = try await settingsRepository.load()
                 let existing = try await meetingRepository.loadTranscription(for: meeting.id)
                 let result: TranscriptionResult
-                if let existing {
+                let canResume = job.requestsNewTranscript != true || existing?.transcriptionJobID == job.id
+                if let existing, canResume {
                     result = TranscriptionResult(transcript: existing.transcript)
                 } else {
                     let audioURL = await meetingRepository.audioFileURL(for: meeting)
@@ -77,7 +78,9 @@ actor TranscriptionProcessingWorker {
                     }
                     try Task.checkCancellation()
                     // Durable checkpoint before any second provider request.
-                    _ = try await meetingRepository.saveTranscription(result, summary: nil, for: meeting)
+                    var checkpoint = StoredTranscription(transcript: result.transcript)
+                    checkpoint.transcriptionJobID = job.id
+                    _ = try await meetingRepository.saveAnalysis(checkpoint, for: meeting)
                 }
                 await onEvent(.transcribing(meetingID: job.meetingID))
                 await onEvent(.summarizing(meetingID: job.meetingID))
@@ -90,11 +93,12 @@ actor TranscriptionProcessingWorker {
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
-                    stored = StoredTranscription(transcript: result.transcript, summary: existing?.summary)
+                    stored = StoredTranscription(transcript: result.transcript, summary: canResume ? existing?.summary : nil)
                     stored.summaryFailure = (error as? MeetingAnalysisError)?.errorDescription
                         ?? "Couldn’t create the summary. The transcript was kept, so you can try the summary again."
                 }
                 try Task.checkCancellation()
+                stored.transcriptionJobID = canResume ? (existing?.transcriptionJobID ?? job.id) : job.id
                 let updatedMeeting = try await meetingRepository.saveAnalysis(stored, for: meeting)
                 try await queue.complete(meetingID: job.meetingID)
                 await onEvent(.completed(updatedMeeting, actionItemCount: stored.summary?.actionItems.count))

@@ -455,7 +455,7 @@ extension SettingsView {
                             Task { _ = await onSaveTranscriptionSettings(code, nil) }
                         }
                     ),
-                    options: [(nil as String?, "Automatic"), ("tr" as String?, "Turkish"), ("en" as String?, "English")]
+                    options: [(nil as String?, engine.defaultLanguageTitle()), ("tr" as String?, "Turkish"), ("en" as String?, "English")]
                 )
                 .accessibilityLabel("Transcript language")
             }

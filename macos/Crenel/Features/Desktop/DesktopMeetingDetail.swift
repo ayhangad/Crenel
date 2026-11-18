@@ -167,6 +167,7 @@ struct DesktopMeetingDetail: View {
     @State private var copied = false
     @State private var editingSpeakerID: String?
     @State private var editingSpeakerName = ""
+    @State private var confirmingRetranscription = false
     @State private var savingSpeaker = false
     @State private var message: String?
     @State private var messageFailed = false
@@ -217,6 +218,12 @@ struct DesktopMeetingDetail: View {
                 .padding(.bottom, 32)
             }
             .scrollIndicators(.never)
+        }
+        .alert("Transcribe this meeting again?", isPresented: $confirmingRetranscription) {
+            Button("Cancel", role: .cancel) {}
+            Button("Transcribe again") { actions.retranscribe(meeting) }
+        } message: {
+            Text("Crenel will use the voice provider and language in Settings. The new transcript replaces the current transcript, speaker edits and notes.")
         }
         .onDisappear { player.pause() }
         .onReceive(NotificationCenter.default.publisher(for: .desktopDidClose)) { _ in player.pause() }
@@ -307,6 +314,10 @@ struct DesktopMeetingDetail: View {
                 Button("Save as plain text") { actions.exportMeeting(.plainText, meeting, stored) }
             }
             Button("Show audio in Finder") { actions.revealAudio(content.audioURL) }
+            if stored != nil {
+                Button("Transcribe again…") { confirmingRetranscription = true }
+                    .disabled(isProcessing || savingSpeaker)
+            }
             if canRetry {
                 Button("Retry processing") { actions.retryProcessing(meeting) }
             }

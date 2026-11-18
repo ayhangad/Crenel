@@ -262,6 +262,7 @@ actor FileMeetingRepository: MeetingRepository {
             }
         }
         var updated = StoredTranscription(completedAt: stored.completedAt, transcript: transcript, summary: summary)
+        updated.transcriptionJobID = stored.transcriptionJobID
         updated.summaryFailure = stored.summaryFailure
         return try writeAnalysis(updated, for: meeting)
     }

@@ -23,6 +23,8 @@ struct ProcessingJob: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     let meetingID: UUID
     let idempotencyKey: UUID
+    /// Missing in older jobs, which always resume the stored transcript.
+    var requestsNewTranscript: Bool?
     let createdAt: Date
     var updatedAt: Date
     var state: State
@@ -64,7 +66,7 @@ extension ProcessingJob.FailureKind {
         case .providerUnavailable: self = .providerUnavailable
         case .invalidFile: self = .invalidFile
         case .invalidResponse: self = .invalidResponse
-        case .unsupportedFeature: self = .unsupportedFeature
+        case .unsupportedLanguage, .unsupportedFeature: self = .unsupportedFeature
         case .cancelled: self = .cancelled
         }
     }

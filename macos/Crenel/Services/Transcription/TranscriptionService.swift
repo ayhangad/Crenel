@@ -72,6 +72,7 @@ enum TranscriptionFileValidationFailure: String, Equatable, Sendable {
 enum TranscriptionServiceError: Error, Equatable, Sendable {
     case settingsUnavailable
     case invalidFile(TranscriptionFileValidationFailure)
+    case unsupportedLanguage(String)
     case unsupportedFeature(TranscriptionFeature)
     case authentication
     case rateLimited(retryAfter: TimeInterval?)
@@ -85,7 +86,7 @@ enum TranscriptionServiceError: Error, Equatable, Sendable {
         switch self {
         case .rateLimited, .timeout, .networkUnavailable, .providerUnavailable:
             true
-        case .settingsUnavailable, .invalidFile, .unsupportedFeature, .authentication, .invalidResponse, .cancelled:
+        case .settingsUnavailable, .invalidFile, .unsupportedFeature, .unsupportedLanguage, .authentication, .invalidResponse, .cancelled:
             false
         }
     }
@@ -111,6 +112,8 @@ enum TranscriptionServiceError: Error, Equatable, Sendable {
             .decoding("ElevenLabs returned an unexpected response. Try again.")
         case .invalidFile:
             .fileSystem("This audio file can’t be uploaded for transcription.")
+        case .unsupportedLanguage(let locale):
+            .provider("Apple Speech does not support \(locale). Choose a different transcript language in Settings.", credentialsInvalid: false)
         case .unsupportedFeature:
             .provider("ElevenLabs doesn’t support the requested transcription feature.", credentialsInvalid: false)
         case .cancelled:

@@ -12,6 +12,13 @@ enum MeetingTranscriptionEngine: String, Codable, CaseIterable, Equatable, Senda
         }
     }
 
+    func defaultLanguageTitle(locale: Locale = .current) -> String {
+        guard self == .onDevice else { return "Automatic" }
+        let code = locale.language.languageCode?.identifier ?? locale.identifier
+        let language = locale.localizedString(forLanguageCode: code) ?? code
+        return "Mac language (\(language))"
+    }
+
     /// Unknown stored values (from a newer build) decode to the default instead of failing.
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
@@ -81,9 +88,9 @@ struct MeetingTranscriptionRouter: TranscriptionServicing {
         self.onDevice = onDevice
     }
 
-    /// Static protocol requirement; reports the default (ElevenLabs) backend. Each backend
+    /// Static protocol requirement; reports the default on-device backend. Each backend
     /// validates the file against its own capabilities when it is called.
-    var capabilities: TranscriptionServiceCapabilities { elevenLabs.capabilities }
+    var capabilities: TranscriptionServiceCapabilities { onDevice.capabilities }
 
     func service(for engine: MeetingTranscriptionEngine) -> any TranscriptionServicing {
         switch engine {

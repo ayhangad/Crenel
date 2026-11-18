@@ -30,14 +30,17 @@ actor ProcessingQueue {
     @discardableResult
     func enqueue(
         meetingID: UUID,
+        newTranscript: Bool = false,
         now: Date = Date()
     ) async throws -> ProcessingJob {
         var current = try await loadedJobs()
-        if let existing = current.first(where: { $0.meetingID == meetingID }) {
-            return existing
+        if let index = current.firstIndex(where: { $0.meetingID == meetingID }) {
+            guard newTranscript, current[index].state == .failed else { return current[index] }
+            current.remove(at: index)
         }
 
-        let job = ProcessingJob(meetingID: meetingID, createdAt: now)
+        var job = ProcessingJob(meetingID: meetingID, createdAt: now)
+        if newTranscript { job.requestsNewTranscript = true }
         current.append(job)
         try await persist(current)
         return job

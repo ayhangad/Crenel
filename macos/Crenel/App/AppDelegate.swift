@@ -1838,7 +1838,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func retryProcessing(_ meeting: StoredMeeting) {
+    func retryProcessing(_ meeting: StoredMeeting, newTranscript: Bool = false) {
         guard !editingMeetingIDs.contains(meeting.id) else { return }
         Task { [weak self] in
             guard let self else { return }
@@ -1846,8 +1846,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let jobs = try await self.processingQueue.allJobs()
                 if jobs.contains(where: { $0.meetingID == meeting.id && $0.state != .failed }) { return }
                 let job: ProcessingJob
-                if let retried = try await self.processingQueue.retry(meetingID: meeting.id) { job = retried }
-                else { job = try await self.processingQueue.enqueue(meetingID: meeting.id) }
+                if !newTranscript, let retried = try await self.processingQueue.retry(meetingID: meeting.id) {
+                    job = retried
+                } else {
+                    job = try await self.processingQueue.enqueue(meetingID: meeting.id, newTranscript: newTranscript)
+                }
                 self.appState.upsertProcessingJob(job)
                 self.startProcessingQueue()
             } catch {

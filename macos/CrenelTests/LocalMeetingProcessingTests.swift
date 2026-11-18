@@ -110,6 +110,11 @@ final class LocalMeetingProcessingTests: XCTestCase {
         XCTAssertTrue(LocalMeetingTranscriptionError.unsupportedLocale("Turkish").errorDescription?
             .contains("doesn’t support") == true)
         let local = LocalMeetingTranscriptionService()
+        XCTAssertFalse(MeetingTranscriptionRouter(preferences: { .default }).capabilities.supportsAutomaticLanguageDetection)
+        XCTAssertFalse(local.capabilities.supportsAutomaticLanguageDetection)
+        XCTAssertEqual(MeetingTranscriptionEngine.onDevice.defaultLanguageTitle(locale: Locale(identifier: "en_US")),
+                       "Mac language (English)")
+        XCTAssertEqual(MeetingTranscriptionEngine.elevenLabs.defaultLanguageTitle(), "Automatic")
         XCTAssertFalse(local.capabilities.supportsDiarization)
         XCTAssertEqual(local.capabilities.maximumFileSizeBytes, Int64.max)
         XCTAssertTrue(local.capabilities.supportedFileExtensions.isSuperset(of: ["m4a", "wav", "caf", "aiff"]))
@@ -284,7 +289,7 @@ final class LocalMeetingProcessingTests: XCTestCase {
         )
         let request = TranscriptionRequest(audioFileURL: URL(fileURLWithPath: "/tmp/x.m4a"), languageCode: "tr")
         await XCTAssertThrowsAsync(try await router.transcribe(request) { _ in }) {
-            XCTAssertEqual($0 as? TranscriptionServiceError, .unsupportedFeature(.automaticLanguageDetection))
+            XCTAssertEqual($0 as? TranscriptionServiceError, .unsupportedLanguage("x"))
         }
     }
 

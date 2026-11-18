@@ -7,6 +7,8 @@ struct StoredTranscription: Codable, Equatable, Sendable {
     let completedAt: Date
     let transcript: Transcript
     let summary: MeetingSummary?
+    /// Allows a retried retranscription to resume its own durable checkpoint.
+    var transcriptionJobID: UUID?
     var summaryFailure: String? = nil
 
     init(

@@ -261,6 +261,36 @@ final class TranscriptionProcessingWorkerTests: XCTestCase {
         XCTAssertEqual(recovered?.transcript.segments.first?.id, failedSummary?.transcript.segments.first?.id)
     }
 
+    func testFreshTranscriptJobUsesSelectedLanguageAfterRestartAndKeepsOldTextUntilSuccess() async throws {
+        let repository = FileMeetingRepository(rootURL: root)
+        let meeting = try await repository.saveCapture(try makeCapture())
+        let original = Transcript(text: "old text", languageCode: "en", segments: [])
+        _ = try await repository.saveTranscription(.init(transcript: original), summary: nil, for: meeting)
+        let settings = UserDefaultsAppSettingsRepository(defaults: defaults, storageKey: "prefs")
+        var preferences = AppPreferences.default
+        preferences.transcription.languageCode = "tr"
+        try await settings.save(preferences)
+        let jobs = FileProcessingJobRepository(rootURL: root)
+        let job = try await ProcessingQueue(repository: jobs).enqueue(meetingID: meeting.id, newTranscript: true)
+        let queue = ProcessingQueue(repository: jobs)
+        _ = try await queue.restore()
+        let failure = TranscriptionProcessingWorker(queue: queue, meetingRepository: repository,
+            settingsRepository: settings, transcriptionService: WorkerStubTranscriptionService(mode: .failure(.authentication)))
+        await failure.drain()
+        let afterFailure = try await repository.loadTranscription(for: meeting.id)
+        XCTAssertEqual(afterFailure?.transcript, original)
+        _ = try await queue.retry(meetingID: meeting.id)
+        let service = WorkerStubTranscriptionService(mode: .success)
+        let success = TranscriptionProcessingWorker(queue: queue, meetingRepository: repository,
+            settingsRepository: settings, transcriptionService: service)
+        await success.drain()
+        let request = await service.lastRequest()
+        let replacement = try await repository.loadTranscription(for: meeting.id)
+        XCTAssertEqual(request?.languageCode, "tr")
+        XCTAssertEqual(replacement?.transcript.text, "Merhaba")
+        XCTAssertEqual(replacement?.transcriptionJobID, job.id)
+    }
+
     private func makeCapture() throws -> RecordingCaptureResult {
         let id = UUID()
         let directory = root

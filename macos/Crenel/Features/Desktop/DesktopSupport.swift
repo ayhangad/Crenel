@@ -19,6 +19,7 @@ struct DesktopActions {
     /// Shows a meeting's audio in Finder when its detail could not be loaded.
     var revealMeetingAudio: (StoredMeeting) -> Void = { _ in }
     var retryProcessing: (StoredMeeting) -> Void = { _ in }
+    var retranscribe: (StoredMeeting) -> Void = { _ in }
     var deleteMeeting: (StoredMeeting) -> Void = { _ in }
     var loadMeeting: (StoredMeeting) async throws -> MeetingDetailContent = { _ in throw CancellationError() }
     var analysis = MeetingAnalysisActions()
@@ -48,6 +49,7 @@ extension DesktopActions {
                 }
             },
             retryProcessing: { [weak delegate] in delegate?.retryProcessing($0) },
+            retranscribe: { [weak delegate] in delegate?.retryProcessing($0, newTranscript: true) },
             deleteMeeting: { [weak delegate] in delegate?.deleteStoredMeeting($0) },
             loadMeeting: { [weak delegate] meeting in
                 guard let delegate else { throw CancellationError() }

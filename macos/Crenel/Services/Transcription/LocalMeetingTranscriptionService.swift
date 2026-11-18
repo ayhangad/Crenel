@@ -27,7 +27,7 @@ enum LocalMeetingTranscriptionError: Error, LocalizedError, Equatable, Sendable 
 
     var serviceError: TranscriptionServiceError {
         switch self {
-        case .unsupportedLocale: .unsupportedFeature(.automaticLanguageDetection)
+        case .unsupportedLocale(let locale): .unsupportedLanguage(locale)
         case .assetInstallationFailed: .networkUnavailable
         case .unreadableAudio: .invalidFile(.unreadable)
         case .analysisFailed: .invalidResponse
@@ -51,7 +51,7 @@ actor LocalMeetingTranscriptionService: TranscriptionServicing {
         supportedFileExtensions: ["m4a", "wav", "caf", "aiff", "aif", "aac", "mp3"],
         maximumFileSizeBytes: Int64.max,
         supportsDiarization: false,
-        supportsAutomaticLanguageDetection: true
+        supportsAutomaticLanguageDetection: false
     )
 
     private let fileManager: FileManager
@@ -70,9 +70,10 @@ actor LocalMeetingTranscriptionService: TranscriptionServicing {
         uploadProgress: @escaping TranscriptionUploadProgress
     ) async throws -> TranscriptionResult {
         // Diarization is approximated from separate tracks, so it is not a hard requirement here.
+        let candidates = Self.localeCandidates(for: request.languageCode, systemLocale: systemLocale())
         let validationRequest = TranscriptionRequest(
             audioFileURL: request.audioFileURL,
-            languageCode: request.languageCode,
+            languageCode: candidates.first?.identifier,
             requestsDiarization: false,
             idempotencyKey: request.idempotencyKey
         )
@@ -80,7 +81,7 @@ actor LocalMeetingTranscriptionService: TranscriptionServicing {
             .validate(request: validationRequest, capabilities: capabilities)
         try Task.checkCancellation()
 
-        let engine = try await resolveEngine(languageCode: request.languageCode)
+        let engine = try await resolveEngine(candidates: candidates)
         try await ensureAssets(for: engine)
         try Task.checkCancellation()
 
@@ -204,8 +205,7 @@ actor LocalMeetingTranscriptionService: TranscriptionServicing {
         }
     }
 
-    private func resolveEngine(languageCode: String?) async throws -> Engine {
-        let candidates = Self.localeCandidates(for: languageCode, systemLocale: systemLocale())
+    private func resolveEngine(candidates: [Locale]) async throws -> Engine {
         for candidate in candidates {
             if SpeechTranscriber.isAvailable,
                let locale = await SpeechTranscriber.supportedLocale(equivalentTo: candidate) {
@@ -216,7 +216,7 @@ actor LocalMeetingTranscriptionService: TranscriptionServicing {
             }
         }
         throw LocalMeetingTranscriptionError.unsupportedLocale(
-            candidates.first.map(Self.displayName(for:)) ?? (languageCode ?? "?")
+            candidates.first.map(Self.displayName(for:)) ?? "this language"
         )
     }
 
