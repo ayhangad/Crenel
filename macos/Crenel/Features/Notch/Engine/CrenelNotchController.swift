@@ -149,6 +149,8 @@ final class CrenelNotchController: ObservableObject {
     private var panel: CrenelNotchPanel?
     private var hostingView: NSHostingView<AnyView>?
     private var shapeFrameInWindow: CGRect = .zero
+    /// The open panel's frame before it last shrank, kept while the shape animates down.
+    private var shrinkingFrom: (frame: CGRect, until: Date)?
     private var mouseMonitors: [Any] = []
     private var screen: NSScreen?
     private var dragMonitor: Any?
@@ -257,8 +259,7 @@ final class CrenelNotchController: ObservableObject {
             expanded: expanded,
             compact: compact,
             onShapeFrameChange: { [weak self] frame in
-                self?.shapeFrameInWindow = frame
-                self?.updateMouseHandling()
+                self?.shapeFrameDidChange(frame)
             },
             onClosedTraitsChange: { [weak self] traits in
                 guard let self, self.model.closedTraits != traits else { return }
@@ -364,13 +365,49 @@ final class CrenelNotchController: ObservableObject {
         return CGRect(x: shape.minX, y: shape.maxY - band, width: shape.width, height: band)
     }
 
+    /// Layout reports the panel's final size at once, and sometimes a passing smaller one
+    /// while the content settles, but the shape on screen springs there over half a
+    /// second. Until it has, the larger frame still counts as the notch, so a pointer
+    /// that moved fast onto the panel is not taken for one that left.
+    private func shapeFrameDidChange(_ frame: CGRect) {
+        let previous = shapeFrameInWindow
+        shapeFrameInWindow = frame
+        if model.presentation == .expanded, !previous.isEmpty,
+           previous.height > frame.height || previous.width > frame.width {
+            let kept = shrinkingFrom.map { $0.frame.union(previous) } ?? previous
+            shrinkingFrom = (kept, Date().addingTimeInterval(Self.settleTime))
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.settleTime + 0.02) { [weak self] in
+                self?.updateMouseHandling()
+            }
+        }
+        updateMouseHandling()
+    }
+
+    /// How long the shape takes to spring to a new size.
+    private static let settleTime: TimeInterval = 0.6
+
+    /// The pointer is checked again now, without waiting for it to move. The hover
+    /// controller asks this before it closes the panel.
+    func pointerIsStillOnNotch() -> Bool {
+        updateMouseHandling()
+        return hoverIntent
+    }
+
     /// The window only takes the mouse inside the visible shape; elsewhere clicks fall
     /// through to the apps below. Hover uses a slightly larger zone so the notch opens
     /// when the pointer reaches the camera housing.
     private func updateMouseHandling() {
         guard let panel, !model.isDragging else { return }
         let mouse = NSEvent.mouseLocation
-        let shape = screenRect(fromWindowRect: shapeFrameInWindow, in: panel)
+        var shapeInWindow = shapeFrameInWindow
+        if let shrinking = shrinkingFrom {
+            if model.presentation == .expanded, Date() < shrinking.until {
+                shapeInWindow = shapeInWindow.union(shrinking.frame)
+            } else {
+                shrinkingFrom = nil
+            }
+        }
+        let shape = screenRect(fromWindowRect: shapeInWindow, in: panel)
         let insideShape = model.presentation != .hidden && shape.contains(mouse)
         // Only on a change: re-setting it on every move makes the window server rebuild
         // the panel's mouse handling and delays SwiftUI's hover inside it.
@@ -637,3 +674,4 @@ struct CrenelNotchRootView: View {
         Crenel.Motion.resolve(animation, reduceMotion: reduceMotion)
     }
 }
+

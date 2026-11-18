@@ -177,7 +177,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         onCompact: { [weak self] in
             guard let self else { return }
             await self.notch.compact(on: self.resolvedActiveNotchScreen())
-        }
+        },
+        isStillHovering: { [weak self] in self?.notch.pointerIsStillOnNotch() ?? false }
     )
 
     private lazy var notch = CrenelNotchController(

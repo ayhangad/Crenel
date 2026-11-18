@@ -13,6 +13,9 @@ final class NotchHoverController {
     private let compactionDelay: Duration
     private let onExpand: Transition
     private let onCompact: Transition
+    /// Asked just before the panel closes: the pointer may be on it without having moved
+    /// since the last hover report.
+    private let isStillHovering: @MainActor () -> Bool
     private var transitionTask: Task<Void, Never>?
     private var isPinned = false
     private var isHovering = false
@@ -24,8 +27,10 @@ final class NotchHoverController {
         expansionDelay: Duration = .milliseconds(Int(Hud.Motion.leanDelay * 1_000)),
         compactionDelay: Duration = .milliseconds(380),
         onExpand: @escaping Transition,
-        onCompact: @escaping Transition
+        onCompact: @escaping Transition,
+        isStillHovering: @escaping @MainActor () -> Bool = { false }
     ) {
+        self.isStillHovering = isStillHovering
         self.expansionDelay = expansionDelay
         self.compactionDelay = compactionDelay
         self.onExpand = onExpand
@@ -49,7 +54,7 @@ final class NotchHoverController {
                 return
             }
             transitionTask = schedule(after: compactionDelay) { [weak self] in
-                guard let self else { return }
+                guard let self, !self.isStillHovering() else { return }
                 self.presentationState = .compact
                 await self.onCompact()
             }

@@ -52,6 +52,26 @@ final class NotchHoverControllerTests: XCTestCase {
         XCTAssertEqual(controller.presentationState, .compact)
     }
 
+    func testPanelStaysOpenWhenPointerIsStillOnItAtCloseTime() async throws {
+        // A fast move onto the panel can be reported as leaving while the shape settles;
+        // the pointer is checked again before closing.
+        let probe = NotchTransitionProbe()
+        let controller = NotchHoverController(
+            expansionDelay: .milliseconds(10),
+            compactionDelay: .milliseconds(10),
+            onExpand: { probe.expansionCount += 1 },
+            onCompact: { probe.compactionCount += 1 },
+            isStillHovering: { true }
+        )
+        controller.markExpanded()
+
+        controller.update(isHovering: false)
+        try await Task.sleep(for: .milliseconds(35))
+
+        XCTAssertEqual(probe.compactionCount, 0)
+        XCTAssertEqual(controller.presentationState, .expanded)
+    }
+
     func testPinnedPanelDoesNotCompactWhenPointerLeaves() async throws {
         let probe = NotchTransitionProbe()
         let controller = makeController(probe: probe)
