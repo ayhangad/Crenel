@@ -1,0 +1,25 @@
+---
+import AppleLogo from './AppleLogo.astro';
+import GitHubLogo from './GitHubLogo.astro';
+import XLogo from './XLogo.astro';
+import { LATEST, REPO, X_URL } from '../lib/site';
+const home = Astro.url.pathname === '/' || Astro.url.pathname === '/index.html';
+const at = (hash: string) => (home ? hash : `/${hash}`);
+---
+<header class="nav on-paper">
+  <div class="wrap">
+    <!-- Laid out like the macOS menu bar: the app and its menus on the left, the notch in the
+         middle, status items on the right. -->
+    <nav class="left" aria-label="Main">
+      <a class="brand" href="/" aria-label="Crenel home"><img src="/media/app-icon.png" alt="" width="30" height="30" />Crenel</a>
+      <a class="hide-mid" href={at('#features')}>Features</a>
+      <a class="hide-mid" href={at('#privacy')}>Privacy</a>
+      <a class="hide-mid" href="/releases">Releases</a>
+    </nav>
+    <div class="right">
+      <a class="icon-link hide-sm" href={REPO} aria-label="Crenel on GitHub"><GitHubLogo size={18} /></a>
+      <a class="icon-link hide-sm" href={X_URL} aria-label="Ayhan Gad on X"><XLogo size={16} /></a>
+      <a class="key black sm" href={LATEST}><AppleLogo size={15} />Download</a>
+    </div>
+  </div>
+</header>

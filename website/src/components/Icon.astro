@@ -1,0 +1,5 @@
+---
+interface Props { id: string; size?: number; class?: string }
+const { id, size = 16, class: cls = '' } = Astro.props;
+---
+<svg class={`ico ${cls}`} width={size} height={size} viewBox="0 0 16 16" aria-hidden="true"><use href={`#${id}`} /></svg>

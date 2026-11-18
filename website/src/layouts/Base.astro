@@ -1,0 +1,46 @@
+---
+import '../styles/global.css';
+import Sprite from '../components/Sprite.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props { title?: string; description?: string; path?: string }
+const {
+  title = "Crenel: your Mac's notch, at work",
+  description = 'Calendar, dictation, tasks and meeting notes in the MacBook notch. Free and open source. Your data stays on your Mac.',
+} = Astro.props;
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
+const og = Astro.site ? new URL('/og.jpg', Astro.site).href : '/og.jpg';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {canonical && <link rel="canonical" href={canonical} />}
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#fbf8fb" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={og} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:creator" content="@ayhangad" />
+  </head>
+  <body>
+    <Sprite />
+    <Nav />
+    <slot />
+    <Footer />
+    <script>
+      // Reveal sections as they scroll in.
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      }, { rootMargin: '0px 0px -8% 0px' });
+      document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+    </script>
+  </body>
+</html>

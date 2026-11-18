@@ -30,7 +30,7 @@ Bu depo bir monorepo'dur:
 | `macos/` | macOS uygulaması: `project.yml`, kaynak (`Crenel/`), testler, betikler, QA |
 | `browser-extension/` | Google Meet sesi için Chrome uzantısı, Store paketi ve betikleri |
 | `docs/` | Tasarım dili ve prototip |
-| `website/` | (yakında) crenel web sitesi |
+| `website/` | Crenel web sitesi (Astro; ayrıntı `website/README.md`) |
 
 ## Masaüstü çalışma alanı
 

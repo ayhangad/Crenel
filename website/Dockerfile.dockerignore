@@ -1,0 +1,7 @@
+# Only what the build needs (BuildKit reads this next to website/Dockerfile).
+*
+!website/
+!docs/releases/
+website/node_modules
+website/dist
+website/.astro

@@ -1,0 +1,24 @@
+---
+// The promo film's living wallpaper (promo/src/Promo.tsx, FIELDS): the app's teal, a blue
+// beside it and only a touch of amber, blurred and drifting slowly.
+const FIELDS = [
+  { c: '#c8fbf2', x: 30, y: 18, w: 70, h: 42, r: -28, o: 0.95 },
+  { c: '#14f0d4', x: 16, y: 66, w: 46, h: 70, r: -20, o: 0.9 },
+  { c: '#22c7d8', x: 32, y: 60, w: 34, h: 90, r: -38, o: 0.85 },
+  { c: '#2f8cf0', x: 46, y: 52, w: 22, h: 95, r: -42, o: 0.8 },
+  { c: '#5b6cf2', x: 58, y: 52, w: 24, h: 95, r: -46, o: 0.55 },
+  { c: '#a9d8f7', x: 72, y: 60, w: 40, h: 90, r: -48, o: 0.75 },
+  { c: '#ffad33', x: 8, y: 98, w: 16, h: 18, r: -20, o: 0.45 },
+];
+interface Props { soft?: boolean; flip?: boolean }
+const { soft = false, flip = false } = Astro.props;
+---
+<div class="wallpaper" aria-hidden="true" style={flip ? 'transform: scaleX(-1)' : undefined}>
+  {FIELDS.map((b, i) => (
+    <span
+      class="blob"
+      style={`left:${b.x}%;top:${b.y}%;width:${b.w}vw;height:${b.h}vw;--r:${b.r}deg;--d:${-i * 3.7}s;opacity:${soft ? b.o * 0.55 : b.o};background:radial-gradient(closest-side, ${b.c} 0%, ${b.c}00 100%)`}
+    />
+  ))}
+  <svg class="grain"><filter id={`grain-${soft ? 's' : 'h'}${flip ? 'f' : ''}`}><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" /></filter><rect width="100%" height="100%" filter={`url(#grain-${soft ? 's' : 'h'}${flip ? 'f' : ''})`} /></svg>
+</div>

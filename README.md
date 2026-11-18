@@ -134,6 +134,7 @@ The repository is a monorepo:
 | `browser-extension/` | Chrome extension that brings Google Meet audio to Crenel |
 | `docs/` | Design language, the clickable prototype, release notes |
 | `promo/` | The Remotion source of the video above |
+| `website/` | The Astro site, with the release timeline built from `docs/releases` |
 
 ## Contributing
 

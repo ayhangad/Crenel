@@ -1,0 +1,37 @@
+---
+import XLogo from './XLogo.astro';
+import { LATEST, REPO, X_HANDLE, X_URL } from '../lib/site';
+const year = new Date().getFullYear();
+---
+<footer class="footer on-dark">
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <a class="brand" href="/"><img src="/media/app-icon.png" alt="" width="30" height="30" />Crenel</a>
+        <p class="about">A notch assistant for macOS. Free, open source, and your data stays on your Mac. Questions, ideas or bugs? Write to me on X, <a class="x" href={X_URL}>{X_HANDLE}</a>.</p>
+      </div>
+      <nav aria-label="Footer">
+        <div>
+          <span class="head">Crenel</span>
+          <a href={LATEST}>Download</a>
+          <a href="/releases">Releases</a>
+          <a href="/#privacy">Privacy</a>
+        </div>
+        <div>
+          <span class="head">Open source</span>
+          <a href={REPO}>GitHub</a>
+          <a href={`${REPO}/issues`}>Report a bug</a>
+          <a href={`${REPO}/blob/main/LICENSE`}>MIT license</a>
+        </div>
+        <div>
+          <span class="head">Contact</span>
+          <a class="x" href={X_URL}><XLogo size={14} />{X_HANDLE}</a>
+        </div>
+      </nav>
+    </div>
+    <div class="bottom">
+      <span>© {year} Ayhan Gad</span>
+      <span>Made for the notch, on a Mac.</span>
+    </div>
+  </div>
+</footer>

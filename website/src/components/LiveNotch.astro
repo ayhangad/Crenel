@@ -1,0 +1,137 @@
+---
+// The page's own notch, hanging from the top edge. It plays the app's closed states in turn
+// (a meeting countdown, dictation, notes ready) and opens into the Today panel on hover.
+import Icon from './Icon.astro';
+import Lamp from './Lamp.astro';
+import Seg from './Seg.astro';
+---
+<div class="notch-stage">
+  <div class="notch" id="notch" data-size="compact" data-state="meeting" role="img" aria-label="The Crenel notch: a meeting countdown, dictation, and notes ready. Hover to open it.">
+    <span class="shoulder l"></span><span class="shoulder r"></span>
+    <div class="body">
+      <!-- Meeting countdown (compact). -->
+      <div class="layer on" data-layer="meeting">
+        <div class="ears">
+          <div class="ear l"><Icon id="i-video" size={14} /><span class="clip">Design review</span></div>
+          <div></div>
+          <div class="ear r"><span class="seg-live" data-min><Seg text="12" h={13} cells={2} /></span><span class="unit">min</span></div>
+        </div>
+      </div>
+
+      <!-- Dictation (strip). -->
+      <div class="layer" data-layer="dictation">
+        <div class="ears">
+          <div class="ear l"><Lamp on="r" dot /><span>Listening</span></div>
+          <div></div>
+          <div class="ear r"><span class="vu"><i></i><i></i><i></i><i></i><i></i></span><span class="seg-live" data-secs><Seg text="0:00" h={13} /></span></div>
+        </div>
+        <div class="strip"><span class="words" data-words></span></div>
+      </div>
+
+      <!-- Notes ready (strip). -->
+      <div class="layer" data-layer="ready">
+        <div class="ears">
+          <div class="ear l"><Icon id="i-tape" size={14} /><span>Design review</span></div>
+          <div></div>
+          <div class="ear r"><Lamp on="g" /><span>Ready</span></div>
+        </div>
+        <div class="strip">
+          <Lamp on="g" />
+          <span class="words">Notes and 3 action items</span>
+          <span class="key light">Open<span class="kbd">↩</span></span>
+        </div>
+      </div>
+
+      <!-- Open: the Today panel. -->
+      <div class="layer" data-layer="open">
+        <div class="panel"><img src="/media/notch-today.webp" alt="" width="560" height="516" loading="eager" /></div>
+      </div>
+    </div>
+  </div>
+  <div class="notch-hint" aria-hidden="true">
+    <svg class="cursor" viewBox="0 0 22 32"><path d="M4 3 L4 25 L9.2 20.2 L12.6 28.2 L16 26.7 L12.7 18.9 L19.6 18.9 Z" fill="#000" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" /></svg>
+    Hover the notch
+  </div>
+</div>
+
+<script>
+  import { segSVG } from '../lib/seg';
+
+  const notch = document.getElementById('notch');
+  if (notch) {
+    const SIZE: Record<string, string> = { meeting: 'compact', dictation: 'strip', ready: 'strip', open: 'open' };
+    const ORDER = ['meeting', 'dictation', 'ready'];
+    const HOLD: Record<string, number> = { meeting: 4200, dictation: 5600, ready: 3800 };
+    const layers = [...notch.querySelectorAll<HTMLElement>('[data-layer]')];
+    const minEl = notch.querySelector<HTMLElement>('[data-min]');
+    const secEl = notch.querySelector<HTMLElement>('[data-secs]');
+    const wordsEl = notch.querySelector<HTMLElement>('[data-words]');
+    const WORDS = "Let's move the launch to Tuesday and send the notes to the team".split(' ');
+    const seg = (text: string, cells = 0) => `<span class="segd">${segSVG(text, 13, cells)}</span>`;
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let state = 'meeting';
+    let step = 0;
+    let timer = 0;
+    let dictTimer = 0;
+    let hovering = false;
+
+    // Minutes to the next half hour: "Design review" is always about to start.
+    const tickMinutes = () => {
+      const now = new Date();
+      const secs = 1800 - ((now.getMinutes() % 30) * 60 + now.getSeconds());
+      if (minEl) minEl.innerHTML = seg(String(Math.max(1, Math.ceil(secs / 60))), 2);
+    };
+
+    const show = (next: string) => {
+      state = next;
+      notch.dataset.state = next;
+      notch.dataset.size = SIZE[next];
+      for (const l of layers) l.classList.toggle('on', l.dataset.layer === next);
+      clearInterval(dictTimer);
+      if (next === 'dictation') runDictation();
+    };
+
+    const runDictation = () => {
+      let i = 0;
+      const t0 = Date.now();
+      const draw = () => {
+        const s = Math.floor((Date.now() - t0) / 1000);
+        if (secEl) secEl.innerHTML = seg(`0:${String(s).padStart(2, '0')}`);
+        if (wordsEl) {
+          const shown = WORDS.slice(0, i);
+          const last = shown.length ? shown.pop() : '';
+          wordsEl.innerHTML = `${shown.join(' ')}${shown.length ? ' ' : ''}<span class="dim">${last ?? ''}</span><span class="caret"></span>`;
+        }
+        i = Math.min(WORDS.length, i + 1);
+      };
+      draw();
+      dictTimer = window.setInterval(draw, 330);
+    };
+
+    const cycle = () => {
+      clearTimeout(timer);
+      if (hovering || reduced) return;
+      timer = window.setTimeout(() => {
+        step = (step + 1) % ORDER.length;
+        show(ORDER[step]);
+        cycle();
+      }, HOLD[state] ?? 4000);
+    };
+
+    const open = () => { hovering = true; clearTimeout(timer); show('open'); };
+    const close = () => { hovering = false; show(ORDER[step]); cycle(); };
+
+    notch.addEventListener('mouseenter', open);
+    notch.addEventListener('mouseleave', close);
+    // Touch: tap to open, tap again to close.
+    notch.addEventListener('click', (e) => {
+      if ((e as PointerEvent).pointerType === 'mouse') return;
+      if (state === 'open') close(); else open();
+    });
+
+    tickMinutes();
+    setInterval(tickMinutes, 15000);
+    cycle();
+  }
+</script>

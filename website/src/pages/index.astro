@@ -1,0 +1,258 @@
+---
+import Base from '../layouts/Base.astro';
+import LiveNotch from '../components/LiveNotch.astro';
+import Wallpaper from '../components/Wallpaper.astro';
+import Icon from '../components/Icon.astro';
+import Lamp from '../components/Lamp.astro';
+import Seg from '../components/Seg.astro';
+import AppleLogo from '../components/AppleLogo.astro';
+import { LATEST, REPO, REQUIREMENTS, X_HANDLE, X_URL } from '../lib/site';
+import { getReleases } from '../lib/releases';
+
+const releases = await getReleases();
+const current = releases.find((r) => r.latest) ?? releases[0];
+
+const details = [
+  { icon: 'f-video', tone: 'g', title: 'Join with one key', text: 'When a call starts, the notch shows a Join key. Press it and you are in.' },
+  { icon: 'i-repeat', tone: '', title: 'Undo dictation', text: 'Wrong words in the wrong place? Undo takes them back for a few seconds after they land.' },
+  { icon: 'f-mic', tone: 'r', title: 'Records only when you talk', text: 'Your mic is recorded while you are unmuted. Muted, nothing of yours is kept.' },
+  { icon: 'f-transcript', tone: '', title: 'Markdown, PDF or text', text: 'Take the notes anywhere: copy them, or export a clean PDF to share.' },
+  { icon: 'f-bell', tone: 'a', title: 'Invites, marked', text: 'Events still waiting for your answer get an amber mark, so nothing slips.' },
+  { icon: 'f-archive', tone: '', title: 'Updates wait for you', text: 'Crenel updates itself, and never while you are on a call.' },
+];
+
+const faqs = [
+  { q: 'Is Crenel free?', a: 'Yes. Crenel is free and open source under the MIT license. Every line is on GitHub.' },
+  { q: 'Which Macs does it run on?', a: 'Any Mac on macOS 26 or later, Apple silicon or Intel. It is signed and notarized by Apple.' },
+  { q: 'My Mac has no notch. Does it work?', a: 'Yes. On a display without a notch, Crenel draws its own at the top of the screen, external displays included.' },
+  { q: 'Does anything leave my Mac?', a: 'Not unless you choose it. Dictation and notes can run fully on device with Apple\'s models. If you add your own OpenAI, Anthropic or ElevenLabs key, only that request goes to that provider.' },
+  { q: 'Do I need an account?', a: 'No. There is nothing to sign up for, and there are no analytics.' },
+  { q: 'Which calls can it record?', a: 'Zoom and Google Meet. For Meet in Chrome, a small extension passes the tab\'s audio to Crenel.' },
+];
+---
+<Base>
+  <main>
+    <!-- Hero: the page's own notch hangs from the top edge. -->
+    <section class="hero on-paper">
+      <Wallpaper />
+      <LiveNotch />
+      <div class="wrap">
+        <h1 class="display reveal">Your Mac's notch, at work.</h1>
+        <p class="lede reveal">Calendar, dictation, tasks and meeting notes, right beside the camera. Open source, and your data stays on your Mac.</p>
+        <div class="cta-row reveal">
+          <a class="key black lg" href={LATEST}><AppleLogo size={17} />Download for Mac</a>
+          <a class="key glass lg" href="#film"><Icon id="i-play" size={14} />Watch the film</a>
+        </div>
+        <p class="meta reveal">{REQUIREMENTS} · Free{current ? ` · Version ${current.version}` : ''}</p>
+      </div>
+
+      <div class="film reveal" id="film">
+        <div class="bezel">
+          <video id="promo" src="/media/crenel-promo.mp4" poster="/media/crenel-promo-poster.webp" autoplay muted loop playsinline preload="metadata" aria-label="Crenel promo film"></video>
+          <button class="key glass sm sound" type="button" aria-pressed="false" aria-label="Turn sound on">
+            <Icon id="i-speaker" class="on" size={15} /><Icon id="i-speaker" class="off" size={15} /><span class="off">Sound on</span><span class="on">Sound off</span>
+          </button>
+        </div>
+        <div class="film-foot"></div>
+      </div>
+    </section>
+
+    <!-- Three sizes. -->
+    <section class="section on-dark" id="features">
+      <div class="wrap">
+        <div class="section-head center reveal">
+          <span class="tag"><Lamp on="g" />How it works</span>
+          <h2 class="h2">One notch, three sizes.</h2>
+          <p class="lede">Most of the time it is a quiet line around the camera. When something needs you, it says so. When you want more, it opens.</p>
+        </div>
+        <div class="sizes">
+          <article class="size-card reveal">
+            <div class="stage"><img src="/media/notch-compact.webp" alt="Closed notch showing a meeting in 33 minutes" width="1040" height="72" loading="lazy" /></div>
+            <h3 class="h3"><Seg text="1" h={16} class="seg-n" />Closed</h3>
+            <p>One thing on each side of the camera: the next meeting and the minutes until it starts.</p>
+          </article>
+          <article class="size-card reveal">
+            <div class="stage"><img src="/media/notch-ready.webp" alt="Strip under the notch saying notes and 3 action items are ready" width="1040" height="172" loading="lazy" /></div>
+            <h3 class="h3"><Seg text="2" h={16} class="seg-n" />Strip</h3>
+            <p>A single line drops under it when something needs you: a call starting, dictation, notes ready.</p>
+          </article>
+          <article class="size-card reveal">
+            <div class="stage open"><img src="/media/notch-today.webp" alt="The open notch with today's agenda" width="1120" height="1032" loading="lazy" /></div>
+            <h3 class="h3"><Seg text="3" h={16} class="seg-n" />Open</h3>
+            <p>Hover, and it opens into a panel: your day, a recording, or your tasks.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features. -->
+    <section class="section on-paper" style="padding-bottom: 60px">
+      <div class="wrap">
+        <div class="feature feature-bg" style="--x: 72%">
+          <div class="copy reveal">
+            <span class="tag"><Lamp on="g" />Calendar</span>
+            <h2 class="h2">Always know what's next.</h2>
+            <p class="lede">Your next event and the time to it, or how long is left in the one you're in. Crenel reads Apple Calendar, so iCloud, Google and Exchange all work.</p>
+            <ul class="points">
+              <li><Lamp on="g" /><span>A <kbd>Join</kbd> key appears when the call starts.</span></li>
+              <li><Lamp on="a" /><span>Invites waiting for your answer are marked.</span></li>
+              <li><Lamp on="w" /><span>The whole day on one ruler, with a needle for now.</span></li>
+            </ul>
+          </div>
+          <div class="hang reveal">
+            <span class="bar"></span>
+            <div class="plate"><img src="/media/notch-today.webp" alt="Today in the open notch: the next meeting gauge, a timeline and the agenda" width="1120" height="1032" loading="lazy" /></div>
+          </div>
+        </div>
+
+        <div class="feature flip feature-bg" style="--x: 28%; --c: rgba(47, 140, 240, .16)">
+          <div class="copy reveal">
+            <span class="tag"><Lamp on="r" />Dictation</span>
+            <h2 class="h2">Hold fn and talk.</h2>
+            <p class="lede">The words go wherever your cursor is. Speech becomes text on your Mac, and the audio is never saved.</p>
+            <ul class="points">
+              <li><Lamp on="w" /><span>Long dictation grows into a live view as you speak.</span></li>
+              <li><Lamp on="w" /><span><kbd>Undo</kbd> takes it back if it landed in the wrong place.</span></li>
+              <li><Lamp on="g" /><span>Say "add task" and it becomes a task instead.</span></li>
+            </ul>
+          </div>
+          <div class="hang reveal">
+            <span class="bar"></span>
+            <div class="stack">
+              <div class="plate bare"><img src="/media/notch-dictation.webp" alt="Dictation strip showing the inserted text and the app it went into" width="1040" height="172" loading="lazy" /></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature feature-bg" style="--x: 70%; --c: rgba(52, 230, 203, .18)">
+          <div class="copy reveal">
+            <span class="tag"><Lamp on="r" />Meeting notes</span>
+            <h2 class="h2">Notes write themselves.</h2>
+            <p class="lede">When a Zoom or Google Meet call starts, Crenel asks once whether to record it. Afterwards you get a transcript with speakers, a summary, what was decided and what's on you.</p>
+            <ul class="points">
+              <li><Lamp on="r" /><span>Records the call and your mic, only while you're unmuted.</span></li>
+              <li><Lamp on="g" /><span>One click adds an action item to your tasks.</span></li>
+              <li><Lamp on="w" /><span>Export as Markdown, PDF or plain text.</span></li>
+            </ul>
+          </div>
+          <div class="hang reveal">
+            <span class="bar"></span>
+            <div class="pair">
+              <div class="plate"><img src="/media/notch-recording.webp" alt="Recording a call: elapsed time, waveform and levels" width="1120" height="630" loading="lazy" /></div>
+              <div class="plate crop"><img src="/media/notch-notes.webp" alt="Meeting notes: summary, decisions, action items and transcript" width="1120" height="1760" loading="lazy" /></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="feature flip feature-bg" style="--x: 30%; --c: rgba(255, 173, 51, .12)">
+          <div class="copy reveal">
+            <span class="tag"><Lamp on="a" />Tasks</span>
+            <h2 class="h2">Type one line.</h2>
+            <p class="lede">"Call mom tomorrow 3pm", "every Monday", "urgent". Crenel understands it as you write. Tasks live in a Crenel list in Apple Reminders, so they follow you to your iPhone and Watch.</p>
+          </div>
+          <div class="hang reveal">
+            <span class="bar"></span>
+            <div class="plate"><img src="/media/notch-tasks.webp" alt="Tasks in the open notch" width="1120" height="1160" loading="lazy" /></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- The desktop window. -->
+    <section class="section tight on-paper">
+      <div class="wrap">
+        <div class="section-head center reveal">
+          <span class="tag"><Lamp on="w" />Desktop</span>
+          <h2 class="h2">And a window when you want one.</h2>
+          <p class="lede">Everything in the notch also opens in a full window: your day at a glance, every meeting, tasks, dictation history and settings.</p>
+        </div>
+        <div class="window reveal"><img src="/media/desktop-today.webp" alt="The Crenel desktop window, Today page" width="1800" height="1103" loading="lazy" /></div>
+      </div>
+    </section>
+
+    <!-- Small things. -->
+    <section class="section on-dark">
+      <div class="wrap">
+        <div class="section-head reveal">
+          <span class="tag"><Lamp on="a" />Details</span>
+          <h2 class="h2">The small things, done.</h2>
+        </div>
+        <div class="details">
+          {details.map((d) => (
+            <article class="detail reveal">
+              <span class={`tt ${d.tone}`}><Icon id={d.icon} size={18} /></span>
+              <h3>{d.title}</h3>
+              <p>{d.text}</p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Privacy. -->
+    <section class="section on-paper" id="privacy" style="overflow: hidden">
+      <Wallpaper soft flip />
+      <div class="wrap" style="position: relative">
+        <div class="section-head reveal">
+          <span class="tag"><Lamp on="g" />Privacy</span>
+          <h2 class="h2">Private by design.</h2>
+          <p class="lede">Crenel sits next to your camera and hears your calls. So it keeps everything on your Mac, and you decide what goes anywhere else.</p>
+        </div>
+        <div class="privacy-grid">
+          <article class="pcard reveal"><div class="row"><Lamp on="g" />Local</div><h3>On your Mac.</h3><p>Recordings, transcripts, notes and tasks are stored on your Mac. Dictation audio is never saved.</p></article>
+          <article class="pcard reveal"><div class="row"><Lamp on="g" />Your choice</div><h3>Your keys.</h3><p>Use Apple's on-device model, your own OpenAI or Anthropic key, or the Claude Code or Codex you already have. Keys live in your Keychain.</p></article>
+          <article class="pcard reveal"><div class="row"><Lamp on="g" />No tracking</div><h3>No account.</h3><p>Nothing to sign up for, no analytics, no tracking SDK.</p></article>
+          <article class="pcard reveal"><div class="row"><Lamp on="g" />MIT</div><h3>Open source.</h3><p>Every line is on <a href={REPO} style="color: var(--ink-1)">GitHub</a>. Read it, build it, change it.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Questions. -->
+    <section class="section on-paper" style="padding-top: 60px">
+      <div class="wrap faq">
+        <div class="section-head reveal">
+          <span class="tag"><Lamp on="w" />Questions</span>
+          <h2 class="h2">Before you ask.</h2>
+          <p class="lede" style="font-size: 17px">Something else? Ask me on X, <a href={X_URL} style="color: var(--pen-1)">{X_HANDLE}</a>.</p>
+        </div>
+        <div class="reveal">
+          {faqs.map((f, i) => (
+            <details open={i === 0}>
+              <summary>{f.q}<Icon id="i-plus" size={14} /></summary>
+              <p>{f.a}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <!-- Last call. -->
+    <section class="final on-paper">
+      <Wallpaper />
+      <div class="wrap">
+        <img class="app-icon reveal" src="/media/app-icon.png" alt="Crenel app icon" width="120" height="120" loading="lazy" />
+        <h2 class="h2 reveal">Put your notch to work.</h2>
+        <p class="lede reveal">Free, open source, and a minute to set up.</p>
+        <div class="cta-row reveal">
+          <a class="key black lg" href={LATEST}><AppleLogo size={17} />Download for Mac</a>
+          <a class="key glass lg" href="/releases">What's new<Icon id="i-arrow-right" size={14} /></a>
+        </div>
+        <p class="meta reveal">{REQUIREMENTS}</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Sound toggle for the film; muted autoplay is the only kind browsers allow.
+    const video = document.getElementById('promo') as HTMLVideoElement | null;
+    const button = document.querySelector<HTMLButtonElement>('.film .sound');
+    button?.addEventListener('click', () => {
+      if (!video) return;
+      const on = video.muted;
+      video.muted = !on;
+      if (on) { video.currentTime = 0; void video.play(); }
+      button.setAttribute('aria-pressed', String(on));
+      button.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on');
+    });
+  </script>
+</Base>

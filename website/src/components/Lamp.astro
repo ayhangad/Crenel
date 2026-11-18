@@ -1,0 +1,6 @@
+---
+// 8×4 lamp: g (ready, teal) | a (waiting, amber) | r (live, red) | w (active) | off.
+interface Props { on?: 'g' | 'a' | 'r' | 'w'; dot?: boolean; class?: string }
+const { on, dot, class: cls = '' } = Astro.props;
+---
+<span class:list={['lamp', { dot }, on && `on-${on}`, cls]} aria-hidden="true" />

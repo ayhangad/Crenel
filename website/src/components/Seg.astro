@@ -1,0 +1,6 @@
+---
+import { segSVG } from '../lib/seg';
+interface Props { text: string; h?: number; cells?: number; class?: string; label?: string }
+const { text, h = 14, cells = 0, class: cls = '', label } = Astro.props;
+---
+<span class={`segd ${cls}`} role="img" aria-label={label ?? text} set:html={segSVG(text, h, cells)} />
