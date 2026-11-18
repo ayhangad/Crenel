@@ -25,7 +25,11 @@ for (const stage of ["media", "native ready", "worklet"]) {
     globalThis.chrome = { runtime: {
       onMessage: { addListener(fn) { listener = fn; } },
       connectNative: () => nativePort,
-      sendMessage: async ({ state }) => { calls.push(state); },
+      // Chrome rejects when the background doesn't answer. The stop must still succeed.
+      sendMessage: async ({ state }) => {
+        calls.push(state);
+        throw new Error("The message port closed before a response was received.");
+      },
     } };
     const original = Object.getOwnPropertyDescriptor(globalThis, "navigator");
     Object.defineProperty(globalThis, "navigator", {

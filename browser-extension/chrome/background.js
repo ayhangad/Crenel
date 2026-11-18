@@ -87,6 +87,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       capturedTabId = null;
       setCaptureBadge(false);
     }
+    sendResponse({ ok: true });
     return false;
   }
 
@@ -99,7 +100,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message?.type === "start-selected-tab") {
     if (pendingStart || stopping) {
-      sendResponse({ ok: false, error: "Capture is busy." });
+      sendResponse({ ok: false, error: "Bağlantı şu an başlatılıyor veya durduruluyor." });
       return false;
     }
     const attempt = { tabId: null, cancelled: false };

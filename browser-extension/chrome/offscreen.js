@@ -68,7 +68,8 @@ function stopCapture(reason = "user") {
   stopping = (async () => {
     if (pending) await pending.finished;
     if (capture) await dispose(capture, reason);
-    await chrome.runtime.sendMessage({ type: "capture-state", state: "stopped", reason });
+    // Only a notice: the tracks are already stopped, so a lost reply must not fail the stop.
+    await chrome.runtime.sendMessage({ type: "capture-state", state: "stopped", reason }).catch(() => {});
   })().finally(() => { stopping = null; });
   return stopping;
 }
