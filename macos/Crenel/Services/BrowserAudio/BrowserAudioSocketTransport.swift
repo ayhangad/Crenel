@@ -36,6 +36,16 @@ enum BrowserAudioSocketPeer {
         }
     }
 
+    /// Release builds also require a Developer ID certificate, so a development-signed
+    /// build from the same team can't stand in for the shipped app or helper.
+    static func teamRule(identifier: String, team: String, requireDeveloperID: Bool) -> String {
+        var rule = "anchor apple generic and identifier \"\(identifier)\" and certificate leaf[subject.OU] = \"\(team)\""
+        if requireDeveloperID {
+            rule += " and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists"
+        }
+        return rule
+    }
+
     private func signingRule() -> String? {
         var ownCode: SecCode?
         var ownStaticCode: SecStaticCode?
@@ -45,7 +55,11 @@ enum BrowserAudioSocketPeer {
         if let team = signingInfo(ownStaticCode)?[kSecCodeInfoTeamIdentifier as String] as? String,
            team.range(of: "^[A-Z0-9]{10}$", options: .regularExpression) != nil {
             let identifier = self == .nativeHost ? "gad.Crenel.BrowserAudioHost" : "gad.Crenel"
-            return "anchor apple generic and identifier \"\(identifier)\" and certificate leaf[subject.OU] = \"\(team)\""
+            #if DEBUG
+            return Self.teamRule(identifier: identifier, team: team, requireDeveloperID: false)
+            #else
+            return Self.teamRule(identifier: identifier, team: team, requireDeveloperID: true)
+            #endif
         }
         #if DEBUG
         // Ad-hoc development builds have no team. Pin the exact sibling build's CodeDirectory.

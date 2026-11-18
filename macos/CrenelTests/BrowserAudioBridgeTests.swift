@@ -37,6 +37,16 @@ final class BrowserAudioBridgeTests: XCTestCase {
         XCTAssertEqual(forwarded.map(\.type), ["start", "audio", "stop"])
     }
 
+    func testReleasePeerRuleRequiresDeveloperIDAndCompiles() {
+        let rule = BrowserAudioSocketPeer.teamRule(identifier: "gad.Crenel.BrowserAudioHost", team: "ABCDE12345", requireDeveloperID: true)
+        XCTAssertTrue(rule.contains("1.2.840.113635.100.6.1.13"))
+        XCTAssertTrue(rule.contains("identifier \"gad.Crenel.BrowserAudioHost\""))
+        var requirement: SecRequirement?
+        XCTAssertEqual(SecRequirementCreateWithString(rule as CFString, [], &requirement), errSecSuccess)
+        XCTAssertFalse(BrowserAudioSocketPeer.teamRule(identifier: "gad.Crenel", team: "ABCDE12345", requireDeveloperID: false)
+            .contains("1.2.840.113635.100.6.1.13"))
+    }
+
     func testNativeHostRejectsWrongOriginWithoutContactingApplicationBridge() {
         var bridgeWasCalled = false
         var host = BrowserAudioNativeHostSession { _ in
