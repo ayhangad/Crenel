@@ -155,7 +155,7 @@ if (( signed )); then
     spctl --assess --type open --context context:primary-signature --verbose=4 "${dmg_path}"
 fi
 # The checksum comes after stapling, which changes the file.
-shasum -a 256 "${dmg_path}" > "${dmg_path}.sha256"
+(cd "${updates_dir}" && shasum -a 256 "${dmg_path:t}" > "${dmg_path:t}.sha256")
 
 if (( !signed )); then
     print "PASS (unsigned, not for distribution): ${dmg_path}"
