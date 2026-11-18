@@ -117,7 +117,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (!changeInfo.url) return;
+  if (changeInfo.status !== "loading" && (!changeInfo.url || isAllowedMeetURL(changeInfo.url))) return;
   (async () => {
     const activeCaptureTabId = capturedTabId ?? await reconcileCapturedTab();
     if (tabId === activeCaptureTabId) await stopCapture("tab-navigated");
