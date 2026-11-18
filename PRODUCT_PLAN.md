@@ -197,6 +197,8 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
 
 ### C11 · Yayın öncesi son düzeltmeler (2026-11-18)
 
+- [x] Denetimin tam metni, çalışma kuralları ve açık kabul ölçütleri [tek devir raporunda](docs/DENETIM-2026-11-18.md) toplandı. 25 madde, kaynak bağlantıları ve ilk denetim metninin korunduğu doğrulandı.
+
 - [x] Notch hover düzeltmesini ve 01-07, 09-25 bulgularının kod düzeltmelerini davranış testleriyle doğrulamak. 18 Kasım 2026. Tam macOS koşusunda 666 test, 5 atlama, 0 hata. Chrome uzantısında 10, sitede 4 tarayıcı testi geçti. Bulgulara karşılık gelen testler ve performans ölçümü [denetim raporunda](docs/DENETIM-2026-11-18.md).
 - [ ] A. Gerçek imleçle, notch’tan hızla listenin altına indikten ve içerik kısaldıktan sonra kapanma kabulü. Kullanıcı doğrulayacak.
 - [ ] 01. İzinli gerçek toplantıda dikte, sessize alma, erişim kaybı ve kayıt başlangıcı sırasında ham mikrofon ve birleşik ses kabulü.
