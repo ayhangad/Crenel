@@ -366,6 +366,19 @@ final class CrenelTaskTests: XCTestCase {
         XCTAssertEqual(again, 0)
     }
 
+    func testReconnectingImportsTasksAddedInLocalModeExactlyOnce() async throws {
+        let store = FakeReminderStore()
+        let local = InMemoryTaskRepository()
+        let router = TaskRepositoryRouter(local: local, reminders: makeRepository(store: store), store: store)
+        try await router.save(TaskItem(title: "First"))
+        _ = await router.activate(preferReminders: true)
+        _ = await router.activate(preferReminders: false)
+        try await router.save(TaskItem(title: "Second"))
+        _ = await router.activate(preferReminders: true)
+        _ = await router.activate(preferReminders: true)
+        XCTAssertEqual(store.records.values.map(\.title).sorted(), ["First", "Second"])
+    }
+
     func testRouterFallsBackToLocalWithoutPermission() async throws {
         let store = FakeReminderStore()
         store.access = .notDetermined

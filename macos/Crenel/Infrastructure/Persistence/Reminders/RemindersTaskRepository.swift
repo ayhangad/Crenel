@@ -6,7 +6,9 @@ actor TaskSidecarFile {
         static let currentSchemaVersion = 1
         var schemaVersion = currentSchemaVersion
         var listIdentifier: String?
+        // Read the original migration flag when upgrading a v1 sidecar.
         var migratedLocalStore = false
+        var migratedTaskIDs: Set<UUID>?
         var entries: [String: TaskSidecarEntry] = [:]
     }
 
@@ -156,20 +158,28 @@ actor RemindersTaskRepository: TaskRepository {
         try await sidecar.update { $0.entries[identifier] = nil }
     }
 
-    /// Copies tasks from the pre-Reminders local store once. The local file is kept as a
-    /// backup and never modified.
+    /// Imports newly eligible local tasks whenever Reminders becomes active.
     func migrateIfNeeded(from local: any TaskRepository) async throws -> Int {
-        guard await !sidecar.load().migratedLocalStore else { return 0 }
+        let document = await sidecar.load()
+        // An older completed migration recorded task identity in its entries.
+        let imported = document.migratedTaskIDs ?? (document.migratedLocalStore
+            ? Set(document.entries.values.map(\.taskID)) : [])
         let cutoff = now().addingTimeInterval(-historyWindow)
         let candidates = try await local.loadAll().filter { task in
-            !task.isArchived && (!task.isCompleted || (task.completedAt ?? .distantPast) >= cutoff)
+            !imported.contains(task.id) && !task.isArchived && (!task.isCompleted || (task.completedAt ?? .distantPast) >= cutoff)
         }
         for task in candidates {
             var copy = task
             copy.reminderIdentifier = nil
             try await save(copy)
         }
-        try await sidecar.update { $0.migratedLocalStore = true }
+        if !candidates.isEmpty || document.migratedTaskIDs == nil {
+            try await sidecar.update {
+                var migrated = $0.migratedTaskIDs ?? imported
+                migrated.formUnion(candidates.map(\.id))
+                $0.migratedTaskIDs = migrated
+            }
+        }
         return candidates.count
     }
 
