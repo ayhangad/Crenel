@@ -205,7 +205,8 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
 - [ ] 05 ve 06. Gerçek Chrome'da Meet sekmesini yenileme, başka kökene geçiş ve yakalama başlarken durdurma kabulü.
 - [ ] 08. Herkese açık 1.0 DMG ve Sparkle beslemesi. 🚧 Devam ediyor. 18 Kasım'da sürüm listesi boş, v1.0 ve appcast HTTP 404. Yayın kullanıcı onayı bekliyor. Yayın sonrası kontrol: `python3 macos/Scripts/release-availability-test.py 1.0`.
 - [ ] 08, 15, 16 ve 19. Dağıtım imzasıyla temiz Mac'te noter, Applications'a taşıma, yerel yardımcı ve iki imzalı sürüm arasında güncelleme kabulü.
-- [ ] 🚧 Devam ediyor. Astra düzeltmelerinin incelemesinde çıkan ikinci tur: okunamayan ayarlarda görünür kurtarma (04), bozuk transkriptte tarama işareti (20), pano anlık görüntüsü (21), yayımlanmış sürümün korunması (18), uzantı durdurma onayı (06), mağaza metni (23), Claude Code argümanları (07), Hatırlatıcılar listesi sahipliği (11) ve küçük notlar.
+- [x] Astra düzeltmelerinin incelemesinde çıkan ikinci tur: 04, 06, 07, 11, 14, 15, 18, 19, 20, 21, 23. 18 Kasım 2026. Tam macOS koşusu 672 test, 5 atlama, 0 hata. Uzantı 10, site 5 test geçti. Claude Code argümanları gerçek CLI'de doğrulandı. [Denetim raporu](docs/DENETIM-2026-11-18.md)
+- [ ] 11 ve 04 cihaz kabulü: iCloud'da veri silme sonrası aynı Crenel listesinin bulunması, bozuk ayar uyarısı ve sıfırlama.
 - [x] Güvenlik, gizlilik, performans ve ürün kalitesini monorepo genelinde denetleyip tek raporda belgelemek. 18 Kasım 2026. [Denetim raporu](docs/DENETIM-2026-11-18.md)
 
 - [x] Çoklu ekran: kullanıcı notch'u tutup başka ekranın üstüne sürükleyebilsin; bıraktığı
