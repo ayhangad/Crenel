@@ -11,14 +11,14 @@ const require = createRequire(new URL('../../website/package.json', import.meta.
 const sharp = require('sharp');
 
 const SHOTS = {
-  meeting: { frame: 90, crop: 600 },
-  today: { frame: 200, crop: 860 },
-  dictation: { frame: 340, crop: 600 },
-  inserted: { frame: 420, crop: 600 },
-  call: { frame: 494, crop: 600 },
-  recording: { frame: 600, crop: 780 },
-  ready: { frame: 735, crop: 600 },
-  tasks: { frame: 870, crop: 860 },
+  meeting: { frame: 90, crop: 500 },
+  today: { frame: 200, crop: 840 },
+  dictation: { frame: 340, crop: 500 },
+  inserted: { frame: 420, crop: 500 },
+  call: { frame: 494, crop: 500 },
+  recording: { frame: 600, crop: 690 },
+  ready: { frame: 735, crop: 500 },
+  tasks: { frame: 870, crop: 830 },
   window: { frame: 90, window: true },
 };
 

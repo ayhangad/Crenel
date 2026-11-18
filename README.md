@@ -24,8 +24,11 @@ next meeting and how long until it starts. When something needs you, a single li
 under it. Hover, and it opens into a panel.
 
 <p align="center">
-  <img src="docs/media/ill-meeting.jpg" alt="Closed notch with a meeting countdown" width="49%">
-  <img src="docs/media/ill-ready.jpg" alt="A strip under the notch: notes and 3 action items are ready" width="49%">
+  <img src="docs/media/ill-meeting.jpg" alt="Closed notch with a meeting countdown" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/media/ill-ready.jpg" alt="A strip under the notch: notes and 3 action items are ready" width="100%">
 </p>
 
 ### Calendar
@@ -45,8 +48,11 @@ your Mac and the audio is never saved. Long dictation grows into a live view, an
 takes it back. Say "add task…" and it becomes a task instead.
 
 <p align="center">
-  <img src="docs/media/ill-dictation.jpg" alt="Holding fn: the notch listens and shows the words live" width="49%">
-  <img src="docs/media/ill-inserted.jpg" alt="The words were inserted where the cursor was" width="49%">
+  <img src="docs/media/ill-dictation.jpg" alt="Holding fn: the notch listens and shows the words live" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/media/ill-inserted.jpg" alt="The words were inserted where the cursor was" width="100%">
 </p>
 
 ### Meeting notes
@@ -57,8 +63,11 @@ speakers, a summary, what was decided, and what's on you. Export it as Markdown,
 plain text.
 
 <p align="center">
-  <img src="docs/media/ill-call.jpg" alt="A Zoom call starts and Crenel asks whether to record it" width="49%">
-  <img src="docs/media/ill-recording.jpg" alt="Recording a call: elapsed time, waveform and levels for your mic and the call" width="49%">
+  <img src="docs/media/ill-call.jpg" alt="A Zoom call starts and Crenel asks whether to record it" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/media/ill-recording.jpg" alt="Recording a call: elapsed time, waveform and levels for your mic and the call" width="100%">
 </p>
 
 ### Tasks
