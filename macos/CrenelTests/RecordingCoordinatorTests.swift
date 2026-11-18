@@ -234,6 +234,18 @@ final class RecordingCoordinatorTests: XCTestCase {
         await coordinator.cancel()
     }
 
+    func testRecordingStartedDuringDictationInheritsHold() async throws {
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: MockAudioCaptureSource(kind: .systemAudio))
+        coordinator.setDictationHeld(true)
+        _ = try await coordinator.start(meeting: nil, systemAudioScope: .explicitManualGlobal)
+        coordinator.setManualMicrophoneState(.open)
+        XCTAssertEqual(microphone.receivedGates.last?.state, .closed)
+        coordinator.setDictationHeld(false)
+        XCTAssertEqual(microphone.receivedGates.last?.state, .open)
+        await coordinator.cancel()
+    }
+
     func testClientAdapterMicrophoneStateUpdatesLiveGateAndCaptureMetadata() async throws {
         let microphone = MockAudioCaptureSource(kind: .microphone)
         let systemAudio = MockAudioCaptureSource(kind: .systemAudio)

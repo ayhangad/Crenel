@@ -66,6 +66,25 @@ final class MicrophonePCMPrivacyGateTests: XCTestCase {
         XCTAssertEqual(outputFrameCount, states.count * 240)
     }
 
+    func testDictationMasksNewEvidenceAndReleasesLatestState() throws {
+        let date = Date()
+        var gate = MeetingMicrophoneGate(recordingStartedAt: date)
+        gate.observeClientState(.open, confidence: .confirmed, at: date)
+        gate.setDictationHeld(true, at: date)
+        gate.observeClientState(.open, confidence: .confirmed, at: date)
+        XCTAssertEqual(gate.state, .closed)
+        let pcm = MicrophonePCMPrivacyGate(sampleRate: sampleRate)
+        _ = pcm.enqueue(makeBuffer(value: 1, frames: 480), state: gate.state)
+        XCTAssertEqual(peak(try XCTUnwrap(pcm.flush())), 0)
+        gate.observeClientState(.closed, confidence: .confirmed, at: date)
+        gate.setDictationHeld(false, at: date)
+        XCTAssertEqual(gate.state, .closed)
+        gate.setDictationHeld(true, at: date)
+        gate.adapterBecameUnavailable(at: date)
+        gate.setDictationHeld(false, at: date)
+        XCTAssertEqual(gate.state, .unknown)
+    }
+
     private func makeBuffer(value: Float, frames: AVAudioFrameCount) -> AVAudioPCMBuffer {
         let format = AVAudioFormat(
             standardFormatWithSampleRate: sampleRate,

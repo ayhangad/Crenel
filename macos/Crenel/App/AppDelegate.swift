@@ -91,12 +91,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var dictationCoordinator: DictationCoordinator = {
         let coordinator = DictationCoordinator(appState: appState, taskCoordinator: taskCoordinator)
         coordinator.onListeningChange = { [weak self] listening in
-            self?.dictationListeningChanged(listening)
+            self?.recordingCoordinator.setDictationHeld(listening)
         }
         return coordinator
     }()
-    /// True while dictation has closed the meeting microphone gate.
-    private var dictationClosedMeetingMicrophone = false
     private var appliedTaskStorage: TaskStorageBackend?
     private var agentResolutionTask: Task<Void, Never>?
     private let appSettingsRepository: any AppSettingsRepository = UserDefaultsAppSettingsRepository()
@@ -530,21 +528,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func startManualRecording() {
         beginRecording()
         presentNotch(followPointer: true)
-    }
-
-    /// Words dictated into another app during a meeting recording must not end up in the
-    /// meeting audio: the meeting microphone gate closes while dictation listens.
-    private func dictationListeningChanged(_ listening: Bool) {
-        if listening {
-            guard appState.meetingFlow.isRecording,
-                  appState.meetingMicrophoneGate?.permitsAudio == true else { return }
-            recordingCoordinator.setManualMicrophoneState(.closed)
-            dictationClosedMeetingMicrophone = true
-        } else if dictationClosedMeetingMicrophone {
-            dictationClosedMeetingMicrophone = false
-            guard appState.meetingFlow.isRecording else { return }
-            recordingCoordinator.setManualMicrophoneState(.open)
-        }
     }
 
     func toggleMeetingMicrophoneGate() {

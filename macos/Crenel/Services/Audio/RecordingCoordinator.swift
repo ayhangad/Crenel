@@ -25,6 +25,7 @@ final class RecordingCoordinator {
     private var session: RecordingSession?
     private var sessionDirectory: URL?
     private var systemAudioScope: SystemAudioCaptureScope?
+    private var dictationHeld = false
     private var microphoneGate: MeetingMicrophoneGate?
     private var status = RecordingCaptureStatus.idle
     private var storageSafetyTask: Task<Void, Never>?
@@ -61,7 +62,7 @@ final class RecordingCoordinator {
         guard session == nil else { throw RecordingCaptureError.alreadyRecording }
 
         let startedAt = Date()
-        let microphoneGate = MeetingMicrophoneGate(recordingStartedAt: startedAt)
+        let microphoneGate = MeetingMicrophoneGate(recordingStartedAt: startedAt, dictationHeld: dictationHeld)
         let session = RecordingSession(
             meetingID: meeting?.id,
             sourceMeeting: meeting,
@@ -189,6 +190,14 @@ final class RecordingCoordinator {
             microphoneGate = gate
             publishMicrophoneGate(gate)
         }
+    }
+
+    func setDictationHeld(_ held: Bool) {
+        dictationHeld = held
+        guard var gate = microphoneGate else { return }
+        gate.setDictationHeld(held, at: Date())
+        microphoneGate = gate
+        publishMicrophoneGate(gate)
     }
 
     func setManualMicrophoneState(

@@ -3,6 +3,7 @@ import Foundation
 enum MeetingMicrophoneGateEventSource: String, Codable, Equatable, Sendable {
     case recordingStarted
     case clientAdapter
+    case dictationHold
     case manualControl
     case adapterUnavailable
     case processChanged
@@ -17,13 +18,16 @@ struct MeetingMicrophoneGateEvent: Codable, Equatable, Sendable {
 }
 
 struct MeetingMicrophoneGate: Equatable, Sendable {
-    private(set) var state: MeetingMicrophoneState
+    private var baseState: MeetingMicrophoneState
+    private(set) var dictationHeld: Bool
+    var state: MeetingMicrophoneState { dictationHeld ? .closed : baseState }
     private(set) var events: [MeetingMicrophoneGateEvent]
 
     var permitsAudio: Bool { state == .open }
 
-    init(recordingStartedAt: Date) {
-        state = .closed
+    init(recordingStartedAt: Date, dictationHeld: Bool = false) {
+        self.dictationHeld = dictationHeld
+        baseState = .closed
         events = [
             MeetingMicrophoneGateEvent(
                 timestamp: recordingStartedAt,
@@ -32,6 +36,12 @@ struct MeetingMicrophoneGate: Equatable, Sendable {
                 confidence: .confirmed
             )
         ]
+    }
+
+    mutating func setDictationHeld(_ held: Bool, at timestamp: Date) {
+        guard held != dictationHeld else { return }
+        dictationHeld = held
+        events.append(MeetingMicrophoneGateEvent(timestamp: timestamp, state: state, source: .dictationHold, confidence: .confirmed))
     }
 
     @discardableResult
@@ -112,14 +122,14 @@ struct MeetingMicrophoneGate: Equatable, Sendable {
     ) -> MeetingMicrophoneGateEvent? {
         guard let latest = events.last,
               timestamp >= latest.timestamp,
-              newState != state else { return nil }
+              newState != baseState else { return nil }
+        baseState = newState
         let event = MeetingMicrophoneGateEvent(
             timestamp: timestamp,
-            state: newState,
+            state: state,
             source: source,
             confidence: confidence
         )
-        state = newState
         events.append(event)
         return event
     }
