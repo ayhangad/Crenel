@@ -2,7 +2,6 @@
 // The release timeline, built from docs/releases/*.md (the notes Sparkle shows in the app).
 import { render } from 'astro:content';
 import Base from '../layouts/Base.astro';
-import Wallpaper from '../components/Wallpaper.astro';
 import Seg from '../components/Seg.astro';
 import Lamp from '../components/Lamp.astro';
 import Icon from '../components/Icon.astro';
@@ -18,7 +17,6 @@ const releases = await Promise.all(
 <Base title="Releases · Crenel" description="Every Crenel release, newest first, with what changed.">
   <main>
     <section class="rel-hero on-paper">
-      <Wallpaper soft />
       <div class="wrap">
         <span class="tag reveal"><Lamp on="g" />Releases</span>
         <h1 class="display reveal">What's new in Crenel.</h1>
@@ -59,8 +57,7 @@ const releases = await Promise.all(
 </Base>
 
 <style>
-  .rel-hero { position: relative; padding: 160px 0 40px; overflow: hidden; isolation: isolate; }
-  .rel-hero .wallpaper { z-index: -1; }
+  .rel-hero { position: relative; padding: 160px 0 40px; }
   .rel-hero .display { margin-top: 18px; font-size: clamp(42px, 6.4vw, 80px); max-width: 12ch; }
   .rel-hero .lede { margin-top: 20px; max-width: 34em; }
 

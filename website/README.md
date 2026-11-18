@@ -1,8 +1,8 @@
 # Crenel website
 
 The public site: a home page and a release timeline. Astro, static output, no client
-framework. The design follows the app's "night drive" language (`../docs/DESIGN.md`) on
-the light wallpaper of the promo film.
+framework. The design follows the app's "night drive" language (`../docs/DESIGN.md`):
+black instruments on one light teal and blue gradient that runs behind the whole page.
 
 ```sh
 cd website
@@ -20,8 +20,8 @@ Needs Node 22.23 or later (see `.nvmrc`).
   and the "Latest" mark come from GitHub Releases at build time (git is the fallback), so
   rebuild the site after publishing a release. A version without a GitHub release shows
   as "Coming soon".
-- **Media** in `public/media/` are web copies of `../docs/media/` (WebP, and the promo film
-  re-encoded to about 2 MB). Regenerate them when the renders change.
+- **Media** in `public/media/` are WebP copies of the renders in `../docs/media/`.
+  Regenerate them when the renders change.
 - **Contact** is X only (`src/lib/site.ts`). No email on the site.
 
 ## Deploy (Dokploy)

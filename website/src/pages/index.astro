@@ -1,7 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
 import LiveNotch from '../components/LiveNotch.astro';
-import Wallpaper from '../components/Wallpaper.astro';
 import Icon from '../components/Icon.astro';
 import Lamp from '../components/Lamp.astro';
 import Seg from '../components/Seg.astro';
@@ -34,31 +33,21 @@ const faqs = [
   <main>
     <!-- Hero: the page's own notch hangs from the top edge. -->
     <section class="hero on-paper">
-      <Wallpaper />
       <LiveNotch />
       <div class="wrap">
         <h1 class="display reveal">Your Mac's notch, at work.</h1>
         <p class="lede reveal">Calendar, dictation, tasks and meeting notes, right beside the camera. Open source, and your data stays on your Mac.</p>
         <div class="cta-row reveal">
           <a class="key black lg" href={LATEST}><AppleLogo size={17} />Download for Mac</a>
-          <a class="key glass lg" href="#film"><Icon id="i-play" size={14} />Watch the film</a>
+          <a class="key glass lg" href="#features">See how it works<Icon id="i-arrow-right" size={14} /></a>
         </div>
         <p class="meta reveal">{REQUIREMENTS} · Free{current ? ` · Version ${current.version}` : ''}</p>
       </div>
 
-      <div class="film reveal" id="film">
-        <div class="bezel">
-          <video id="promo" src="/media/crenel-promo.mp4" poster="/media/crenel-promo-poster.webp" autoplay muted loop playsinline preload="metadata" aria-label="Crenel promo film"></video>
-          <button class="key glass sm sound" type="button" aria-pressed="false" aria-label="Turn sound on">
-            <Icon id="i-speaker" class="on" size={15} /><Icon id="i-speaker" class="off" size={15} /><span class="off">Sound on</span><span class="on">Sound off</span>
-          </button>
-        </div>
-        <div class="film-foot"></div>
-      </div>
     </section>
 
     <!-- Three sizes. -->
-    <section class="section on-dark" id="features">
+    <section class="section" id="features">
       <div class="wrap">
         <div class="section-head center reveal">
           <span class="tag"><Lamp on="g" />How it works</span>
@@ -88,7 +77,7 @@ const faqs = [
     <!-- Features. -->
     <section class="section on-paper" style="padding-bottom: 60px">
       <div class="wrap">
-        <div class="feature feature-bg" style="--x: 72%">
+        <div class="feature">
           <div class="copy reveal">
             <span class="tag"><Lamp on="g" />Calendar</span>
             <h2 class="h2">Always know what's next.</h2>
@@ -105,7 +94,7 @@ const faqs = [
           </div>
         </div>
 
-        <div class="feature flip feature-bg" style="--x: 28%; --c: rgba(47, 140, 240, .16)">
+        <div class="feature flip">
           <div class="copy reveal">
             <span class="tag"><Lamp on="r" />Dictation</span>
             <h2 class="h2">Hold fn and talk.</h2>
@@ -124,7 +113,7 @@ const faqs = [
           </div>
         </div>
 
-        <div class="feature feature-bg" style="--x: 70%; --c: rgba(52, 230, 203, .18)">
+        <div class="feature">
           <div class="copy reveal">
             <span class="tag"><Lamp on="r" />Meeting notes</span>
             <h2 class="h2">Notes write themselves.</h2>
@@ -144,7 +133,7 @@ const faqs = [
           </div>
         </div>
 
-        <div class="feature flip feature-bg" style="--x: 30%; --c: rgba(255, 173, 51, .12)">
+        <div class="feature flip">
           <div class="copy reveal">
             <span class="tag"><Lamp on="a" />Tasks</span>
             <h2 class="h2">Type one line.</h2>
@@ -171,7 +160,7 @@ const faqs = [
     </section>
 
     <!-- Small things. -->
-    <section class="section on-dark">
+    <section class="section">
       <div class="wrap">
         <div class="section-head reveal">
           <span class="tag"><Lamp on="a" />Details</span>
@@ -191,7 +180,6 @@ const faqs = [
 
     <!-- Privacy. -->
     <section class="section on-paper" id="privacy" style="overflow: hidden">
-      <Wallpaper soft flip />
       <div class="wrap" style="position: relative">
         <div class="section-head reveal">
           <span class="tag"><Lamp on="g" />Privacy</span>
@@ -228,7 +216,6 @@ const faqs = [
 
     <!-- Last call. -->
     <section class="final on-paper">
-      <Wallpaper />
       <div class="wrap">
         <img class="app-icon reveal" src="/media/app-icon.png" alt="Crenel app icon" width="120" height="120" loading="lazy" />
         <h2 class="h2 reveal">Put your notch to work.</h2>
@@ -242,17 +229,4 @@ const faqs = [
     </section>
   </main>
 
-  <script>
-    // Sound toggle for the film; muted autoplay is the only kind browsers allow.
-    const video = document.getElementById('promo') as HTMLVideoElement | null;
-    const button = document.querySelector<HTMLButtonElement>('.film .sound');
-    button?.addEventListener('click', () => {
-      if (!video) return;
-      const on = video.muted;
-      video.muted = !on;
-      if (on) { video.currentTime = 0; void video.play(); }
-      button.setAttribute('aria-pressed', String(on));
-      button.setAttribute('aria-label', on ? 'Turn sound off' : 'Turn sound on');
-    });
-  </script>
 </Base>
