@@ -3,6 +3,24 @@
     <channel>
         <title>Crenel</title>
         <item>
+            <title>1.1</title>
+            <pubDate>Wed, 18 Nov 2026 20:33:20 +0300</pubDate>
+            <sparkle:version>154</sparkle:version>
+            <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Crenel 1.1
+
+- **Deepgram for meeting transcripts.** Choose Deepgram in Settings › AI › Voice as an
+  alternative to ElevenLabs. Transcripts use Nova-3 with speaker labels, in Turkish, English
+  or a detected language. Your Deepgram key is checked without uploading audio and kept in
+  Keychain, separate from your ElevenLabs key. Choosing Deepgram sends the combined meeting
+  recording to Deepgram.
+- **Markdown export.** Exported notes no longer name a transcription service, since the
+  transcript doesn't record which one wrote it.
+]]></description>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.1/Crenel-1.1.dmg" length="9481472" type="application/octet-stream" sparkle:edSignature="496oShZBSzpQhKmWPBI0s4guzeKcgV2mB5PSaOgpHIxK+Gy1TGNJJfTTYNY0V48VYGSYEoie8iq9d/5Nc0XDBg=="/>
+        </item>
+        <item>
             <title>1.0</title>
             <pubDate>Wed, 18 Nov 2026 19:21:25 +0300</pubDate>
             <sparkle:version>150</sparkle:version>
@@ -30,7 +48,7 @@ notes in one place. Recordings and meeting notes are stored on your Mac.
   dictated text.
 - **Updates.** Crenel checks for updates itself and installs them when you're not on a call.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.0/Crenel-1.0.dmg" length="9449216" type="application/octet-stream" sparkle:edSignature="CsWg2Y3KkVVzXSSTg5Rw4I67W9b7NoaZwJHrdStQ8SH10WrxD9kR6kxXFGG3GTyqfUugcIXEYM7Fmgywtph0CA=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.1/Crenel-1.0.dmg" length="9449216" type="application/octet-stream" sparkle:edSignature="CsWg2Y3KkVVzXSSTg5Rw4I67W9b7NoaZwJHrdStQ8SH10WrxD9kR6kxXFGG3GTyqfUugcIXEYM7Fmgywtph0CA=="/>
         </item>
     </channel>
 </rss>
