@@ -24,6 +24,7 @@ struct MeetingMicrophoneGate: Equatable, Sendable {
     private(set) var events: [MeetingMicrophoneGateEvent]
 
     var permitsAudio: Bool { state == .open }
+    var nextManualState: MeetingMicrophoneState { baseState == .open ? .closed : .open }
 
     init(recordingStartedAt: Date, dictationHeld: Bool = false) {
         self.dictationHeld = dictationHeld

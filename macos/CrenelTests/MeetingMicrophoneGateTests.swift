@@ -47,6 +47,17 @@ final class MeetingMicrophoneGateTests: XCTestCase {
         XCTAssertEqual(gate.state, .closed)
     }
 
+    func testManualMuteDuringDictationSurvivesRelease() {
+        var gate = MeetingMicrophoneGate(recordingStartedAt: start)
+        gate.observeClientState(.open, confidence: .confirmed, at: start.addingTimeInterval(1))
+        gate.setDictationHeld(true, at: start.addingTimeInterval(2))
+        XCTAssertFalse(gate.permitsAudio)
+        gate.setManualState(gate.nextManualState, at: start.addingTimeInterval(3))
+        gate.setDictationHeld(false, at: start.addingTimeInterval(4))
+        XCTAssertEqual(gate.state, .closed)
+        XCTAssertEqual(gate.nextManualState, .open)
+    }
+
     func testVisibleManualControlCanOpenAndCloseGate() {
         var gate = MeetingMicrophoneGate(recordingStartedAt: start)
 

@@ -533,9 +533,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func toggleMeetingMicrophoneGate() {
         guard appState.meetingFlow.isRecording,
               let gate = appState.meetingMicrophoneGate else { return }
-        recordingCoordinator.setManualMicrophoneState(
-            gate.permitsAudio ? .closed : .open
-        )
+        recordingCoordinator.setManualMicrophoneState(gate.nextManualState)
         presentNotch(followPointer: false)
     }
 

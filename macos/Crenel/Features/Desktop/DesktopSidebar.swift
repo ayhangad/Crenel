@@ -197,7 +197,8 @@ private struct DesktopRecordingCard: View {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
                 HudIconButton(micOpen ? .mic : .micOff, framed: true, small: true,
-                              help: micOpen ? "Turn your mic off (⌥⌘M)" : "Turn your mic on (⌥⌘M)", action: actions.toggleMicrophone)
+                              help: appState.meetingMicrophoneGate?.nextManualState == .closed
+                                  ? "Turn your mic off (⌥⌘M)" : "Turn your mic on (⌥⌘M)", action: actions.toggleMicrophone)
                 Button(action: actions.stopRecording) {
                     HStack(spacing: 5) {
                         HudIcon(.stop, size: 12).foregroundStyle(Hud.Ink.live)

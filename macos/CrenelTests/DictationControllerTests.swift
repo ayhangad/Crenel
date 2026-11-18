@@ -69,6 +69,16 @@ final class DictationControllerTests: XCTestCase {
         XCTAssertTrue(inserter.copiedTexts.isEmpty)
     }
 
+    func testRecordingTapHasStoppedWhenDictationReleasesItsHold() async {
+        let controller = makeController()
+        let updates = controller.$state.sink { [capture] state in
+            if state == .transcribing { XCTAssertGreaterThan(capture?.stopCount ?? 0, 0) }
+        }
+        await runSession(controller)
+        updates.cancel()
+        XCTAssertTrue(transcriber.finishCalled)
+    }
+
     func testNormalFlowInsertsTranscriptAndRecordsHistory() async {
         transcriber.finalText = "  merhaba dünya  "
         inserter.result = .insertedViaAccessibility

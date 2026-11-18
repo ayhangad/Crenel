@@ -354,9 +354,9 @@ final class DictationController: ObservableObject {
         let started = await session.startup?.value ?? false
         guard started, isCurrent(session) else { return }
 
+        capture.stop()
         state = .transcribing
         level = 0
-        capture.stop()
         await session.pump?.value
 
         let transcript: String
