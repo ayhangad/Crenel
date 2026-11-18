@@ -195,6 +195,12 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
   zeminde siyah çizildi ve pencere istenenden uzun açılıp alt kısım beyaz kaldı; arka plan
   1100 pt uzun çiziliyor, etiketlerin altına açık zemin kondu; pencere 600 pt, yerleşim 480 pt.
 
+### C11 — Yayın öncesi son düzeltmeler (2026-11-18)
+
+- [ ] Çoklu ekran: kullanıcı notch'u tutup başka ekranın üstüne sürükleyebilsin; bıraktığı
+  ekranda çalışsın ve seçim (ekran UUID'si) hatırlansın. Ekran çıkarılınca fiziksel notch'lu
+  ekrana düşer, geri takılınca seçtiği ekrana döner. — 🚧 Devam ediyor: 2026-11-18
+
 ### C8 — Gerçek cihaz kabulü
 
 Otomatik testler gerçek izinleri, EventKit/Hatırlatıcılar hesaplarını, event tap'i,

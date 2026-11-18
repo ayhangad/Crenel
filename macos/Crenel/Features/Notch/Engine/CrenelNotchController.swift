@@ -124,6 +124,8 @@ final class CrenelNotchModel: ObservableObject {
     @Published var closedTraits = CrenelNotchClosedTraits()
     /// When the panel last opened from closed. Gauges inside sweep once per open.
     @Published var openedAt: Date?
+    /// The notch is being dragged to another place or screen.
+    @Published var isDragging = false
 }
 
 /// Crenel's notch. One borderless panel at the top of the screen hosts a single shape
@@ -138,6 +140,10 @@ final class CrenelNotchController: ObservableObject {
     @Published private(set) var hoverIntent = false
     /// The closed notch was clicked on its ears.
     var onRequestExpand: (() -> Void)?
+    /// The user started dragging the notch by its top band.
+    var onDragBegan: (() -> Void)?
+    /// The dragged notch was let go at this point (screen coordinates).
+    var onDragEnded: ((CGPoint) -> Void)?
 
     let model = CrenelNotchModel()
     private var panel: CrenelNotchPanel?
@@ -145,6 +151,12 @@ final class CrenelNotchController: ObservableObject {
     private var shapeFrameInWindow: CGRect = .zero
     private var mouseMonitors: [Any] = []
     private var screen: NSScreen?
+    private var dragMonitor: Any?
+    private var pressLocation: CGPoint?
+    private var lastDragEnd = Date.distantPast
+    private var animateNextFrame = false
+    /// How far the pointer moves before a press on the notch becomes a drag.
+    private static let dragThreshold: CGFloat = 5
     private let expanded: () -> AnyView
     private let compact: () -> AnyView
 
@@ -215,8 +227,10 @@ final class CrenelNotchController: ObservableObject {
         model.metrics = Self.metrics(for: screen)
         let frame = windowFrame(on: screen)
         if screenChanged || panel.frame != frame {
-            panel.setFrame(frame, display: true)
+            let animate = animateNextFrame && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            panel.setFrame(frame, display: true, animate: animate)
         }
+        animateNextFrame = false
         if !panel.isVisible {
             panel.orderFrontRegardless()
         }
@@ -252,7 +266,9 @@ final class CrenelNotchController: ObservableObject {
                 self.updateMouseHandling()
             },
             onRequestExpand: { [weak self] in
-                self?.onRequestExpand?()
+                // The mouse-up that ends a drag lands on the ears again; it is not a click.
+                guard let self, Date().timeIntervalSince(self.lastDragEnd) > 0.3 else { return }
+                self.onRequestExpand?()
             }
         )
         let hostingView = NSHostingView(rootView: AnyView(root))
@@ -289,13 +305,70 @@ final class CrenelNotchController: ObservableObject {
         }) {
             mouseMonitors.append(local)
         }
+        dragMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp]
+        ) { [weak self] event in
+            MainActor.assumeIsolated { self?.handleDrag(event) }
+            return event
+        }
+    }
+
+    // MARK: Dragging to another screen
+
+    /// The notch moves by its top band (the ears, or the header of the open panel): press,
+    /// drag past a few points, and it follows the pointer as the closed notch. Let go and
+    /// it settles at the top of the screen under the pointer.
+    private func handleDrag(_ event: NSEvent) {
+        guard let panel, event.window === panel else { return }
+        let mouse = NSEvent.mouseLocation
+        switch event.type {
+        case .leftMouseDown:
+            pressLocation = grabRect(in: panel).contains(mouse) ? mouse : nil
+        case .leftMouseDragged:
+            guard let press = pressLocation else { return }
+            if !model.isDragging {
+                guard hypot(mouse.x - press.x, mouse.y - press.y) >= Self.dragThreshold else { return }
+                beginDrag()
+            }
+            // The top centre of the closed notch stays under the pointer.
+            panel.setFrameOrigin(CGPoint(
+                x: mouse.x - panel.frame.width / 2,
+                y: mouse.y - panel.frame.height + model.metrics.topInset / 2
+            ))
+        case .leftMouseUp:
+            pressLocation = nil
+            guard model.isDragging else { return }
+            lastDragEnd = Date()
+            animateNextFrame = true
+            model.isDragging = false
+            onDragEnded?(mouse)
+        default:
+            break
+        }
+    }
+
+    private func beginDrag() {
+        model.isDragging = true
+        if isHovering { isHovering = false }
+        if hoverIntent { hoverIntent = false }
+        model.isApproaching = false
+        onDragBegan?()
+        set(.compact)
+        resignInput()
+    }
+
+    private func grabRect(in panel: NSWindow) -> CGRect {
+        guard model.presentation != .hidden else { return .null }
+        let shape = screenRect(fromWindowRect: shapeFrameInWindow, in: panel)
+        let band = max(model.metrics.topInset, 24)
+        return CGRect(x: shape.minX, y: shape.maxY - band, width: shape.width, height: band)
     }
 
     /// The window only takes the mouse inside the visible shape; elsewhere clicks fall
     /// through to the apps below. Hover uses a slightly larger zone so the notch opens
     /// when the pointer reaches the camera housing.
     private func updateMouseHandling() {
-        guard let panel else { return }
+        guard let panel, !model.isDragging else { return }
         let mouse = NSEvent.mouseLocation
         let shape = screenRect(fromWindowRect: shapeFrameInWindow, in: panel)
         let insideShape = model.presentation != .hidden && shape.contains(mouse)
@@ -502,7 +575,7 @@ struct CrenelNotchRootView: View {
                 }
                 .clipShape(CrenelNotchShape(topRadius: top, bottomRadius: bottom))
                 .shadow(
-                    color: .black.opacity(model.presentation == .expanded ? 0.55 : 0),
+                    color: .black.opacity(model.presentation == .expanded || model.isDragging ? 0.55 : 0),
                     radius: 24,
                     y: 10
                 )

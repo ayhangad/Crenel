@@ -1201,6 +1201,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A strip holds buttons, so hovering it does not open the panel; a click on its
         // ears does.
         notch.onRequestExpand = { [weak self] in self?.presentNotch(followPointer: false) }
+        notch.onDragBegan = { [weak self] in
+            guard let self else { return }
+            self.notchHoverController.markCompact()
+            if self.appState.isNotchPinned { self.toggleNotchPin() }
+        }
+        notch.onDragEnded = { [weak self] point in self?.dropNotch(at: point) }
         notchHoverObservation = notch.$hoverIntent
             .dropFirst()
             .removeDuplicates()
@@ -1221,6 +1227,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         .sink { [weak self] _ in
             self?.updateNotchTransitionConfiguration()
         }
+    }
+
+    /// The notch was dragged and let go: it works on that screen from now on, and Crenel
+    /// remembers the choice across restarts.
+    private func dropNotch(at point: CGPoint) {
+        let screen = notchScreenResolver.dropScreen(at: point) ?? resolvedActiveNotchScreen()
+        notchScreenResolver.rememberPreferredScreen(screen)
+        activeNotchScreen = screen
+        updateNotchPanelPresentation(for: screen)
+        notchHoverController.markCompact()
+        Task { await notch.compact(on: screen) }
     }
 
     private func updateNotchTransitionConfiguration() {
@@ -1324,7 +1341,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func screenParametersDidChange() {
-        let screen = resolvedActiveNotchScreen()
+        // A display came or went: the notch goes to the screen the user chose when it is
+        // connected, else to the built-in notch.
+        let screen = resolvedActiveNotchScreen(preferPhysicalNotch: true)
         Task {
             await notch.hide()
             switch notchHoverController.presentationState {

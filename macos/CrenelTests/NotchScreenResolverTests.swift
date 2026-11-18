@@ -135,4 +135,41 @@ final class NotchScreenResolverTests: XCTestCase {
             )
         )
     }
+
+    func testStartupUsesTheScreenTheNotchWasDraggedTo() {
+        let chosen = NotchScreenDescriptor(
+            id: external.id, frame: external.frame, hasNotch: false, isMain: false, uuid: "EXT"
+        )
+
+        XCTAssertEqual(
+            NotchScreenSelectionPolicy.startupScreen(from: [builtIn, chosen], preferredUUID: "EXT"),
+            chosen
+        )
+    }
+
+    func testStartupFallsBackToBuiltInNotchWhenChosenScreenIsDisconnected() {
+        XCTAssertEqual(
+            NotchScreenSelectionPolicy.startupScreen(from: [builtIn, external], preferredUUID: "GONE"),
+            builtIn
+        )
+    }
+
+    func testDropLandsOnScreenUnderPointer() {
+        XCTAssertEqual(
+            NotchScreenSelectionPolicy.dropScreen(from: [builtIn, external], pointerLocation: CGPoint(x: 2_400, y: 1_070)),
+            external
+        )
+    }
+
+    func testDropBetweenScreensPicksNearestScreen() {
+        // Above the shorter built-in display, in the gap next to the taller external one.
+        XCTAssertEqual(
+            NotchScreenSelectionPolicy.dropScreen(from: [builtIn, external], pointerLocation: CGPoint(x: 1_400, y: 1_060)),
+            builtIn
+        )
+        XCTAssertEqual(
+            NotchScreenSelectionPolicy.dropScreen(from: [builtIn, external], pointerLocation: CGPoint(x: 1_600, y: 1_200)),
+            external
+        )
+    }
 }
