@@ -151,10 +151,11 @@ birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
   native host adının Crenel'e taşınması; ilk açılışta tek seferlik migration
   (`LegacyIdentityMigration`). Depo monorepo yapısına geçti: `macos/`, `browser-extension/`,
   `website/` (yakında). — ✅ 2026-11-17
-- [ ] Web sitesi (`website/`, Astro): ana sayfa (canlı notch, film, özellikler, gizlilik, SSS)
-  ve `docs/releases/*.md`'den beslenen sürüm sayfası; Dokploy'da `crenel.ayhan.fyi`
-  (alan adı `SITE_URL` ile, kodda sabit değil). İletişim yalnızca X (@ayhangad). — 🚧 Devam
-  ediyor: 2026-11-18. Kod ve yerel build tamam; tasarım kullanıcı onayı ve Dokploy kurulumu bekliyor.
+- [x] Web sitesi (`website/`, Astro): ana sayfa (canlı notch, boyut seçici, özellik hikâyesi,
+  gizlilik, SSS) ve `docs/releases/*.md`'den beslenen sürüm sayfası. Dokploy'da (host.gad.works,
+  proje "Crenel") `https://crenel.ayhan.fyi`; `main`'e push `website/**` veya
+  `docs/releases/**` değişince otomatik yayınlanır. Alan adı `SITE_URL` build argümanıyla.
+  İletişim yalnızca X (@ayhangad). — ✅ 2026-11-18
 
 ### C10 — Dağıtım: imza, otomatik güncelleme, DMG (2026-11-17 kararları)
 
