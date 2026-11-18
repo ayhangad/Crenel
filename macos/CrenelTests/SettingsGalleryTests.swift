@@ -143,9 +143,6 @@ final class SettingsGalleryTests: XCTestCase {
         var claudeCode = fixture(.ai)
         claudeCode.preferences.agent.provider = .claudeCode
         try export(claudeCode, "s-ai-claudecode")
-        var codex = fixture(.ai)
-        codex.preferences.agent.provider = .codex
-        try export(codex, "s-ai-codex")
     }
 
     func testCalendarPages() throws {

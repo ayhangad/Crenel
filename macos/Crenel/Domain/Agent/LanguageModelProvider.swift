@@ -81,7 +81,7 @@ enum AgentError: Error, LocalizedError, Equatable, Sendable {
         case .missingKey(let kind):
             "No \(kind.displayName) API key. Add one in Settings."
         case .authentication(let kind) where kind.usesLocalCLI:
-            "\(kind.displayName) isn’t signed in. Open Terminal, run “\(kind == .codex ? "codex" : "claude")” and sign in."
+            "\(kind.displayName) isn’t signed in. Open Terminal, run “claude” and sign in."
         case .authentication(let kind):
             "Couldn’t verify the \(kind.displayName) key. Check it in Settings."
         case .modelUnavailable(let kind):

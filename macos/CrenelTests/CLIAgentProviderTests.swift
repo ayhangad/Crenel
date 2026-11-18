@@ -4,7 +4,6 @@ import XCTest
 final class CLIAgentProviderTests: XCTestCase {
     private final class FakeRunner: CLIProcessRunning, @unchecked Sendable {
         var result = CLIProcessResult(exitCode: 0, standardOutput: "", standardError: "")
-        var fileAnswer: String?
         private(set) var arguments: [String] = []
         private(set) var input = ""
         private(set) var timeout: TimeInterval = 0
@@ -13,9 +12,6 @@ final class CLIAgentProviderTests: XCTestCase {
             self.arguments = arguments
             self.input = standardInput
             self.timeout = timeout
-            if let fileAnswer, let index = arguments.firstIndex(of: "--output-last-message") {
-                try fileAnswer.write(toFile: arguments[index + 1], atomically: true, encoding: .utf8)
-            }
             return result
         }
     }
@@ -33,26 +29,20 @@ final class CLIAgentProviderTests: XCTestCase {
         XCTAssertEqual(Array(runner.arguments.prefix(3)), ["-p", "--output-format", "text"])
         let tools = try XCTUnwrap(runner.arguments.firstIndex(of: "--tools"))
         XCTAssertEqual(runner.arguments[tools + 1], "")
+        let settings = try XCTUnwrap(runner.arguments.firstIndex(of: "--setting-sources"))
+        XCTAssertEqual(runner.arguments[settings + 1], "")
+        XCTAssertTrue(runner.arguments.contains("--strict-mcp-config"))
         let system = try XCTUnwrap(runner.arguments.firstIndex(of: "--system-prompt"))
         XCTAssertEqual(runner.arguments[system + 1], "Fix spelling.")
         XCTAssertTrue(runner.arguments.contains("--no-session-persistence"))
         XCTAssertGreaterThanOrEqual(runner.timeout, CLIAgentProvider.minimumTimeout)
     }
 
-    func testCodexRunsReadOnlyAndReadsTheLastMessageFile() async throws {
-        let runner = FakeRunner()
-        runner.result.standardOutput = "log noise"
-        runner.fileAnswer = "hello world"
-        let answer = try await CLIAgentProvider(tool: .codex, model: "gpt-5", runner: runner, locate: found).generate(request)
-
-        XCTAssertEqual(answer, "hello world")
-        XCTAssertEqual(runner.input, "Fix spelling.\n\nhello wrld")
-        XCTAssertEqual(runner.arguments.first, "exec")
-        XCTAssertEqual(runner.arguments.last, "-")
-        let sandbox = try XCTUnwrap(runner.arguments.firstIndex(of: "--sandbox"))
-        XCTAssertEqual(runner.arguments[sandbox + 1], "read-only")
-        let model = try XCTUnwrap(runner.arguments.firstIndex(of: "--model"))
-        XCTAssertEqual(runner.arguments[model + 1], "gpt-5")
+    func testRetiredCodexSelectionResolvesToTheDevice() throws {
+        let choice = try JSONDecoder().decode(AgentProviderKind.self, from: Data(#""codex""#.utf8))
+        XCTAssertEqual(choice, .onDevice)
+        XCTAssertFalse(CLIAgentTool.allCases.contains { $0.executableName == "codex" })
+        XCTAssertTrue(AgentProviderFactory.makeProvider(for: AgentPreferences(provider: choice)) is FoundationModelsProvider)
     }
 
     func testMissingToolEmptyAnswerAndFailuresMapToAgentErrors() async {
@@ -70,9 +60,9 @@ final class CLIAgentProviderTests: XCTestCase {
             try await CLIAgentProvider(tool: .claudeCode, runner: signedOut, locate: self.found).generate(self.request)
         }
 
-        XCTAssertEqual(CLIAgentProvider.error(for: CLIProcessResult(exitCode: 1, standardOutput: "", standardError: "Rate limit reached"), kind: .codex), .rateLimited(.codex))
-        XCTAssertEqual(CLIAgentProvider.error(for: CLIProcessResult(exitCode: 2, standardOutput: "", standardError: "boom"), kind: .codex), .serverError(.codex))
-        XCTAssertTrue(AgentError.authentication(.codex).errorDescription?.contains("“codex”") == true)
+        XCTAssertEqual(CLIAgentProvider.error(for: CLIProcessResult(exitCode: 1, standardOutput: "", standardError: "Rate limit reached"), kind: .claudeCode), .rateLimited(.claudeCode))
+        XCTAssertEqual(CLIAgentProvider.error(for: CLIProcessResult(exitCode: 2, standardOutput: "", standardError: "boom"), kind: .claudeCode), .serverError(.claudeCode))
+        XCTAssertTrue(AgentError.authentication(.claudeCode).errorDescription?.contains("“claude”") == true)
     }
 
     func testCommandLineProvidersAreNotUsedForDictation() async {
@@ -92,7 +82,7 @@ final class CLIAgentProviderTests: XCTestCase {
     }
 
     func testFactoryAndSummaryUseTheCommandLineToolsWithLargeContext() throws {
-        XCTAssertTrue(AgentProviderFactory.makeProvider(for: AgentPreferences(provider: .codex)) is CLIAgentProvider)
+        XCTAssertTrue(AgentProviderFactory.makeProvider(for: AgentPreferences(provider: .claudeCode)) is CLIAgentProvider)
         let service = try XCTUnwrap(AgentMeetingSummaryService.make(
             for: AgentPreferences(provider: .claudeCode),
             provider: CLIAgentProvider(tool: .claudeCode, runner: FakeRunner(), locate: found)
@@ -100,7 +90,7 @@ final class CLIAgentProviderTests: XCTestCase {
         XCTAssertEqual(service.profile, .cloud)
         XCTAssertTrue(AgentProviderKind.claudeCode.usesLocalCLI)
         XCTAssertFalse(AgentProviderKind.claudeCode.isCloud)
-        XCTAssertNil(AgentPreferences(provider: .codex).modelID(for: .codex))
+        XCTAssertNil(AgentPreferences(provider: .claudeCode).modelID(for: .claudeCode))
     }
 
     func testLocatorSearchesNvmFoldersNewestFirst() throws {

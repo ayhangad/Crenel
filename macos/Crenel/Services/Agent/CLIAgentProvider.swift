@@ -5,51 +5,21 @@ import Foundation
 /// temporary folder, so the agent only ever answers in text.
 enum CLIAgentTool: String, CaseIterable, Sendable {
     case claudeCode = "claude"
-    case codex = "codex"
-
-    var kind: AgentProviderKind {
-        switch self {
-        case .claudeCode: .claudeCode
-        case .codex: .codex
-        }
-    }
-
+    var kind: AgentProviderKind { .claudeCode }
     var executableName: String { rawValue }
 
-    /// Arguments for one non-interactive, tool-less request. The prompt goes to standard input.
-    func arguments(systemInstructions: String, model: String?, outputFile: URL) -> [String] {
-        switch self {
-        case .claudeCode:
-            var arguments = [
-                "-p", "--output-format", "text",
-                "--tools", "",
-                "--no-session-persistence",
-                "--strict-mcp-config",
-                "--system-prompt", systemInstructions
-            ]
-            if let model { arguments += ["--model", model] }
-            return arguments
-        case .codex:
-            var arguments = [
-                "exec", "--skip-git-repo-check", "--ephemeral",
-                "--sandbox", "read-only", "--color", "never",
-                "--output-last-message", outputFile.path
-            ]
-            if let model { arguments += ["--model", model] }
-            return arguments + ["-"]
-        }
+    func arguments(systemInstructions: String, model: String?) -> [String] {
+        var arguments = [
+            "-p", "--output-format", "text",
+            "--tools", "",
+            "--setting-sources", "",
+            "--strict-mcp-config",
+            "--no-session-persistence",
+            "--system-prompt", systemInstructions
+        ]
+        if let model { arguments += ["--model", model] }
+        return arguments
     }
-
-    /// Codex has no system prompt flag; the instructions lead the prompt instead.
-    func standardInput(for request: AgentRequest) -> String {
-        switch self {
-        case .claudeCode: request.userContent
-        case .codex: request.systemInstructions + "\n\n" + request.userContent
-        }
-    }
-
-    /// Where the answer is: standard output (Claude Code) or the last-message file (Codex).
-    var answersInFile: Bool { self == .codex }
 }
 
 // MARK: - Locating the tool
@@ -265,22 +235,18 @@ struct CLIAgentProvider: LanguageModelProvider {
         let folder = FileManager.default.temporaryDirectory.appending(path: "crenel-agent-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
-        let answerFile = folder.appending(path: "answer.txt")
 
         let result = try await runner.run(
             executable: executable,
-            arguments: tool.arguments(systemInstructions: request.systemInstructions, model: model, outputFile: answerFile),
-            standardInput: tool.standardInput(for: request),
+            arguments: tool.arguments(systemInstructions: request.systemInstructions, model: model),
+            standardInput: request.userContent,
             workingDirectory: folder,
             timeout: max(request.timeout, Self.minimumTimeout)
         )
         try Task.checkCancellation()
         guard result.exitCode == 0 else { throw Self.error(for: result, kind: tool.kind) }
 
-        let answer = tool.answersInFile
-            ? ((try? String(contentsOf: answerFile, encoding: .utf8)) ?? "")
-            : result.standardOutput
-        let trimmed = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = result.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { throw AgentError.invalidResponse }
         return trimmed
     }
