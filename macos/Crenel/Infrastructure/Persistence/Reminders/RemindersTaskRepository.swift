@@ -173,12 +173,15 @@ actor RemindersTaskRepository: TaskRepository {
     }
 
     func delete(id: UUID) async throws {
+        let generation = resetGeneration
         if reminderIDsByTaskID[id] == nil {
             _ = try await loadAll()
         }
         guard let identifier = reminderIDsByTaskID[id] else { return }
         let list = try await resolvedList()
         try await store.remove(identifier: identifier, listIdentifier: list)
+        // "Delete all data" may have run meanwhile; don't write a fresh sidecar after it.
+        guard generation == resetGeneration else { throw CancellationError() }
         reminderIDsByTaskID[id] = nil
         try await sidecar.update { $0.entries[identifier] = nil }
     }
