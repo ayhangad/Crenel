@@ -1,6 +1,6 @@
 ---
 import XLogo from './XLogo.astro';
-import { LATEST, REPO, X_HANDLE, X_URL } from '../lib/site';
+import { LATEST_DMG, REPO, X_HANDLE, X_URL } from '../lib/site';
 const year = new Date().getFullYear();
 ---
 <footer class="footer">
@@ -13,7 +13,7 @@ const year = new Date().getFullYear();
       <nav aria-label="Footer">
         <div>
           <span class="head">Crenel</span>
-          <a href={LATEST}>Download</a>
+          <a href={LATEST_DMG}>Download</a>
           <a href="/releases">Releases</a>
           <a href="/#privacy">Privacy</a>
         </div>

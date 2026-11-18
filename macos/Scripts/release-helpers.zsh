@@ -39,6 +39,13 @@ upload_release_assets() {
         print -u2 "Couldn't check v${version} on GitHub: ${state}"
         return 1
     fi
-    gh release upload "v${version}" "${dmg}" "${dmg}.sha256" --repo "${repo}" --clobber || return 1
+    # The same DMG under a fixed name, so releases/latest/download/Crenel.dmg (the site's
+    # Download button) always fetches the newest version.
+    local stable_dir
+    stable_dir="$(mktemp -d)" || return 1
+    cp "${dmg}" "${stable_dir}/Crenel.dmg" || { rm -rf -- "${stable_dir}"; return 1; }
+    gh release upload "v${version}" "${dmg}" "${dmg}.sha256" "${stable_dir}/Crenel.dmg" --repo "${repo}" --clobber \
+        || { rm -rf -- "${stable_dir}"; return 1; }
+    rm -rf -- "${stable_dir}"
     gh release edit "v${version}" --repo "${repo}" --draft=false
 }

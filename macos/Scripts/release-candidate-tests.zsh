@@ -28,6 +28,7 @@ if verify_sparkle_archive "${fixture}/archive" "${digest}"; then exit 1; fi
 # The first upload fails after creation. The next run reuses the draft and publishes it.
 cd "${fixture}"
 print -r 'local-digest  example.dmg' > example.dmg.sha256
+touch example.dmg
 gh() {
     case "$2" in
         view)
@@ -38,6 +39,7 @@ gh() {
             [[ " $* " == *" --draft "* && ! -f "${fixture}/release" ]] && touch "${fixture}/release" ;;
         upload)
             [[ "${@[-1]}" == --clobber && -f "${fixture}/allow-upload" ]] || return 1
+            [[ " $* " == *"/Crenel.dmg "* ]] || return 1
             cp example.dmg.sha256 "${fixture}/remote.sha256" ;;
         edit) [[ "${@[-1]}" == --draft=false ]] && touch "${fixture}/public" ;;
         download) cat "${fixture}/remote.sha256" ;;

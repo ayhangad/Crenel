@@ -20,3 +20,14 @@ test("FAQ discloses where dictation clean-up sends text", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("body")).toContainText("If dictation clean-up uses OpenAI, Anthropic or Claude Code, the dictated text goes to that provider");
 });
+
+test("Download buttons fetch the newest DMG directly, GitHub stays a separate link", async ({ page }) => {
+  await page.goto("/");
+  const downloads = page.locator('a:has-text("Download")');
+  const count = await downloads.count();
+  expect(count).toBeGreaterThan(0);
+  for (let index = 0; index < count; index += 1) {
+    await expect(downloads.nth(index)).toHaveAttribute("href", "https://github.com/ayhangad/Crenel/releases/latest/download/Crenel.dmg");
+  }
+  await expect(page.locator('a[href="https://github.com/ayhangad/Crenel"]').first()).toBeVisible();
+});

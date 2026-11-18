@@ -6,7 +6,7 @@ import Lamp from '../components/Lamp.astro';
 import Seg from '../components/Seg.astro';
 import Mark from '../components/Mark.astro';
 import AppleLogo from '../components/AppleLogo.astro';
-import { LATEST, REPO, REQUIREMENTS, X_HANDLE, X_URL } from '../lib/site';
+import { LATEST_DMG, REPO, REQUIREMENTS, X_HANDLE, X_URL } from '../lib/site';
 import { getReleases } from '../lib/releases';
 
 const releases = await getReleases();
@@ -77,7 +77,7 @@ const faqs = [
         <h1 class="display reveal">Your Mac's notch,<br /><span class="lit-word">at work.</span></h1>
         <p class="lede reveal">Calendar, dictation, tasks and meeting notes, right beside the camera. Open source, with on-device transcription and notes.</p>
         <div class="cta-row reveal">
-          <a class="key black lg" href={LATEST}><AppleLogo size={17} />Download for Mac</a>
+          <a class="key black lg" href={LATEST_DMG}><AppleLogo size={17} />Download for Mac</a>
           <a class="key glass lg" href="#features">See how it works<Icon id="i-chevron-down" size={14} /></a>
         </div>
         <p class="meta reveal">{REQUIREMENTS} · Free</p>
@@ -230,7 +230,7 @@ const faqs = [
           <h2 class="h2">Put your notch to work.</h2>
           <p class="lede">Free, open source, and a minute to set up.</p>
           <div class="cta-row">
-            <a class="key light lg" href={LATEST}><AppleLogo size={17} />Download for Mac</a>
+            <a class="key light lg" href={LATEST_DMG}><AppleLogo size={17} />Download for Mac</a>
             <a class="key dark lg" href="/releases">What's new<Icon id="i-arrow-right" size={14} /></a>
           </div>
           <p class="meta">{REQUIREMENTS}</p>

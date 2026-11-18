@@ -2,7 +2,7 @@
 import AppleLogo from './AppleLogo.astro';
 import GitHubLogo from './GitHubLogo.astro';
 import LiveNotch from './LiveNotch.astro';
-import { LATEST, REPO } from '../lib/site';
+import { LATEST_DMG, REPO } from '../lib/site';
 const home = Astro.url.pathname === '/' || Astro.url.pathname === '/index.html';
 const at = (hash: string) => (home ? hash : `/${hash}`);
 ---
@@ -20,7 +20,7 @@ const at = (hash: string) => (home ? hash : `/${hash}`);
     </nav>
     <div class="right">
       <a class="key glass sm hide-sm" href={REPO} aria-label="Crenel on GitHub"><GitHubLogo size={16} />GitHub</a>
-      <a class="key black sm" href={LATEST}><AppleLogo size={15} />Download</a>
+      <a class="key black sm" href={LATEST_DMG}><AppleLogo size={15} />Download</a>
     </div>
   </div>
   <LiveNotch />

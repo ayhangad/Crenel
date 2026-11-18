@@ -9,7 +9,7 @@
 Calendar, dictation, tasks and meeting notes, right beside the camera.
 Open source. On-device transcription and notes by default.
 
-[**Download for macOS**](https://github.com/ayhangad/Crenel/releases/latest) · [Watch the video](docs/media/crenel-promo.mp4) · [How it's built](docs/DEVELOPMENT.md)
+[**Download for macOS**](https://github.com/ayhangad/Crenel/releases/latest/download/Crenel.dmg) · [Watch the video](docs/media/crenel-promo.mp4) · [How it's built](docs/DEVELOPMENT.md)
 
 <sub>macOS 26 or later · Apple silicon and Intel · signed and notarized by Apple</sub>
 
@@ -102,7 +102,7 @@ meeting, tasks, dictation history and settings.
 
 ## Install
 
-1. Download **Crenel.dmg** from the [latest release](https://github.com/ayhangad/Crenel/releases/latest).
+1. Download [**Crenel.dmg**](https://github.com/ayhangad/Crenel/releases/latest/download/Crenel.dmg). Every version is also on the [releases page](https://github.com/ayhangad/Crenel/releases).
 2. Drag Crenel to Applications and open it.
 3. One setup screen lists every permission and what it's for. **Turn on all** walks you
    through them.
