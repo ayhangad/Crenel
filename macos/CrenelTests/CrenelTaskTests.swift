@@ -379,6 +379,27 @@ final class CrenelTaskTests: XCTestCase {
         XCTAssertEqual(store.records.values.map(\.title).sorted(), ["First", "Second"])
     }
 
+    func testInterruptedMigrationResumesFromPersistedIdentifiers() async throws {
+        let store = FakeReminderStore()
+        let local = InMemoryTaskRepository()
+        local.tasks = [TaskItem(title: "One"), TaskItem(title: "Two"), TaskItem(title: "Three")]
+        let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let first = RemindersTaskRepository(store: store, sidecar: TaskSidecarFile(url: url))
+        store.failNewRecordNumber = 2
+        do {
+            _ = try await first.migrateIfNeeded(from: local)
+            XCTFail("Expected an interrupted migration")
+        } catch ReminderStoreError.listUnavailable {}
+        XCTAssertEqual(store.records.count, 1)
+        store.failNewRecordNumber = nil
+        let reopened = RemindersTaskRepository(store: store, sidecar: TaskSidecarFile(url: url))
+        _ = try await reopened.migrateIfNeeded(from: local)
+        XCTAssertEqual(store.records.values.map(\.title).sorted(), ["One", "Three", "Two"])
+        let loaded = try await reopened.loadAll()
+        XCTAssertEqual(Set(loaded.map(\.id)), Set(local.tasks.map(\.id)))
+    }
+
     func testRouterFallsBackToLocalWithoutPermission() async throws {
         let store = FakeReminderStore()
         store.access = .notDetermined
@@ -449,6 +470,7 @@ private final class FakeReminderStore: ReminderStore, @unchecked Sendable {
     var records: [String: ReminderRecord] = [:]
     var listsCreated = 0
     private var listID: String?
+    var failNewRecordNumber: Int?
     private var counter = 0
 
     func accessState() async -> ReminderAccessState { access }
@@ -477,6 +499,7 @@ private final class FakeReminderStore: ReminderStore, @unchecked Sendable {
         if let identifier = record.identifier {
             guard records[identifier] != nil else { throw ReminderStoreError.reminderNotFound }
         } else {
+            if failNewRecordNumber == counter + 1 { throw ReminderStoreError.listUnavailable }
             counter += 1
             record.identifier = "rem-\(counter)"
         }

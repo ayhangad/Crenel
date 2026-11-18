@@ -168,6 +168,14 @@ actor RemindersTaskRepository: TaskRepository {
         let candidates = try await local.loadAll().filter { task in
             !imported.contains(task.id) && !task.isArchived && (!task.isCompleted || (task.completedAt ?? .distantPast) >= cutoff)
         }
+        if !candidates.isEmpty {
+            // A previous activation may have saved only a prefix before failing.
+            _ = try await loadAll()
+            // Include old completed reminders outside the normal display window.
+            for (identifier, entry) in document.entries where reminderIDsByTaskID[entry.taskID] == nil {
+                reminderIDsByTaskID[entry.taskID] = identifier
+            }
+        }
         for task in candidates {
             var copy = task
             copy.reminderIdentifier = nil
