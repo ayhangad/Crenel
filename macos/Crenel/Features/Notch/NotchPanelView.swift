@@ -327,7 +327,7 @@ enum DictationStatusText {
 
     static func short(for failure: DictationFailure) -> String {
         switch failure {
-        case .noFocusedTextField: "Copied"
+        case .targetChanged, .noFocusedTextField: "Copied"
         case .speechAssetsDownloading, .speechAssetsMissing: "Downloading"
         case .accessibilityPermissionMissing, .inputMonitoringPermissionMissing, .microphonePermissionDenied: "Needs access"
         case .tooShort, .noSpeechDetected: "No speech"

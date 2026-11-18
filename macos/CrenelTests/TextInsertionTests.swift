@@ -276,13 +276,42 @@ final class TextInsertionTests: XCTestCase {
         XCTAssertFalse(undone)
     }
 
+    func testReplacementRequiresOriginalAppFieldRangeAndText() async {
+        func field() -> FakeTextElement {
+            FakeTextElement(role: "AXTextArea", value: "cat cat", selectedText: "cat",
+                            selectedRange: NSRange(location: 0, length: 3))
+        }
+        for change in ["field", "application", "range", "text", "unchanged"] {
+            elements.app = ("notes", "Notes")
+            let original = field()
+            elements.element = original
+            let target = service.currentContext()
+            switch change {
+            case "field": elements.element = field()
+            case "application": elements.app = ("mail", "Mail")
+            case "range": original.selectedRange = NSRange(location: 4, length: 3)
+            case "text": original.selectedText = "new"
+            default: break
+            }
+            let result = await service.insert("dog", replacing: target)
+            if change == "unchanged" {
+                XCTAssertEqual(result, .insertedViaAccessibility)
+                XCTAssertEqual(original.value, "dog cat")
+            } else {
+                XCTAssertEqual(result, .copiedToClipboard(.targetChanged))
+                XCTAssertEqual(original.setCount, 0)
+                XCTAssertEqual(pasteboard.lastWriteWasTransient, true)
+                XCTAssertEqual(keystrokes.pasteCount, 0)
+            }
+        }
+    }
+
     func testCurrentContextReadsSelectionButNotFromSecureFields() {
         elements.app = ("com.apple.Notes", "Notlar")
         elements.element = FakeTextElement(role: "AXTextArea", value: "abc", selectedText: "b")
-        XCTAssertEqual(
-            service.currentContext(),
-            DictationTargetSnapshot(bundleIdentifier: "com.apple.Notes", appName: "Notlar", selectedText: "b")
-        )
+        XCTAssertEqual(service.currentContext().bundleIdentifier, "com.apple.Notes")
+        XCTAssertEqual(service.currentContext().appName, "Notlar")
+        XCTAssertEqual(service.currentContext().selectedText, "b")
 
         elements.element = FakeTextElement(role: "AXSecureTextField", value: "", selectedText: "gizli")
         XCTAssertNil(service.currentContext().selectedText)

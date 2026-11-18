@@ -538,7 +538,7 @@ final class FakeDictationInserter: DictationTextInserting {
 
     func currentContext() -> DictationTargetSnapshot { context }
 
-    func insert(_ text: String) async -> TextInsertionResult {
+    func insert(_ text: String, replacing target: DictationTargetSnapshot?) async -> TextInsertionResult {
         insertedTexts.append(text)
         return result
     }

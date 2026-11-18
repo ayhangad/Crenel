@@ -405,7 +405,7 @@ final class DictationController: ObservableObject {
                 return
             }
             state = .inserting
-            let result = await inserter.insert(text)
+            let result = await inserter.insert(text, replacing: isReplacement ? session.target : nil)
             guard isCurrent(session) else { return }
             handleInsertion(result, text: text, transcript: cleaned, isReplacement: isReplacement, session: session)
         }
@@ -441,6 +441,8 @@ final class DictationController: ObservableObject {
                 fail(session, with: .noFocusedTextField)
             case .accessibilityPermissionMissing:
                 fail(session, with: .accessibilityPermissionMissing)
+            case .targetChanged:
+                fail(session, with: .targetChanged)
             case .pasteFailed:
                 fail(session, with: .insertionFailed)
             }

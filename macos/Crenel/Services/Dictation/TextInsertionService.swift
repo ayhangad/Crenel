@@ -6,11 +6,13 @@ import Foundation
 // MARK: - Abstractions
 
 /// Frontmost application and its focused text target, as seen at insertion time.
-struct DictationTargetSnapshot: Equatable, Sendable {
+struct DictationTargetSnapshot {
     var bundleIdentifier: String?
     var appName: String?
     var selectedText: String?
     var isSecureTarget = false
+    var element: (any FocusedTextElement)?
+    var selectedRange: NSRange?
 }
 
 /// A focused accessibility element, abstracted for testing.
@@ -65,7 +67,7 @@ protocol PasteKeystrokeSending: AnyObject {
 @MainActor
 protocol DictationTextInserting: AnyObject {
     func currentContext() -> DictationTargetSnapshot
-    func insert(_ text: String) async -> TextInsertionResult
+    func insert(_ text: String, replacing target: DictationTargetSnapshot?) async -> TextInsertionResult
     func copyToClipboard(_ text: String)
     /// Whether the last successful `insert` left enough behind to take it back.
     var canUndoLastInsertion: Bool { get }
@@ -154,6 +156,8 @@ final class TextInsertionService: DictationTextInserting {
         snapshot.isSecureTarget = TextInsertionPolicy.isSecure(element)
         guard !snapshot.isSecureTarget else { return snapshot }
         if let selected = element.selectedText, !selected.isEmpty {
+            snapshot.element = element
+            snapshot.selectedRange = element.selectedRange
             snapshot.selectedText = selected
         }
         return snapshot
@@ -163,9 +167,24 @@ final class TextInsertionService: DictationTextInserting {
         pasteboard.write(text: text, transient: false)
     }
 
-    func insert(_ text: String) async -> TextInsertionResult {
+    private func replacementFailure(for target: DictationTargetSnapshot?, text: String) -> TextInsertionResult? {
+        guard let target else { return nil }
+        let current = currentContext()
+        if current.isSecureTarget { return .refusedSecureField }
+        guard let app = target.bundleIdentifier, current.bundleIdentifier == app,
+              let original = target.element, current.element?.isSame(as: original) == true,
+              let range = target.selectedRange, range.length > 0, current.selectedRange == range,
+              let selection = target.selectedText, current.selectedText == selection else {
+            pasteboard.write(text: text, transient: true)
+            return .copiedToClipboard(.targetChanged)
+        }
+        return nil
+    }
+
+    func insert(_ text: String, replacing target: DictationTargetSnapshot? = nil) async -> TextInsertionResult {
         undoRecord = nil
         if elements.isSecureInputActive { return .refusedSecureField }
+        if let failure = replacementFailure(for: target, text: text) { return failure }
         guard elements.isAccessibilityTrusted else {
             copyToClipboard(text)
             return .copiedToClipboard(.accessibilityPermissionMissing)
@@ -192,6 +211,8 @@ final class TextInsertionService: DictationTextInserting {
            await insertViaAccessibility(text, into: element) {
             return .insertedViaAccessibility
         }
+        // An unverified accessibility write may have suspended before falling back.
+        if let failure = replacementFailure(for: target, text: text) { return failure }
         return await paste(text, into: app.bundleIdentifier)
     }
 

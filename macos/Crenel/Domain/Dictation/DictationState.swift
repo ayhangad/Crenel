@@ -64,6 +64,7 @@ enum DictationFailure: Error, Equatable, Sendable {
     case speechAssetsMissing(localeIdentifier: String)
     case speechAssetsDownloading(localeIdentifier: String)
     case unsupportedLocale(localeIdentifier: String)
+    case targetChanged
     case noFocusedTextField
     case secureTextField
     case tooShort
@@ -90,6 +91,8 @@ enum DictationFailure: Error, Equatable, Sendable {
             return "Downloading the speech model. Try again when it finishes."
         case .unsupportedLocale:
             return "The selected language isn’t supported for on-device dictation."
+        case .targetChanged:
+            return "The selected text or field changed. Copied to clipboard."
         case .noFocusedTextField:
             return "No focused text field. Copied to clipboard."
         case .secureTextField:
@@ -112,7 +115,7 @@ enum DictationFailure: Error, Equatable, Sendable {
     /// Whether the dictated text is still available on the clipboard after this failure.
     var leftTextOnClipboard: Bool {
         switch self {
-        case .noFocusedTextField, .accessibilityPermissionMissing, .insertionFailed:
+        case .targetChanged, .noFocusedTextField, .accessibilityPermissionMissing, .insertionFailed:
             return true
         default:
             return false
@@ -129,6 +132,7 @@ enum TextInsertionResult: Equatable, Sendable {
 }
 
 enum TextInsertionClipboardReason: Equatable, Sendable {
+    case targetChanged
     case noFocusedTextField
     case accessibilityPermissionMissing
     case pasteFailed
