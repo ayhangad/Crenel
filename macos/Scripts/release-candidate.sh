@@ -123,7 +123,9 @@ browser_host_path="${app_path}/Contents/Library/LaunchServices/CrenelBrowserAudi
 
 if (( signed )); then
     codesign --verify --deep --strict --verbose=2 "${app_path}"
-    codesign -d --verbose=4 "${app_path}" 2>&1 | grep -q 'runtime' || { print -u2 "FAIL: hardened runtime is off."; exit 1; }
+    # Read it whole first: grep -q stops early and, under pipefail, codesign's broken pipe fails the check.
+    signature_details="$(codesign -d --verbose=4 "${app_path}" 2>&1)"
+    [[ "${signature_details}" == *"(runtime)"* ]] || { print -u2 "FAIL: hardened runtime is off."; exit 1; }
 
     print "Notarizing the app…"
     ditto -c -k --keepParent "${app_path}" "${artifact_root}/Crenel-app.zip"
