@@ -203,7 +203,7 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
 - [ ] A. Gerçek imleçle, notch’tan hızla listenin altına indikten ve içerik kısaldıktan sonra kapanma kabulü. Kullanıcı doğrulayacak.
 - [ ] 01. İzinli gerçek toplantıda dikte, sessize alma, erişim kaybı ve kayıt başlangıcı sırasında ham mikrofon ve birleşik ses kabulü.
 - [ ] 05 ve 06. Gerçek Chrome'da Meet sekmesini yenileme, başka kökene geçiş ve yakalama başlarken durdurma kabulü.
-- [ ] 08. Herkese açık 1.0 DMG ve Sparkle beslemesi. 🚧 Devam ediyor. 18 Kasım'da sürüm listesi boş, v1.0 ve appcast HTTP 404. Yayın kullanıcı onayı bekliyor. Yayın sonrası kontrol: `python3 macos/Scripts/release-availability-test.py 1.0`.
+- [x] 08. Herkese açık 1.0 DMG ve Sparkle beslemesi. 18 Kasım 2026: v1.0 (150) GitHub Releases'ta, appcast gh-pages'te yayında, `release-availability-test.py 1.0` geçti. Kullanıcı 87 → 148 → 149 → 150 yerel Sparkle güncellemesini, izinleri ve pencere davranışını kendi Mac'inde doğruladı.
 - [ ] 08, 15, 16 ve 19. Dağıtım imzasıyla temiz Mac'te noter, Applications'a taşıma, yerel yardımcı ve iki imzalı sürüm arasında güncelleme kabulü.
 - [x] Astra düzeltmelerinin incelemesinde çıkan ikinci tur: 04, 06, 07, 11, 14, 15, 18, 19, 20, 21, 23. 18 Kasım 2026. Tam macOS koşusu 672 test, 5 atlama, 0 hata. Uzantı 10, site 5 test geçti. Claude Code argümanları gerçek CLI'de doğrulandı. [Denetim raporu](docs/DENETIM-2026-11-18.md)
 - [ ] 11 ve 04 cihaz kabulü: iCloud'da veri silme sonrası aynı Crenel listesinin bulunması, bozuk ayar uyarısı ve sıfırlama.
