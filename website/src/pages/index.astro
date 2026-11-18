@@ -59,7 +59,7 @@ const faqs = [
   { q: 'Is Crenel free?', a: 'Yes. Crenel is free and open source under the MIT license. Every line is on GitHub.' },
   { q: 'Which Macs does it run on?', a: 'Any Mac on macOS 26 or later, Apple silicon or Intel. It is signed and notarized by Apple.' },
   { q: 'My Mac has no notch. Does it work?', a: 'Yes. On a display without a notch, Crenel draws its own at the top of the screen, external displays included.' },
-  { q: 'Does anything leave my Mac?', a: "Not unless you choose it. Dictation and notes can run fully on device with Apple's models. If you add your own OpenAI, Anthropic or ElevenLabs key, only that request goes to that provider." },
+  { q: 'Does anything leave my Mac?', a: "The optional Chrome extension sends the selected Meet tab’s audio to Crenel on your Mac. Apple Speech transcribes the combined recording locally. Choosing ElevenLabs sends it the audio. For notes and tasks, Apple’s model processes the transcript locally. Choosing OpenAI sends the text to OpenAI. Choosing Anthropic or Claude Code sends it to Anthropic, including when Claude Code uses your existing sign-in." },
   { q: 'Do I need an account?', a: 'No. There is nothing to sign up for, and there are no analytics.' },
   { q: 'Which calls can it record?', a: "Zoom and Google Meet. For Meet in Chrome, a small extension passes the tab's audio to Crenel." },
 ];
@@ -75,7 +75,7 @@ const faqs = [
       <div class="wrap">
         <a class="pill reveal" href="/releases"><Lamp on="g" />{current ? `Crenel ${current.version} is here` : 'New release'}<Icon id="i-arrow-right" size={12} /></a>
         <h1 class="display reveal">Your Mac's notch,<br /><span class="lit-word">at work.</span></h1>
-        <p class="lede reveal">Calendar, dictation, tasks and meeting notes, right beside the camera. Open source, and your data stays on your Mac.</p>
+        <p class="lede reveal">Calendar, dictation, tasks and meeting notes, right beside the camera. Open source, with on-device transcription and notes.</p>
         <div class="cta-row reveal">
           <a class="key black lg" href={LATEST}><AppleLogo size={17} />Download for Mac</a>
           <a class="key glass lg" href="#features">See how it works<Icon id="i-chevron-down" size={14} /></a>
@@ -185,7 +185,7 @@ const faqs = [
           <div class="privacy-head">
             <span class="tag"><Lamp on="g" />Privacy</span>
             <h2 class="h2">Private by design.</h2>
-            <p class="lede">Crenel sits next to your camera and hears your calls. So it keeps everything on your Mac, and you decide what goes anywhere else.</p>
+            <p class="lede">Crenel stores recordings locally. You choose where meeting audio is transcribed and where the transcript is summarized.</p>
           </div>
           <div class="meters">
             <div class="meter"><Seg text="0" h={44} /><b>accounts</b><span>Nothing to sign up for.</span></div>
@@ -194,7 +194,7 @@ const faqs = [
           </div>
           <div class="privacy-grid">
             <div><h3><Lamp on="g" />On your Mac</h3><p>Recordings, transcripts, notes and tasks are stored on your Mac.</p></div>
-            <div><h3><Lamp on="g" />Your keys</h3><p>Apple's on-device model, your own OpenAI or Anthropic key, or the Claude Code or Codex you already have. Keys live in your Keychain.</p></div>
+            <div><h3><Lamp on="g" />Your providers</h3><p>Apple’s models run on your Mac. ElevenLabs can transcribe audio. OpenAI or Anthropic can process text. Claude Code sends text to Anthropic using your sign-in.</p></div>
             <div><h3><Lamp on="g" />Open source</h3><p>Every line is on <a href={REPO}>GitHub</a>, under the MIT license. Read it, build it, change it.</p></div>
           </div>
         </div>

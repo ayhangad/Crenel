@@ -311,7 +311,7 @@ struct AgentSettingsView<Extra: View>: View {
     private var providerDetail: Text? {
         switch provider {
         case .anthropic, .openAI: Text("Notes, tasks and dictation clean-up · billed to you")
-        case .claudeCode: Text("Your sign-in on this Mac · notes and tasks, not dictation")
+        case .claudeCode: Text("Sends transcript text to Anthropic using your Claude Code sign-in for notes and tasks")
         case .onDevice: onDeviceStatus.map { Text(verbatim: $0) } ?? Text("Apple’s model · free, stays on this Mac")
         case .automatic: Text("Anthropic, then OpenAI, then this Mac")
         case .off: Text("Raw text only")

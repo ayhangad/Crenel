@@ -1,10 +1,9 @@
-# Crenel for Google Meet — Gizlilik Politikası
+# Crenel for Google Meet gizlilik politikası
 
-Son güncelleme: 14 Eylül 2026
+Son güncelleme: 18 Kasım 2026
 
 Bu politika, Crenel for Google Meet Chrome uzantısının verileri nasıl işlediğini
-açıklar. Yayın öncesinde geliştirici adı, iletişim adresi ve bu belgenin herkese açık HTTPS
-URL'si eklenmelidir.
+açıklar.
 
 ## Uzantının tek amacı
 
@@ -28,15 +27,14 @@ Seçili sekme sesi yalnız Chrome native messaging üzerinden aynı cihazdaki Cr
 uygulamasına gönderilir. Uzantı ses verisini kalıcı olarak saklamaz, bir geliştirici
 sunucusuna göndermez ve analytics/telemetry üretmez.
 
-Crenel kullanıcısı uygulamada kayıt başlattıysa yerel uygulama bu sesi toplantı
-kaydına ekleyebilir. Kayıt bittikten sonra birleşik ses, kullanıcının kendi API anahtarıyla
-konuşmacı ayrımlı transkript üretmek amacıyla ElevenLabs Scribe v2'ye gönderilebilir. Bu
-işlem uzantının değil, kullanıcı kontrolündeki Crenel uygulamasının kayıt ve işleme
-akışıdır; uygulama onboarding'i ve uzantı popup'ı bu sınırı yakalama başlamadan açıklar.
-OpenAI bağlantısı açıksa yerel uygulama transkript metnini, konuşmacı adlarını ve zaman
-bilgilerini özet, karar ve görev oluşturmak için kullanıcının OpenAI API anahtarıyla
-OpenAI’ye gönderir. Uzantı bu servislerle doğrudan iletişim kurmaz. API anahtarları
-yalnız yerel uygulamanın macOS Keychain alanında saklanır.
+Kayıt başlatıldığında Crenel birleşik toplantı sesini Mac'te saklar. Transkripsiyon için
+Apple Speech seçilirse ses Mac'te işlenir. ElevenLabs Scribe v2 seçilirse birleşik ses
+ElevenLabs'a gönderilir.
+
+Özet ve görevler için transkript metni, konuşmacı etiketleri ve zaman bilgileri seçilen
+sağlayıcıda işlenir. Apple modeli Mac'te çalışır. OpenAI seçilirse metin OpenAI'a,
+Anthropic API veya Claude Code seçilirse Anthropic'e gönderilir. Claude Code, Mac'teki
+mevcut oturumunu kullanır. API anahtarları macOS Keychain'de saklanır.
 
 ## Paylaşım ve yasak kullanımlar
 
@@ -52,8 +50,6 @@ Kullanıcı popup'taki “Bağlantıyı kes” düğmesiyle aktarımı durdurabi
 başka adrese gitmesi, Chrome'un kapanması veya yerel köprünün kopması da aktarımı otomatik
 olarak durdurur. Uzantı kaldırıldığında uzantıda saklanan kullanıcı verisi yoktur.
 
-## İletişim — yayın öncesi doldurulacak
+## İletişim
 
-Geliştirici: `YAYIN_ONCESI_DOLDUR`
-
-E-posta: `YAYIN_ONCESI_DOLDUR`
+Geliştiriciye [X üzerinden ulaşabilirsiniz](https://x.com/ayhangad).

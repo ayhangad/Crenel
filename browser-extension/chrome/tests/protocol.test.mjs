@@ -40,7 +40,15 @@ test("popup provides prominent disclosure before the user starts audio capture",
   const popupStyles = fs.readFileSync(new URL("../popup.css", import.meta.url), "utf8");
   assert.match(popup, /Yalnız o anda açık olan/);
   assert.match(popup, /Diğer sekmeler okunmaz veya\s+kaydedilmez/);
-  assert.match(popup, /ElevenLabs Scribe v2/);
+  const policy = fs.readFileSync(new URL("../../chrome-web-store/PRIVACY_POLICY_TR.md", import.meta.url), "utf8");
+  for (const disclosure of [popup, policy]) {
+    for (const provider of ["Apple Speech", "ElevenLabs Scribe v2", "OpenAI", "Claude Code", "Anthropic"]) {
+      assert.ok(disclosure.includes(provider), `Missing provider disclosure: ${provider}`);
+    }
+    assert.match(disclosure, /transkript metni/i);
+  }
+  assert.doesNotMatch(policy, /YAYIN_ONCESI_DOLDUR|E-posta/);
+  assert.match(policy, /https:\/\/x\.com\/ayhangad/);
   assert.match(popup, /işlenmesini onaylarsınız/);
   assert.match(popup, /id="capture-button"/);
   assert.doesNotMatch(popup, /<script(?![^>]*\bsrc=)/);

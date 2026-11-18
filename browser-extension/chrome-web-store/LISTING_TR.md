@@ -49,7 +49,8 @@ edilmek üzere aynı cihazdaki Crenel macOS uygulamasına güvenli biçimde akta
 - Yerel uygulamaya aktarım: var; aynı bilgisayardaki native messaging host üzerinden.
 - Üçüncü tarafa aktarım: extension doğrudan yapmaz. Crenel uygulaması, kullanıcı kayıt
   başlattıysa birleşik kaydı daha sonra transkript için ElevenLabs Scribe v2'ye gönderebilir;
-  bu sınır popup ve macOS onboarding üzerinde açıklanır.
+  özet ve görevler için OpenAI seçilirse transkript OpenAI’a, Anthropic API veya Claude Code
+  seçilirse Anthropic’e gönderilir. Apple modelleri sesi ve metni Mac’te işler.
 - Limited Use sertifikasyonu: evet.
 
 ## Dashboard alanları — yayın öncesi doldurulacak
