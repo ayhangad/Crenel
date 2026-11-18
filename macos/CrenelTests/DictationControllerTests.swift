@@ -55,6 +55,20 @@ final class DictationControllerTests: XCTestCase {
         await controller.waitForCurrentSession()
     }
 
+    func testSecureTargetSkipsRefinementDeliveryAndHistory() async {
+        inserter.context.isSecureTarget = true
+        transcriber.finalText = "private spoken words"
+        let refiner = FixedRefiner(outcome: .insert("private"))
+        let controller = makeController(refiner: refiner)
+        await runSession(controller)
+        let call = await refiner.lastContext
+        XCTAssertNil(call)
+        XCTAssertEqual(controller.state, .failed(.secureTextField))
+        XCTAssertTrue(controller.history.isEmpty)
+        XCTAssertTrue(inserter.insertedTexts.isEmpty)
+        XCTAssertTrue(inserter.copiedTexts.isEmpty)
+    }
+
     func testNormalFlowInsertsTranscriptAndRecordsHistory() async {
         transcriber.finalText = "  merhaba dünya  "
         inserter.result = .insertedViaAccessibility

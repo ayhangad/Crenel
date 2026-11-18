@@ -363,6 +363,10 @@ final class DictationController: ObservableObject {
             return
         }
 
+        guard !session.target.isSecureTarget, !inserter.currentContext().isSecureTarget else {
+            fail(session, with: .secureTextField)
+            return
+        }
         state = .refining
         let context = DictationContext(
             appBundleIdentifier: session.target.bundleIdentifier,

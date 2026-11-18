@@ -10,6 +10,7 @@ struct DictationTargetSnapshot: Equatable, Sendable {
     var bundleIdentifier: String?
     var appName: String?
     var selectedText: String?
+    var isSecureTarget = false
 }
 
 /// A focused accessibility element, abstracted for testing.
@@ -147,12 +148,11 @@ final class TextInsertionService: DictationTextInserting {
     func currentContext() -> DictationTargetSnapshot {
         let app = elements.frontmostApplication()
         var snapshot = DictationTargetSnapshot(bundleIdentifier: app.bundleIdentifier, appName: app.name)
-        guard elements.isAccessibilityTrusted,
-              !elements.isSecureInputActive,
-              let element = elements.focusedElement(),
-              !TextInsertionPolicy.isSecure(element) else {
-            return snapshot
-        }
+        snapshot.isSecureTarget = elements.isSecureInputActive
+        guard !snapshot.isSecureTarget, elements.isAccessibilityTrusted,
+              let element = elements.focusedElement() else { return snapshot }
+        snapshot.isSecureTarget = TextInsertionPolicy.isSecure(element)
+        guard !snapshot.isSecureTarget else { return snapshot }
         if let selected = element.selectedText, !selected.isEmpty {
             snapshot.selectedText = selected
         }
@@ -165,12 +165,10 @@ final class TextInsertionService: DictationTextInserting {
 
     func insert(_ text: String) async -> TextInsertionResult {
         undoRecord = nil
+        if elements.isSecureInputActive { return .refusedSecureField }
         guard elements.isAccessibilityTrusted else {
             copyToClipboard(text)
             return .copiedToClipboard(.accessibilityPermissionMissing)
-        }
-        if elements.isSecureInputActive {
-            return .refusedSecureField
         }
 
         let app = elements.frontmostApplication()

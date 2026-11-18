@@ -86,10 +86,13 @@ final class TextInsertionTests: XCTestCase {
         elements.app = ("com.google.Chrome", "Google Chrome")
         elements.isSecureInputActive = true
 
-        let result = await service.insert("parola")
-
-        XCTAssertEqual(result, .refusedSecureField)
-        XCTAssertEqual(pasteboard.writeCount, 0)
+        for trusted in [false, true] {
+            elements.isAccessibilityTrusted = trusted
+            XCTAssertTrue(service.currentContext().isSecureTarget)
+            let result = await service.insert("parola")
+            XCTAssertEqual(result, .refusedSecureField)
+            XCTAssertEqual(pasteboard.writeCount, 0)
+        }
     }
 
     func testAppWithoutFocusedElementGetsPaste() async {
