@@ -214,6 +214,20 @@ final class DictationController: ObservableObject {
         return true
     }
 
+    func reset() {
+        cancel()
+        resetTask?.cancel()
+        resetTask = nil
+        pendingUndo = nil
+        inserter.reset()
+        history.removeAll()
+        dailyWords = DictationDailyWords()
+        dailyWordsStore?.reset()
+        state = .idle
+        partialTranscript = ""
+        level = 0
+    }
+
     func clearHistory() {
         history.removeAll()
     }

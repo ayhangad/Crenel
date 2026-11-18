@@ -26,6 +26,11 @@ actor TaskSidecarFile {
         return layout.tasks.appending(path: "reminders-sidecar.json")
     }
 
+    func reset() throws {
+        if fileManager.fileExists(atPath: url.path) { try fileManager.removeItem(at: url) }
+        cached = nil
+    }
+
     func load() -> Document {
         if let cached { return cached }
         let document: Document
@@ -80,9 +85,20 @@ actor RemindersTaskRepository: TaskRepository {
         self.now = now
     }
 
+    private var resetGeneration: UInt64 = 0
+
+    func reset() async throws {
+        resetGeneration &+= 1
+        listIdentifier = nil
+        reminderIDsByTaskID.removeAll()
+        try await sidecar.reset()
+    }
+
     func prepare() async throws {
+        let generation = resetGeneration
         let stored = await sidecar.load().listIdentifier
         let identifier = try await store.prepareList(preferredIdentifier: stored, title: listTitle)
+        guard generation == resetGeneration else { throw CancellationError() }
         listIdentifier = identifier
         if identifier != stored {
             try await sidecar.update { $0.listIdentifier = identifier }
@@ -90,12 +106,14 @@ actor RemindersTaskRepository: TaskRepository {
     }
 
     func loadAll() async throws -> [TaskItem] {
+        let generation = resetGeneration
         let list = try await resolvedList()
         let records = try await store.fetch(
             listIdentifier: list,
             completedSince: now().addingTimeInterval(-historyWindow)
         )
         let entries = await sidecar.load().entries
+        guard generation == resetGeneration else { throw CancellationError() }
         // Saves made in this session may not have reached the sidecar file yet.
         let knownTaskIDs = Dictionary(
             reminderIDsByTaskID.map { ($0.value, $0.key) },
@@ -123,6 +141,7 @@ actor RemindersTaskRepository: TaskRepository {
     }
 
     func save(_ task: TaskItem) async throws {
+        let generation = resetGeneration
         let list = try await resolvedList()
         let knownIdentifier = task.reminderIdentifier ?? reminderIDsByTaskID[task.id]
         let identifier: String
@@ -138,6 +157,7 @@ actor RemindersTaskRepository: TaskRepository {
                 listIdentifier: list
             )
         }
+        guard generation == resetGeneration else { throw CancellationError() }
         reminderIDsByTaskID[task.id] = identifier
         let entry = ReminderTaskMapper.sidecar(from: task)
         try await sidecar.update { document in
@@ -161,6 +181,7 @@ actor RemindersTaskRepository: TaskRepository {
 
     /// Imports newly eligible local tasks whenever Reminders becomes active.
     func migrateIfNeeded(from local: any TaskRepository) async throws -> Int {
+        let generation = resetGeneration
         let document = await sidecar.load()
         // An older completed migration recorded task identity in its entries.
         let imported = document.migratedTaskIDs ?? (document.migratedLocalStore
@@ -178,10 +199,12 @@ actor RemindersTaskRepository: TaskRepository {
             }
         }
         for task in candidates {
+            guard generation == resetGeneration else { throw CancellationError() }
             var copy = task
             copy.reminderIdentifier = nil
             try await save(copy)
         }
+        guard generation == resetGeneration else { throw CancellationError() }
         if !candidates.isEmpty || document.migratedTaskIDs == nil {
             try await sidecar.update {
                 var migrated = $0.migratedTaskIDs ?? imported
@@ -230,6 +253,11 @@ actor TaskRepositoryRouter: TaskRepository {
         self.local = local
         self.reminders = reminders
         self.store = store
+    }
+
+    func reset() async throws {
+        backend = .local
+        try await reminders.reset()
     }
 
     /// Picks the backend without prompting. Call at launch and when the preference changes.

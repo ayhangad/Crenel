@@ -153,6 +153,28 @@ final class DictationControllerTests: XCTestCase {
 
     // MARK: Undo
 
+    func testResetClearsDictationAndNextTallyStartsFromZero() async {
+        let suite = UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let store = DictationDailyWordsStore(defaults: defaults)
+        let controller = makeController()
+        controller.attachDailyWords(store)
+        transcriber.finalText = "first private phrase"
+        inserter.canUndoLastInsertion = true
+        await runSession(controller)
+        XCTAssertTrue(controller.canUndoLastDictation)
+        controller.reset()
+        XCTAssertTrue(controller.history.isEmpty)
+        XCTAssertTrue(controller.dailyWords.days.isEmpty)
+        XCTAssertFalse(inserter.canUndoLastInsertion)
+        XCTAssertFalse(controller.canUndoLastDictation)
+        XCTAssertEqual(controller.state, .idle)
+        transcriber.finalText = "new text"
+        await runSession(controller)
+        XCTAssertEqual(store.load().days.values.reduce(0, +), 2)
+    }
+
     func testUndoTakesBackAccessibilityInsertionAndItsHistoryEntry() async {
         transcriber.finalText = "geri alınacak"
         inserter.result = .insertedViaAccessibility
@@ -525,6 +547,7 @@ final class FakeDictationInserter: DictationTextInserting {
     var context = DictationTargetSnapshot()
     var result: TextInsertionResult = .insertedViaAccessibility
     var canUndoLastInsertion = false
+    func reset() { canUndoLastInsertion = false }
     var undoResult = true
     private(set) var insertedTexts: [String] = []
     private(set) var copiedTexts: [String] = []

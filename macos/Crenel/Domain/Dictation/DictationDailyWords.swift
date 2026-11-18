@@ -50,6 +50,8 @@ struct DictationDailyWordsStore: @unchecked Sendable {
         return DictationDailyWords(days: days)
     }
 
+    func reset() { defaults.removeObject(forKey: Self.key) }
+
     func save(_ value: DictationDailyWords) {
         let raw = Dictionary(uniqueKeysWithValues: value.days.map { (formatter.string(from: $0.key), $0.value) })
         defaults.set(raw, forKey: Self.key)

@@ -332,7 +332,12 @@ final class AppStateTests: XCTestCase {
         ])
         state.replaceTasks([TaskItem(title: "Silinecek görev")])
 
+        state.updateDictationHistory([DictationHistoryEntry(id: UUID(), createdAt: Date(), transcript: "private",
+                                                          finalText: "private", delivery: nil, appName: nil)])
+        state.updateDictationDailyWords(DictationDailyWords(days: [Date(): 3]))
         state.resetPersistedContent()
+        XCTAssertTrue(state.dictationHistory.isEmpty)
+        XCTAssertTrue(state.dictationDailyWords.days.isEmpty)
 
         XCTAssertTrue(state.storedMeetings.isEmpty)
         XCTAssertTrue(state.processingJobs.isEmpty)

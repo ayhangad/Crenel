@@ -766,6 +766,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let identifier = Bundle.main.bundleIdentifier {
                 UserDefaults.standard.removePersistentDomain(forName: identifier)
             }
+            dictationCoordinator.controller.reset()
+            try await taskCoordinator.repository.reset()
+            appliedTaskStorage = nil
             await appSettingsRepository.reset()
 
             let layout = try AppStorageLayout.applicationSupport()

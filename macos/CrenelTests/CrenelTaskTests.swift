@@ -419,6 +419,24 @@ final class CrenelTaskTests: XCTestCase {
         XCTAssertEqual(store.records.count, 1)
     }
 
+    func testResetDropsSidecarEntriesAndRepositoryMappingsBeforeNextSave() async throws {
+        let store = FakeReminderStore()
+        let url = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let sidecar = TaskSidecarFile(url: url)
+        let repository = RemindersTaskRepository(store: store, sidecar: sidecar)
+        let old = TaskItem(title: "Old")
+        try await repository.save(old)
+        try await repository.reset()
+        let cleared = await sidecar.load()
+        XCTAssertNil(cleared.listIdentifier)
+        XCTAssertTrue(cleared.entries.isEmpty)
+        let new = TaskItem(title: "New")
+        try await repository.save(new)
+        let fresh = await TaskSidecarFile(url: url).load()
+        XCTAssertEqual(fresh.entries.values.map(\.taskID), [new.id])
+    }
+
     func testRouterFallsBackToLocalWithoutPermission() async throws {
         let store = FakeReminderStore()
         store.access = .notDetermined

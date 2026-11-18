@@ -66,6 +66,7 @@ protocol PasteKeystrokeSending: AnyObject {
 
 @MainActor
 protocol DictationTextInserting: AnyObject {
+    func reset()
     func currentContext() -> DictationTargetSnapshot
     func insert(_ text: String, replacing target: DictationTargetSnapshot?) async -> TextInsertionResult
     func copyToClipboard(_ text: String)
@@ -118,6 +119,12 @@ final class TextInsertionService: DictationTextInserting {
     private let sleep: @Sendable (Duration) async -> Void
     /// What the last insertion changed, kept only until the next one.
     private var undoRecord: UndoRecord?
+    private var resetGeneration: UInt64 = 0
+
+    func reset() {
+        resetGeneration &+= 1
+        undoRecord = nil
+    }
 
     private enum UndoRecord {
         /// The field's value before and after, and where the text went.
@@ -254,6 +261,7 @@ final class TextInsertionService: DictationTextInserting {
     /// means the write cannot be verified, so paste is used instead. Apps that apply the write
     /// asynchronously get one short re-check, so a late update is not pasted a second time.
     private func insertViaAccessibility(_ text: String, into element: any FocusedTextElement) async -> Bool {
+        let generation = resetGeneration
         guard let before = element.value else { return false }
         let selectedBefore = element.selectedText
         let rangeBefore = element.selectedRange
@@ -263,6 +271,7 @@ final class TextInsertionService: DictationTextInserting {
         var after = element.value
         if after == nil || after == before {
             await sleep(.milliseconds(80))
+            guard generation == resetGeneration else { return true }
             after = element.value
         }
         guard let after, after != before else { return false }
@@ -278,6 +287,7 @@ final class TextInsertionService: DictationTextInserting {
     }
 
     private func paste(_ text: String, into bundleIdentifier: String?) async -> TextInsertionResult {
+        let generation = resetGeneration
         let saved = pasteboard.snapshot()
         let original = elements.focusedElement()
         let before = original?.value
@@ -290,7 +300,7 @@ final class TextInsertionService: DictationTextInserting {
         if pasteboard.changeCount == writtenChangeCount {
             pasteboard.restore(saved)
         }
-        if let bundleIdentifier, elements.frontmostApplication().bundleIdentifier == bundleIdentifier,
+        if generation == resetGeneration, let bundleIdentifier, elements.frontmostApplication().bundleIdentifier == bundleIdentifier,
            let original, let before, let current = elements.focusedElement(), current.isSame(as: original),
            let after = current.value, after != before {
             undoRecord = .paste(bundleIdentifier: bundleIdentifier, element: original, valueAfter: after)

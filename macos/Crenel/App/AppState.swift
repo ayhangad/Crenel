@@ -370,6 +370,11 @@ final class AppState: ObservableObject {
     }
 
     func resetPersistedContent() {
+        dictationHistory = []
+        dictationDailyWords = DictationDailyWords()
+        dictationState = .idle
+        dictationPartialTranscript = ""
+        dictationLevel = 0
         storedMeetings = []
         lastStoredMeeting = nil
         lastRecordingResult = nil
