@@ -275,8 +275,15 @@ actor FileMeetingRepository: MeetingRepository {
         var flagged = 0
         var lastFailure: Error?
         for meeting in try loadAll() where meeting.processingStatus == .completed {
+            // A transcript that can't be read now won't be readable on the next launch either:
+            // skip it, so one damaged meeting doesn't make every launch decode them all again.
+            let loaded: StoredTranscription?
+            do { loaded = try loadTranscription(for: meeting.id) } catch {
+                AppLogger.persistenceFailed(operation: "flag-legacy-summary-read", error: error)
+                continue
+            }
             do {
-                guard let stored = try loadTranscription(for: meeting.id),
+                guard let stored = loaded,
                       let summary = stored.summary, summary.model == nil,
                       stored.summaryFailure == nil else { continue }
                 var marked = stored

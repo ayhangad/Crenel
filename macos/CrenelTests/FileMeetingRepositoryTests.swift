@@ -268,6 +268,18 @@ final class FileMeetingRepositoryTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: other.path), "A point lookup must not scan or move unrelated directories")
     }
 
+    func testUnreadableTranscriptDoesNotKeepTheLegacyScanRunningOnEveryLaunch() async throws {
+        let damaged = try await repository.saveCapture(try makeCapture(title: "Damaged", startedAt: .now))
+        _ = try await repository.saveTranscription(.init(transcript: Transcript(text: "Text", languageCode: "en", segments: [])),
+            summary: MeetingSummary(overview: "Modern", decisions: [], actionItems: [], model: "fixture"), for: damaged)
+        let path = root.appending(path: "Meetings").appending(path: damaged.id.uuidString)
+        try Data("unreadable transcript".utf8).write(to: path.appending(path: "transcript.json"))
+
+        _ = try await repository.flagLegacySummaries()
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appending(path: ".legacy-summary-scan-v1").path))
+    }
+
     private func makeCapture(title: String, startedAt: Date) throws -> RecordingCaptureResult {
         let id = UUID()
         let directory = root
