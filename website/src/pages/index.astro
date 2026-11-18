@@ -85,20 +85,22 @@ const faqs = [
 
       <!-- One notch, three sizes: the same frame, the notch grows. -->
       <div class="sizes wrap reveal" id="sizes">
-        <div class="sizes-frame">
-          {sizes.map((s, i) => (
-            <figure class:list={['frame', 'layered', { on: i === 0 }]} data-size={s.key}>
-              <img src={s.src} alt={s.alt} width="1600" height="1000" loading={i === 0 ? 'eager' : 'lazy'} />
-            </figure>
-          ))}
-        </div>
         <div class="sizes-tabs" role="tablist" aria-label="Notch sizes">
           {sizes.map((s, i) => (
-            <button class:list={['size-tab', { on: i === 0 }]} role="tab" aria-selected={i === 0 ? 'true' : 'false'} data-size={s.key} type="button">
+            <button class:list={['size-tab', { on: i === 0 }]} role="tab" id={`size-tab-${s.key}`} aria-controls={`size-panel-${s.key}`} tabindex={i === 0 ? 0 : -1} aria-selected={i === 0 ? 'true' : 'false'} data-size={s.key} type="button">
               <span class="row"><Seg text={s.n} h={15} /><b>{s.name}</b></span>
               <span class="text">{s.text}</span>
               <i class="progress"></i>
             </button>
+          ))}
+        </div>
+        <div class="sizes-frame">
+          {sizes.map((s, i) => (
+            <figure class:list={['frame', 'layered', { on: i === 0 }]} data-size={s.key}
+              id={`size-panel-${s.key}`} role="tabpanel" aria-labelledby={`size-tab-${s.key}`}
+              aria-hidden={i !== 0} tabindex={i === 0 ? 0 : -1}>
+              <img src={s.src} alt={s.alt} width="1600" height="1000" loading={i === 0 ? 'eager' : 'lazy'} />
+            </figure>
           ))}
         </div>
       </div>
@@ -251,11 +253,16 @@ const faqs = [
         tabs.forEach((t, k) => {
           t.classList.toggle('on', k === n);
           t.setAttribute('aria-selected', String(k === n));
+          t.tabIndex = k === n ? 0 : -1;
           // Restart the progress bar on the active tab.
           const bar = t.querySelector('.progress');
           bar?.replaceWith(Object.assign(document.createElement('i'), { className: 'progress' }));
         });
-        frames.forEach((f, k) => f.classList.toggle('on', k === n));
+        frames.forEach((f, k) => {
+          f.classList.toggle('on', k === n);
+          f.setAttribute('aria-hidden', String(k !== n));
+          f.tabIndex = k === n ? 0 : -1;
+        });
         root.classList.toggle('auto', auto);
       };
       const next = () => {
@@ -263,7 +270,23 @@ const faqs = [
         if (!auto || !visible) return;
         timer = window.setTimeout(() => { show((i + 1) % tabs.length); next(); }, 4200);
       };
-      tabs.forEach((t, k) => t.addEventListener('click', () => { auto = false; clearTimeout(timer); show(k); }));
+      const stopAuto = () => { auto = false; clearTimeout(timer); root.classList.remove('auto'); };
+      root.addEventListener('focusin', stopAuto);
+      tabs.forEach((tab, k) => {
+        tab.addEventListener('click', () => { stopAuto(); show(k); });
+        tab.addEventListener('keydown', (event) => {
+          const target = {
+            ArrowLeft: (k + tabs.length - 1) % tabs.length,
+            ArrowRight: (k + 1) % tabs.length,
+            Home: 0, End: tabs.length - 1,
+          }[event.key];
+          if (target === undefined) return;
+          event.preventDefault();
+          stopAuto();
+          show(target);
+          tabs[target].focus();
+        });
+      });
       new IntersectionObserver(([e]) => {
         visible = e.isIntersecting;
         if (visible) { show(i); next(); } else clearTimeout(timer);

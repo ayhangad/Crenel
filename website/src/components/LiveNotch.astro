@@ -7,7 +7,8 @@ import Lamp from './Lamp.astro';
 import Seg from './Seg.astro';
 ---
 <div class="notch-stage">
-  <div class="notch" id="notch" data-size="compact" data-state="meeting" role="img" aria-label="The Crenel notch: a meeting countdown, dictation, and notes ready. Hover to open it.">
+  <div class="notch" id="notch" data-size="compact" data-state="meeting" role="button" tabindex="0" aria-expanded="false"
+    aria-controls="notch-today" aria-label="Notch preview, meeting countdown" aria-describedby="notch-help">
     <span class="shoulder l"></span><span class="shoulder r"></span>
     <div class="body">
       <!-- Meeting countdown (compact). -->
@@ -44,11 +45,12 @@ import Seg from './Seg.astro';
       </div>
 
       <!-- Open: the Today panel. -->
-      <div class="layer" data-layer="open">
+      <div class="layer" data-layer="open" id="notch-today">
         <div class="panel"><img src="/media/panel-today.webp" alt="" width="560" height="516" loading="eager" /></div>
       </div>
     </div>
   </div>
+  <span id="notch-help" hidden>Press Enter or Space for the Today panel. Use Left and Right to preview the meeting countdown, dictation, and notes.</span>
 </div>
 
 <script>
@@ -58,6 +60,9 @@ import Seg from './Seg.astro';
   if (notch) {
     const SIZE: Record<string, string> = { meeting: 'compact', dictation: 'strip', ready: 'strip', open: 'open' };
     const ORDER = ['meeting', 'dictation', 'ready'];
+    const LABEL: Record<string, string> = {
+      meeting: 'meeting countdown', dictation: 'dictation', ready: 'notes ready', open: 'Today panel',
+    };
     const HOLD: Record<string, number> = { meeting: 4200, dictation: 5600, ready: 3800 };
     const layers = [...notch.querySelectorAll<HTMLElement>('[data-layer]')];
     const minEl = notch.querySelector<HTMLElement>('[data-min]');
@@ -83,10 +88,15 @@ import Seg from './Seg.astro';
     const show = (next: string) => {
       state = next;
       notch.dataset.state = next;
+      notch.setAttribute('aria-expanded', String(next === 'open'));
+      notch.setAttribute('aria-label', `Notch preview, ${LABEL[next]}`);
       notch.dataset.size = SIZE[next];
       for (const l of layers) l.classList.toggle('on', l.dataset.layer === next);
       clearInterval(dictTimer);
-      if (next === 'dictation') runDictation();
+      if (next === 'dictation') {
+        if (reduced && wordsEl) wordsEl.textContent = WORDS.join(' ');
+        else runDictation();
+      }
     };
 
     const runDictation = () => {
@@ -108,7 +118,7 @@ import Seg from './Seg.astro';
 
     const cycle = () => {
       clearTimeout(timer);
-      if (hovering || reduced) return;
+      if (hovering || reduced || document.activeElement === notch) return;
       timer = window.setTimeout(() => {
         step = (step + 1) % ORDER.length;
         show(ORDER[step]);
@@ -119,12 +129,26 @@ import Seg from './Seg.astro';
     const open = () => { hovering = true; clearTimeout(timer); show('open'); };
     const close = () => { hovering = false; show(ORDER[step]); cycle(); };
 
-    notch.addEventListener('mouseenter', open);
-    notch.addEventListener('mouseleave', close);
-    // Touch: tap to open, tap again to close.
+    const toggle = () => { if (state === 'open') close(); else open(); };
+    notch.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') open(); });
+    notch.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') close(); });
+    notch.addEventListener('focus', () => clearTimeout(timer));
+    notch.addEventListener('blur', close);
     notch.addEventListener('click', (e) => {
-      if ((e as PointerEvent).pointerType === 'mouse') return;
-      if (state === 'open') close(); else open();
+      if ((e as PointerEvent).pointerType !== 'mouse') toggle();
+    });
+    notch.addEventListener('keydown', (e) => {
+      if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        if (!e.repeat) toggle();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        step = (step + ORDER.length + (e.key === 'ArrowLeft' ? -1 : 1)) % ORDER.length;
+        close();
+      } else if (e.key === 'Escape' && state === 'open') {
+        e.preventDefault();
+        close();
+      }
     });
 
     tickMinutes();
