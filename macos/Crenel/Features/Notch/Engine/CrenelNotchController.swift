@@ -149,8 +149,8 @@ final class CrenelNotchController: ObservableObject {
     private var panel: CrenelNotchPanel?
     private var hostingView: NSHostingView<AnyView>?
     private var shapeFrameInWindow: CGRect = .zero
-    /// The open panel's frame before it last shrank, kept while the shape animates down.
-    private var shrinkingFrom: (frame: CGRect, until: Date)?
+    private var expandedHoverFrame = CGRect.null
+    private var hoverPoll: Task<Void, Never>?
     private var mouseMonitors: [Any] = []
     private var screen: NSScreen?
     private var dragMonitor: Any?
@@ -209,6 +209,18 @@ final class CrenelNotchController: ObservableObject {
             if presentation != .compact {
                 model.isApproaching = false
                 model.closedTraits = CrenelNotchClosedTraits()
+            }
+        }
+        expandedHoverFrame = presentation == .expanded ? shapeFrameInWindow : .null
+        hoverPoll?.cancel()
+        hoverPoll = nil
+        if presentation == .expanded {
+            hoverPoll = Task { [weak self] in
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
+                    guard let self else { return }
+                    self.updateMouseHandling()
+                }
             }
         }
         updateMouseHandling()
@@ -365,26 +377,17 @@ final class CrenelNotchController: ObservableObject {
         return CGRect(x: shape.minX, y: shape.maxY - band, width: shape.width, height: band)
     }
 
-    /// Layout reports the panel's final size at once, and sometimes a passing smaller one
-    /// while the content settles, but the shape on screen springs there over half a
-    /// second. Until it has, the larger frame still counts as the notch, so a pointer
-    /// that moved fast onto the panel is not taken for one that left.
+    static func expandedHoverBounds(previous: CGRect, current: CGRect) -> CGRect {
+        previous.union(current)
+    }
+
     private func shapeFrameDidChange(_ frame: CGRect) {
-        let previous = shapeFrameInWindow
         shapeFrameInWindow = frame
-        if model.presentation == .expanded, !previous.isEmpty,
-           previous.height > frame.height || previous.width > frame.width {
-            let kept = shrinkingFrom.map { $0.frame.union(previous) } ?? previous
-            shrinkingFrom = (kept, Date().addingTimeInterval(Self.settleTime))
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.settleTime + 0.02) { [weak self] in
-                self?.updateMouseHandling()
-            }
+        if model.presentation == .expanded {
+            expandedHoverFrame = Self.expandedHoverBounds(previous: expandedHoverFrame, current: frame)
         }
         updateMouseHandling()
     }
-
-    /// How long the shape takes to spring to a new size.
-    private static let settleTime: TimeInterval = 0.6
 
     /// The pointer is checked again now, without waiting for it to move. The hover
     /// controller asks this before it closes the panel.
@@ -399,15 +402,7 @@ final class CrenelNotchController: ObservableObject {
     private func updateMouseHandling() {
         guard let panel, !model.isDragging else { return }
         let mouse = NSEvent.mouseLocation
-        var shapeInWindow = shapeFrameInWindow
-        if let shrinking = shrinkingFrom {
-            if model.presentation == .expanded, Date() < shrinking.until {
-                shapeInWindow = shapeInWindow.union(shrinking.frame)
-            } else {
-                shrinkingFrom = nil
-            }
-        }
-        let shape = screenRect(fromWindowRect: shapeInWindow, in: panel)
+        let shape = screenRect(fromWindowRect: shapeFrameInWindow, in: panel)
         let insideShape = model.presentation != .hidden && shape.contains(mouse)
         // Only on a change: re-setting it on every move makes the window server rebuild
         // the panel's mouse handling and delays SwiftUI's hover inside it.
@@ -418,7 +413,7 @@ final class CrenelNotchController: ObservableObject {
         let hoverZone: CGRect
         switch model.presentation {
         case .expanded:
-            hoverZone = shape.insetBy(dx: -10, dy: -10)
+            hoverZone = shape.union(screenRect(fromWindowRect: expandedHoverFrame.isNull ? shapeFrameInWindow : expandedHoverFrame, in: panel)).insetBy(dx: -10, dy: -10)
         case .compact, .hidden:
             hoverZone = shape.union(idleTriggerRect(in: panel)).insetBy(dx: -6, dy: -4)
         }

@@ -130,6 +130,15 @@ final class NotchHoverControllerTests: XCTestCase {
         XCTAssertEqual(controller.presentationState, .compact)
     }
 
+    func testExpandedHoverRetainsListAreaAcrossPermanentLayoutShrink() {
+        let tall = CGRect(x: 80, y: 0, width: 500, height: 645)
+        let short = CGRect(x: 80, y: 0, width: 500, height: 408)
+        let retained = CrenelNotchController.expandedHoverBounds(previous: tall, current: short)
+        XCTAssertTrue(retained.contains(CGPoint(x: 150, y: 610)))
+        XCTAssertFalse(retained.contains(CGPoint(x: 150, y: 680)))
+        XCTAssertEqual(CrenelNotchController.expandedHoverBounds(previous: .null, current: short), short)
+    }
+
     private func makeController(
         probe: NotchTransitionProbe,
         expansionDelay: Duration = .milliseconds(10),
