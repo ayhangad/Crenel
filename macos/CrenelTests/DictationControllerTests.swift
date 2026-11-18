@@ -22,6 +22,7 @@ final class DictationControllerTests: XCTestCase {
 
     private func makeController(
         refiner: any DictationTextRefining = PassthroughDictationRefiner(),
+        insertionService: (any DictationTextInserting)? = nil,
         assets: (any DictationSpeechAssetManaging)? = nil
     ) -> DictationController {
         var configuration = DictationController.Configuration()
@@ -31,7 +32,7 @@ final class DictationControllerTests: XCTestCase {
             capture: capture,
             transcriber: transcriber,
             assets: assets,
-            inserter: inserter,
+            inserter: insertionService ?? inserter,
             refiner: refiner,
             triggerMonitor: trigger,
             configuration: configuration,
@@ -77,6 +78,40 @@ final class DictationControllerTests: XCTestCase {
         await runSession(controller)
         updates.cancel()
         XCTAssertTrue(transcriber.finishCalled)
+    }
+
+    func testFocusBecomesSecureBeforeRefiningWithAndWithoutAXPermission() async {
+        for trusted in [false, true] {
+            let elements = FakeFocusedElementProvider()
+            elements.isAccessibilityTrusted = trusted
+            elements.element = FakeTextElement(role: "AXTextArea", value: "")
+            let board = FakePasteboard()
+            let keys = FakeKeystrokes()
+            let service = TextInsertionService(elements: elements, pasteboard: board, keystrokes: keys)
+            let refiner = FixedRefiner(outcome: .insert("cleaned"))
+            let controller = makeController(refiner: refiner, insertionService: service)
+            transcriber.finalText = "private final words"
+            trigger.emit(.began)
+            await controller.waitForCurrentSession()
+            transcriber.partialContinuation?.yield("earlier draft")
+            for _ in 0..<100 where controller.partialTranscript.isEmpty { await Task.yield() }
+            XCTAssertEqual(controller.partialTranscript, "earlier draft")
+
+            // AX supplies the secure role when trusted. Secure keyboard entry is available without AX.
+            elements.element = FakeTextElement(role: "AXSecureTextField", value: "")
+            elements.isSecureInputActive = !trusted
+            clock.addTimeInterval(1)
+            trigger.emit(.ended)
+            await controller.waitForCurrentSession()
+
+            let calls = await refiner.callCount
+            XCTAssertEqual(calls, 0)
+            XCTAssertEqual(board.writeCount, 0)
+            XCTAssertEqual(keys.pasteCount, 0)
+            XCTAssertEqual(controller.state, .failed(.secureTextField))
+            XCTAssertTrue(controller.history.isEmpty)
+            XCTAssertTrue(controller.partialTranscript.isEmpty)
+        }
     }
 
     func testNormalFlowInsertsTranscriptAndRecordsHistory() async {
@@ -569,6 +604,7 @@ final class FakeDictationInserter: DictationTextInserting {
         return undoResult
     }
 
+    var isCurrentTargetSecure: Bool { context.isSecureTarget }
     func currentContext() -> DictationTargetSnapshot { context }
 
     func insert(_ text: String, replacing target: DictationTargetSnapshot?) async -> TextInsertionResult {
@@ -600,6 +636,7 @@ actor SleepLog {
 
 actor FixedRefiner: DictationTextRefining {
     let outcome: DictationRefinementOutcome
+    private(set) var callCount = 0
     private(set) var lastContext: DictationContext?
 
     init(outcome: DictationRefinementOutcome) {
@@ -607,6 +644,7 @@ actor FixedRefiner: DictationTextRefining {
     }
 
     func refine(transcript: String, context: DictationContext) async -> DictationRefinementOutcome {
+        callCount += 1
         lastContext = context
         return outcome
     }

@@ -67,6 +67,7 @@ protocol PasteKeystrokeSending: AnyObject {
 @MainActor
 protocol DictationTextInserting: AnyObject {
     func reset()
+    var isCurrentTargetSecure: Bool { get }
     func currentContext() -> DictationTargetSnapshot
     func insert(_ text: String, replacing target: DictationTargetSnapshot?) async -> TextInsertionResult
     func copyToClipboard(_ text: String)
@@ -152,6 +153,12 @@ final class TextInsertionService: DictationTextInserting {
         self.keystrokes = keystrokes
         self.restoreDelay = restoreDelay
         self.sleep = sleep
+    }
+
+    var isCurrentTargetSecure: Bool {
+        if elements.isSecureInputActive { return true }
+        guard elements.isAccessibilityTrusted, let field = elements.focusedElement() else { return false }
+        return TextInsertionPolicy.isSecure(field)
     }
 
     func currentContext() -> DictationTargetSnapshot {

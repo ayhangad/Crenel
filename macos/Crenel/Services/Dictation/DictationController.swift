@@ -163,6 +163,11 @@ final class DictationController: ObservableObject {
         self.session = session
         partialTranscript = ""
         level = 0
+        guard !target.isSecureTarget else {
+            triggerMonitor?.sessionEndedExternally()
+            fail(session, with: .secureTextField)
+            return
+        }
         state = .listening(startedAt: session.startedAt, level: 0)
 
         let barrier = pipelineBarrier
@@ -334,6 +339,11 @@ final class DictationController: ObservableObject {
             session.partialTask = Task { [weak self] in
                 for await text in partials {
                     guard let self, self.isCurrent(session) else { return }
+                    guard !self.inserter.isCurrentTargetSecure else {
+                        self.capture.stop()
+                        self.fail(session, with: .secureTextField)
+                        return
+                    }
                     self.partialTranscript = text
                 }
             }
@@ -369,16 +379,15 @@ final class DictationController: ObservableObject {
         }
         guard isCurrent(session) else { return }
         session.partialTask?.cancel()
+        guard !inserter.isCurrentTargetSecure else {
+            fail(session, with: .secureTextField)
+            return
+        }
         partialTranscript = transcript
 
         let cleaned = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard Self.containsSpeech(cleaned) else {
             fail(session, with: .noSpeechDetected)
-            return
-        }
-
-        guard !session.target.isSecureTarget, !inserter.currentContext().isSecureTarget else {
-            fail(session, with: .secureTextField)
             return
         }
         state = .refining
@@ -392,6 +401,10 @@ final class DictationController: ObservableObject {
         let outcome = await refiner.refine(transcript: cleaned, context: context)
         guard isCurrent(session) else { return }
 
+        guard !inserter.isCurrentTargetSecure else {
+            fail(session, with: .secureTextField)
+            return
+        }
         switch outcome {
         case .createTask(let text):
             let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -491,6 +504,7 @@ final class DictationController: ObservableObject {
             triggerMonitor?.sessionEndedExternally()
             enqueueTranscriberCancel()
         }
+        if failure == .secureTextField { partialTranscript = "" }
         state = .failed(failure)
         level = 0
         scheduleReset(after: configuration.resultDisplayDuration)
