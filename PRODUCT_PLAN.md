@@ -197,9 +197,11 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
 
 ### C11 — Yayın öncesi son düzeltmeler (2026-11-18)
 
-- [ ] Çoklu ekran: kullanıcı notch'u tutup başka ekranın üstüne sürükleyebilsin; bıraktığı
+- [x] Çoklu ekran: kullanıcı notch'u tutup başka ekranın üstüne sürükleyebilsin; bıraktığı
   ekranda çalışsın ve seçim (ekran UUID'si) hatırlansın. Ekran çıkarılınca fiziksel notch'lu
-  ekrana düşer, geri takılınca seçtiği ekrana döner. — 🚧 Devam ediyor: 2026-11-18
+  ekrana düşer, geri takılınca seçtiği ekrana döner. — ✅ 2026-11-18 (kullanıcı iki ekranda denedi)
+- [x] Hızlıca açık panele inen imleç paneli kapatmasın: şekil yerine oturana kadar eski
+  büyük çerçeve sayılır, kapatmadan önce imleç yeniden kontrol edilir. — ✅ 2026-11-18 (631 test; cihaz kabulü kullanıcıda)
 
 ### C8 — Gerçek cihaz kabulü
 
