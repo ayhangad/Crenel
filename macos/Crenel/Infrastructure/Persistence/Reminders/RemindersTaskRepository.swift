@@ -153,7 +153,8 @@ actor RemindersTaskRepository: TaskRepository {
             _ = try await loadAll()
         }
         guard let identifier = reminderIDsByTaskID[id] else { return }
-        try await store.remove(identifier: identifier)
+        let list = try await resolvedList()
+        try await store.remove(identifier: identifier, listIdentifier: list)
         reminderIDsByTaskID[id] = nil
         try await sidecar.update { $0.entries[identifier] = nil }
     }

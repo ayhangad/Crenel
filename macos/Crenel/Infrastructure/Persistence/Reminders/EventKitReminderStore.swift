@@ -13,6 +13,7 @@ enum ReminderStoreError: LocalizedError, Equatable {
     case noReminderSource
     case listUnavailable
     case reminderNotFound
+    case reminderMoved
 
     var errorDescription: String? {
         switch self {
@@ -22,6 +23,8 @@ enum ReminderStoreError: LocalizedError, Equatable {
             "No iCloud or local account found for Reminders."
         case .listUnavailable:
             "Couldn't open the Crenel list in Reminders."
+        case .reminderMoved:
+            "This reminder was moved to another list."
         case .reminderNotFound:
             "Reminder not found. It may have been deleted on another device."
         }
@@ -38,7 +41,7 @@ protocol ReminderStore: Sendable {
     func fetch(listIdentifier: String, completedSince: Date) async throws -> [ReminderRecord]
     @discardableResult
     func save(_ record: ReminderRecord, listIdentifier: String) async throws -> String
-    func remove(identifier: String) async throws
+    func remove(identifier: String, listIdentifier: String) async throws
 }
 
 actor EventKitReminderStore: ReminderStore {
@@ -66,17 +69,35 @@ actor EventKitReminderStore: ReminderStore {
         return granted
     }
 
-    func prepareList(preferredIdentifier: String?, title: String) throws -> String {
+    struct ListCandidate: Equatable {
+        let identifier: String
+        let title: String
+        let writable: Bool
+        let isEmpty: Bool
+    }
+
+    static func selectList(_ lists: [ListCandidate], preferred: String?, title: String) -> String? {
+        if let preferred, lists.contains(where: { $0.identifier == preferred && $0.writable }) { return preferred }
+        return lists.filter { $0.title == title && $0.writable && $0.isEmpty }.map(\.identifier).min()
+    }
+
+    func prepareList(preferredIdentifier: String?, title: String) async throws -> String {
         guard accessState() == .authorized else { throw ReminderStoreError.accessDenied }
         eventStore.refreshSourcesIfNecessary()
-        if let preferredIdentifier, let existing = eventStore.calendar(withIdentifier: preferredIdentifier),
-           existing.allowedEntityTypes.contains(.reminder) {
-            return existing.calendarIdentifier
-        }
         let lists = eventStore.calendars(for: .reminder)
-        if let existing = lists.first(where: { $0.title == title && $0.allowsContentModifications }) {
-            return existing.calendarIdentifier
+        var candidates: [ListCandidate] = []
+        for list in lists where list.allowsContentModifications && (list.calendarIdentifier == preferredIdentifier || list.title == title) {
+            if list.calendarIdentifier == preferredIdentifier { return list.calendarIdentifier }
+            let predicate = eventStore.predicateForReminders(in: [list])
+            let empty = await withCheckedContinuation { continuation in
+                eventStore.fetchReminders(matching: predicate) { items in
+                    continuation.resume(returning: items?.isEmpty == true)
+                }
+            }
+            candidates.append(ListCandidate(identifier: list.calendarIdentifier, title: list.title,
+                                            writable: list.allowsContentModifications, isEmpty: empty))
         }
+        if let selected = Self.selectList(candidates, preferred: preferredIdentifier, title: title) { return selected }
 
         guard let source = preferredSource(existingLists: lists) else {
             throw ReminderStoreError.noReminderSource
@@ -119,6 +140,7 @@ actor EventKitReminderStore: ReminderStore {
             guard let existing = eventStore.calendarItem(withIdentifier: identifier) as? EKReminder else {
                 throw ReminderStoreError.reminderNotFound
             }
+            try Self.verifyOwnership(actual: existing.calendar.calendarIdentifier, expected: listIdentifier)
             reminder = existing
         } else {
             reminder = EKReminder(eventStore: eventStore)
@@ -129,12 +151,17 @@ actor EventKitReminderStore: ReminderStore {
         return reminder.calendarItemIdentifier
     }
 
-    func remove(identifier: String) throws {
+    func remove(identifier: String, listIdentifier: String) throws {
         guard accessState() == .authorized else { throw ReminderStoreError.accessDenied }
         guard let reminder = eventStore.calendarItem(withIdentifier: identifier) as? EKReminder else {
             return
         }
+        try Self.verifyOwnership(actual: reminder.calendar.calendarIdentifier, expected: listIdentifier)
         try eventStore.remove(reminder, commit: true)
+    }
+
+    static func verifyOwnership(actual: String?, expected: String) throws {
+        guard actual == expected else { throw ReminderStoreError.reminderMoved }
     }
 
     // MARK: - Mapping

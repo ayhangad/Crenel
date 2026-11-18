@@ -400,6 +400,25 @@ final class CrenelTaskTests: XCTestCase {
         XCTAssertEqual(Set(loaded.map(\.id)), Set(local.tasks.map(\.id)))
     }
 
+    func testListOwnershipRequiresEmptyNamedListAndMovedReminderIsNeverRecreated() async throws {
+        typealias Candidate = EventKitReminderStore.ListCandidate
+        let occupied = Candidate(identifier: "used", title: "Crenel", writable: true, isEmpty: false)
+        let empty = Candidate(identifier: "empty", title: "Crenel", writable: true, isEmpty: true)
+        let readOnly = Candidate(identifier: "readonly", title: "Crenel", writable: false, isEmpty: true)
+        XCTAssertNil(EventKitReminderStore.selectList([occupied, readOnly], preferred: nil, title: "Crenel"))
+        XCTAssertEqual(EventKitReminderStore.selectList([occupied, empty], preferred: nil, title: "Crenel"), "empty")
+        XCTAssertEqual(EventKitReminderStore.selectList([occupied, empty], preferred: "used", title: "Crenel"), "used")
+        XCTAssertThrowsError(try EventKitReminderStore.verifyOwnership(actual: "other", expected: "owned"))
+        let store = FakeReminderStore()
+        let repository = makeRepository(store: store)
+        let task = TaskItem(title: "Owned")
+        try await repository.save(task)
+        store.movedIdentifier = try XCTUnwrap(store.records.keys.first)
+        do { try await repository.save(task); XCTFail("Should refuse to edit") } catch ReminderStoreError.reminderMoved {}
+        do { try await repository.delete(id: task.id); XCTFail("Should refuse to delete") } catch ReminderStoreError.reminderMoved {}
+        XCTAssertEqual(store.records.count, 1)
+    }
+
     func testRouterFallsBackToLocalWithoutPermission() async throws {
         let store = FakeReminderStore()
         store.access = .notDetermined
@@ -470,6 +489,7 @@ private final class FakeReminderStore: ReminderStore, @unchecked Sendable {
     var records: [String: ReminderRecord] = [:]
     var listsCreated = 0
     private var listID: String?
+    var movedIdentifier: String?
     var failNewRecordNumber: Int?
     private var counter = 0
 
@@ -497,6 +517,7 @@ private final class FakeReminderStore: ReminderStore, @unchecked Sendable {
     func save(_ record: ReminderRecord, listIdentifier: String) async throws -> String {
         var record = record
         if let identifier = record.identifier {
+            if movedIdentifier == identifier { throw ReminderStoreError.reminderMoved }
             guard records[identifier] != nil else { throw ReminderStoreError.reminderNotFound }
         } else {
             if failNewRecordNumber == counter + 1 { throw ReminderStoreError.listUnavailable }
@@ -507,7 +528,8 @@ private final class FakeReminderStore: ReminderStore, @unchecked Sendable {
         return record.identifier!
     }
 
-    func remove(identifier: String) async throws {
+    func remove(identifier: String, listIdentifier: String) async throws {
+        if movedIdentifier == identifier { throw ReminderStoreError.reminderMoved }
         records[identifier] = nil
     }
 }
