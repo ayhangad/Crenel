@@ -96,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return coordinator
     }()
     private var appliedTaskStorage: TaskStorageBackend?
-    private var agentResolutionTask: Task<Void, Never>?
+    private let agentResolution = AgentSelectionResolution()
     private let appSettingsRepository: any AppSettingsRepository = UserDefaultsAppSettingsRepository()
     private let apiKeyRepository: any APIKeyRepository = KeychainAPIKeyRepository()
     private let openAIKeys: any APIKeyRepository = KeychainAPIKeyRepository(service: KeychainAPIKeyRepository.openAIService)
@@ -1056,15 +1056,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func applyCrenelPreferences(_ preferences: AppPreferences) {
-        dictationCoordinator.apply(preferences.crenel, microphoneID: preferences.selectedMicrophoneID)
-        if preferences.crenel.agent.provider == .automatic {
-            agentResolutionTask?.cancel()
-            agentResolutionTask = Task { [weak self] in
-                var crenel = preferences.crenel
-                crenel.agent = await AgentProviderResolver.resolve(crenel.agent)
-                guard !Task.isCancelled else { return }
-                self?.dictationCoordinator.apply(crenel, microphoneID: preferences.selectedMicrophoneID)
-            }
+        agentResolution.apply(preferences.crenel, microphoneID: preferences.selectedMicrophoneID) { [weak self] crenel, microphoneID in
+            self?.dictationCoordinator.apply(crenel, microphoneID: microphoneID)
         }
         let storage = preferences.crenel.taskStorage
         if appliedTaskStorage == nil {
@@ -2024,5 +2017,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reminderPresentationTask?.cancel()
         reminderPresentationTask = nil
         notch.pulse()
+    }
+}
+
+
+@MainActor
+final class AgentSelectionResolution {
+    private var generation: UInt64 = 0
+    private var pending: Task<Void, Never>?
+    private let resolve: (AgentPreferences) async -> AgentPreferences
+
+    init(resolve: @escaping (AgentPreferences) async -> AgentPreferences = { await AgentProviderResolver.resolve($0) }) {
+        self.resolve = resolve
+    }
+
+    @discardableResult
+    func apply(_ preferences: CrenelPreferences, microphoneID: String?,
+               deliver: @escaping (CrenelPreferences, String?) -> Void) -> Task<Void, Never>? {
+        pending?.cancel()
+        pending = nil
+        generation &+= 1
+        let current = generation
+        deliver(preferences, microphoneID)
+        guard preferences.agent.provider == .automatic else { return nil }
+        pending = Task { [weak self, resolve] in
+            var resolved = preferences
+            resolved.agent = await resolve(preferences.agent)
+            guard !Task.isCancelled, let self, current == generation else { return }
+            deliver(resolved, microphoneID)
+            pending = nil
+        }
+        return pending
     }
 }

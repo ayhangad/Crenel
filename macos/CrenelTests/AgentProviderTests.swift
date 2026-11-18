@@ -252,6 +252,28 @@ actor FakeAgentHTTPClient: AgentHTTPClient {
 }
 
 final class AgentProviderResolverTests: XCTestCase {
+    @MainActor
+    func testLateAutomaticResolutionCannotReplaceExplicitPreferences() async throws {
+        var release: CheckedContinuation<AgentPreferences, Never>?
+        let entered = expectation(description: "resolver suspended")
+        let selection = AgentSelectionResolution { _ in
+            await withCheckedContinuation {
+                release = $0
+                entered.fulfill()
+            }
+        }
+        var current = CrenelPreferences.default
+        current.agent.provider = .automatic
+        var delivered: [AgentProviderKind] = []
+        let pending = selection.apply(current, microphoneID: "old") { value, _ in delivered.append(value.agent.provider) }
+        await fulfillment(of: [entered], timeout: 2)
+        current.agent.provider = .onDevice
+        selection.apply(current, microphoneID: "new") { value, _ in delivered.append(value.agent.provider) }
+        release?.resume(returning: AgentPreferences(provider: .openAI))
+        await pending?.value
+        XCTAssertEqual(delivered, [.automatic, .onDevice])
+    }
+
     func testAutomaticPrefersAnthropicThenOpenAIThenOnDevice() async {
         let auto = AgentPreferences(provider: .automatic)
         let both = await AgentProviderResolver.resolve(auto, anthropicKeys: FakeAgentKeys("a"), openAIKeys: FakeAgentKeys("o"))
