@@ -153,7 +153,7 @@ struct AppPreferences: Codable, Equatable, Sendable {
             Bool.self,
             forKey: .hasCompletedOnboarding
         ) ?? false
-        crenel = (try? container.decodeIfPresent(CrenelPreferences.self, forKey: .crenel)) ?? .default
+        crenel = try container.decodeIfPresent(CrenelPreferences.self, forKey: .crenel) ?? .default
     }
 
     func encode(to encoder: Encoder) throws {
@@ -203,12 +203,12 @@ struct CrenelPreferences: Codable, Equatable, Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let fallback = CrenelPreferences.default
-        taskStorage = (try? container.decodeIfPresent(TaskStorageBackend.self, forKey: .taskStorage)) ?? fallback.taskStorage
-        dictationEnabled = (try? container.decodeIfPresent(Bool.self, forKey: .dictationEnabled)) ?? fallback.dictationEnabled
-        dictationTrigger = (try? container.decodeIfPresent(DictationTriggerSettings.self, forKey: .dictationTrigger)) ?? fallback.dictationTrigger
-        dictationLanguage = (try? container.decodeIfPresent(DictationLanguage.self, forKey: .dictationLanguage)) ?? fallback.dictationLanguage
-        dictationVocabulary = (try? container.decodeIfPresent([String].self, forKey: .dictationVocabulary)) ?? fallback.dictationVocabulary
-        agent = (try? container.decodeIfPresent(AgentPreferences.self, forKey: .agent)) ?? fallback.agent
-        meetingProcessing = (try? container.decodeIfPresent(MeetingProcessingPreferences.self, forKey: .meetingProcessing)) ?? fallback.meetingProcessing
+        taskStorage = try container.decodeIfPresent(TaskStorageBackend.self, forKey: .taskStorage) ?? fallback.taskStorage
+        dictationEnabled = try container.decodeIfPresent(Bool.self, forKey: .dictationEnabled) ?? fallback.dictationEnabled
+        dictationTrigger = try container.decodeIfPresent(DictationTriggerSettings.self, forKey: .dictationTrigger) ?? fallback.dictationTrigger
+        dictationLanguage = try container.decodeIfPresent(DictationLanguage.self, forKey: .dictationLanguage) ?? fallback.dictationLanguage
+        dictationVocabulary = try container.decodeIfPresent([String].self, forKey: .dictationVocabulary) ?? fallback.dictationVocabulary
+        agent = try container.decodeIfPresent(AgentPreferences.self, forKey: .agent) ?? fallback.agent
+        meetingProcessing = try container.decodeIfPresent(MeetingProcessingPreferences.self, forKey: .meetingProcessing) ?? fallback.meetingProcessing
     }
 }

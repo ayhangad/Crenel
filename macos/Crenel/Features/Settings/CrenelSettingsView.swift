@@ -263,16 +263,6 @@ struct AgentSettingsView<Extra: View>: View {
             toolInstalled = nil
             toolInstalled = await Task.detached { CLIToolLocator.locate(tool) != nil }.value
         }
-        .task(id: model.isLoaded) {
-            // Older settings let meeting notes use a different provider than the rest.
-            // There is one choice now, so bring them in line once.
-            guard model.isLoaded else { return }
-            let expected = Self.summaryEngine(for: provider)
-            if model.preferences.meetingProcessing.summary != expected {
-                model.preferences.meetingProcessing.summary = expected
-                model.save(actions)
-            }
-        }
 
         extra()
     }

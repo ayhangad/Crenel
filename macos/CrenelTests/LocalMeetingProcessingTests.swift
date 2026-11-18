@@ -247,6 +247,35 @@ final class LocalMeetingProcessingTests: XCTestCase {
         XCTAssertEqual(result.transcript.text, "cloud")
     }
 
+    func testUnreadableSettingsPreventCloudCallsAcrossRestarts() async throws {
+        let suite = "router-tests.\(UUID())"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let request = TranscriptionRequest(audioFileURL: URL(filePath: "/unused.m4a"), languageCode: "tr")
+        let calls = ProgressRecorder()
+        let cloud = RecordingTranscriber(name: "ElevenLabs", onCall: { calls.record(1) })
+        let openAI = FixedSummary(overview: "OpenAI", onCall: { calls.record(2) })
+        for document in ["corrupt", #"{"schemaVersion":99}"#] {
+            let data = Data(document.utf8)
+            defaults.set(data, forKey: "prefs")
+            let repository = UserDefaultsAppSettingsRepository(defaults: defaults, storageKey: "prefs")
+            let settings: MeetingProcessingPreferencesProvider = { try await repository.load().crenel.meetingProcessing }
+            let transcription = MeetingTranscriptionRouter(preferences: settings, elevenLabs: cloud, onDevice: cloud)
+            let summary = MeetingSummaryRouter(preferences: settings, agentPreferences: {
+                try await repository.load().crenel.agent
+            }, openAI: openAI, makeAgentService: { _ in openAI })
+            await XCTAssertThrowsAsync(try await transcription.transcribe(request) { _ in }) {
+                XCTAssertEqual(TranscriptionErrorNormalizer.normalize($0), .settingsUnavailable)
+            }
+            await XCTAssertThrowsAsync(try await summary.generate(from: sampleTranscript())) {
+                XCTAssertEqual(TranscriptionErrorNormalizer.normalize($0), .settingsUnavailable)
+            }
+            await XCTAssertThrowsAsync(try await repository.save(.default))
+            XCTAssertEqual(defaults.data(forKey: "prefs"), data)
+        }
+        XCTAssertTrue(calls.values.isEmpty)
+    }
+
     func testTranscriptionRouterMapsLocalErrorsToServiceErrors() async {
         let local = RecordingTranscriber(name: "local", error: LocalMeetingTranscriptionError.unsupportedLocale("x"))
         let router = MeetingTranscriptionRouter(
@@ -274,7 +303,7 @@ final class LocalMeetingProcessingTests: XCTestCase {
         var summary = try await router.generate(from: sampleTranscript(), meeting: meeting())
         XCTAssertEqual(summary.overview, "agent")
         XCTAssertEqual(capture.last?.provider, .anthropic)
-        await box.set(.default)
+        await box.set(MeetingProcessingPreferences(summary: .openAI))
         summary = try await router.generate(from: sampleTranscript())
         XCTAssertEqual(summary.overview, "openai")
     }
@@ -310,11 +339,13 @@ final class LocalMeetingProcessingTests: XCTestCase {
             try JSONDecoder().decode(MeetingProcessingPreferences.self, from: Data(json.utf8))
         }
         XCTAssertEqual(try decode("{}"), .default)
-        XCTAssertEqual(MeetingProcessingPreferences.default.transcription, .elevenLabs)
-        XCTAssertEqual(MeetingProcessingPreferences.default.summary, .openAI)
+        XCTAssertEqual(MeetingProcessingPreferences.default.transcription, .onDevice)
+        XCTAssertEqual(MeetingProcessingPreferences.default.summary, .agent)
         XCTAssertEqual(try decode(#"{"transcription":"onDevice","summary":"agent"}"#),
                        MeetingProcessingPreferences(transcription: .onDevice, summary: .agent))
-        XCTAssertEqual(try decode(#"{"transcription":"whisperX","summary":42,"extra":true}"#), .default)
+        XCTAssertThrowsError(try decode(#"{"transcription":"whisperX","summary":42}"#))
+        XCTAssertEqual(try decode(#"{"transcription":"unknown","summary":"unknown"}"#),
+                       MeetingProcessingPreferences(transcription: .onDevice, summary: .onDevice))
         let original = MeetingProcessingPreferences(transcription: .onDevice, summary: .agent)
         XCTAssertEqual(try JSONDecoder().decode(MeetingProcessingPreferences.self,
                                                 from: JSONEncoder().encode(original)), original)
@@ -374,6 +405,7 @@ private actor ScriptedMeetingModel: LanguageModelProvider {
 }
 
 private struct RecordingTranscriber: TranscriptionServicing {
+    let onCall: @Sendable () -> Void
     let name: String
     var error: Error?
     let capabilities = TranscriptionServiceCapabilities(
@@ -381,7 +413,8 @@ private struct RecordingTranscriber: TranscriptionServicing {
         supportsDiarization: true, supportsAutomaticLanguageDetection: true
     )
 
-    init(name: String, error: Error? = nil) {
+    init(name: String, error: Error? = nil, onCall: @escaping @Sendable () -> Void = {}) {
+        self.onCall = onCall
         self.name = name
         self.error = error
     }
@@ -390,6 +423,7 @@ private struct RecordingTranscriber: TranscriptionServicing {
         _ request: TranscriptionRequest,
         uploadProgress: @escaping TranscriptionUploadProgress
     ) async throws -> TranscriptionResult {
+        onCall()
         if let error { throw error }
         return TranscriptionResult(transcript: Transcript(text: name, languageCode: nil, segments: []))
     }
@@ -397,8 +431,10 @@ private struct RecordingTranscriber: TranscriptionServicing {
 
 private struct FixedSummary: MeetingSummaryGenerating {
     let overview: String
+    var onCall: @Sendable () -> Void = {}
     func generate(from transcript: Transcript) async throws -> MeetingSummary {
-        MeetingSummary(overview: overview, decisions: [], actionItems: [])
+        onCall()
+        return MeetingSummary(overview: overview, decisions: [], actionItems: [])
     }
 }
 

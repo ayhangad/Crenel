@@ -70,6 +70,7 @@ enum TranscriptionFileValidationFailure: String, Equatable, Sendable {
 }
 
 enum TranscriptionServiceError: Error, Equatable, Sendable {
+    case settingsUnavailable
     case invalidFile(TranscriptionFileValidationFailure)
     case unsupportedFeature(TranscriptionFeature)
     case authentication
@@ -84,13 +85,15 @@ enum TranscriptionServiceError: Error, Equatable, Sendable {
         switch self {
         case .rateLimited, .timeout, .networkUnavailable, .providerUnavailable:
             true
-        case .invalidFile, .unsupportedFeature, .authentication, .invalidResponse, .cancelled:
+        case .settingsUnavailable, .invalidFile, .unsupportedFeature, .authentication, .invalidResponse, .cancelled:
             false
         }
     }
 
     var appFailure: AppFailure {
         switch self {
+        case .settingsUnavailable:
+            .decoding("Processing is paused because your settings could not be read. Restore compatible settings, then retry.")
         case .authentication:
             .provider(
                 "Check your API key and Speech-to-Text access in Settings.",
@@ -121,6 +124,7 @@ enum TranscriptionErrorNormalizer {
         if let error = error as? TranscriptionServiceError {
             return error
         }
+        if error is AppSettingsRepositoryError { return .settingsUnavailable }
         if error is CancellationError {
             return .cancelled
         }

@@ -59,12 +59,12 @@ actor TranscriptionProcessingWorker {
                 guard let meeting = try await meetingRepository.load(id: job.meetingID) else {
                     throw TranscriptionServiceError.invalidFile(.missing)
                 }
+                let preferences = try await settingsRepository.load()
                 let existing = try await meetingRepository.loadTranscription(for: meeting.id)
                 let result: TranscriptionResult
                 if let existing {
                     result = TranscriptionResult(transcript: existing.transcript)
                 } else {
-                    let preferences = (try? await settingsRepository.load()) ?? .default
                     let audioURL = await meetingRepository.audioFileURL(for: meeting)
                     let request = TranscriptionRequest(audioFileURL: audioURL,
                         languageCode: preferences.transcription.languageCode,
@@ -85,6 +85,8 @@ actor TranscriptionProcessingWorker {
                 do {
                     let summary = try await summaryService.generate(from: result.transcript, meeting: meeting)
                     stored = StoredTranscription(transcript: result.transcript, summary: summary)
+                } catch let error as AppSettingsRepositoryError {
+                    throw error
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {

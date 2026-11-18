@@ -44,7 +44,7 @@ enum AgentProviderKind: String, Codable, CaseIterable, Equatable, Sendable {
     /// Unknown stored values (from a newer build) decode to the default instead of failing.
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
-        self = raw == "codex" ? .onDevice : AgentProviderKind(rawValue: raw) ?? .automatic
+        self = AgentProviderKind(rawValue: raw) ?? .onDevice
     }
 }
 
@@ -59,7 +59,7 @@ struct AgentPreferences: Codable, Equatable, Sendable {
     static let `default` = AgentPreferences()
 
     init(
-        provider: AgentProviderKind = .automatic,
+        provider: AgentProviderKind = .onDevice,
         openAIModelID: String? = nil,
         anthropicModelID: String? = nil,
         cleanupEnabled: Bool = true,

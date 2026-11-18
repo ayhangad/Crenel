@@ -54,35 +54,48 @@ actor UserDefaultsAppSettingsRepository: AppSettingsRepository {
     }
 
     func load() throws -> AppPreferences {
-        guard let data = defaults.data(forKey: storageKey) else {
-            return .default
+        guard let data = defaults.object(forKey: storageKey) else { return .default }
+        let document = try readDocument(data)
+        if document.schemaVersion < StoreDocument.currentSchemaVersion {
+            try write(document.preferences)
         }
+        return document.preferences
+    }
 
+    private func readDocument(_ value: Any) throws -> StoreDocument {
+        struct Header: Decodable { let schemaVersion: Int }
         do {
-            let document = try decoder.decode(StoreDocument.self, from: data)
-            guard StoreDocument.supportedSchemaVersions.contains(document.schemaVersion) else {
-                throw AppSettingsRepositoryError.unsupportedSchema(document.schemaVersion)
+            guard let data = value as? Data else {
+                throw CocoaError(.coderReadCorrupt)
             }
-            if document.schemaVersion < StoreDocument.currentSchemaVersion {
-                try save(document.preferences)
+            let header = try decoder.decode(Header.self, from: data)
+            guard StoreDocument.supportedSchemaVersions.contains(header.schemaVersion) else {
+                throw AppSettingsRepositoryError.unsupportedSchema(header.schemaVersion)
             }
-            return document.preferences
+            return try decoder.decode(StoreDocument.self, from: data)
         } catch let error as AppSettingsRepositoryError {
             throw error
         } catch {
-            let recoveryKey = "\(recoveryKeyPrefix).\(UUID().uuidString)"
-            defaults.set(data, forKey: recoveryKey)
-            defaults.removeObject(forKey: storageKey)
+            let recoveryKey = "\(recoveryKeyPrefix).original"
+            defaults.set(value, forKey: recoveryKey)
             throw AppSettingsRepositoryError.corruptStore(recoveryKey: recoveryKey)
         }
     }
 
     func save(_ preferences: AppPreferences) throws {
+        if let existing = defaults.object(forKey: storageKey) {
+            _ = try readDocument(existing)
+        }
+        try write(preferences)
+    }
+
+    private func write(_ preferences: AppPreferences) throws {
         let data = try encoder.encode(StoreDocument(preferences: preferences))
         defaults.set(data, forKey: storageKey)
     }
 
     func reset() {
         defaults.removeObject(forKey: storageKey)
+        defaults.removeObject(forKey: "\(recoveryKeyPrefix).original")
     }
 }

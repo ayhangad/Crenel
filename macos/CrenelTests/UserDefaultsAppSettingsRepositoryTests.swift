@@ -94,9 +94,11 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
             XCTAssertEqual(defaults.data(forKey: recoveryKey), corruptData)
         }
 
-        XCTAssertNil(defaults.object(forKey: storageKey))
-        let loadedAfterRecovery = try await repository.load()
-        XCTAssertEqual(loadedAfterRecovery, .default)
+        do {
+            try await makeRepository().save(.default)
+            XCTFail("A restarted repository must preserve unreadable settings")
+        } catch is AppSettingsRepositoryError {}
+        XCTAssertEqual(defaults.data(forKey: storageKey), corruptData)
     }
 
     func testUnsupportedSchemaIsPreservedInPlace() async throws {

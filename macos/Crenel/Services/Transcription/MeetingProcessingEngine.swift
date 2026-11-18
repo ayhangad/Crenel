@@ -15,18 +15,20 @@ enum MeetingTranscriptionEngine: String, Codable, CaseIterable, Equatable, Senda
     /// Unknown stored values (from a newer build) decode to the default instead of failing.
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
-        self = MeetingTranscriptionEngine(rawValue: raw) ?? .elevenLabs
+        self = MeetingTranscriptionEngine(rawValue: raw) ?? .onDevice
     }
 }
 
 /// Which model writes the meeting summary.
 enum MeetingSummaryEngine: String, Codable, CaseIterable, Equatable, Sendable {
     case openAI
+    case onDevice
     /// The provider chosen in `AgentPreferences` (on-device, OpenAI or Anthropic).
     case agent
 
     var displayName: String {
         switch self {
+        case .onDevice: "On this Mac (Apple)"
         case .openAI: "OpenAI"
         case .agent: "AI provider (Agent settings)"
         }
@@ -34,7 +36,7 @@ enum MeetingSummaryEngine: String, Codable, CaseIterable, Equatable, Sendable {
 
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
-        self = MeetingSummaryEngine(rawValue: raw) ?? .openAI
+        self = MeetingSummaryEngine(rawValue: raw) ?? .onDevice
     }
 }
 
@@ -45,25 +47,23 @@ struct MeetingProcessingPreferences: Codable, Equatable, Sendable {
 
     static let `default` = MeetingProcessingPreferences()
 
-    init(transcription: MeetingTranscriptionEngine = .elevenLabs, summary: MeetingSummaryEngine = .openAI) {
+    init(transcription: MeetingTranscriptionEngine = .onDevice, summary: MeetingSummaryEngine = .agent) {
         self.transcription = transcription
         self.summary = summary
     }
 
     private enum CodingKeys: String, CodingKey { case transcription, summary }
 
-    /// Missing keys, wrong types and unknown values fall back to defaults.
+    /// Missing keys in older documents use defaults. A malformed preference blocks processing.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        transcription = (try? container.decodeIfPresent(MeetingTranscriptionEngine.self, forKey: .transcription))
-            .flatMap { $0 } ?? .elevenLabs
-        summary = (try? container.decodeIfPresent(MeetingSummaryEngine.self, forKey: .summary))
-            .flatMap { $0 } ?? .openAI
+        transcription = try container.decodeIfPresent(MeetingTranscriptionEngine.self, forKey: .transcription) ?? .onDevice
+        summary = try container.decodeIfPresent(MeetingSummaryEngine.self, forKey: .summary) ?? .agent
     }
 }
 
-typealias MeetingProcessingPreferencesProvider = @Sendable () async -> MeetingProcessingPreferences
-typealias AgentPreferencesProvider = @Sendable () async -> AgentPreferences
+typealias MeetingProcessingPreferencesProvider = @Sendable () async throws -> MeetingProcessingPreferences
+typealias AgentPreferencesProvider = @Sendable () async throws -> AgentPreferences
 
 /// Chooses ElevenLabs or on-device transcription per request from the current preferences.
 struct MeetingTranscriptionRouter: TranscriptionServicing {
@@ -96,7 +96,7 @@ struct MeetingTranscriptionRouter: TranscriptionServicing {
         _ request: TranscriptionRequest,
         uploadProgress: @escaping TranscriptionUploadProgress
     ) async throws -> TranscriptionResult {
-        let engine = await preferences().transcription
+        let engine = try await preferences().transcription
         do {
             return try await service(for: engine).transcribe(request, uploadProgress: uploadProgress)
         } catch let error as LocalMeetingTranscriptionError {
@@ -142,11 +142,13 @@ struct MeetingSummaryRouter: MeetingSummaryGenerating {
     /// The agent path never silently falls back to OpenAI (the user may have chosen it to keep
     /// text on the device); a disabled provider marks the summary as needing attention.
     private func resolve() async throws -> any MeetingSummaryGenerating {
-        switch await preferences().summary {
+        let engine = try await preferences().summary
+        switch engine {
         case .openAI:
             return openAI
-        case .agent:
-            guard let service = makeAgentService(await agentPreferences()) else {
+        case .agent, .onDevice:
+            let selected = engine == .onDevice ? AgentPreferences(provider: .onDevice) : try await agentPreferences()
+            guard let service = makeAgentService(selected) else {
                 throw AgentMeetingSummaryError.providerDisabled
             }
             return service

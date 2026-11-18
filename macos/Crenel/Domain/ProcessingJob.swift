@@ -9,6 +9,7 @@ struct ProcessingJob: Identifiable, Codable, Equatable, Sendable {
 
     enum FailureKind: String, Codable, Equatable, Sendable {
         case authentication
+        case settingsUnavailable
         case rateLimited
         case timeout
         case networkUnavailable
@@ -55,6 +56,7 @@ struct ProcessingJob: Identifiable, Codable, Equatable, Sendable {
 extension ProcessingJob.FailureKind {
     init(_ error: TranscriptionServiceError) {
         switch error {
+        case .settingsUnavailable: self = .settingsUnavailable
         case .authentication: self = .authentication
         case .rateLimited: self = .rateLimited
         case .timeout: self = .timeout

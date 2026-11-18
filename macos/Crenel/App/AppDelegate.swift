@@ -107,16 +107,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsRepository: appSettingsRepository,
         transcriptionService: MeetingTranscriptionRouter(
             preferences: { [appSettingsRepository] in
-                ((try? await appSettingsRepository.load()) ?? .default).crenel.meetingProcessing
+                try await appSettingsRepository.load().crenel.meetingProcessing
             },
             elevenLabs: ElevenLabsTranscriptionService(apiKeyRepository: apiKeyRepository)
         ),
         summaryService: MeetingSummaryRouter(
             preferences: { [appSettingsRepository] in
-                ((try? await appSettingsRepository.load()) ?? .default).crenel.meetingProcessing
+                try await appSettingsRepository.load().crenel.meetingProcessing
             },
             agentPreferences: { [appSettingsRepository] in
-                await AgentProviderResolver.resolve(((try? await appSettingsRepository.load()) ?? .default).crenel.agent)
+                try await AgentProviderResolver.resolve(appSettingsRepository.load().crenel.agent)
             },
             openAI: OpenAIMeetingSummaryService(keys: openAIKeys)
         ),
@@ -668,7 +668,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         do {
-            var preferences = (try? await appSettingsRepository.load()) ?? .default
+            var preferences = try await appSettingsRepository.load()
             preferences.selectedMicrophoneID = deviceID
             try await appSettingsRepository.save(preferences)
             appState.updateSelectedMicrophoneID(deviceID)
@@ -687,8 +687,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         do {
+            var preferences = try await appSettingsRepository.load()
             try launchAtLoginService.setEnabled(snapshot.launchAtLogin)
-            var preferences = (try? await appSettingsRepository.load()) ?? .default
             preferences.reminderLeadTime = snapshot.reminderLeadTime
             preferences.isCalendarEnabled = snapshot.isCalendarEnabled
             preferences.selectedCalendarIDs = snapshot.selectedCalendarIDs
@@ -721,7 +721,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func resetOnboarding() async -> SettingsActionResult {
         do {
-            var preferences = (try? await appSettingsRepository.load()) ?? .default
+            var preferences = try await appSettingsRepository.load()
             preferences.hasCompletedOnboarding = false
             try await appSettingsRepository.save(preferences)
             presentOnboarding()
@@ -795,6 +795,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         apiKey: String?
     ) async -> TranscriptionSettingsSaveResult {
         do {
+            var preferences = try await appSettingsRepository.load()
             let normalizedInput = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
             let newKey = normalizedInput.flatMap { $0.isEmpty ? nil : $0 }
             if let newKey {
@@ -802,7 +803,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try await apiKeyRepository.saveAPIKey(newKey)
             }
 
-            var preferences = (try? await appSettingsRepository.load()) ?? .default
             preferences.transcription.languageCode = languageCode
             try await appSettingsRepository.save(preferences)
             // Only the language changed: nothing to verify, nothing to retry.
@@ -1027,7 +1027,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func loadInitialPreferences() {
         Task { [weak self] in
             guard let self else { return }
-            var preferences = (try? await self.appSettingsRepository.load()) ?? .default
+            var preferences: AppPreferences
+            do { preferences = try await self.appSettingsRepository.load() }
+            catch {
+                AppLogger.persistenceFailed(operation: "load-preferences", error: error)
+                return
+            }
             let actualLaunchAtLogin = self.launchAtLoginService.isConfigured
             if preferences.launchAtLogin != actualLaunchAtLogin {
                 preferences.launchAtLogin = actualLaunchAtLogin
@@ -1081,7 +1086,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func saveCrenelPreferences(_ crenel: CrenelPreferences) async -> SettingsActionResult {
         do {
-            var preferences = (try? await appSettingsRepository.load()) ?? .default
+            var preferences = try await appSettingsRepository.load()
             preferences.crenel = crenel
             try await appSettingsRepository.save(preferences)
             applyCrenelPreferences(preferences)
@@ -1160,7 +1165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { [weak self] in
             guard let self else { return }
             do {
-                var preferences = (try? await self.appSettingsRepository.load()) ?? .default
+                var preferences = try await self.appSettingsRepository.load()
                 preferences.hasCompletedOnboarding = true
                 UserDefaults.standard.set(true, forKey: Self.unifiedSetupShownKey)
                 self.setupCoordinator.refresh()

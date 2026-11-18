@@ -167,7 +167,7 @@ final class AgentProviderTests: XCTestCase {
     // MARK: Preferences
 
     func testPreferencesDefaultsAndTolerantDecoding() throws {
-        XCTAssertEqual(AgentPreferences.default.provider, .automatic)
+        XCTAssertEqual(AgentPreferences.default.provider, .onDevice)
         XCTAssertTrue(AgentPreferences.default.cleanupEnabled)
         XCTAssertTrue(AgentPreferences.default.commandModeEnabled)
 
