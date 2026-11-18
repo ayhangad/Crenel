@@ -215,7 +215,8 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
   ekrana düşer, geri takılınca seçtiği ekrana döner. — ✅ 2026-11-18 (kullanıcı iki ekranda denedi)
 - [x] Önceki hover denemesindeki 0,6 saniyelik süreyi açılış boyunca geçerli geometri takibiyle değiştirmek. Cihaz kabulü yukarıda açık.
 - [x] Deepgram'ı ElevenLabs'e alternatif toplantı transkripsiyon sağlayıcısı olarak bağlamak: Nova-3, konuşmacı ayrımı, ayrı Keychain anahtarı, Ayarlar › AI › Voice seçimi ve anahtar doğrulama. — ✅ 2026-11-18 (tam macOS koşusu 682 test, 5 atlama, 0 hata; gerçek anahtarla Türkçe toplantı kabulü aşağıda açık)
-- [ ] Deepgram gerçek anahtar kabulü: Ayarlar'da anahtar doğrulama, Türkçe ve otomatik dilde konuşmacı ayrımlı transkript. Kullanıcı doğrulayacak.
+- [x] Deepgram gerçek anahtar kabulü. — ✅ 2026-11-18 (kullanıcı Debug build'de denedi, çalışıyor)
+- [ ] 1.1 yayını: imzalı DMG, GitHub Release (`Crenel.dmg` dahil), appcast. — 🚧 Devam ediyor: 2026-11-18
 
 ### C8 — Gerçek cihaz kabulü
 
