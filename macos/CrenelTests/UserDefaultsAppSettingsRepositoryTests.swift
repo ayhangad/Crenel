@@ -101,6 +101,17 @@ final class UserDefaultsAppSettingsRepositoryTests: XCTestCase {
         XCTAssertEqual(defaults.data(forKey: storageKey), corruptData)
     }
 
+    func testDiscardingUnreadableSettingsKeepsACopyAndRestoresDefaults() async throws {
+        let corruptData = Data("not-json".utf8)
+        defaults.set(corruptData, forKey: storageKey)
+        await repository.discardUnreadableSettings()
+
+        XCTAssertEqual(defaults.data(forKey: "\(recoveryKeyPrefix).discarded"), corruptData)
+        let loaded = try await repository.load()
+        XCTAssertEqual(loaded, .default)
+        try await repository.save(.default)
+    }
+
     func testUnsupportedSchemaIsPreservedInPlace() async throws {
         let data = try JSONSerialization.data(withJSONObject: [
             "schemaVersion": 99,

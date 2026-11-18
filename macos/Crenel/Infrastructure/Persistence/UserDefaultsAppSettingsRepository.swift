@@ -4,6 +4,8 @@ protocol AppSettingsRepository: Sendable {
     func load() async throws -> AppPreferences
     func save(_ preferences: AppPreferences) async throws
     func reset() async
+    /// Sets unreadable settings aside under a recovery key so the defaults can be used again.
+    func discardUnreadableSettings() async
 }
 
 enum AppSettingsRepositoryError: LocalizedError, Equatable {
@@ -94,8 +96,15 @@ actor UserDefaultsAppSettingsRepository: AppSettingsRepository {
         defaults.set(data, forKey: storageKey)
     }
 
+    func discardUnreadableSettings() {
+        guard let value = defaults.object(forKey: storageKey) else { return }
+        defaults.set(value, forKey: "\(recoveryKeyPrefix).discarded")
+        defaults.removeObject(forKey: storageKey)
+    }
+
     func reset() {
         defaults.removeObject(forKey: storageKey)
+        defaults.removeObject(forKey: "\(recoveryKeyPrefix).discarded")
         defaults.removeObject(forKey: "\(recoveryKeyPrefix).original")
     }
 }

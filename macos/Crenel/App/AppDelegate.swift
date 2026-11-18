@@ -1032,6 +1032,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             do { preferences = try await self.appSettingsRepository.load() }
             catch {
                 AppLogger.persistenceFailed(operation: "load-preferences", error: error)
+                self.preferencesUnreadable()
                 return
             }
             let actualLaunchAtLogin = self.launchAtLoginService.isConfigured
@@ -1045,6 +1046,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !preferences.hasCompletedOnboarding || !UserDefaults.standard.bool(forKey: Self.unifiedSetupShownKey) {
                 self.presentOnboarding()
             }
+        }
+    }
+
+    /// Settings that can't be read keep meeting processing paused, so nothing goes to a
+    /// provider the user didn't choose. Tasks still open from this Mac, and the user is told
+    /// why and offered a reset to the on-device defaults.
+    private func preferencesUnreadable() {
+        if appliedTaskStorage == nil {
+            appliedTaskStorage = .local
+            taskCoordinator.start(preferReminders: false)
+        }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Crenel couldn't read its settings"
+        alert.informativeText = "Meeting processing and dictation are paused so nothing is sent with the wrong provider. Reset settings to start again with on-device defaults. A copy of the old settings is kept."
+        alert.addButton(withTitle: "Reset Settings")
+        alert.addButton(withTitle: "Not Now")
+        NSApp.activate()
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            await self.appSettingsRepository.discardUnreadableSettings()
+            self.loadInitialPreferences()
         }
     }
 
