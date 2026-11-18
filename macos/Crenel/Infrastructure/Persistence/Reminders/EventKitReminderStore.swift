@@ -65,7 +65,10 @@ actor EventKitReminderStore: ReminderStore {
 
     func requestAccess() async throws -> Bool {
         let granted = try await eventStore.requestFullAccessToReminders()
-        if granted { eventStore.reset() }
+        if granted {
+            eventStore.reset()
+            hasSeenAccess = true
+        }
         return granted
     }
 
@@ -108,8 +111,19 @@ actor EventKitReminderStore: ReminderStore {
         return Array(parts.prefix(3))
     }
 
+    /// An event store made before access was granted keeps seeing no sources or lists.
+    /// The first time access is found, start it over so a grant works without relaunching.
+    private var hasSeenAccess = false
+
+    private func refreshAfterGrant() {
+        guard !hasSeenAccess else { return }
+        hasSeenAccess = true
+        eventStore.reset()
+    }
+
     func prepareList(preferredIdentifier: String?, title: String) async throws -> String {
         guard accessState() == .authorized else { throw ReminderStoreError.accessDenied }
+        refreshAfterGrant()
         eventStore.refreshSourcesIfNecessary()
         let lists = eventStore.calendars(for: .reminder)
         var candidates: [ListCandidate] = []
@@ -140,6 +154,7 @@ actor EventKitReminderStore: ReminderStore {
 
     func fetch(listIdentifier: String, completedSince: Date) async throws -> [ReminderRecord] {
         guard accessState() == .authorized else { throw ReminderStoreError.accessDenied }
+        refreshAfterGrant()
         guard let list = eventStore.calendar(withIdentifier: listIdentifier) else {
             throw ReminderStoreError.listUnavailable
         }

@@ -1,4 +1,5 @@
 import CoreGraphics
+import IOKit.hid
 import Foundation
 
 /// Abstraction so the controller can be tested without a real event tap.
@@ -34,8 +35,23 @@ final class DictationHotKeyMonitor: DictationTriggerMonitoring {
         matcher = DictationTriggerMatcher(settings: settings)
     }
 
+    /// `CGPreflightListenEventAccess` keeps its first answer for the life of the process, so
+    /// a grant made in System Settings only showed after relaunching. Creating a listen-only
+    /// tap is checked against the current grant every time.
     static func hasInputMonitoringAccess() -> Bool {
-        CGPreflightListenEventAccess()
+        if CGPreflightListenEventAccess() { return true }
+        // Never asked yet: a tap would show the system prompt, so don't probe.
+        guard IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) != kIOHIDAccessTypeUnknown else { return false }
+        guard let probe = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .tailAppendEventTap,
+            options: .listenOnly,
+            eventsOfInterest: CGEventMask(1 << CGEventType.flagsChanged.rawValue),
+            callback: { _, _, event, _ in Unmanaged.passUnretained(event) },
+            userInfo: nil
+        ) else { return false }
+        CFMachPortInvalidate(probe)
+        return true
     }
 
     /// Shows the system prompt the first time; afterwards the user must enable it in System Settings.
