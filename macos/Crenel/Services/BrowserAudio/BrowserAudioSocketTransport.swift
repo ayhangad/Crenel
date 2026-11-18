@@ -1,11 +1,80 @@
 import Darwin
 import Foundation
+import Security
 
 enum BrowserAudioSocketTransportError: Error {
+    case untrustedPeer
     case invalidPath
     case systemCall(String, Int32)
     case connectionClosed
     case invalidFrameLength
+}
+
+/// Identify the live peer by its kernel-issued audit token, including the PID version.
+enum BrowserAudioSocketPeer {
+    case nativeHost, application
+
+    func verify(on descriptor: Int32) throws {
+        var token = audit_token_t()
+        var length = socklen_t(MemoryLayout.size(ofValue: token))
+        guard getsockopt(descriptor, SOL_LOCAL, LOCAL_PEERTOKEN, &token, &length) == 0,
+              length == MemoryLayout.size(ofValue: token) else {
+            throw BrowserAudioSocketTransportError.untrustedPeer
+        }
+        let auditData = Data(bytes: &token, count: Int(length))
+        let attributes = [kSecGuestAttributeAudit as String: auditData] as CFDictionary
+        var guest: SecCode?
+        guard SecCodeCopyGuestWithAttributes(nil, attributes, [], &guest) == errSecSuccess,
+              let guest, let rule = signingRule() else {
+            throw BrowserAudioSocketTransportError.untrustedPeer
+        }
+        var requirement: SecRequirement?
+        guard SecRequirementCreateWithString(rule as CFString, [], &requirement) == errSecSuccess,
+              let requirement,
+              SecCodeCheckValidity(guest, [], requirement) == errSecSuccess else {
+            throw BrowserAudioSocketTransportError.untrustedPeer
+        }
+    }
+
+    private func signingRule() -> String? {
+        var ownCode: SecCode?
+        var ownStaticCode: SecStaticCode?
+        guard SecCodeCopySelf([], &ownCode) == errSecSuccess, let ownCode,
+              SecCodeCopyStaticCode(ownCode, [], &ownStaticCode) == errSecSuccess,
+              let ownStaticCode else { return nil }
+        if let team = signingInfo(ownStaticCode)?[kSecCodeInfoTeamIdentifier as String] as? String,
+           team.range(of: "^[A-Z0-9]{10}$", options: .regularExpression) != nil {
+            let identifier = self == .nativeHost ? "gad.Crenel.BrowserAudioHost" : "gad.Crenel"
+            return "anchor apple generic and identifier \"\(identifier)\" and certificate leaf[subject.OU] = \"\(team)\""
+        }
+        #if DEBUG
+        // Ad-hoc development builds have no team. Pin the exact sibling build's CodeDirectory.
+        let peerURL: URL
+        switch self {
+        case .nativeHost:
+            peerURL = Bundle.main.bundleURL.appending(path: "Contents/Library/LaunchServices/CrenelBrowserAudioHost")
+        case .application:
+            guard let hostURL = Bundle.main.executableURL else { return nil }
+            let contents = hostURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            peerURL = contents.appending(path: "MacOS/Crenel")
+        }
+        var expected: SecStaticCode?
+        guard SecStaticCodeCreateWithPath(peerURL as CFURL, [], &expected) == errSecSuccess,
+              let expected, let hash = signingInfo(expected)?[kSecCodeInfoUnique as String] as? Data,
+              !hash.isEmpty else { return nil }
+        return "cdhash H\"" + hash.map { String(format: "%02x", $0) }.joined() + "\""
+        #else
+        return nil
+        #endif
+    }
+
+    private func signingInfo(_ code: SecStaticCode) -> [String: Any]? {
+        var info: CFDictionary?
+        guard SecCodeCopySigningInformation(code, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess else {
+            return nil
+        }
+        return info as? [String: Any]
+    }
 }
 
 enum BrowserAudioSocketEndpoint {
@@ -18,7 +87,7 @@ enum BrowserAudioSocketEndpoint {
         directoryURL.appending(path: "bridge.sock")
     }
 
-    static func prepareDirectory(fileManager: FileManager = .default) throws {
+    static func prepareDirectory(_ directoryURL: URL, fileManager: FileManager = .default) throws {
         try fileManager.createDirectory(
             at: directoryURL,
             withIntermediateDirectories: true,

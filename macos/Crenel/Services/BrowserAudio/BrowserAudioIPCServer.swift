@@ -2,20 +2,28 @@ import Darwin
 import Foundation
 
 final class BrowserAudioIPCServer: @unchecked Sendable {
+    let socketURL: URL
     private let broker: BrowserAudioStreamBroker
+    private let authenticate: @Sendable (Int32) throws -> Void
     private let queue = DispatchQueue(label: "gad.Crenel.browser-audio.ipc")
     private let stateLock = NSLock()
     private var listenerDescriptor: Int32 = -1
     private var clientDescriptor: Int32 = -1
     private var listenerSource: DispatchSourceRead?
 
-    init(broker: BrowserAudioStreamBroker) {
+    init(
+        broker: BrowserAudioStreamBroker,
+        socketURL: URL = BrowserAudioSocketEndpoint.socketURL,
+        authenticate: @escaping @Sendable (Int32) throws -> Void = { try BrowserAudioSocketPeer.nativeHost.verify(on: $0) }
+    ) {
+        self.authenticate = authenticate
         self.broker = broker
+        self.socketURL = socketURL
     }
 
     func start() throws {
-        try BrowserAudioSocketEndpoint.prepareDirectory()
-        let socketPath = BrowserAudioSocketEndpoint.socketURL.path
+        try BrowserAudioSocketEndpoint.prepareDirectory(socketURL.deletingLastPathComponent())
+        let socketPath = socketURL.path
         unlink(socketPath)
 
         let descriptor = Darwin.socket(AF_UNIX, SOCK_STREAM, 0)
@@ -70,7 +78,7 @@ final class BrowserAudioIPCServer: @unchecked Sendable {
             Darwin.close(descriptors.1)
         }
         if descriptors.0 >= 0 { Darwin.close(descriptors.0) }
-        unlink(BrowserAudioSocketEndpoint.socketURL.path)
+        unlink(socketURL.path)
         broker.bridgeDisconnected()
     }
 
@@ -80,6 +88,7 @@ final class BrowserAudioIPCServer: @unchecked Sendable {
         let descriptor = Darwin.accept(listener, nil, nil)
         guard descriptor >= 0 else { return }
         do {
+            try authenticate(descriptor)
             try BrowserAudioSocketTransport.disableSIGPIPE(on: descriptor)
         } catch {
             Darwin.close(descriptor)

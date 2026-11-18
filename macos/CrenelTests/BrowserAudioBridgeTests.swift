@@ -96,11 +96,12 @@ final class BrowserAudioBridgeTests: XCTestCase {
 
     func testIPCServerRoundTripsFramesAndReportsClientDisconnect() throws {
         let broker = BrowserAudioStreamBroker()
-        let server = BrowserAudioIPCServer(broker: broker)
+        let socket = isolatedSocketURL()
+        let server = BrowserAudioIPCServer(broker: broker, socketURL: socket, authenticate: { _ in })
         try server.start()
         defer { server.stop() }
         var descriptor = try BrowserAudioSocketTransport.connect(
-            to: BrowserAudioSocketEndpoint.socketURL
+            to: socket
         )
         defer {
             if descriptor >= 0 { Darwin.close(descriptor) }
@@ -125,9 +126,25 @@ final class BrowserAudioBridgeTests: XCTestCase {
         XCTAssertFalse(broker.hasActiveSession)
     }
 
+    func testUntrustedSocketClientIsClosedBeforeOpeningSession() throws {
+        let broker = BrowserAudioStreamBroker()
+        let socket = isolatedSocketURL()
+        let server = BrowserAudioIPCServer(broker: broker, socketURL: socket)
+        try server.start()
+        defer { server.stop() }
+        // The test app is not the native host, including when both use ad-hoc debug signing.
+        let connection = try BrowserAudioSocketTransport.connect(to: socket)
+        defer { Darwin.close(connection) }
+        var ready = pollfd(fd: connection, events: Int16(POLLIN), revents: 0)
+        guard poll(&ready, 1, 2000) == 1 else { return XCTFail("Peer was not closed") }
+        XCTAssertNil(try BrowserAudioSocketTransport.readFrame(from: connection))
+        XCTAssertFalse(broker.hasActiveSession)
+    }
+
     func testEmbeddedNativeHostExecutableEndToEnd() throws {
         let broker = BrowserAudioStreamBroker()
-        let server = BrowserAudioIPCServer(broker: broker)
+        let socket = isolatedSocketURL()
+        let server = BrowserAudioIPCServer(broker: broker, socketURL: socket)
         try server.start()
         defer { server.stop() }
 
@@ -137,6 +154,7 @@ final class BrowserAudioBridgeTests: XCTestCase {
         let input = Pipe()
         let output = Pipe()
         let process = Process()
+        process.environment = ProcessInfo.processInfo.environment.merging(["CRENEL_TEST_BRIDGE_SOCKET": socket.path]) { _, test in test }
         process.executableURL = executableURL
         process.arguments = [BrowserAudioProtocol.expectedExtensionOrigin]
         process.standardInput = input
@@ -242,6 +260,12 @@ final class BrowserAudioBridgeTests: XCTestCase {
         )
         let attributes = try FileManager.default.attributesOfItem(atPath: manifestURL.path)
         XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+    }
+
+    private func isolatedSocketURL() -> URL {
+        let root = URL(fileURLWithPath: "/tmp", isDirectory: true).appending(path: "crenel-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        return root.appending(path: BrowserAudioSocketEndpoint.directoryURL.lastPathComponent).appending(path: "bridge.sock")
     }
 
     private func pcmChunk(sequence: Int, frameCount: Int = 2) -> BrowserAudioPCMChunk {

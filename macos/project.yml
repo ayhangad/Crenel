@@ -42,6 +42,8 @@ targets:
       - path: Crenel/Services/BrowserAudio/BrowserAudioSocketTransport.swift
     settings:
       base:
+        GENERATE_INFOPLIST_FILE: YES
+        CREATE_INFOPLIST_SECTION_IN_BINARY: YES
         PRODUCT_BUNDLE_IDENTIFIER: gad.Crenel.BrowserAudioHost
         PRODUCT_NAME: CrenelBrowserAudioHost
         CODE_SIGN_STYLE: Automatic

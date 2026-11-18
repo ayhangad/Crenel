@@ -4,13 +4,32 @@ import Foundation
 private final class ApplicationBridgeClient {
     private var descriptor: Int32 = -1
 
+    private let socketURL: URL
+
+    init() {
+        #if DEBUG
+        if let path = ProcessInfo.processInfo.environment["CRENEL_TEST_BRIDGE_SOCKET"] {
+            socketURL = URL(fileURLWithPath: path)
+            return
+        }
+        #endif
+        socketURL = BrowserAudioSocketEndpoint.socketURL
+    }
+
     deinit { close() }
 
     func send(_ message: BrowserAudioBridgeMessage) throws -> BrowserAudioBridgeResponse {
         if descriptor < 0 {
-            descriptor = try BrowserAudioSocketTransport.connect(
-                to: BrowserAudioSocketEndpoint.socketURL
+            let connection = try BrowserAudioSocketTransport.connect(
+                to: socketURL
             )
+            do {
+                try BrowserAudioSocketPeer.application.verify(on: connection)
+                descriptor = connection
+            } catch {
+                Darwin.close(connection)
+                throw error
+            }
         }
         try BrowserAudioSocketTransport.writeFrame(message, to: descriptor)
         guard let responseData = try BrowserAudioSocketTransport.readFrame(from: descriptor) else {
