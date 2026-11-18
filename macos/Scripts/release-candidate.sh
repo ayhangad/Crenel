@@ -47,7 +47,8 @@ dmg_path="${updates_dir}/Crenel-${version}.dmg"
 notes_source="${monorepo_root}/docs/releases/${version}.md"
 notary_profile="${CRENEL_NOTARY_PROFILE:-Crenel-Notary}"
 sparkle_version="2.10.1"
-sparkle_tools="${HOME}/.cache/crenel-sparkle-${sparkle_version}"
+sparkle_sha256="1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27"
+sparkle_tools="${artifact_root}/sparkle-tools"
 venv="${HOME}/.cache/crenel-release-venv"
 build_number="$(git -C "${monorepo_root}" rev-list --count HEAD)"
 feed_url="https://ayhangad.github.io/Crenel/appcast.xml"
@@ -79,17 +80,18 @@ if [[ ! -x "${venv}/bin/dmgbuild" ]]; then
     python3 -m venv "${venv}"
     "${venv}/bin/pip" install -q "dmgbuild==2.0.0"
 fi
-if (( signed )) && [[ ! -x "${sparkle_tools}/bin/generate_appcast" ]]; then
-    print "Fetching Sparkle ${sparkle_version} tools…"
-    mkdir -p "${sparkle_tools}"
-    curl -sSL "https://github.com/sparkle-project/Sparkle/releases/download/${sparkle_version}/Sparkle-${sparkle_version}.tar.xz" \
-        | tar -xJ -C "${sparkle_tools}"
-fi
-
 [[ "$(checked_artifact_directory "${repo_root}" "${version}")" == "${artifact_root}" ]] || fail "Invalid cleanup target."
 rm -rf -- "${artifact_root}"
 mkdir -p "${artifact_root}" "${updates_dir}"
 rm -f "${dmg_path}"
+
+if (( signed )); then
+    sparkle_archive="${artifact_root}/Sparkle.tar.xz"
+    curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/${sparkle_version}/Sparkle-${sparkle_version}.tar.xz" -o "${sparkle_archive}"
+    verify_sparkle_archive "${sparkle_archive}" "${sparkle_sha256}" || fail "Sparkle archive checksum mismatch."
+    mkdir -p "${sparkle_tools}"
+    tar -xJf "${sparkle_archive}" -C "${sparkle_tools}"
+fi
 
 # MARK: Build
 
@@ -191,22 +193,24 @@ fi
 # MARK: Publish
 
 print "Publishing v${version} on GitHub…"
-gh release create "v${version}" "${dmg_path}" "${dmg_path}.sha256" \
-    --repo ayhangad/Crenel --title "Crenel ${version}" --notes-file "${notes_source}"
+upload_release_assets "${version}" "${dmg_path}" "${notes_source}" "$(git -C "${monorepo_root}" rev-parse HEAD)"
 
 pages="${artifact_root}/gh-pages"
-if git -C "${monorepo_root}" ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
-    git -C "${monorepo_root}" worktree add -f "${pages}" origin/gh-pages
-    git -C "${pages}" switch -C gh-pages
-else
-    git -C "${monorepo_root}" worktree add -f --orphan -b gh-pages "${pages}"
+git init -q "${pages}"
+git -C "${pages}" remote add origin "$(git -C "${monorepo_root}" remote get-url origin)"
+if git -C "${pages}" ls-remote --exit-code --heads origin gh-pages >/dev/null; then
+    git -C "${pages}" fetch --depth=1 origin gh-pages
+    git -C "${pages}" checkout --detach FETCH_HEAD
+elif (( $? != 2 )); then
+    fail "Could not check the published feed branch."
 fi
 cp "${updates_dir}/appcast.xml" "${pages}/appcast.xml"
 touch "${pages}/.nojekyll"
 git -C "${pages}" add appcast.xml .nojekyll
-git -C "${pages}" commit -m "Appcast: Crenel ${version}"
-git -C "${pages}" push origin gh-pages
-git -C "${monorepo_root}" worktree remove "${pages}"
+if ! git -C "${pages}" diff --cached --quiet; then
+    git -C "${pages}" commit -m "Appcast: Crenel ${version}"
+    git -C "${pages}" push origin HEAD:gh-pages
+fi
 
 print "PASS: Crenel ${version} released."
 print "      ${download_prefix}Crenel-${version}.dmg"
