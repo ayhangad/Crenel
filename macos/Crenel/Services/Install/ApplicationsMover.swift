@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Security
 
 /// Offers to move Crenel into Applications when it runs from anywhere else — most often
 /// straight from the mounted DMG. From there the Chrome bridge would point at a volume
@@ -48,23 +49,65 @@ enum ApplicationsMover {
         }
     }
 
-    /// Copies the app into /Applications (replacing an older copy, which goes to the
-    /// Trash) and returns where it now is.
-    static func move(_ source: URL, fileManager: FileManager = .default) throws -> URL {
-        let destination = URL(fileURLWithPath: "/Applications").appending(path: source.lastPathComponent)
+    /// Validate the completed copy on the destination volume before swapping it into place.
+    static func move(_ source: URL, into folder: URL = URL(fileURLWithPath: "/Applications"),
+                     fileManager: FileManager = .default,
+                     validate: (URL, URL) throws -> Void = validateCopy) throws -> URL {
+        let destination = folder.appending(path: source.lastPathComponent)
+        let temporary = try fileManager.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                                            appropriateFor: destination, create: true)
+        defer { try? fileManager.removeItem(at: temporary) }
+        let staged = temporary.appending(path: source.lastPathComponent)
+        try fileManager.copyItem(at: source, to: staged)
+        try validate(source, staged)
         if fileManager.fileExists(atPath: destination.path) {
-            try fileManager.trashItem(at: destination, resultingItemURL: nil)
+            _ = try fileManager.replaceItemAt(destination, withItemAt: staged, options: .usingNewMetadataOnly)
+        } else {
+            try fileManager.moveItem(at: staged, to: destination)
         }
-        try fileManager.copyItem(at: source, to: destination)
         return destination
+    }
+
+    private static func validateCopy(source: URL, staged: URL) throws {
+        guard let bundle = Bundle(url: staged),
+              bundle.bundleIdentifier == Bundle.main.bundleIdentifier,
+              let executable = bundle.executableURL, FileManager.default.isExecutableFile(atPath: executable.path) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        let flags = SecCSFlags()
+        var original: SecStaticCode?, copy: SecStaticCode?, requirement: SecRequirement?
+        guard SecStaticCodeCreateWithPath(source as CFURL, flags, &original) == errSecSuccess, let original,
+              SecCodeCopyDesignatedRequirement(original, flags, &requirement) == errSecSuccess, let requirement,
+              SecStaticCodeCreateWithPath(staged as CFURL, flags, &copy) == errSecSuccess, let copy,
+              SecStaticCodeCheckValidity(copy, SecCSFlags(rawValue: kSecCSCheckAllArchitectures | kSecCSStrictValidate | kSecCSCheckNestedCode),
+                                         requirement) == errSecSuccess else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
     }
 
     @MainActor
     private static func relaunch(at url: URL) {
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, _ in
-            Task { @MainActor in NSApp.terminate(nil) }
+        Task {
+            await relaunch(at: url, open: { destination in
+                let configuration = NSWorkspace.OpenConfiguration()
+                configuration.createsNewApplicationInstance = true
+                _ = try await NSWorkspace.shared.openApplication(at: destination, configuration: configuration)
+            }, terminate: { NSApp.terminate(nil) }, showError: { error in
+                let alert = NSAlert(error: error)
+                alert.messageText = String(localized: "Crenel couldn’t open the installed copy")
+                alert.runModal()
+            })
+        }
+    }
+
+    @MainActor
+    static func relaunch(at url: URL, open: (URL) async throws -> Void, terminate: () -> Void,
+                         showError: (Error) -> Void) async {
+        do {
+            try await open(url)
+            terminate()
+        } catch {
+            showError(error)
         }
     }
 }
