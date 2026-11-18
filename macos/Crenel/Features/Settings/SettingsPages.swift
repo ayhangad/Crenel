@@ -281,7 +281,7 @@ extension SettingsView {
 
     private var microphoneOptions: [(value: String?, title: String)] {
         var options: [(value: String?, title: String)] = [(nil, "System default")]
-        options += availableMicrophones.map { ($0.id as String?, $0.isSystemDefault ? "\($0.name) — default" : $0.name) }
+        options += availableMicrophones.map { ($0.id as String?, $0.isSystemDefault ? "\($0.name) (default)" : $0.name) }
         if let selectedMicrophoneID, !availableMicrophones.contains(where: { $0.id == selectedMicrophoneID }) {
             options.append((selectedMicrophoneID, "Selected mic not connected"))
         }
@@ -385,7 +385,7 @@ extension SettingsView {
 
     private var versionLine: String {
         let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "—"
+        let version = info?["CFBundleShortVersionString"] as? String ?? "Unknown"
         guard let build = info?["CFBundleVersion"] as? String else { return "Crenel \(version)" }
         return "Crenel \(version) · build \(build)"
     }

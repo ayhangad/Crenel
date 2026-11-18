@@ -140,7 +140,7 @@ struct OnboardingView: View {
                         .tracking(-0.015 * 22)
                         .foregroundStyle(Hud.Ink.ink1)
                         .accessibilityAddTraits(.isHeader)
-                    Text("Each switch turns on one feature. Skip any — the rest still work.")
+                    Text("Each switch turns on one feature. Skip any, the rest still work.")
                         .font(Hud.font(13, .regular))
                         .foregroundStyle(Hud.Ink.ink3)
                         .lineSpacing(3)

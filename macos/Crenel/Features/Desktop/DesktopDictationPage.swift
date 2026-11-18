@@ -132,7 +132,7 @@ struct DesktopDictationPage: View {
         switch appState.dictationAvailability {
         case .ready: nil
         case .needsInputMonitoring:
-            ("Input Monitoring is off — Crenel can’t hear the key.", "Allow", crenelActions.dictation.requestInputMonitoring)
+            ("Input Monitoring is off, so Crenel can’t hear the key.", "Allow", crenelActions.dictation.requestInputMonitoring)
         case .disabled:
             preferences.isLoaded && !preferences.preferences.dictationEnabled
                 ? ("Dictation is turned off.", "Turn on", { preferences.update { $0.dictationEnabled = true } })

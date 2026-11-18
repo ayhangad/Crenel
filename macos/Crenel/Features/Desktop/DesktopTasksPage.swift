@@ -72,7 +72,7 @@ struct DesktopTasksPage: View {
     private func sentence(_ presentation: TaskListPresentation, total: Int, now: Date) -> String {
         if let task = presentation.inProgress {
             let minutes = max(0, Int(now.timeIntervalSince(task.startedAt ?? now) / 60))
-            return "“\(task.title)” is the one in progress — \(DesktopFormat.minutes(TimeInterval(minutes * 60))) so far."
+            return "“\(task.title)” is the one in progress: \(DesktopFormat.minutes(TimeInterval(minutes * 60))) so far."
         }
         if total == 0 { return "Nothing on the list yet." }
         if presentation.activeCount == 0 { return "Everything on today’s list is done." }

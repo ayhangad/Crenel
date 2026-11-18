@@ -307,9 +307,9 @@ struct MeetingNotesMissingConsole: View {
     /// "No notes — " and the first sentence of the reason.
     static func line(_ failure: String?) -> String {
         guard let failure = failure?.trimmingCharacters(in: .whitespacesAndNewlines), !failure.isEmpty else {
-            return String(localized: "No notes — no model has written them yet")
+            return String(localized: "No notes. No model has written them yet")
         }
-        return String(localized: "No notes — \(sentences(failure).first)")
+        return String(localized: "No notes: \(sentences(failure).first)")
     }
 
     /// What the one-line console could not say: the rest of the reason, or all of it

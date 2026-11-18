@@ -160,7 +160,7 @@ struct DesktopTodayPage: View {
             if item.responseStatus == .pending {
                 HStack(spacing: 8) {
                     HudLamp(.amber)
-                    Text("Invite — waiting for your answer").hud(.meta)
+                    Text("Invite, waiting for your answer").hud(.meta)
                 }
                 .padding(.top, 8)
             } else if let people = MeetingPeopleFormatter.short(item.attendees) {

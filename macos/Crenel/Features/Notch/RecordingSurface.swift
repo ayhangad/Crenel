@@ -165,11 +165,11 @@ struct RecordingSurface: View {
         Group {
             switch state {
             case .open:
-                HudKnob(.mic, lamp: .white, help: "Meeting mic on — click to turn it off for privacy (⌥⌘M)", action: onToggleMicrophone)
+                HudKnob(.mic, lamp: .white, help: "Meeting mic on. Click to turn it off for privacy (⌥⌘M)", action: onToggleMicrophone)
             case .closed:
                 HudKnob(.micOff, tint: Hud.Ink.ink3, lamp: .off, help: "Meeting mic off (⌥⌘M)", action: onToggleMicrophone)
             case .unknown:
-                HudKnob(.micOff, tint: Hud.Ink.signal, lamp: .amber, lampLoop: .blink, help: "Mic state unknown — kept off",
+                HudKnob(.micOff, tint: Hud.Ink.signal, lamp: .amber, lampLoop: .blink, help: "Mic state unknown, kept off",
                         action: onToggleMicrophone)
             }
         }

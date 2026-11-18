@@ -709,7 +709,7 @@ private struct TodayEventRow: View {
                     HudStatusShape(.warn).scaleEffect(0.8)
                     Text("Invite").foregroundStyle(Hud.Ink.signal)
                 }
-                .help("Invite — waiting for your answer")
+                .help("Invite, waiting for your answer")
             }
         }
         .hud(.meta)

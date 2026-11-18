@@ -75,7 +75,7 @@ final class RecordingsGalleryTests: XCTestCase {
         XCTAssertTrue(MeetingTranscriptState.unreadable.canRetry)
         XCTAssertFalse(MeetingTranscriptState.queued.canRetry)
         let missingKey = MeetingAnalysisError.missingKey.errorDescription
-        XCTAssertEqual(MeetingNotesMissingConsole.line(missingKey), "No notes — Connect your OpenAI key in Settings → AI")
+        XCTAssertEqual(MeetingNotesMissingConsole.line(missingKey), "No notes: Connect your OpenAI key in Settings → AI")
         XCTAssertEqual(MeetingNotesMissingConsole.remainder(missingKey), "Your transcript is ready.")
         XCTAssertNil(MeetingNotesMissingConsole.remainder("Couldn’t reach the model."))
         XCTAssertEqual(MeetingNotesMissingConsole.remainder(MeetingAnalysisError.invalidResponse.errorDescription),

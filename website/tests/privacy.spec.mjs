@@ -15,3 +15,8 @@ test("site previews describe the on-device defaults", async ({ page }) => {
     await expect(page.locator(selector)).toHaveAttribute("content", /On-device transcription and notes by default/);
   }
 });
+
+test("FAQ discloses where dictation clean-up sends text", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("body")).toContainText("If dictation clean-up uses OpenAI, Anthropic or Claude Code, the dictated text goes to that provider");
+});

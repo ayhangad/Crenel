@@ -53,10 +53,10 @@ edilmek üzere aynı cihazdaki Crenel macOS uygulamasına güvenli biçimde akta
   seçilirse Anthropic’e gönderilir. Apple modelleri sesi ve metni Mac’te işler.
 - Limited Use sertifikasyonu: evet.
 
-## Dashboard alanları — yayın öncesi doldurulacak
+## Dashboard alanları
 
-- Ana sayfa URL'si: `YAYIN_ONCESI_DOLDUR`
-- Gizlilik politikası URL'si: `YAYIN_ONCESI_DOLDUR`
-- Destek URL'si/e-postası: `YAYIN_ONCESI_DOLDUR`
+- Ana sayfa URL'si: https://crenel.ayhan.fyi
+- Gizlilik politikası URL'si: https://github.com/ayhangad/Crenel/blob/main/browser-extension/chrome-web-store/PRIVACY_POLICY_TR.md
+- Destek URL'si: https://x.com/ayhangad (e-posta yok, destek yalnız X üzerinden)
 - Kategori: Productivity
 - Dil: Turkish (gerekirse İngilizce lokalizasyon ayrıca eklenir)

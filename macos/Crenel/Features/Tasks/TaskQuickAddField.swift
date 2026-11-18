@@ -40,7 +40,7 @@ struct TaskQuickAddField: View {
                         .lineLimit(1)
                         .accessibilityHidden(true)
                     }
-                    TextField("", text: $text, prompt: Text("Add a task — “call mom tomorrow 3pm”").foregroundColor(Hud.Ink.ink3))
+                    TextField("", text: $text, prompt: Text("Add a task, like “call mom tomorrow 3pm”").foregroundColor(Hud.Ink.ink3))
                         .textFieldStyle(.plain)
                         .font(Hud.Style.body.font)
                         .foregroundStyle(Hud.Ink.ink1)
