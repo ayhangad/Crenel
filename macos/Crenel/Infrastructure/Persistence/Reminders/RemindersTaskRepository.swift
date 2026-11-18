@@ -86,9 +86,13 @@ actor RemindersTaskRepository: TaskRepository {
     }
 
     private var resetGeneration: UInt64 = 0
+    private var migration: Task<Int, Error>?
+    private var migrationSequence: UInt64 = 0
 
     func reset() async throws {
         resetGeneration &+= 1
+        migration?.cancel()
+        migration = nil
         listIdentifier = nil
         reminderIDsByTaskID.removeAll()
         try await sidecar.reset()
@@ -181,7 +185,23 @@ actor RemindersTaskRepository: TaskRepository {
 
     /// Imports newly eligible local tasks whenever Reminders becomes active.
     func migrateIfNeeded(from local: any TaskRepository) async throws -> Int {
+        // EventKit awaits let a second activation enter this actor before the first one
+        // has checkpointed its writes. Queue the rescan behind the previous import.
+        let previous = migration
         let generation = resetGeneration
+        migrationSequence &+= 1
+        let sequence = migrationSequence
+        let pending = Task {
+            _ = await previous?.result
+            guard generation == resetGeneration else { throw CancellationError() }
+            return try await importLocalTasks(from: local, generation: generation)
+        }
+        migration = pending
+        defer { if migrationSequence == sequence { migration = nil } }
+        return try await pending.value
+    }
+
+    private func importLocalTasks(from local: any TaskRepository, generation: UInt64) async throws -> Int {
         let document = await sidecar.load()
         // An older completed migration recorded task identity in its entries.
         let imported = document.migratedTaskIDs ?? (document.migratedLocalStore

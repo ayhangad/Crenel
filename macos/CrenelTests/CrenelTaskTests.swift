@@ -379,6 +379,19 @@ final class CrenelTaskTests: XCTestCase {
         XCTAssertEqual(store.records.values.map(\.title).sorted(), ["First", "Second"])
     }
 
+    func testOverlappingActivationsNeverCreateTheSameReminderTwice() async throws {
+        let store = FakeReminderStore()
+        store.delaySave = true
+        let local = InMemoryTaskRepository()
+        local.tasks = [TaskItem(title: "Single")]
+        let repository = makeRepository(store: store)
+        async let first = repository.migrateIfNeeded(from: local)
+        async let second = repository.migrateIfNeeded(from: local)
+        let counts = try await [first, second]
+        XCTAssertEqual(counts.sorted(), [0, 1])
+        XCTAssertEqual(store.records.count, 1)
+    }
+
     func testInterruptedMigrationResumesFromPersistedIdentifiers() async throws {
         let store = FakeReminderStore()
         let local = InMemoryTaskRepository()
@@ -507,6 +520,7 @@ private final class FakeReminderStore: ReminderStore, @unchecked Sendable {
     var records: [String: ReminderRecord] = [:]
     var listsCreated = 0
     private var listID: String?
+    var delaySave = false
     var movedIdentifier: String?
     var failNewRecordNumber: Int?
     private var counter = 0
@@ -533,6 +547,7 @@ private final class FakeReminderStore: ReminderStore, @unchecked Sendable {
     }
 
     func save(_ record: ReminderRecord, listIdentifier: String) async throws -> String {
+        if delaySave { try await Task.sleep(for: .milliseconds(30)) }
         var record = record
         if let identifier = record.identifier {
             if movedIdentifier == identifier { throw ReminderStoreError.reminderMoved }
