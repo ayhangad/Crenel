@@ -2,7 +2,17 @@ import Foundation
 
 struct TranscriptionSettingsSnapshot: Equatable, Sendable {
     var languageCode: String?
+    /// ElevenLabs key.
     var hasStoredAPIKey: Bool
+    var hasStoredDeepgramKey: Bool = false
+
+    func hasStoredKey(for engine: MeetingTranscriptionEngine) -> Bool {
+        switch engine {
+        case .elevenLabs: hasStoredAPIKey
+        case .deepgram: hasStoredDeepgramKey
+        case .onDevice: true
+        }
+    }
 }
 
 struct GeneralSettingsSnapshot: Equatable, Sendable {

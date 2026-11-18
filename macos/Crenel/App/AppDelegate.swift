@@ -100,6 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let appSettingsRepository: any AppSettingsRepository = UserDefaultsAppSettingsRepository()
     private let apiKeyRepository: any APIKeyRepository = KeychainAPIKeyRepository()
     private let openAIKeys: any APIKeyRepository = KeychainAPIKeyRepository(service: KeychainAPIKeyRepository.openAIService)
+    private let deepgramKeys: any APIKeyRepository = KeychainAPIKeyRepository(service: KeychainAPIKeyRepository.deepgramService)
     private let processingQueue = ProcessingQueue()
     private lazy var transcriptionWorker = TranscriptionProcessingWorker(
         queue: processingQueue,
@@ -109,7 +110,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences: { [appSettingsRepository] in
                 try await appSettingsRepository.load().crenel.meetingProcessing
             },
-            elevenLabs: ElevenLabsTranscriptionService(apiKeyRepository: apiKeyRepository)
+            elevenLabs: ElevenLabsTranscriptionService(apiKeyRepository: apiKeyRepository),
+            deepgram: DeepgramTranscriptionService(apiKeyRepository: deepgramKeys)
         ),
         summaryService: MeetingSummaryRouter(
             preferences: { [appSettingsRepository] in
@@ -312,8 +314,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 onDeleteAllData: self.deleteAllData,
                 onResetOnboarding: self.resetOnboarding,
                 onLoadTranscriptionSettings: self.loadTranscriptionSettings,
-                onSaveTranscriptionSettings: self.saveTranscriptionSettings,
-                onDeleteTranscriptionAPIKey: self.deleteTranscriptionAPIKey,
+                onSaveTranscriptionSettings: { [weak self] language, key, engine in
+                    await self?.saveTranscriptionSettings(languageCode: language, apiKey: key, engine: engine)
+                        ?? .failed(.provider("The app is quitting.", credentialsInvalid: false))
+                },
+                onDeleteTranscriptionAPIKey: { [weak self] engine in
+                    await self?.deleteTranscriptionAPIKey(engine: engine) ?? .failed(message: "The app is quitting.")
+                },
                 openAISettings: self.openAISettingsActions,
                 crenelSettings: self.crenelSettingsActions,
                 notificationService: self.meetingNotifications,
@@ -634,9 +641,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func loadTranscriptionSettings() async -> TranscriptionSettingsSnapshot {
         let preferences = (try? await appSettingsRepository.load()) ?? .default
         let hasKey = ((try? await apiKeyRepository.apiKey()) ?? nil) != nil
+        let hasDeepgramKey = ((try? await deepgramKeys.apiKey()) ?? nil) != nil
         return TranscriptionSettingsSnapshot(
             languageCode: preferences.transcription.languageCode,
-            hasStoredAPIKey: hasKey
+            hasStoredAPIKey: hasKey,
+            hasStoredDeepgramKey: hasDeepgramKey
         )
     }
 
@@ -752,6 +761,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         catch { keychainDeletionFailed = true }
         do { try await KeychainAPIKeyRepository(service: KeychainAPIKeyRepository.anthropicService).deleteAPIKey() }
         catch { keychainDeletionFailed = true }
+        do { try await deepgramKeys.deleteAPIKey() }
+        catch { keychainDeletionFailed = true }
         do {
             try await apiKeyRepository.deleteAPIKey()
         } catch {
@@ -793,15 +804,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func saveTranscriptionSettings(
         languageCode: String?,
-        apiKey: String?
+        apiKey: String?,
+        engine: MeetingTranscriptionEngine
     ) async -> TranscriptionSettingsSaveResult {
         do {
             var preferences = try await appSettingsRepository.load()
             let normalizedInput = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
             let newKey = normalizedInput.flatMap { $0.isEmpty ? nil : $0 }
             if let newKey {
-                try await ElevenLabsAPIKeyValidator().validate(newKey)
-                try await apiKeyRepository.saveAPIKey(newKey)
+                switch engine {
+                case .elevenLabs:
+                    try await ElevenLabsAPIKeyValidator().validate(newKey)
+                    try await apiKeyRepository.saveAPIKey(newKey)
+                case .deepgram:
+                    try await DeepgramAPIKeyValidator().validate(newKey)
+                    try await deepgramKeys.saveAPIKey(newKey)
+                case .onDevice:
+                    break
+                }
             }
 
             preferences.transcription.languageCode = languageCode
@@ -884,10 +904,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
     }
 
-    func deleteTranscriptionAPIKey() async -> SettingsActionResult {
+    func deleteTranscriptionAPIKey(engine: MeetingTranscriptionEngine) async -> SettingsActionResult {
         do {
-            try await apiKeyRepository.deleteAPIKey()
-            return .succeeded(message: "ElevenLabs disconnected.")
+            switch engine {
+            case .elevenLabs:
+                try await apiKeyRepository.deleteAPIKey()
+                return .succeeded(message: "ElevenLabs disconnected.")
+            case .deepgram:
+                try await deepgramKeys.deleteAPIKey()
+                return .succeeded(message: "Deepgram disconnected.")
+            case .onDevice:
+                return .succeeded()
+            }
         } catch {
             AppLogger.persistenceFailed(operation: "delete-transcription-key", error: error)
             return .failed(message: "Couldn't remove the API key from Keychain.")

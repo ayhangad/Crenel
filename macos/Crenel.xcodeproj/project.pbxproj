@@ -65,6 +65,7 @@
 		2AFFB452B2D4AFAC375B77CE /* AgentMeetingSummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D49DFDB4505BB11FB4005C4 /* AgentMeetingSummaryService.swift */; };
 		2BF32E5CF16E6DD8E19F339D /* BrowserAudioNativeHostInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52E0352303EDF8C2CBAB0733 /* BrowserAudioNativeHostInstaller.swift */; };
 		2C14D5760C6DAB5CE86A52BE /* LegacyGoogleCalendarCleanup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 909CBB1292BDD3EB1B070316 /* LegacyGoogleCalendarCleanup.swift */; };
+		2CDB328BE025C88EF4E619CD /* DeepgramTranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFA76CD2F81A44C51493C18 /* DeepgramTranscriptionService.swift */; };
 		2D68FA55741273DD9BF20E7A /* NotchScreenResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C902980812DF718F9F855B9 /* NotchScreenResolver.swift */; };
 		2E0D44C5F2367006403C02DA /* FileMeetingRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0266CA0E687B2F445EEAF590 /* FileMeetingRepository.swift */; };
 		2E0F039B5B13FC8D7407A8E1 /* MeetingReminderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAF8197D40157284C96FBC16 /* MeetingReminderTests.swift */; };
@@ -213,6 +214,7 @@
 		C2F99CA58E2463BE19942EA5 /* MeetingURLMatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5829B199E82C4611BB53749 /* MeetingURLMatcherTests.swift */; };
 		C3F7A333296EEA4FC41E1945 /* LegacyIdentityMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B58164769171E488BFD152 /* LegacyIdentityMigrationTests.swift */; };
 		C446BA0D487F9713817FF349 /* AudioCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDB1FEA0ED89F4D707108255 /* AudioCapture.swift */; };
+		C457D544C2D296E815790588 /* DeepgramTranscriptionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3F0273B5B6DAC7EA4DEEF3 /* DeepgramTranscriptionServiceTests.swift */; };
 		C5F0B64EB5E9DCD0727A7409 /* MeetingMicrophoneGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05A2D3892F1FA8E72DA83400 /* MeetingMicrophoneGate.swift */; };
 		C6991EA652E34047457696B9 /* NotchPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E38334891F592279D9A78D /* NotchPresentationTests.swift */; };
 		C6E831F592CF7C38CBD42E36 /* MicrophoneDeviceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2F7B062F8649D666E9DFA5C /* MicrophoneDeviceTests.swift */; };
@@ -490,6 +492,7 @@
 		B975B07402B33D446BFE8EC7 /* AudioTrackMixerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrackMixerTests.swift; sourceTree = "<group>"; };
 		B9C475339896A668663F451B /* CrenelTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrenelTokens.swift; sourceTree = "<group>"; };
 		B9F7FF1643C04094C5A617FF /* SettingsGalleryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsGalleryTests.swift; sourceTree = "<group>"; };
+		BB3F0273B5B6DAC7EA4DEEF3 /* DeepgramTranscriptionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepgramTranscriptionServiceTests.swift; sourceTree = "<group>"; };
 		BC2180B55F0A5D4FC7D5DD5F /* HybridMeetingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HybridMeetingTests.swift; sourceTree = "<group>"; };
 		BC8D4B1853BBE873ABBDC04C /* AgentProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentProviderTests.swift; sourceTree = "<group>"; };
 		C0F3B7DDD07475F14B262D58 /* MicrophoneCaptureIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneCaptureIntegrationTests.swift; sourceTree = "<group>"; };
@@ -551,6 +554,7 @@
 		FF0238CDA9ECF87ABD8B0D44 /* MeetingRetentionCleanupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingRetentionCleanupService.swift; sourceTree = "<group>"; };
 		FF26D641AB72ED8E1B42514C /* CrenelComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrenelComponents.swift; sourceTree = "<group>"; };
 		FFBF80A0429DC748C944DB9E /* MeetingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingDetailView.swift; sourceTree = "<group>"; };
+		FFFA76CD2F81A44C51493C18 /* DeepgramTranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepgramTranscriptionService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -592,6 +596,7 @@
 				1A6937FB7FBC16D4B0B00E26 /* CrenelDesignGalleryTests.swift */,
 				35CA7076F956F8C7F8155BE6 /* CrenelNotchEngineTests.swift */,
 				09F944E2B1AD0D5127F5E026 /* CrenelTaskTests.swift */,
+				BB3F0273B5B6DAC7EA4DEEF3 /* DeepgramTranscriptionServiceTests.swift */,
 				8C221AAECFAF8B6A2FDAE50A /* DesktopGalleryTests.swift */,
 				4A34DDBCA7FE55DDC52E0B40 /* DesktopWorkspaceTests.swift */,
 				08742B0F2B6D0231DFE9D087 /* DictationControllerTests.swift */,
@@ -856,6 +861,7 @@
 		8777CF9BC06051AEEAF7B278 /* Transcription */ = {
 			isa = PBXGroup;
 			children = (
+				FFFA76CD2F81A44C51493C18 /* DeepgramTranscriptionService.swift */,
 				666D1C3A549F6469A4237364 /* ElevenLabsTranscriptionService.swift */,
 				ECD7328556DF5AD78D47A052 /* LocalMeetingTranscriptionService.swift */,
 				F722906B8A047015F974B7B9 /* MeetingProcessingEngine.swift */,
@@ -1311,6 +1317,7 @@
 				5C0F89476E20E1A082FD06BA /* CrenelDesignGalleryTests.swift in Sources */,
 				30125C00014376C041EEF24C /* CrenelNotchEngineTests.swift in Sources */,
 				5CE81AEB035E18F44A4036F8 /* CrenelTaskTests.swift in Sources */,
+				C457D544C2D296E815790588 /* DeepgramTranscriptionServiceTests.swift in Sources */,
 				E430338657D8217EC370E6BB /* DesktopGalleryTests.swift in Sources */,
 				CD1A07D4B1F1493327B04E34 /* DesktopWorkspaceTests.swift in Sources */,
 				3D618A995C3B8926F5D2E420 /* DictationControllerTests.swift in Sources */,
@@ -1428,6 +1435,7 @@
 				C290626D0A3EF4B0C0493DEE /* CrenelSettingsView.swift in Sources */,
 				9496BF3504D7EE38C11EE36C /* CrenelShaders.metal in Sources */,
 				E695A61F19D7536E6FCF7E6E /* CrenelTokens.swift in Sources */,
+				2CDB328BE025C88EF4E619CD /* DeepgramTranscriptionService.swift in Sources */,
 				3DE663C6A455865C8E7CEED2 /* DesktopDictationPage.swift in Sources */,
 				9AB5239D809493D02FE87938 /* DesktopMeetingDetail.swift in Sources */,
 				D73120A2E4C285158A5373E4 /* DesktopMeetingsPage.swift in Sources */,

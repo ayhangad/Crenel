@@ -177,7 +177,7 @@ struct OnboardingView: View {
                         HudIcon(.shield, size: 12)
                             .foregroundStyle(Hud.Ink.ink4)
                             .padding(.top, 2)
-                        Text("Apple models process audio and text on your Mac. Choosing ElevenLabs sends meeting audio to ElevenLabs. Choosing OpenAI or Anthropic sends text to that provider. Claude Code sends meeting text to Anthropic.")
+                        Text("Apple models process audio and text on your Mac. Choosing ElevenLabs or Deepgram sends meeting audio to that provider. Choosing OpenAI or Anthropic sends text to that provider. Claude Code sends meeting text to Anthropic.")
                             .hud(.meta)
                             .fixedSize(horizontal: false, vertical: true)
                     }

@@ -101,7 +101,7 @@ enum TranscriptionServiceError: Error, Equatable, Sendable {
                 credentialsInvalid: true
             )
         case .rateLimited:
-            .provider("ElevenLabs rate limit reached. Try again in a while.")
+            .provider("The transcription service’s rate limit was reached. Try again in a while.")
         case .timeout:
             .network("The transcription request timed out. Try again.")
         case .networkUnavailable:
@@ -109,13 +109,13 @@ enum TranscriptionServiceError: Error, Equatable, Sendable {
         case .providerUnavailable:
             .provider("Can’t reach the transcription service right now. Try again.")
         case .invalidResponse:
-            .decoding("ElevenLabs returned an unexpected response. Try again.")
+            .decoding("The transcription service returned an unexpected response. Try again.")
         case .invalidFile:
             .fileSystem("This audio file can’t be uploaded for transcription.")
         case .unsupportedLanguage(let locale):
             .provider("Apple Speech does not support \(locale). Choose a different transcript language in Settings.", credentialsInvalid: false)
         case .unsupportedFeature:
-            .provider("ElevenLabs doesn’t support the requested transcription feature.", credentialsInvalid: false)
+            .provider("The transcription service doesn’t support the requested feature.", credentialsInvalid: false)
         case .cancelled:
             .provider("Transcription was cancelled.", credentialsInvalid: false)
         }

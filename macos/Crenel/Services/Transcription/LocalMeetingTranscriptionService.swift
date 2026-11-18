@@ -15,7 +15,7 @@ enum LocalMeetingTranscriptionError: Error, LocalizedError, Equatable, Sendable 
     var errorDescription: String? {
         switch self {
         case .unsupportedLocale(let identifier):
-            "On-device transcription doesn’t support \(identifier). Choose another language or ElevenLabs in Settings."
+            "On-device transcription doesn’t support \(identifier). Choose another language, ElevenLabs or Deepgram in Settings."
         case .assetInstallationFailed(let identifier):
             "Couldn’t download the on-device speech model for \(identifier). Check your internet connection and disk space, then try again."
         case .unreadableAudio:

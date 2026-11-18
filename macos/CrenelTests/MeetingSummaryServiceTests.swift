@@ -84,6 +84,7 @@ final class MeetingSummaryServiceTests: XCTestCase {
         XCTAssertTrue(markdown.contains("## Action items"))
         XCTAssertTrue(markdown.contains("## Transcript"))
         XCTAssertTrue(markdown.contains("### Ayşe · 00:05"))
-        XCTAssertTrue(markdown.contains("ElevenLabs Scribe v2"))
+        // The transcript doesn't record which engine wrote it, so no engine is claimed.
+        XCTAssertFalse(markdown.contains("- Transcription:"))
     }
 }

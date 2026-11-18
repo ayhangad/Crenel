@@ -29,7 +29,6 @@ enum MeetingMarkdownFormatter {
         return [
             "- Date: \(meeting.startedAt.formatted(Date.FormatStyle(date: .long, time: .shortened, locale: AppLanguage.locale)))",
             "- Duration: \(TranscriptTextFormatter.timestamp(meeting.duration))",
-            "- Transcription: ElevenLabs Scribe v2",
             "- Language: \(language)"
         ].joined(separator: "\n")
     }

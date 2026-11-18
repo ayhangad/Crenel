@@ -254,7 +254,7 @@ Sentetik ekran matrisi `NotchPresentationTests` ve `DesktopWorkspaceTests` için
 
 Bu bölüm aşağıdaki eski tek servis/extractive-only sözleşmelerini günceller.
 Yeni kurulumda birleşik toplantı sesini Apple Speech, transkript metnini Apple Foundation Models
-cihazda işler. ElevenLabs açıkça seçilirse birleşik ses ElevenLabs'a gönderilir.
+cihazda işler. ElevenLabs veya Deepgram açıkça seçilirse birleşik ses yalnız o sağlayıcıya gönderilir.
 Özet için OpenAI seçilirse transkript metni, konuşmacı etiketleri ve zaman bilgileri OpenAI'a,
 Anthropic API veya Claude Code seçilirse Anthropic'e gönderilir. API anahtarları ayrı
 Keychain servislerinde saklanır. Claude Code mevcut CLI oturumunu kullanır.
@@ -675,8 +675,8 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   durdurma/finalize sonrasında tek M4A olarak kalıcı kuyruğa girer. ElevenLabs'in ayrı
   `scribe_v2_realtime` WebSocket modeli V1 sonrası kapsamındadır.
 
-- `MeetingTranscriptionRouter` açık tercihe göre `LocalMeetingTranscriptionService` veya
-  `ElevenLabsTranscriptionService` seçer. Yerel motor dil seçimi boşken Mac dilini kullanır.
+- `MeetingTranscriptionRouter` açık tercihe göre `LocalMeetingTranscriptionService`,
+  `ElevenLabsTranscriptionService` veya `DeepgramTranscriptionService` seçer. Yerel motor dil seçimi boşken Mac dilini kullanır.
   Toplantı detayındaki yeniden transkripsiyon işlemi sesi güncel dil ve motorla işler.
   Yeni metin başarıyla üretilene kadar önceki transkript korunur.
 - Capability doğrulaması ElevenLabs'in desteklenen formatını, dosya boyutu sınırını,
@@ -701,8 +701,16 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   biçimine bağlı kalmadan `speech_to_text` kapsamı verilmiş kısıtlı anahtarları destekler.
   Dönen token yalnızca yanıt bütünlüğünü doğrulamak için bellekte görülür, saklanmaz veya
   loglanmaz. Anahtar ancak başarıdan sonra Keychain'e kaydedilir; kimlik doğrulama nedeniyle
-  bekleyen işler atomik olarak yeniden kuyruğa alınır. UI'da provider seçici veya alternatif
-  servis gösterilmez.
+  bekleyen işler atomik olarak yeniden kuyruğa alınır.
+- `DeepgramTranscriptionService` (2026-11-18) `POST /v1/listen` sınırında `nova-3`,
+  `diarize`, `utterances`, `smart_format` kullanır. Ses dosyası multipart'a sarılmadan doğrudan
+  gövde olarak yüklenir; geçici kopya oluşmaz. Dil seçiliyse `language`, boşsa
+  `detect_language=true` gönderilir. `utterances` konuşmacı segmentlerine, yoksa `words`
+  ardışık konuşmacıya göre birleştirilir; konuşmacı kimlikleri ElevenLabs ile aynı `speaker_N`
+  biçimindedir. Anahtar ayrı `gad.Crenel.deepgram-api-key` Keychain servisinde tutulur ve
+  `GET /v1/auth/token` ile ses yüklemeden doğrulanır. Ayarlar › AI › Voice seçilen bulut
+  sağlayıcının anahtar alanını gösterir; tüm verileri silme her iki anahtarı da siler.
+  Markdown dışa aktarımı transkripti yazan motoru kaydetmediği için motor adı yazmaz.
 
 ## Özet ve Markdown sınırı
 

@@ -29,7 +29,7 @@ sunucusuna göndermez ve analytics/telemetry üretmez.
 
 Kayıt başlatıldığında Crenel birleşik toplantı sesini Mac'te saklar. Transkripsiyon için
 Apple Speech seçilirse ses Mac'te işlenir. ElevenLabs Scribe v2 seçilirse birleşik ses
-ElevenLabs'a gönderilir.
+ElevenLabs'a, Deepgram seçilirse Deepgram'a gönderilir.
 
 Özet ve görevler için transkript metni, konuşmacı etiketleri ve zaman bilgileri seçilen
 sağlayıcıda işlenir. Apple modeli Mac'te çalışır. OpenAI seçilirse metin OpenAI'a,

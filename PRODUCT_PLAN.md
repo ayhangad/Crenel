@@ -55,7 +55,8 @@ birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
 - Minimum sistem macOS 26. SpeechAnalyzer ve Foundation Models doğrudan kullanılır.
 - Dikte yerel çalışır. Agent sağlayıcısı: yerel Apple Foundation Models (varsayılan),
   kullanıcının kendi OpenAI veya Anthropic anahtarı (isteğe bağlı, Keychain'de).
-- Toplantı transkripsiyonu: ElevenLabs (mevcut) veya yerel SpeechAnalyzer.
+- Toplantı transkripsiyonu: ElevenLabs, Deepgram (2026-11-18, kullanıcı isteği) veya yerel
+  SpeechAnalyzer.
 - Takvim tek kaynak: EventKit. Google OAuth kodu ve ayarları kaldırılır.
 - Görev deposu: Apple Hatırlatıcılar (EventKit reminders) + yerel yan veri; izin yoksa
   yerel JSON. Eski görevler bir defalık taşınır, eski dosya yedek olarak bırakılır.
@@ -213,6 +214,8 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
   ekranda çalışsın ve seçim (ekran UUID'si) hatırlansın. Ekran çıkarılınca fiziksel notch'lu
   ekrana düşer, geri takılınca seçtiği ekrana döner. — ✅ 2026-11-18 (kullanıcı iki ekranda denedi)
 - [x] Önceki hover denemesindeki 0,6 saniyelik süreyi açılış boyunca geçerli geometri takibiyle değiştirmek. Cihaz kabulü yukarıda açık.
+- [x] Deepgram'ı ElevenLabs'e alternatif toplantı transkripsiyon sağlayıcısı olarak bağlamak: Nova-3, konuşmacı ayrımı, ayrı Keychain anahtarı, Ayarlar › AI › Voice seçimi ve anahtar doğrulama. — ✅ 2026-11-18 (tam macOS koşusu 682 test, 5 atlama, 0 hata; gerçek anahtarla Türkçe toplantı kabulü aşağıda açık)
+- [ ] Deepgram gerçek anahtar kabulü: Ayarlar'da anahtar doğrulama, Türkçe ve otomatik dilde konuşmacı ayrımlı transkript. Kullanıcı doğrulayacak.
 
 ### C8 — Gerçek cihaz kabulü
 

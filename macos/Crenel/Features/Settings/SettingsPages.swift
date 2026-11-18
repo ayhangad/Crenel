@@ -1,7 +1,7 @@
 import SwiftUI
 
 // The pages SettingsView owns the state of: General, Calendar, Recording, Data, and the
-// ElevenLabs group of the AI page.
+// Voice (ElevenLabs / Deepgram) group of the AI page.
 
 extension SettingsView {
     // MARK: General (`s-general`)
@@ -395,16 +395,22 @@ extension SettingsView {
     /// Settings › AI › Voice: who transcribes meetings, and that provider's key.
     @ViewBuilder var voiceGroup: some View {
         let engine = crenel.preferences.meetingProcessing.transcription
+        let cloud = SettingsVoiceProvider(engine)
+        let hasKey = cloud.map(hasStoredKey) ?? false
         SettingsGroup("Voice", index: 2) {
             SettingsRow(glyph: .waveform, title: "Provider", detail: voiceDetail(engine)) {
-                if engine == .elevenLabs, !isLoadingTranscriptionSettings {
-                    if hasStoredAPIKey { HudStatusWord(.ok, "Connected") } else { HudStatusWord(.warn, "Needs a key") }
+                if cloud != nil, !isLoadingTranscriptionSettings {
+                    if hasKey { HudStatusWord(.ok, "Connected") } else { HudStatusWord(.warn, "Needs a key") }
                 }
                 HudSelect(
                     selection: Binding(
-                        get: { engine == .elevenLabs ? SettingsVoiceProvider.elevenLabs : .onDevice },
+                        get: { SettingsVoiceProvider(engine) ?? .onDevice },
                         set: { choice in
                             guard let engine = choice.engine else { return }
+                            if engine != crenel.preferences.meetingProcessing.transcription {
+                                apiKey = ""
+                                transcriptionSettingsMessage = nil
+                            }
                             crenel.preferences.meetingProcessing.transcription = engine
                             crenel.save(crenelSettings)
                         }
@@ -414,10 +420,10 @@ extension SettingsView {
                 )
                 .accessibilityLabel("Voice provider")
             }
-            if engine == .elevenLabs {
+            if let cloud, let keysURL = cloud.keysURL {
                 SettingsFieldRow {
                     SecureField("", text: $apiKey,
-                                prompt: Text(hasStoredAPIKey ? "Type to replace the saved ElevenLabs key" : "ElevenLabs API key")
+                                prompt: Text(hasKey ? "Type to replace the saved \(cloud.name) key" : "\(cloud.name) API key")
                                     .foregroundStyle(Hud.Ink.ink3))
                         .textFieldStyle(.plain)
                         .textContentType(.password)
@@ -425,22 +431,22 @@ extension SettingsView {
                         .focused($apiKeyFocused)
                         .hudField(isFocused: apiKeyFocused)
                         .onSubmit(saveTranscriptionSettings)
-                        .accessibilityLabel("ElevenLabs API key")
+                        .accessibilityLabel("\(cloud.name) API key")
                     if isSavingTranscriptionSettings { HudSpinner() }
                     HudButton("Verify and save", action: saveTranscriptionSettings)
                         .disabled(isLoadingTranscriptionSettings || isSavingTranscriptionSettings
                             || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .help("Checks Speech-to-Text access before saving")
-                    if hasStoredAPIKey {
+                    if hasKey {
                         HudButton("Remove", kind: .danger, action: deleteTranscriptionAPIKey)
                             .disabled(isSavingTranscriptionSettings)
-                            .accessibilityLabel("Remove ElevenLabs key")
+                            .accessibilityLabel("Remove \(cloud.name) key")
                     } else {
-                        Link(destination: URL(string: "https://elevenlabs.io/app/settings/api-keys")!) {
+                        Link(destination: keysURL) {
                             HudButtonLabel("Get a key", glyph: .link)
                         }
                         .buttonStyle(HudButtonStyle(kind: .secondary))
-                        .accessibilityLabel("Create an API key on ElevenLabs")
+                        .accessibilityLabel("Create an API key on \(cloud.name)")
                     }
                 }
                 SettingsMessage(message: transcriptionSettingsMessage, failed: transcriptionSettingsFailed)
@@ -452,7 +458,7 @@ extension SettingsView {
                         set: { code in
                             languageCode = code
                             // Saved as it is chosen, like every other setting; no key involved.
-                            Task { _ = await onSaveTranscriptionSettings(code, nil) }
+                            Task { _ = await onSaveTranscriptionSettings(code, nil, engine) }
                         }
                     ),
                     options: [(nil as String?, engine.defaultLanguageTitle()), ("tr" as String?, "Turkish"), ("en" as String?, "English")]
@@ -465,21 +471,50 @@ extension SettingsView {
     private func voiceDetail(_ engine: MeetingTranscriptionEngine) -> Text {
         switch engine {
         case .elevenLabs: Text("Meeting transcripts with speaker names · billed to you")
+        case .deepgram: Text("Nova-3 transcripts with speaker names · billed to you")
         case .onDevice: Text("Apple Speech · free, audio stays on this Mac")
         }
     }
 }
 
-/// The voice providers offered on the AI page. Two of them are announced, not built.
+/// The voice providers offered on the AI page. OpenAI is announced, not built.
 enum SettingsVoiceProvider: CaseIterable, Hashable {
-    case elevenLabs, onDevice, openAI, deepgram
+    case elevenLabs, deepgram, onDevice, openAI
+
+    /// The menu entry for a stored engine; nil for on-device, which needs no key.
+    init?(_ engine: MeetingTranscriptionEngine) {
+        switch engine {
+        case .elevenLabs: self = .elevenLabs
+        case .deepgram: self = .deepgram
+        case .onDevice: return nil
+        }
+    }
 
     var title: String {
         switch self {
         case .elevenLabs: "ElevenLabs"
+        case .deepgram: "Deepgram"
         case .onDevice: "On this Mac (Apple Speech)"
         case .openAI: "OpenAI · coming soon"
-        case .deepgram: "Deepgram · coming soon"
+        }
+    }
+
+    /// The provider's own name, used in key prompts and messages.
+    var name: String {
+        switch self {
+        case .elevenLabs: "ElevenLabs"
+        case .deepgram: "Deepgram"
+        case .onDevice: "Apple Speech"
+        case .openAI: "OpenAI"
+        }
+    }
+
+    /// Where the user creates a key; nil when no key is involved.
+    var keysURL: URL? {
+        switch self {
+        case .elevenLabs: URL(string: "https://elevenlabs.io/app/settings/api-keys")
+        case .deepgram: URL(string: "https://console.deepgram.com/")
+        case .onDevice, .openAI: nil
         }
     }
 
@@ -487,8 +522,9 @@ enum SettingsVoiceProvider: CaseIterable, Hashable {
     var engine: MeetingTranscriptionEngine? {
         switch self {
         case .elevenLabs: .elevenLabs
+        case .deepgram: .deepgram
         case .onDevice: .onDevice
-        case .openAI, .deepgram: nil
+        case .openAI: nil
         }
     }
 }

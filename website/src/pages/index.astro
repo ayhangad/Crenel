@@ -59,7 +59,7 @@ const faqs = [
   { q: 'Is Crenel free?', a: 'Yes. Crenel is free and open source under the MIT license. Every line is on GitHub.' },
   { q: 'Which Macs does it run on?', a: 'Any Mac on macOS 26 or later, Apple silicon or Intel. It is signed and notarized by Apple.' },
   { q: 'My Mac has no notch. Does it work?', a: 'Yes. On a display without a notch, Crenel draws its own at the top of the screen, external displays included.' },
-  { q: 'Does anything leave my Mac?', a: "The optional Chrome extension sends the selected Meet tab’s audio to Crenel on your Mac. Apple Speech transcribes the combined recording locally. Choosing ElevenLabs sends it the audio. For notes and tasks, Apple’s model processes the transcript locally. Choosing OpenAI sends the text to OpenAI. Choosing Anthropic or Claude Code sends it to Anthropic, including when Claude Code uses your existing sign-in. Dictation is transcribed on your Mac. If dictation clean-up uses OpenAI, Anthropic or Claude Code, the dictated text goes to that provider." },
+  { q: 'Does anything leave my Mac?', a: "The optional Chrome extension sends the selected Meet tab’s audio to Crenel on your Mac. Apple Speech transcribes the combined recording locally. Choosing ElevenLabs or Deepgram sends that provider the audio. For notes and tasks, Apple’s model processes the transcript locally. Choosing OpenAI sends the text to OpenAI. Choosing Anthropic or Claude Code sends it to Anthropic, including when Claude Code uses your existing sign-in. Dictation is transcribed on your Mac. If dictation clean-up uses OpenAI, Anthropic or Claude Code, the dictated text goes to that provider." },
   { q: 'Do I need an account?', a: 'No. There is nothing to sign up for, and there are no analytics.' },
   { q: 'Which calls can it record?', a: "Zoom and Google Meet. For Meet in Chrome, a small extension passes the tab's audio to Crenel." },
 ];
@@ -196,7 +196,7 @@ const faqs = [
           </div>
           <div class="privacy-grid">
             <div><h3><Lamp on="g" />On your Mac</h3><p>Recordings, transcripts, notes and tasks are stored on your Mac.</p></div>
-            <div><h3><Lamp on="g" />Your providers</h3><p>Apple’s models run on your Mac. ElevenLabs can transcribe audio. OpenAI or Anthropic can process text. Claude Code sends text to Anthropic using your sign-in.</p></div>
+            <div><h3><Lamp on="g" />Your providers</h3><p>Apple’s models run on your Mac. ElevenLabs or Deepgram can transcribe audio. OpenAI or Anthropic can process text. Claude Code sends text to Anthropic using your sign-in.</p></div>
             <div><h3><Lamp on="g" />Open source</h3><p>Every line is on <a href={REPO}>GitHub</a>, under the MIT license. Read it, build it, change it.</p></div>
           </div>
         </div>

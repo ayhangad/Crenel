@@ -94,7 +94,7 @@ meeting, tasks, dictation history and settings.
 - **On your Mac.** Recordings, transcripts, notes and tasks are stored locally. Dictation
   runs on Apple's on-device speech model and never saves audio.
 - **Your keys, your choice.** The optional extension sends Meet tab audio to your Mac. Apple Speech
-  transcribes combined meeting audio locally. Selecting ElevenLabs sends it the audio. Apple’s model
+  transcribes combined meeting audio locally. Selecting ElevenLabs or Deepgram sends that provider the audio. Apple’s model
   processes transcript text locally. Selecting OpenAI sends text to OpenAI. Selecting Anthropic
   or Claude Code sends it to Anthropic. Claude Code uses your existing sign-in for notes and tasks.
 - **No account, no analytics.** There is nothing to sign up for and no tracking SDK.

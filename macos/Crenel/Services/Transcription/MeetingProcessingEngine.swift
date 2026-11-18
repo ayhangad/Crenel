@@ -3,11 +3,13 @@ import Foundation
 /// Where meeting audio is transcribed.
 enum MeetingTranscriptionEngine: String, Codable, CaseIterable, Equatable, Sendable {
     case elevenLabs
+    case deepgram
     case onDevice
 
     var displayName: String {
         switch self {
         case .elevenLabs: "ElevenLabs (cloud, speaker labels)"
+        case .deepgram: "Deepgram (cloud, speaker labels)"
         case .onDevice: "On-device (Apple Speech)"
         }
     }
@@ -72,19 +74,22 @@ struct MeetingProcessingPreferences: Codable, Equatable, Sendable {
 typealias MeetingProcessingPreferencesProvider = @Sendable () async throws -> MeetingProcessingPreferences
 typealias AgentPreferencesProvider = @Sendable () async throws -> AgentPreferences
 
-/// Chooses ElevenLabs or on-device transcription per request from the current preferences.
+/// Chooses ElevenLabs, Deepgram or on-device transcription per request from the current preferences.
 struct MeetingTranscriptionRouter: TranscriptionServicing {
     private let preferences: MeetingProcessingPreferencesProvider
     private let elevenLabs: any TranscriptionServicing
+    private let deepgram: any TranscriptionServicing
     private let onDevice: any TranscriptionServicing
 
     init(
         preferences: @escaping MeetingProcessingPreferencesProvider,
         elevenLabs: any TranscriptionServicing = ElevenLabsTranscriptionService(),
+        deepgram: any TranscriptionServicing = DeepgramTranscriptionService(),
         onDevice: any TranscriptionServicing = LocalMeetingTranscriptionService()
     ) {
         self.preferences = preferences
         self.elevenLabs = elevenLabs
+        self.deepgram = deepgram
         self.onDevice = onDevice
     }
 
@@ -95,6 +100,7 @@ struct MeetingTranscriptionRouter: TranscriptionServicing {
     func service(for engine: MeetingTranscriptionEngine) -> any TranscriptionServicing {
         switch engine {
         case .elevenLabs: elevenLabs
+        case .deepgram: deepgram
         case .onDevice: onDevice
         }
     }

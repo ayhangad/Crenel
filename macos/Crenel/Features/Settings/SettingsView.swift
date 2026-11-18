@@ -26,11 +26,13 @@ struct SettingsView: View {
     let onDeleteAllData: () async -> SettingsActionResult
     let onResetOnboarding: () async -> SettingsActionResult
     let onLoadTranscriptionSettings: () async -> TranscriptionSettingsSnapshot
+    /// Language, a new key (nil keeps the stored one) and the provider the key belongs to.
     let onSaveTranscriptionSettings: (
         String?,
-        String?
+        String?,
+        MeetingTranscriptionEngine
     ) async -> TranscriptionSettingsSaveResult
-    let onDeleteTranscriptionAPIKey: () async -> SettingsActionResult
+    let onDeleteTranscriptionAPIKey: (MeetingTranscriptionEngine) async -> SettingsActionResult
     /// Where the data lives and how much of it there is; nil measures the real folder.
     let onLoadDataFolder: (() async -> SettingsDataFolder?)?
 
@@ -78,6 +80,7 @@ struct SettingsView: View {
     @State var apiKey = ""
     @FocusState var apiKeyFocused: Bool
     @State var hasStoredAPIKey = false
+    @State var hasStoredDeepgramKey = false
     @State var isLoadingTranscriptionSettings = true
     @State var isSavingTranscriptionSettings = false
     @State var transcriptionSettingsMessage: String?
@@ -116,10 +119,11 @@ struct SettingsView: View {
         },
         onSaveTranscriptionSettings: @escaping (
             String?,
-            String?
-        ) async -> TranscriptionSettingsSaveResult = { _, _ in .saved(retriedJobCount: 0) },
-        onDeleteTranscriptionAPIKey: @escaping () async -> SettingsActionResult = {
-            .succeeded()
+            String?,
+            MeetingTranscriptionEngine
+        ) async -> TranscriptionSettingsSaveResult = { _, _, _ in .saved(retriedJobCount: 0) },
+        onDeleteTranscriptionAPIKey: @escaping (MeetingTranscriptionEngine) async -> SettingsActionResult = {
+            _ in .succeeded()
         },
         openAISettings: OpenAISettingsActions = OpenAISettingsActions(),
         crenelSettings: CrenelSettingsActions = CrenelSettingsActions(),
@@ -220,7 +224,7 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
             Button("Delete permanently", role: .destructive) { deleteAllData() }
         } message: {
-            Text("Meetings, audio, transcripts, tasks on this Mac, settings, and the ElevenLabs, OpenAI and Anthropic keys in Keychain will be permanently deleted. Tasks in Apple Reminders stay. This can’t be undone.")
+            Text("Meetings, audio, transcripts, tasks on this Mac, settings, and the ElevenLabs, Deepgram, OpenAI and Anthropic keys in Keychain will be permanently deleted. Tasks in Apple Reminders stay. This can’t be undone.")
         }
     }
 
@@ -356,7 +360,24 @@ struct SettingsView: View {
     func apply(_ snapshot: TranscriptionSettingsSnapshot) {
         languageCode = snapshot.languageCode
         hasStoredAPIKey = snapshot.hasStoredAPIKey
+        hasStoredDeepgramKey = snapshot.hasStoredDeepgramKey
         isLoadingTranscriptionSettings = false
+    }
+
+    func hasStoredKey(_ provider: SettingsVoiceProvider) -> Bool {
+        switch provider {
+        case .elevenLabs: hasStoredAPIKey
+        case .deepgram: hasStoredDeepgramKey
+        case .onDevice, .openAI: false
+        }
+    }
+
+    private func setStoredKey(_ stored: Bool, for engine: MeetingTranscriptionEngine) {
+        switch engine {
+        case .elevenLabs: hasStoredAPIKey = stored
+        case .deepgram: hasStoredDeepgramKey = stored
+        case .onDevice: break
+        }
     }
 
     func apply(_ snapshot: MicrophoneSettingsSnapshot) {
@@ -448,14 +469,16 @@ struct SettingsView: View {
         isSavingTranscriptionSettings = true
         transcriptionSettingsMessage = nil
         let newAPIKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let engine = crenel.preferences.meetingProcessing.transcription
         Task {
             let result = await onSaveTranscriptionSettings(
                 languageCode,
-                newAPIKey.isEmpty ? nil : newAPIKey
+                newAPIKey.isEmpty ? nil : newAPIKey,
+                engine
             )
             switch result {
             case .saved(let retriedJobCount):
-                hasStoredAPIKey = true
+                setStoredKey(true, for: engine)
                 apiKey = ""
                 transcriptionSettingsMessage = retriedJobCount > 0
                     ? "Verified; reprocessing \(retriedJobCount) pending recordings"
@@ -472,12 +495,13 @@ struct SettingsView: View {
     func deleteTranscriptionAPIKey() {
         isSavingTranscriptionSettings = true
         transcriptionSettingsMessage = nil
+        let engine = crenel.preferences.meetingProcessing.transcription
         Task {
-            switch await onDeleteTranscriptionAPIKey() {
+            switch await onDeleteTranscriptionAPIKey(engine) {
             case .succeeded(let message):
-                hasStoredAPIKey = false
+                setStoredKey(false, for: engine)
                 apiKey = ""
-                transcriptionSettingsMessage = message ?? "ElevenLabs connection removed"
+                transcriptionSettingsMessage = message ?? "\(SettingsVoiceProvider(engine)?.name ?? "Provider") connection removed"
                 transcriptionSettingsFailed = false
             case .failed(let message):
                 transcriptionSettingsMessage = message
@@ -576,7 +600,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable, Sendable {
                           "Language", "Speech model", "Words to know"]
         case .tasks: ["Keep tasks in", "Reminders"]
         case .ai: ["Who writes", "Clean up dictation", "Voice commands on selected text", "Anthropic",
-                   "Transcript", "Notes", "OpenAI", "ElevenLabs", "Transcript language"]
+                   "Transcript", "Notes", "OpenAI", "ElevenLabs", "Deepgram", "Transcript language"]
         case .calendar: ["Show meetings in the notch", "Heads-up", "Connection", "Accounts",
                          "Meeting notifications", "Calendars"]
         case .recording: ["Microphone", "Level", "Microphone permission", "System audio", "Mute tracking",
