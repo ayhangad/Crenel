@@ -56,8 +56,7 @@ actor TranscriptionProcessingWorker {
 
             await onEvent(.started(job))
             do {
-                guard let meeting = try await meetingRepository.loadAll()
-                    .first(where: { $0.id == job.meetingID }) else {
+                guard let meeting = try await meetingRepository.load(id: job.meetingID) else {
                     throw TranscriptionServiceError.invalidFile(.missing)
                 }
                 let existing = try await meetingRepository.loadTranscription(for: meeting.id)

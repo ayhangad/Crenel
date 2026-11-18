@@ -6,6 +6,7 @@ protocol MeetingRetentionRepository: Sendable {
 }
 
 protocol MeetingRepository: MeetingRetentionRepository {
+    func load(id: UUID) async throws -> StoredMeeting?
     func prepare() async throws
     func saveCapture(_ capture: RecordingCaptureResult) async throws -> StoredMeeting
     func saveTranscription(
@@ -25,6 +26,10 @@ protocol MeetingRepository: MeetingRetentionRepository {
 }
 
 extension MeetingRepository {
+    func load(id: UUID) async throws -> StoredMeeting? {
+        try await loadAll().first { $0.id == id }
+    }
+
     func saveAnalysis(_ transcription: StoredTranscription, for meeting: StoredMeeting) async throws -> StoredMeeting {
         try await saveTranscription(TranscriptionResult(transcript: transcription.transcript), summary: transcription.summary, for: meeting)
     }
@@ -174,22 +179,7 @@ actor FileMeetingRepository: MeetingRepository {
             }
 
             do {
-                let data = try Data(contentsOf: directory.appending(path: "metadata.json"))
-                let meeting = try decoder.decode(StoredMeeting.self, from: data)
-                guard meeting.schemaVersion == StoredMeeting.currentSchemaVersion else {
-                    throw MeetingRepositoryError.unsupportedSchema(meeting.schemaVersion)
-                }
-                guard directory.lastPathComponent == meeting.id.uuidString,
-                      isSafeFileName(meeting.audioFileName),
-                      meeting.microphoneFileName.map(isSafeFileName) ?? true,
-                      meeting.systemAudioFileName.map(isSafeFileName) ?? true else {
-                    throw MeetingRepositoryError.missingFinalAudio
-                }
-                guard fileManager.fileExists(
-                    atPath: directory.appending(path: meeting.audioFileName).path
-                ) else {
-                    throw MeetingRepositoryError.missingFinalAudio
-                }
+                let meeting = try readMetadata(in: directory)
                 meetings.append(meeting)
             } catch {
                 moveToRecovery(directory, prefix: "Corrupt")
@@ -197,6 +187,32 @@ actor FileMeetingRepository: MeetingRepository {
         }
 
         return meetings.sorted { $0.startedAt > $1.startedAt }
+    }
+
+    func load(id: UUID) throws -> StoredMeeting? {
+        let directory = layout.meetings.appending(path: id.uuidString, directoryHint: .isDirectory)
+        guard fileManager.fileExists(atPath: directory.path) else { return nil }
+        return try readMetadata(in: directory)
+    }
+
+    private func readMetadata(in directory: URL) throws -> StoredMeeting {
+        let data = try Data(contentsOf: directory.appending(path: "metadata.json"))
+        let meeting = try decoder.decode(StoredMeeting.self, from: data)
+        guard meeting.schemaVersion == StoredMeeting.currentSchemaVersion else {
+            throw MeetingRepositoryError.unsupportedSchema(meeting.schemaVersion)
+        }
+        guard directory.lastPathComponent == meeting.id.uuidString,
+              isSafeFileName(meeting.audioFileName),
+              meeting.microphoneFileName.map(isSafeFileName) ?? true,
+              meeting.systemAudioFileName.map(isSafeFileName) ?? true else {
+            throw MeetingRepositoryError.missingFinalAudio
+        }
+        guard fileManager.fileExists(
+            atPath: directory.appending(path: meeting.audioFileName).path
+        ) else {
+            throw MeetingRepositoryError.missingFinalAudio
+        }
+        return meeting
     }
 
     func saveTranscription(
@@ -232,7 +248,7 @@ actor FileMeetingRepository: MeetingRepository {
     }
 
     func renameSpeaker(meetingID: UUID, speakerID: String, name: String) async throws -> StoredMeeting {
-        guard let meeting = try loadAll().first(where: { $0.id == meetingID }),
+        guard let meeting = try await load(id: meetingID),
               let stored = try loadTranscription(for: meetingID) else { throw MeetingRepositoryError.meetingNotFound }
         let trimmed = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(100))
         var transcript = stored.transcript
@@ -253,20 +269,26 @@ actor FileMeetingRepository: MeetingRepository {
     static let legacySummaryFailure = "These notes came from the old offline extractor. Write them again with AI for a real summary and title."
 
     func flagLegacySummaries() async throws -> Int {
+        let marker = layout.root.appending(path: ".legacy-summary-scan-v1")
+        guard !fileManager.fileExists(atPath: marker.path) else { return 0 }
         var flagged = 0
+        var lastFailure: Error?
         for meeting in try loadAll() where meeting.processingStatus == .completed {
-            guard let stored = try? loadTranscription(for: meeting.id),
-                  let summary = stored.summary, summary.model == nil,
-                  stored.summaryFailure == nil else { continue }
-            var marked = stored
-            marked.summaryFailure = Self.legacySummaryFailure
             do {
+                guard let stored = try loadTranscription(for: meeting.id),
+                      let summary = stored.summary, summary.model == nil,
+                      stored.summaryFailure == nil else { continue }
+                var marked = stored
+                marked.summaryFailure = Self.legacySummaryFailure
                 _ = try writeAnalysis(marked, for: meeting)
                 flagged += 1
             } catch {
                 AppLogger.persistenceFailed(operation: "flag-legacy-summary", error: error)
+                lastFailure = error
             }
         }
+        if let lastFailure { throw lastFailure }
+        try Data().write(to: marker, options: .atomic)
         return flagged
     }
 

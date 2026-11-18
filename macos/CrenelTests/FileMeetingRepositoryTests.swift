@@ -251,6 +251,23 @@ final class FileMeetingRepositoryTests: XCTestCase {
         XCTAssertNil(modernStored?.summaryFailure)
     }
 
+    func testCompletedMigrationSkipsTranscriptReadsAcrossLaunchesAndLoadReadsOnlyRequestedID() async throws {
+        let meeting = try await repository.saveCapture(try makeCapture(title: "Example", startedAt: .now))
+        _ = try await repository.saveTranscription(.init(transcript: Transcript(text: "Text", languageCode: "en", segments: [])),
+            summary: MeetingSummary(overview: "Modern", decisions: [], actionItems: [], model: "fixture"), for: meeting)
+        _ = try await repository.flagLegacySummaries()
+        let path = root.appending(path: "Meetings").appending(path: meeting.id.uuidString)
+        try Data("unreadable transcript".utf8).write(to: path.appending(path: "transcript.json"))
+        let reopened = FileMeetingRepository(rootURL: root)
+        let count = try await reopened.flagLegacySummaries()
+        XCTAssertEqual(count, 0)
+        let other = root.appending(path: "Meetings").appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
+        let loaded = try await (reopened as any MeetingRepository).load(id: meeting.id)
+        XCTAssertEqual(loaded?.id, meeting.id)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: other.path), "A point lookup must not scan or move unrelated directories")
+    }
+
     private func makeCapture(title: String, startedAt: Date) throws -> RecordingCaptureResult {
         let id = UUID()
         let directory = root
