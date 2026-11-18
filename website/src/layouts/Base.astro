@@ -33,7 +33,7 @@ const og = Astro.site ? new URL('/og.jpg', Astro.site).href : '/og.jpg';
   </head>
   <body>
     <Sprite />
-    <!-- One gradient behind the whole page; sections sit on it, they don't cut it. -->
+    <!-- The page background: colour at the top, fading to white as it scrolls. -->
     <Wallpaper />
     <Nav />
     <slot />

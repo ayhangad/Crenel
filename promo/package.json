@@ -9,7 +9,8 @@
     "render:mp4": "npm run css && remotion render CrenelPromo out/crenel-promo.raw.mp4 --codec=h264 --crf=16 --pixel-format=yuv420p && ffmpeg -y -v error -i out/crenel-promo.raw.mp4 -i music/soundtrack.mp3 -filter_complex \"[1:a]afade=t=out:st=32.5:d=1.5,volume=0.9[a]\" -map 0:v -map \"[a]\" -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/crenel-promo.mp4 && rm out/crenel-promo.raw.mp4",
     "render:poster": "npm run css && remotion still Poster out/poster.png",
     "render:gif": "remotion render CrenelPromo out/gif-src.mp4 --props='{\"flat\":true}' --scale=0.5 --crf=10 && ffmpeg -y -v error -i out/gif-src.mp4 -vf \"fps=15,palettegen=max_colors=256:stats_mode=diff:reserve_transparent=0\" out/palette.png && ffmpeg -y -v error -i out/gif-src.mp4 -i out/palette.png -lavfi \"fps=15[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle\" out/crenel-promo.gif && rm out/palette.png out/gif-src.mp4",
-    "render": "npm run render:mp4 && npm run render:gif && npm run render:poster"
+    "render": "npm run render:mp4 && npm run render:gif && npm run render:poster",
+    "render:illustrations": "npm run css && node scripts/illustrations.mjs"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.544",

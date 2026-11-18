@@ -1,0 +1,6 @@
+---
+// Every picture of the app sits in the same 16:10 frame (renders from promo/, "Illustration").
+interface Props { src: string; alt: string; class?: string; eager?: boolean }
+const { src, alt, class: cls = '', eager = false } = Astro.props;
+---
+<figure class={`frame ${cls}`}><img src={src} alt={alt} width="1600" height="1000" loading={eager ? 'eager' : 'lazy'} decoding="async" /></figure>

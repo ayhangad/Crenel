@@ -24,7 +24,8 @@ next meeting and how long until it starts. When something needs you, a single li
 under it. Hover, and it opens into a panel.
 
 <p align="center">
-  <img src="docs/media/notch-compact.png" alt="Closed notch with a meeting countdown" width="80%">
+  <img src="docs/media/ill-meeting.jpg" alt="Closed notch with a meeting countdown" width="49%">
+  <img src="docs/media/ill-ready.jpg" alt="A strip under the notch: notes and 3 action items are ready" width="49%">
 </p>
 
 ### Calendar
@@ -34,7 +35,7 @@ Your next event and the time to it, or how long is left in the one you're in. Ca
 reads Apple Calendar, so iCloud, Google and Exchange accounts all work.
 
 <p align="center">
-  <img src="docs/media/notch-today.png" alt="Today in the open notch: next meeting gauge, timeline and agenda" width="70%">
+  <img src="docs/media/ill-today.jpg" alt="Today in the open notch: next meeting gauge, Record and Join, timeline and agenda" width="100%">
 </p>
 
 ### Dictation
@@ -44,7 +45,8 @@ your Mac and the audio is never saved. Long dictation grows into a live view, an
 takes it back. Say "add task…" and it becomes a task instead.
 
 <p align="center">
-  <img src="docs/media/notch-dictation.png" alt="Dictation strip showing the inserted text and the app it went into" width="80%">
+  <img src="docs/media/ill-dictation.jpg" alt="Holding fn: the notch listens and shows the words live" width="49%">
+  <img src="docs/media/ill-inserted.jpg" alt="The words were inserted where the cursor was" width="49%">
 </p>
 
 ### Meeting notes
@@ -55,12 +57,8 @@ speakers, a summary, what was decided, and what's on you. Export it as Markdown,
 plain text.
 
 <p align="center">
-  <img src="docs/media/notch-recording.png" alt="Recording a call: elapsed time, waveform and levels" width="49%">
-  <img src="docs/media/notch-notes.png" alt="Meeting notes: summary, decisions, action items and transcript" width="49%">
-</p>
-
-<p align="center">
-  <img src="docs/media/notch-ready.png" alt="Notes and 3 action items are ready" width="80%">
+  <img src="docs/media/ill-call.jpg" alt="A Zoom call starts and Crenel asks whether to record it" width="49%">
+  <img src="docs/media/ill-recording.jpg" alt="Recording a call: elapsed time, waveform and levels for your mic and the call" width="49%">
 </p>
 
 ### Tasks
@@ -70,7 +68,7 @@ you write. Tasks live in a **Crenel** list in Apple Reminders, so they follow yo
 iPhone and Watch.
 
 <p align="center">
-  <img src="docs/media/notch-tasks.png" alt="Tasks in the open notch" width="70%">
+  <img src="docs/media/ill-tasks.jpg" alt="Tasks in the open notch" width="100%">
 </p>
 
 ### And a window when you want one
@@ -79,7 +77,7 @@ Everything in the notch also opens in a full desktop window: your day at a glanc
 meeting, tasks, dictation history and settings.
 
 <p align="center">
-  <img src="docs/media/desktop-today.png" alt="The Crenel desktop window, Today page" width="100%">
+  <img src="docs/media/ill-window.jpg" alt="The Crenel desktop window, Today page, under the notch" width="100%">
 </p>
 
 ## Private by design

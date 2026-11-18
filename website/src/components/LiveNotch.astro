@@ -1,6 +1,7 @@
 ---
-// The page's own notch, hanging from the top edge. It plays the app's closed states in turn
-// (a meeting countdown, dictation, notes ready) and opens into the Today panel on hover.
+// The page's own notch, hanging from the top of the fixed navigation bar. It plays the app's
+// closed states in turn (a meeting countdown, dictation, notes ready) and opens into the
+// Today panel on hover.
 import Icon from './Icon.astro';
 import Lamp from './Lamp.astro';
 import Seg from './Seg.astro';
@@ -44,13 +45,9 @@ import Seg from './Seg.astro';
 
       <!-- Open: the Today panel. -->
       <div class="layer" data-layer="open">
-        <div class="panel"><img src="/media/notch-today.webp" alt="" width="560" height="516" loading="eager" /></div>
+        <div class="panel"><img src="/media/panel-today.webp" alt="" width="560" height="516" loading="eager" /></div>
       </div>
     </div>
-  </div>
-  <div class="notch-hint" aria-hidden="true">
-    <svg class="cursor" viewBox="0 0 22 32"><path d="M4 3 L4 25 L9.2 20.2 L12.6 28.2 L16 26.7 L12.7 18.9 L19.6 18.9 Z" fill="#000" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" /></svg>
-    Hover the notch
   </div>
 </div>
 
