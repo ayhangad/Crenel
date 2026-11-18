@@ -1679,6 +1679,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = gad.Crenel.BrowserAudioHost;
 				PRODUCT_NAME = CrenelBrowserAudioHost;
 				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
 			};
 			name = Release;
 		};
@@ -1741,6 +1742,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = gad.Crenel.BrowserAudioHost;
 				PRODUCT_NAME = CrenelBrowserAudioHost;
 				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
 			};
 			name = Debug;
 		};

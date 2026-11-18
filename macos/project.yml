@@ -46,6 +46,9 @@ targets:
         PRODUCT_NAME: CrenelBrowserAudioHost
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: YES
+        # Embedded in Crenel.app; installing it on its own makes the archive a generic
+        # one that Developer ID export refuses.
+        SKIP_INSTALL: YES
 
   Crenel:
     type: application
