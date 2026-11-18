@@ -42,7 +42,7 @@ final class AppUpdateCoordinator {
         updater?.checkForUpdates()
     }
 
-    /// Restart ↩: never during a recording.
+    /// Restart ↩: never during a recording or a dictation.
     @discardableResult
     func restartToUpdate() -> Task<Void, Never>? {
         guard case .ready(let version) = appState.updatePhase, !audioIsBusy else { return nil }
@@ -60,10 +60,12 @@ final class AppUpdateCoordinator {
 
     var canRestart: Bool { appState.updatePhase.isReady && !audioIsBusy }
 
+    /// A recording, or a dictation still listening or delivering its text.
     private var audioIsBusy: Bool {
+        if appState.dictationState.isBusy { return true }
         switch appState.meetingFlow {
-        case .preparingRecording, .recording, .finalizingAudio: true
-        default: false
+        case .preparingRecording, .recording, .finalizingAudio: return true
+        default: return false
         }
     }
 

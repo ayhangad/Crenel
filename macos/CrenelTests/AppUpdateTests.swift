@@ -84,6 +84,28 @@ final class AppUpdateTests: XCTestCase {
         }
     }
 
+    func testDelayedRestartWaitsForADictationThatStartedMeanwhile() async {
+        final class Updater: AppUpdater {
+            var onPhaseChange: ((AppUpdatePhase) -> Void)?
+            var installs = 0
+            func checkForUpdates() {}
+            func installAndRelaunch() { installs += 1 }
+        }
+        let state = AppState(initialFlow: .idle)
+        let updater = Updater()
+        let coordinator = AppUpdateCoordinator(appState: state) {
+            state.updateDictationState(.listening(startedAt: Date(), level: 0))
+        }
+        coordinator.attach(updater)
+        state.updateUpdatePhase(.ready(version))
+        await coordinator.restartToUpdate()?.value
+        XCTAssertEqual(updater.installs, 0)
+        XCTAssertEqual(state.updatePhase, .ready(version))
+        XCTAssertFalse(coordinator.canRestart)
+        state.updateDictationState(.idle)
+        XCTAssertTrue(coordinator.canRestart)
+    }
+
     func testRestartIsRefusedDuringARecording() {
         let appState = AppState(initialFlow: .recording(startedAt: Date()))
         let coordinator = AppUpdateCoordinator(appState: appState)
