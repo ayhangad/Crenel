@@ -74,11 +74,38 @@ actor EventKitReminderStore: ReminderStore {
         let title: String
         let writable: Bool
         let isEmpty: Bool
+        /// Carries the colour Crenel gives the lists it creates. It syncs with the list, so
+        /// another Mac, or this one after "Delete all data", finds the same list again.
+        var hasCrenelColor = false
     }
 
+    /// The list Crenel created, else an empty list with the name. A list with the name that
+    /// holds someone else's reminders (a shared list, say) is never taken over.
     static func selectList(_ lists: [ListCandidate], preferred: String?, title: String) -> String? {
         if let preferred, lists.contains(where: { $0.identifier == preferred && $0.writable }) { return preferred }
-        return lists.filter { $0.title == title && $0.writable && $0.isEmpty }.map(\.identifier).min()
+        let named = lists.filter { $0.title == title && $0.writable }
+        return named.filter(\.hasCrenelColor).map(\.identifier).min()
+            ?? named.filter(\.isEmpty).map(\.identifier).min()
+    }
+
+    static let listColor = (red: 0.37, green: 0.85, blue: 0.59)
+
+    /// Earlier builds made the colour in generic RGB, so both spellings count.
+    static func isCrenelColor(_ color: CGColor?) -> Bool {
+        let c = listColor
+        let known = [CGColor(srgbRed: c.red, green: c.green, blue: c.blue, alpha: 1),
+                     CGColor(red: c.red, green: c.green, blue: c.blue, alpha: 1)]
+        guard let mine = srgbComponents(color) else { return false }
+        return known.compactMap(srgbComponents).contains { expected in
+            zip(mine, expected).allSatisfy { abs($0 - $1) < 0.03 }
+        }
+    }
+
+    private static func srgbComponents(_ color: CGColor?) -> [CGFloat]? {
+        guard let srgb = CGColorSpace(name: CGColorSpace.sRGB),
+              let parts = color?.converted(to: srgb, intent: .defaultIntent, options: nil)?.components,
+              parts.count >= 3 else { return nil }
+        return Array(parts.prefix(3))
     }
 
     func prepareList(preferredIdentifier: String?, title: String) async throws -> String {
@@ -95,7 +122,8 @@ actor EventKitReminderStore: ReminderStore {
                 }
             }
             candidates.append(ListCandidate(identifier: list.calendarIdentifier, title: list.title,
-                                            writable: list.allowsContentModifications, isEmpty: empty))
+                                            writable: list.allowsContentModifications, isEmpty: empty,
+                                            hasCrenelColor: Self.isCrenelColor(list.cgColor)))
         }
         if let selected = Self.selectList(candidates, preferred: preferredIdentifier, title: title) { return selected }
 
@@ -105,7 +133,7 @@ actor EventKitReminderStore: ReminderStore {
         let list = EKCalendar(for: .reminder, eventStore: eventStore)
         list.title = title
         list.source = source
-        list.cgColor = CGColor(red: 0.37, green: 0.85, blue: 0.59, alpha: 1)
+        list.cgColor = CGColor(srgbRed: Self.listColor.red, green: Self.listColor.green, blue: Self.listColor.blue, alpha: 1)
         try eventStore.saveCalendar(list, commit: true)
         return list.calendarIdentifier
     }

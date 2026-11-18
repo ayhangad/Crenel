@@ -421,6 +421,12 @@ final class CrenelTaskTests: XCTestCase {
         XCTAssertNil(EventKitReminderStore.selectList([occupied, readOnly], preferred: nil, title: "Crenel"))
         XCTAssertEqual(EventKitReminderStore.selectList([occupied, empty], preferred: nil, title: "Crenel"), "empty")
         XCTAssertEqual(EventKitReminderStore.selectList([occupied, empty], preferred: "used", title: "Crenel"), "used")
+        let ours = Candidate(identifier: "ours", title: "Crenel", writable: true, isEmpty: false, hasCrenelColor: true)
+        XCTAssertEqual(EventKitReminderStore.selectList([occupied, empty, ours], preferred: nil, title: "Crenel"), "ours",
+                       "After Delete all data or on another Mac, the list Crenel made is found again")
+        XCTAssertTrue(EventKitReminderStore.isCrenelColor(CGColor(srgbRed: 0.37, green: 0.85, blue: 0.59, alpha: 1)))
+        XCTAssertTrue(EventKitReminderStore.isCrenelColor(CGColor(red: 0.37, green: 0.85, blue: 0.59, alpha: 1)))
+        XCTAssertFalse(EventKitReminderStore.isCrenelColor(CGColor(srgbRed: 0.2, green: 0.5, blue: 0.9, alpha: 1)))
         XCTAssertThrowsError(try EventKitReminderStore.verifyOwnership(actual: "other", expected: "owned"))
         let store = FakeReminderStore()
         let repository = makeRepository(store: store)

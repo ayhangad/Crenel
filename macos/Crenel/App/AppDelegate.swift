@@ -784,7 +784,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     message: "Local data was deleted, but at least one Keychain key remains. Try again."
                 )
             }
-            return .succeeded(message: "All meetings, tasks, settings and API keys were deleted.")
+            return .succeeded(message: "All meetings, tasks, settings and API keys on this Mac were deleted. Tasks already in Reminders stay in the Crenel list there.")
         } catch {
             AppLogger.persistenceFailed(operation: "delete-all-data", error: error)
             return .failed(message: "Couldn't delete all data. Try again.")
