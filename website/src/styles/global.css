@@ -235,7 +235,7 @@ p { margin: 0; text-wrap: pretty; }
 .layered.on { opacity: 1; scale: 1; }
 
 /* One notch, three sizes. */
-.sizes { margin-top: 160px; display: grid; gap: 18px; width: min(1000px, 100% - 48px); }
+.sizes { margin-top: 240px; display: grid; gap: 18px; width: min(1000px, 100% - 48px); }
 .sizes-frame { position: relative; aspect-ratio: 16 / 10; }
 .sizes-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .size-tab {
