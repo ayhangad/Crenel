@@ -61,7 +61,10 @@ final class MeetingOwnerTests: XCTestCase {
         let router = MeetingSummaryRouter(
             preferences: { .default },
             agentPreferences: { AgentPreferences() },
-            openAI: Fixed(),
+            makeAgentService: { preferences in
+                XCTAssertEqual(preferences.provider, .onDevice)
+                return Fixed()
+            },
             owner: owner
         )
         let summary = try await router.generate(from: transcript)
