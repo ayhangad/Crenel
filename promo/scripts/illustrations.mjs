@@ -1,6 +1,8 @@
 // Renders the app pictures used by the README (docs/media/ill-*.jpg) and the website
 // (website/public/media/ill-*.webp): one 1600×1000 frame each, the notch over the wallpaper
-// at a chosen moment of the film. Composition: "Illustration" in src/Illustration.tsx.
+// at a chosen moment of the film. `crop` is how many film points the picture spans: the
+// notch is drawn large, not at real screen scale, and open panels get a wider crop to fit.
+// Composition: "Illustration" in src/Illustration.tsx.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -9,14 +11,14 @@ const require = createRequire(new URL('../../website/package.json', import.meta.
 const sharp = require('sharp');
 
 const SHOTS = {
-  meeting: { frame: 90 },
-  today: { frame: 200 },
-  dictation: { frame: 340 },
-  inserted: { frame: 420 },
-  call: { frame: 494 },
-  recording: { frame: 600 },
-  ready: { frame: 735 },
-  tasks: { frame: 870 },
+  meeting: { frame: 90, crop: 600 },
+  today: { frame: 200, crop: 860 },
+  dictation: { frame: 340, crop: 600 },
+  inserted: { frame: 420, crop: 600 },
+  call: { frame: 494, crop: 600 },
+  recording: { frame: 600, crop: 780 },
+  ready: { frame: 735, crop: 600 },
+  tasks: { frame: 870, crop: 860 },
   window: { frame: 90, window: true },
 };
 

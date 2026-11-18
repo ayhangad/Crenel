@@ -6,15 +6,13 @@ import { camAt } from './timeline';
 
 // One frame size for every picture of the notch (README and website): a 16:10 crop of the
 // film's top centre, the notch hanging from the top edge over the living wallpaper. The
-// film's camera zoom is cancelled, so the notch is the same size in every picture.
+// film's camera zoom is cancelled; each shot picks its own crop (see scripts/illustrations.mjs).
 export const ILLUSTRATION = { width: 1600, height: 1000 };
-const CROP_W = 1100; // film points shown across the picture
-const K = ILLUSTRATION.width / CROP_W;
-
-type Props = { frame?: number; window?: boolean };
+type Props = { frame?: number; window?: boolean; crop?: number };
 
 export const Illustration: React.FC = () => {
-  const { frame = 200, window: showWindow = false } = getInputProps() as Props;
+  const { frame = 200, window: showWindow = false, crop = 1100 } = getInputProps() as Props;
+  const K = ILLUSTRATION.width / crop; // crop = film points shown across the picture
   const s = camAt(frame);
   return (
     <FrameContext.Provider value={frame}>
