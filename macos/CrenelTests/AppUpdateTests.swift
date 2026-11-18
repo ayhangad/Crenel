@@ -56,6 +56,11 @@ final class AppUpdateTests: XCTestCase {
         XCTAssertEqual(AppLaunchVersion.updatedVersion(current: "1.10", defaults: defaults), "1.10")
         XCTAssertNil(AppLaunchVersion.updatedVersion(current: "1.10", defaults: defaults))
         XCTAssertNil(AppLaunchVersion.updatedVersion(current: "1.9", defaults: defaults), "a downgrade is not an update")
+        XCTAssertEqual(AppLaunchVersion.updatedVersion(current: "1.10", build: "87", defaults: defaults), "1.10")
+        XCTAssertNil(AppLaunchVersion.updatedVersion(current: "1.10", build: "87", defaults: defaults))
+        XCTAssertEqual(AppLaunchVersion.updatedVersion(current: "1.10", build: "148", defaults: defaults), "1.10",
+                       "a newer build of the same version is an update")
+        XCTAssertNil(AppLaunchVersion.updatedVersion(current: "1.10", build: "148", defaults: defaults))
     }
 
     func testDelayedRestartRechecksEveryAudioPhase() async {

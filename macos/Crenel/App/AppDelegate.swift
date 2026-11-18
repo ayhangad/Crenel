@@ -1126,9 +1126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func presentOnboarding() {
         if let onboardingWindowController {
-            onboardingWindowController.showWindow(nil)
-            onboardingWindowController.window?.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            onboardingWindowController.window?.presentAsRegularAppWindow()
             return
         }
 
@@ -1163,15 +1161,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // A menu-bar app's window falls behind other apps whenever focus moves (a
         // permission prompt, a click elsewhere). While setup is open Crenel behaves like a
         // regular app: it has a Dock icon, takes part in ⌘Tab and keeps its window.
-        NSApp.setActivationPolicy(.regular)
-        controller.showWindow(nil)
         bringOnboardingToFront()
     }
 
     private func bringOnboardingToFront() {
-        guard let window = onboardingWindowController?.window else { return }
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate()
+        onboardingWindowController?.window?.presentAsRegularAppWindow()
     }
 
     private func onboardingDidClose() {

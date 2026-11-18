@@ -50,14 +50,25 @@ struct AppUpdateNotices: Equatable, Sendable {
 /// Compares this launch's version with the last one, to say "Updated" once.
 enum AppLaunchVersion {
     static let lastLaunchedKey = "lastLaunchedVersion"
+    static let lastLaunchedBuildKey = "lastLaunchedBuild"
 
-    /// The version this launch updated to, if the app was updated since the last launch.
-    /// Records the current version either way.
-    static func updatedVersion(current: String, defaults: UserDefaults = .standard) -> String? {
+    /// The version this launch updated to, if the app was updated since the last launch:
+    /// a newer version, or a newer build of the same version. Records both either way.
+    static func updatedVersion(current: String, build: String? = nil, defaults: UserDefaults = .standard) -> String? {
         let last = defaults.string(forKey: lastLaunchedKey)
+        let lastBuild = defaults.string(forKey: lastLaunchedBuildKey)
         defaults.set(current, forKey: lastLaunchedKey)
-        guard let last, last != current,
-              current.compare(last, options: .numeric) == .orderedDescending else { return nil }
-        return current
+        defaults.set(build, forKey: lastLaunchedBuildKey)
+        guard let last else { return nil }
+        switch current.compare(last, options: .numeric) {
+        case .orderedDescending:
+            return current
+        case .orderedSame:
+            guard let build, let lastBuild,
+                  build.compare(lastBuild, options: .numeric) == .orderedDescending else { return nil }
+            return current
+        case .orderedAscending:
+            return nil
+        }
     }
 }

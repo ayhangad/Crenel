@@ -32,6 +32,26 @@ final class DesktopNavigation: ObservableObject {
     @Published var settingsCategory = SettingsCategory.general
 }
 
+extension NSWindow {
+    /// Crenel runs as a menu-bar (accessory) app, and an accessory app's window is ordered in
+    /// on whatever Space is showing, even another app's full-screen Space. Become a regular
+    /// app first and show the window once that has taken effect, so macOS puts it on a
+    /// desktop like any other app window.
+    func presentAsRegularAppWindow() {
+        collectionBehavior.remove([.canJoinAllSpaces, .moveToActiveSpace, .fullScreenAuxiliary])
+        collectionBehavior.insert(.managed)
+        let wasAccessory = NSApp.activationPolicy() != .regular
+        if wasAccessory { NSApp.setActivationPolicy(.regular) }
+        let show = { [weak self] in
+            guard let self else { return }
+            deminiaturize(nil)
+            makeKeyAndOrderFront(nil)
+            NSApp.activate()
+        }
+        if wasAccessory { DispatchQueue.main.async(execute: show) } else { show() }
+    }
+}
+
 extension Notification.Name {
     static let openDesktopWorkspace = Notification.Name("Crenel.openDesktopWorkspace")
     static let desktopDidClose = Notification.Name("Crenel.desktopDidClose")
@@ -84,11 +104,7 @@ final class DesktopWindowController: NSWindowController, NSWindowDelegate {
         if let category { navigation.settingsCategory = category }
         if let section { navigation.section = section }
         navigation.isVisible = true
-        NSApp.setActivationPolicy(.regular)
-        showWindow(nil)
-        window?.deminiaturize(nil)
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        window?.presentAsRegularAppWindow()
     }
 
     func windowWillClose(_ notification: Notification) {

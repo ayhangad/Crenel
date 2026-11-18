@@ -72,7 +72,8 @@ final class AppUpdateCoordinator {
     /// On launch: if this is a newer version than last time, say so for a few seconds.
     func announceIfUpdated(releaseNotesURL: URL?) {
         let current = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
-        guard let version = AppLaunchVersion.updatedVersion(current: current) else { return }
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+        guard let version = AppLaunchVersion.updatedVersion(current: current, build: build) else { return }
         showUpdated(AppUpdateVersion(shortVersion: version, releaseNotesURL: releaseNotesURL))
     }
 
