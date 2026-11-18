@@ -215,15 +215,23 @@ final class CrenelNotchController: ObservableObject {
         hoverPoll?.cancel()
         hoverPoll = nil
         if presentation == .expanded {
-            hoverPoll = Task { [weak self] in
-                while !Task.isCancelled {
-                    do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
-                    guard let self else { return }
-                    self.updateMouseHandling()
-                }
+            hoverPoll = Self.pollExpandedHover { [weak self] in
+                guard let self else { return false }
+                updateMouseHandling()
+                return true
             }
         }
         updateMouseHandling()
+    }
+
+    static func pollExpandedHover(interval: Duration = .milliseconds(100),
+                                  sample: @escaping @MainActor () -> Bool) -> Task<Void, Never> {
+        Task {
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: interval) } catch { return }
+                guard sample() else { return }
+            }
+        }
     }
 
     private func resignInput() {

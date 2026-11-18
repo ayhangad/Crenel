@@ -693,6 +693,40 @@ extension NotchPresentationTests {
     }
 
     @MainActor
+    func testInitialPanelLayoutIncludesSelectedRecordingsBeforeAppearAndStaysAtContentHeight() {
+        let state = AppState()
+        state.selectedTab = .recordings
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let fixture = (0..<24).map { row in
+            StoredMeeting(id: UUID(), title: "Fixture meeting \(row)", startedAt: start.addingTimeInterval(Double(row * 120)),
+                endedAt: start.addingTimeInterval(Double(row * 120 + 60)), sourceMeeting: nil, audioFileName: "fixture.m4a")
+        }
+        state.replaceStoredMeetings([fixture[0]])
+        let host = NSHostingView(rootView: NotchPanelView().environmentObject(state).fixedSize())
+        let first = host.fittingSize
+        let container = NSView(frame: CGRect(origin: .zero, size: first))
+        host.frame = container.bounds
+        container.addSubview(host)
+        let window = NSWindow(contentRect: container.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = container
+        defer { window.contentView = nil }
+        host.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+        host.layoutSubtreeIfNeeded()
+        let settled = host.fittingSize
+        XCTAssertGreaterThan(settled.height, 100)
+        XCTAssertEqual(first.height, settled.height, accuracy: 1)
+
+        state.replaceStoredMeetings(fixture)
+        RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+        let tall = host.fittingSize
+        XCTAssertGreaterThan(tall.height, settled.height + 150)
+        state.replaceStoredMeetings([fixture[0]])
+        RunLoop.main.run(until: Date().addingTimeInterval(0.15))
+        XCTAssertEqual(host.fittingSize.height, settled.height, accuracy: 1)
+    }
+
+    @MainActor
     func testTabChangesKeepScrollContainerAndHideIndicators() throws {
         let state = AppState()
         let host = NSHostingView(rootView: NotchPanelView().environmentObject(state))

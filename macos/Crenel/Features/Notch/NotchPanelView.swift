@@ -133,7 +133,7 @@ struct NotchPanelView: View {
                     // Tabs stay built once shown: switching only changes which one is
                     // visible, instead of building a whole surface (≈50 ms) on the click.
                     ForEach(AppState.PanelTab.allCases) { tab in
-                        if mountedTabs.contains(tab) {
+                        if mountedTabs.contains(tab) || (appState.presentedMeetingDetail == nil && tab == appState.selectedTab) {
                             tabContent(tab)
                                 .modifier(PanelTabVisibility(
                                     isActive: appState.presentedMeetingDetail == nil && appState.selectedTab == tab,
@@ -171,6 +171,7 @@ struct NotchPanelView: View {
             // Build the other tabs once the opening motion has settled, so the first
             // switch to them is as quick as the rest.
             try? await Task.sleep(for: .seconds(1.1))
+            guard !Task.isCancelled else { return }
             mountedTabs.formUnion(AppState.PanelTab.allCases)
         }
     }
@@ -285,7 +286,6 @@ struct NotchPanelScrollableContent<Content: View>: View {
     let maximumHeight: CGFloat
     let bottomContentInset: CGFloat
     let content: Content
-    @State private var contentHeight: CGFloat?
 
     init(
         maximumHeight: CGFloat,
@@ -301,14 +301,13 @@ struct NotchPanelScrollableContent<Content: View>: View {
         ScrollView {
             content
                 .padding(.bottom, bottomContentInset)
-                .onGeometryChange(for: CGFloat.self, of: \.size.height) { height in
-                    contentHeight = height
-                }
         }
         .scrollIndicators(.never)
         .scrollBounceBehavior(.basedOnSize)
-        .frame(height: contentHeight.map { min($0, maximumHeight) })
+        // On macOS the scroll view has the ideal height of its document. Ask for that
+        // size with the viewport cap in the same layout pass, including on first mount.
         .frame(maxHeight: maximumHeight)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

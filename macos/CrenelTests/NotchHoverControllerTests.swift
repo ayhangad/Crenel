@@ -139,6 +139,28 @@ final class NotchHoverControllerTests: XCTestCase {
         XCTAssertEqual(CrenelNotchController.expandedHoverBounds(previous: .null, current: short), short)
     }
 
+    func testStationaryPointerIsResampledBeforeCompaction() async throws {
+        let probe = NotchTransitionProbe()
+        let controller = makeController(probe: probe, compactionDelay: .milliseconds(100))
+        controller.markExpanded()
+        controller.update(isHovering: false)
+        let pointer = CGPoint(x: 150, y: 610)
+        let retained = CrenelNotchController.expandedHoverBounds(
+            previous: CGRect(x: 80, y: 0, width: 500, height: 645),
+            current: CGRect(x: 80, y: 0, width: 500, height: 408))
+        var samples = 0
+        let polling = CrenelNotchController.pollExpandedHover(interval: .milliseconds(10)) {
+            samples += 1
+            controller.update(isHovering: retained.contains(pointer))
+            return samples < 2
+        }
+        await polling.value
+        try await Task.sleep(for: .milliseconds(120))
+        XCTAssertEqual(samples, 2)
+        XCTAssertEqual(controller.presentationState, .expanded)
+        XCTAssertEqual(probe.compactionCount, 0)
+    }
+
     private func makeController(
         probe: NotchTransitionProbe,
         expansionDelay: Duration = .milliseconds(10),
