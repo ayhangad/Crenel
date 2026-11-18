@@ -64,7 +64,7 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
             calendars: calendars
         )
         let events = calendars.isEmpty ? [] : eventStore.events(matching: predicate)
-        let meetings = deduplicatedMeetings(
+        let meetings = CalendarEventClassifier.deduplicatedMeetings(
             events
                 .filter(isRelevantEvent)
                 .compactMap(makeMeeting)
@@ -140,29 +140,6 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
         )
     }
 
-    private func deduplicatedMeetings(_ meetings: [Meeting]) -> [Meeting] {
-        var seen = Set<String>()
-        return meetings
-            .sorted { lhs, rhs in
-                if lhs.startDate == rhs.startDate {
-                    return lhs.title.localizedStandardCompare(rhs.title) == .orderedAscending
-                }
-                return lhs.startDate < rhs.startDate
-            }
-            .filter { meeting in
-                let key = [
-                    meeting.title.folding(
-                        options: [.caseInsensitive, .diacriticInsensitive],
-                        locale: .current
-                    ),
-                    String(meeting.startDate.timeIntervalSince1970),
-                    String(meeting.endDate.timeIntervalSince1970),
-                    meeting.meetingURL?.absoluteString ?? ""
-                ].joined(separator: "|")
-                return seen.insert(key).inserted
-            }
-    }
-
     private func sourceSummaries(for calendars: [EKCalendar]) -> [CalendarSourceSummary] {
         let counts = calendars.reduce(into: [CalendarAccountKind: Int]()) { result, calendar in
             result[accountKind(for: calendar.source), default: 0] += 1
@@ -206,6 +183,27 @@ enum CalendarEventClassifier {
     /// `EKCalendarType` 5 is the undocumented "Siri Suggestions" calendar, which holds
     /// events Siri found in Mail and Messages.
     static let siriSuggestionsCalendarTypeRawValue = 5
+
+    static func deduplicatedMeetings(_ meetings: [Meeting]) -> [Meeting] {
+        struct LinkedOccurrence: Hashable {
+            let url: URL
+            let start: Date
+            let end: Date
+        }
+        var seen = Set<LinkedOccurrence>()
+        let byIdentity = meetings.sorted {
+            ($0.calendarIdentifier ?? "", $0.eventIdentifier ?? "", $0.id.uuidString)
+                < ($1.calendarIdentifier ?? "", $1.eventIdentifier ?? "", $1.id.uuidString)
+        }
+        return byIdentity.filter { meeting in
+            guard let url = meeting.meetingURL else { return true }
+            return seen.insert(LinkedOccurrence(url: url, start: meeting.startDate, end: meeting.endDate)).inserted
+        }.sorted { lhs, rhs in
+            if lhs.startDate != rhs.startDate { return lhs.startDate < rhs.startDate }
+            let order = lhs.title.localizedStandardCompare(rhs.title)
+            return order == .orderedSame ? lhs.id.uuidString < rhs.id.uuidString : order == .orderedAscending
+        }
+    }
 
     static func kind(hasMeetingURL: Bool, otherAttendeeCount: Int) -> CalendarItemKind {
         if hasMeetingURL { return .onlineMeeting }

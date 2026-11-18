@@ -10,6 +10,21 @@ final class NotchAgendaTests: XCTestCase {
         return calendar
     }
 
+    func testCalendarDedupKeepsUnlinkedEventsAndPicksStableLinkedOccurrence() throws {
+        let date = Date(timeIntervalSince1970: 1000)
+        func event(_ calendar: String, linked: Bool, offset: Double = 0) -> Meeting {
+            Meeting(title: "Planning", startDate: date.addingTimeInterval(offset), endDate: date.addingTimeInterval(600 + offset),
+                    meetingURL: linked ? URL(string: "https://meet.google.com/room") : nil, calendarIdentifier: calendar)
+        }
+        let one = event("A", linked: false), two = event("B", linked: false)
+        let first = event("A", linked: true), duplicate = event("B", linked: true)
+        let tomorrow = event("B", linked: true, offset: 86_400)
+        let input = [one, duplicate, tomorrow, first, two]
+        let output = CalendarEventClassifier.deduplicatedMeetings(input)
+        XCTAssertEqual(Set(output.map(\.id)), [one.id, two.id, first.id, tomorrow.id])
+        XCTAssertEqual(output, CalendarEventClassifier.deduplicatedMeetings(input.reversed()))
+    }
+
     func testNoItemsResolvesToNil() {
         XCTAssertNil(NotchAgendaStatus.resolve(items: [], now: now))
     }
