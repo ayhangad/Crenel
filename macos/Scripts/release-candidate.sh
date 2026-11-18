@@ -14,6 +14,8 @@
 
 set -euo pipefail
 
+source "${0:A:h}/release-helpers.zsh"
+
 version="${1:-}"
 shift || true
 signed=1
@@ -25,7 +27,7 @@ for argument in "$@"; do
         *) print -u2 "Unknown option: ${argument}"; exit 2 ;;
     esac
 done
-if [[ -z "${version}" || "${version}" == --* ]]; then
+if ! release_version_is_valid "${version}"; then
     print -u2 "usage: release-candidate.sh <version> [--publish | --unsigned]"
     exit 2
 fi
@@ -36,7 +38,7 @@ fi
 
 repo_root="${0:A:h:h}"
 monorepo_root="${repo_root:h}"
-artifact_root="${repo_root}/artifacts/release/${version}"
+artifact_root="$(checked_artifact_directory "${repo_root}" "${version}")" || { print -u2 "Invalid artifact directory."; exit 2; }
 archive_path="${artifact_root}/Crenel.xcarchive"
 export_path="${artifact_root}/export"
 dmg_work="${artifact_root}/dmg"
@@ -84,7 +86,8 @@ if (( signed )) && [[ ! -x "${sparkle_tools}/bin/generate_appcast" ]]; then
         | tar -xJ -C "${sparkle_tools}"
 fi
 
-rm -rf "${artifact_root}"
+[[ "$(checked_artifact_directory "${repo_root}" "${version}")" == "${artifact_root}" ]] || fail "Invalid cleanup target."
+rm -rf -- "${artifact_root}"
 mkdir -p "${artifact_root}" "${updates_dir}"
 rm -f "${dmg_path}"
 
