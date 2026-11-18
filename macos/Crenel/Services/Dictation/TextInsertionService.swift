@@ -130,7 +130,7 @@ final class TextInsertionService: DictationTextInserting {
             insertedLength: Int
         )
         /// ⌘V went to this app; ⌘Z takes it back while the field still shows the paste.
-        case paste(bundleIdentifier: String, valueAfter: String?)
+        case paste(bundleIdentifier: String, element: any FocusedTextElement, valueAfter: String)
     }
 
     init(
@@ -242,12 +242,10 @@ final class TextInsertionService: DictationTextInserting {
             if let selectionBefore { _ = focused.setSelectedRange(selectionBefore) }
             return true
 
-        case let .paste(bundleIdentifier, valueAfter):
-            guard elements.frontmostApplication().bundleIdentifier == bundleIdentifier else { return false }
-            // When the field is readable it must still show what the paste left there.
-            if let valueAfter, let current = elements.focusedElement()?.value, current != valueAfter {
-                return false
-            }
+        case let .paste(bundleIdentifier, element, valueAfter):
+            guard elements.frontmostApplication().bundleIdentifier == bundleIdentifier,
+                  let current = elements.focusedElement(), current.isSame(as: element),
+                  !TextInsertionPolicy.isSecure(current), current.value == valueAfter else { return false }
             return keystrokes.sendUndo()
         }
     }
@@ -281,6 +279,8 @@ final class TextInsertionService: DictationTextInserting {
 
     private func paste(_ text: String, into bundleIdentifier: String?) async -> TextInsertionResult {
         let saved = pasteboard.snapshot()
+        let original = elements.focusedElement()
+        let before = original?.value
         let writtenChangeCount = pasteboard.write(text: text, transient: true)
         guard keystrokes.sendPaste() else {
             // Leave the text available rather than silently restoring.
@@ -290,8 +290,10 @@ final class TextInsertionService: DictationTextInserting {
         if pasteboard.changeCount == writtenChangeCount {
             pasteboard.restore(saved)
         }
-        if let bundleIdentifier {
-            undoRecord = .paste(bundleIdentifier: bundleIdentifier, valueAfter: elements.focusedElement()?.value)
+        if let bundleIdentifier, elements.frontmostApplication().bundleIdentifier == bundleIdentifier,
+           let original, let before, let current = elements.focusedElement(), current.isSame(as: original),
+           let after = current.value, after != before {
+            undoRecord = .paste(bundleIdentifier: bundleIdentifier, element: original, valueAfter: after)
         }
         return .insertedViaPaste
     }

@@ -230,9 +230,11 @@ final class TextInsertionTests: XCTestCase {
         XCTAssertEqual(other.value, "ab")
     }
 
-    func testUndoAfterPasteSendsCommandZToTheSameApp() async {
+    func testUndoAfterPasteSendsCommandZToTheSameReadableField() async {
         elements.app = ("com.tinyspeck.slackmacgap", "Slack")
-        elements.element = nil
+        let field = FakeTextElement(role: "AXTextField", value: "", selectedTextSettable: false)
+        elements.element = field
+        keystrokes.onPaste = { field.value = "selam ekip" }
 
         _ = await service.insert("selam ekip")
         XCTAssertTrue(service.canUndoLastInsertion)
@@ -240,6 +242,19 @@ final class TextInsertionTests: XCTestCase {
 
         XCTAssertTrue(undone)
         XCTAssertEqual(keystrokes.undoCount, 1)
+    }
+
+    func testUndoAfterPasteRefusesUnidentifiableAndUnreadableOrChangedFields() async {
+        for scenario in ["missing", "unreadable", "different"] {
+            let field = FakeTextElement(role: "AXTextArea", value: "", selectedTextSettable: false)
+            elements.element = scenario == "missing" ? nil : field
+            keystrokes.onPaste = { field.value = "text" }
+            _ = await service.insert("text")
+            elements.element = FakeTextElement(role: "AXTextArea", value: scenario == "unreadable" ? nil : "text")
+            let undone = await service.undoLastInsertion()
+            XCTAssertFalse(undone)
+            XCTAssertEqual(keystrokes.undoCount, 0)
+        }
     }
 
     func testUndoAfterPasteIsRefusedInAnotherApp() async {
@@ -432,6 +447,7 @@ final class FakePasteboard: DictationPasteboard {
 
 @MainActor
 final class FakeKeystrokes: PasteKeystrokeSending {
+    var onPaste: (() -> Void)?
     var succeeds = true
     private(set) var pasteCount = 0
     private(set) var undoCount = 0
@@ -439,6 +455,7 @@ final class FakeKeystrokes: PasteKeystrokeSending {
     func sendPaste() -> Bool {
         guard succeeds else { return false }
         pasteCount += 1
+        onPaste?()
         return true
     }
 
