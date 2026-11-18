@@ -198,6 +198,7 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
 ### C11 — Yayın öncesi son düzeltmeler (2026-11-18)
 
 - [ ] A ve 01-25: hover kararlılığı ve denetim düzeltmeleri. 🚧 Devam ediyor: 2026-11-18. Gerçek cihaz ve yayın kabulü ayrıca izlenecek.
+- [ ] 08. Herkese açık 1.0 DMG ve Sparkle beslemesi. 🚧 Devam ediyor. 18 Kasım'da sürüm listesi boş, v1.0 ve appcast HTTP 404. 17 ve 18 için yerel betik testleri geçti. Yayın kullanıcı onayı bekliyor. Yayın sonrası kontrol: `python3 macos/Scripts/release-availability-test.py 1.0`.
 
 
 - [x] Güvenlik, gizlilik, performans ve ürün kalitesini monorepo genelinde denetleyip tek raporda belgelemek. — ✅ 2026-11-18 · [Denetim raporu](docs/DENETIM-2026-11-18.md)
