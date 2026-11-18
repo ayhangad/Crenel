@@ -197,6 +197,11 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
 
 ### C11 — Yayın öncesi son düzeltmeler (2026-11-18)
 
+- [ ] A ve 01-25: hover kararlılığı ve denetim düzeltmeleri. 🚧 Devam ediyor: 2026-11-18. Gerçek cihaz ve yayın kabulü ayrıca izlenecek.
+
+
+- [x] Güvenlik, gizlilik, performans ve ürün kalitesini monorepo genelinde denetleyip tek raporda belgelemek. — ✅ 2026-11-18 · [Denetim raporu](docs/DENETIM-2026-11-18.md)
+
 - [x] Çoklu ekran: kullanıcı notch'u tutup başka ekranın üstüne sürükleyebilsin; bıraktığı
   ekranda çalışsın ve seçim (ekran UUID'si) hatırlansın. Ekran çıkarılınca fiziksel notch'lu
   ekrana düşer, geri takılınca seçtiği ekrana döner. — ✅ 2026-11-18 (kullanıcı iki ekranda denedi)
