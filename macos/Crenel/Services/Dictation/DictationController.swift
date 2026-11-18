@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import Foundation
+import AppKit
 
 /// Orchestrates trigger → microphone → on-device transcription → refinement → insertion.
 ///
@@ -30,6 +31,7 @@ final class DictationController: ObservableObject {
     private var dailyWordsStore: DictationDailyWordsStore?
     @Published private(set) var assetPreparationLocale: String?
 
+    var signalAudioOverrun: () -> Void = { NSSound.beep() }
     var refiner: any DictationTextRefining
     /// Creates a task from dictated words; returns its id so Undo can delete it.
     var onCreateTask: ((String) -> UUID?)?
@@ -155,6 +157,7 @@ final class DictationController: ObservableObject {
     func startListening() {
         guard !state.isBusy else { return }
         resetTask?.cancel()
+        if pendingUndo != nil { inserter.reset() }
         pendingUndo = nil
 
         let localeIdentifier = resolvedLocaleIdentifier
@@ -331,9 +334,13 @@ final class DictationController: ObservableObject {
             }
 
             let transcriber = self.transcriber
-            session.pump = Task.detached {
-                for await buffer in stream.buffers {
-                    transcriber.feed(buffer)
+            session.pump = Task.detached { [weak self] in
+                do {
+                    for try await buffer in stream.buffers {
+                        try transcriber.feed(buffer)
+                    }
+                } catch {
+                    await self?.audioDeliveryFailed(session)
                 }
             }
             session.partialTask = Task { [weak self] in
@@ -360,6 +367,14 @@ final class DictationController: ObservableObject {
         }
     }
 
+    private func audioDeliveryFailed(_ session: Session) {
+        guard isCurrent(session) else { return }
+        capture.stop()
+        if !state.isListening { enqueueTranscriberCancel() }
+        fail(session, with: .audioOverrun)
+        signalAudioOverrun()
+    }
+
     private func finishPipeline(for session: Session) async {
         let started = await session.startup?.value ?? false
         guard started, isCurrent(session) else { return }
@@ -368,6 +383,7 @@ final class DictationController: ObservableObject {
         state = .transcribing
         level = 0
         await session.pump?.value
+        guard isCurrent(session) else { return }
 
         let transcript: String
         do {
@@ -470,9 +486,13 @@ final class DictationController: ObservableObject {
                 fail(session, with: .accessibilityPermissionMissing)
             case .targetChanged:
                 fail(session, with: .targetChanged)
+            case .clipboardSnapshotUnavailable:
+                fail(session, with: .clipboardSnapshotUnavailable)
             case .pasteFailed:
                 fail(session, with: .insertionFailed)
             }
+        case .cancelled:
+            cancel()
         case .refusedSecureField:
             fail(session, with: .secureTextField)
         }
@@ -538,6 +558,7 @@ final class DictationController: ObservableObject {
         resetTask = Task { [weak self, sleep] in
             await sleep(duration)
             guard !Task.isCancelled, let self, self.state == expected else { return }
+            if self.pendingUndo != nil { self.inserter.reset() }
             self.pendingUndo = nil
             self.state = .idle
             self.partialTranscript = ""

@@ -440,11 +440,11 @@ enum NotchClosedText {
         case .speechAssetsDownloading:
             .init(reason: String(localized: "Downloading model"), accessWord: nil,
                   sentence: String(localized: "Try again when the download finishes"), fix: .none)
-        case .targetChanged, .noFocusedTextField, .insertionFailed:
+        case .clipboardSnapshotUnavailable, .targetChanged, .noFocusedTextField, .insertionFailed:
             .init(reason: String(localized: "Copied"), accessWord: nil, sentence: failure.message, fix: .none)
         case .tooShort, .noSpeechDetected:
             .init(reason: String(localized: "No speech"), accessWord: nil, sentence: failure.message, fix: .none)
-        case .unsupportedLocale, .secureTextField, .sessionTooLong, .transcriptionFailed:
+        case .unsupportedLocale, .secureTextField, .sessionTooLong, .audioOverrun, .transcriptionFailed:
             .init(reason: String(localized: "Dictation failed"), accessWord: nil, sentence: failure.message, fix: .none)
         case .undoFailed:
             .init(reason: String(localized: "Not undone"), accessWord: nil, sentence: failure.message, fix: .none)

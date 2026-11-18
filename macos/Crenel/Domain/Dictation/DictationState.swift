@@ -64,12 +64,14 @@ enum DictationFailure: Error, Equatable, Sendable {
     case speechAssetsMissing(localeIdentifier: String)
     case speechAssetsDownloading(localeIdentifier: String)
     case unsupportedLocale(localeIdentifier: String)
+    case clipboardSnapshotUnavailable
     case targetChanged
     case noFocusedTextField
     case secureTextField
     case tooShort
     case noSpeechDetected
     case sessionTooLong
+    case audioOverrun
     case transcriptionFailed
     case insertionFailed
     /// Undo was asked for but the text (or task) had already changed.
@@ -91,6 +93,8 @@ enum DictationFailure: Error, Equatable, Sendable {
             return "Downloading the speech model. Try again when it finishes."
         case .unsupportedLocale:
             return "The selected language isn’t supported for on-device dictation."
+        case .clipboardSnapshotUnavailable:
+            return "Couldn’t temporarily save your clipboard. Dictation copied for you to paste."
         case .targetChanged:
             return "The selected text or field changed. Copied to clipboard."
         case .noFocusedTextField:
@@ -103,6 +107,8 @@ enum DictationFailure: Error, Equatable, Sendable {
             return "No speech detected."
         case .sessionTooLong:
             return "Dictation time limit reached."
+        case .audioOverrun:
+            return "Dictation stopped because audio processing fell behind. Please try again."
         case .transcriptionFailed:
             return "Couldn’t transcribe speech."
         case .insertionFailed:
@@ -115,7 +121,7 @@ enum DictationFailure: Error, Equatable, Sendable {
     /// Whether the dictated text is still available on the clipboard after this failure.
     var leftTextOnClipboard: Bool {
         switch self {
-        case .targetChanged, .noFocusedTextField, .accessibilityPermissionMissing, .insertionFailed:
+        case .clipboardSnapshotUnavailable, .targetChanged, .noFocusedTextField, .accessibilityPermissionMissing, .insertionFailed:
             return true
         default:
             return false
@@ -128,10 +134,12 @@ enum TextInsertionResult: Equatable, Sendable {
     case insertedViaAccessibility
     case insertedViaPaste
     case copiedToClipboard(TextInsertionClipboardReason)
+    case cancelled
     case refusedSecureField
 }
 
 enum TextInsertionClipboardReason: Equatable, Sendable {
+    case clipboardSnapshotUnavailable
     case targetChanged
     case noFocusedTextField
     case accessibilityPermissionMissing

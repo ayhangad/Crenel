@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import Crenel
 
@@ -159,6 +160,82 @@ final class TextInsertionTests: XCTestCase {
     }
 
     // MARK: Undo
+
+    func testOversizedClipboardCopiesWithoutSendingPaste() async {
+        elements.element = FakeTextElement(role: "AXTextField", value: "x", selectedTextSettable: false)
+        pasteboard.snapshotAvailable = false
+        let result = await service.insert("copy this")
+        XCTAssertEqual(result, .copiedToClipboard(.clipboardSnapshotUnavailable))
+        XCTAssertEqual(keystrokes.pasteCount, 0)
+        XCTAssertEqual(pasteboard.lastWrittenText, "copy this")
+        XCTAssertFalse(service.canUndoLastInsertion)
+    }
+
+    func testSuspendedOversizeSnapshotChecksSecureTargetBeforeClipboardWrite() async {
+        elements.element = FakeTextElement(role: "AXTextField", value: "", selectedTextSettable: false)
+        pasteboard.snapshotAvailable = false
+        pasteboard.whileSnapshotting = { [elements] in
+            await Task.yield()
+            elements!.isSecureInputActive = true
+        }
+        let result = await service.insert("private")
+        XCTAssertEqual(result, .refusedSecureField)
+        XCTAssertEqual(pasteboard.writeCount, 0)
+        XCTAssertEqual(keystrokes.pasteCount, 0)
+    }
+
+    func testSuspendedSnapshotChecksChangedSelectionAndReportsCopy() async {
+        let field = FakeTextElement(role: "AXTextField", value: "one two", selectedText: "one", selectedTextSettable: false)
+        field.selectedRange = NSRange(location: 0, length: 3)
+        elements.element = field
+        let target = service.currentContext()
+        pasteboard.whileSnapshotting = {
+            await Task.yield()
+            field.selectedRange = NSRange(location: 4, length: 3)
+            field.selectedText = "two"
+        }
+        let result = await service.insert("short", replacing: target)
+        XCTAssertEqual(result, .copiedToClipboard(.targetChanged))
+        XCTAssertEqual(pasteboard.lastWriteWasTransient, true)
+        XCTAssertEqual(keystrokes.pasteCount, 0)
+    }
+
+    func testResetDuringSnapshotCancelsDeliveryWithoutClipboardWrite() async {
+        elements.element = FakeTextElement(role: "AXTextField", value: "", selectedTextSettable: false)
+        pasteboard.whileSnapshotting = { [service] in
+            await Task.yield()
+            service!.reset()
+        }
+        let result = await service.insert("deleted")
+        XCTAssertEqual(result, .cancelled)
+        XCTAssertEqual(pasteboard.writeCount, 0)
+        XCTAssertEqual(keystrokes.pasteCount, 0)
+    }
+
+    func testExternalCopyDuringSnapshotIsPreserved() async {
+        elements.element = FakeTextElement(role: "AXTextField", value: "", selectedTextSettable: false)
+        let userCopy = PasteboardSnapshot(items: [["public.utf8-plain-text": Data("new".utf8)]])
+        pasteboard.whileSnapshotting = { [pasteboard] in
+            await Task.yield()
+            pasteboard!.simulateExternalCopy(userCopy)
+        }
+        let result = await service.insert("spoken words")
+        XCTAssertEqual(result, .cancelled)
+        XCTAssertEqual(pasteboard.contents, userCopy)
+        XCTAssertEqual(keystrokes.pasteCount, 0)
+    }
+
+    func testSystemClipboardHonorsCumulativeByteBudget() async {
+        let board = NSPasteboard.withUniqueName()
+        defer { board.releaseGlobally() }
+        let first = NSPasteboardItem()
+        first.setData(Data(repeating: 65, count: 1_500_000), forType: .string)
+        let second = NSPasteboardItem()
+        second.setData(Data(repeating: 66, count: 700_000), forType: .string)
+        board.writeObjects([first, second])
+        let snapshot = await SystemDictationPasteboard(pasteboard: board).snapshot()
+        XCTAssertNil(snapshot)
+    }
 
     func testUndoRestoresAccessibilityInsertionAndSelection() async {
         let field = FakeTextElement(role: "AXTextArea", value: "Merhaba  nasılsın",
@@ -422,7 +499,12 @@ final class FakePasteboard: DictationPasteboard {
     private(set) var lastWrittenText: String?
     private(set) var lastWriteWasTransient: Bool?
 
-    func snapshot() -> PasteboardSnapshot { contents }
+    var snapshotAvailable = true
+    var whileSnapshotting: (() async -> Void)?
+    func snapshot() async -> PasteboardSnapshot? {
+        await whileSnapshotting?()
+        return snapshotAvailable ? contents : nil
+    }
 
     func restore(_ snapshot: PasteboardSnapshot) {
         restoreCount += 1

@@ -51,7 +51,7 @@ struct PasteboardSnapshot: Equatable, Sendable {
 @MainActor
 protocol DictationPasteboard: AnyObject {
     var changeCount: Int { get }
-    func snapshot() -> PasteboardSnapshot
+    func snapshot() async -> PasteboardSnapshot?
     func restore(_ snapshot: PasteboardSnapshot)
     /// Writes plain text; `transient` marks it so clipboard managers can ignore it.
     @discardableResult func write(text: String, transient: Bool) -> Int
@@ -118,7 +118,7 @@ final class TextInsertionService: DictationTextInserting {
     private let keystrokes: any PasteKeystrokeSending
     private let restoreDelay: Duration
     private let sleep: @Sendable (Duration) async -> Void
-    /// What the last insertion changed, kept only until the next one.
+    /// Retained until Undo is used, expires, or a new session starts.
     private var undoRecord: UndoRecord?
     private var resetGeneration: UInt64 = 0
 
@@ -217,7 +217,7 @@ final class TextInsertionService: DictationTextInserting {
                 copyToClipboard(text)
                 return .copiedToClipboard(.noFocusedTextField)
             }
-            return await paste(text, into: app.bundleIdentifier)
+            return await paste(text, into: app.bundleIdentifier, replacing: target)
         }
 
         if TextInsertionPolicy.isEditable(element),
@@ -227,7 +227,7 @@ final class TextInsertionService: DictationTextInserting {
         }
         // An unverified accessibility write may have suspended before falling back.
         if let failure = replacementFailure(for: target, text: text) { return failure }
-        return await paste(text, into: app.bundleIdentifier)
+        return await paste(text, into: app.bundleIdentifier, replacing: target)
     }
 
     var canUndoLastInsertion: Bool { undoRecord != nil }
@@ -293,10 +293,28 @@ final class TextInsertionService: DictationTextInserting {
         return true
     }
 
-    private func paste(_ text: String, into bundleIdentifier: String?) async -> TextInsertionResult {
+    private func paste(_ text: String, into bundleIdentifier: String?, replacing target: DictationTargetSnapshot?) async -> TextInsertionResult {
         let generation = resetGeneration
-        let saved = pasteboard.snapshot()
+        let changeCount = pasteboard.changeCount
         let original = elements.focusedElement()
+        let selectedRange = original?.selectedRange
+        let selectedText = original?.selectedText
+        let saved = await pasteboard.snapshot()
+        guard !Task.isCancelled, generation == resetGeneration else { return .cancelled }
+        let current = elements.focusedElement()
+        if elements.isSecureInputActive || current.map(TextInsertionPolicy.isSecure) == true { return .refusedSecureField }
+        guard changeCount == pasteboard.changeCount else { return .cancelled }
+        if let failure = replacementFailure(for: target, text: text) { return failure }
+        guard bundleIdentifier == elements.frontmostApplication().bundleIdentifier,
+              original.map({ current?.isSame(as: $0) == true }) ?? (current == nil),
+              current?.selectedRange == selectedRange, current?.selectedText == selectedText else {
+            pasteboard.write(text: text, transient: true)
+            return .copiedToClipboard(.targetChanged)
+        }
+        guard let saved else {
+            pasteboard.write(text: text, transient: true)
+            return .copiedToClipboard(.clipboardSnapshotUnavailable)
+        }
         let before = original?.value
         let writtenChangeCount = pasteboard.write(text: text, transient: true)
         guard keystrokes.sendPaste() else {
@@ -439,17 +457,29 @@ final class SystemDictationPasteboard: DictationPasteboard {
 
     var changeCount: Int { pasteboard.changeCount }
 
-    func snapshot() -> PasteboardSnapshot {
-        let items = (pasteboard.pasteboardItems ?? []).map { item in
-            var values: [String: Data] = [:]
-            for type in item.types {
-                if let data = item.data(forType: type) {
+    func snapshot() async -> PasteboardSnapshot? {
+        let name = pasteboard.name
+        return await Task.detached(priority: .userInitiated) {
+            let board = NSPasteboard(name: name)
+            guard let items = board.pasteboardItems else { return PasteboardSnapshot(items: []) }
+            guard items.count <= 32 else { return nil }
+            var remainingBytes = 2 * 1024 * 1024
+            var remainingTypes = 64
+            var result: [[String: Data]] = []
+            for item in items {
+                let types = item.types
+                guard types.count <= remainingTypes else { return nil }
+                remainingTypes -= types.count
+                var values: [String: Data] = [:]
+                for type in types {
+                    guard let data = item.data(forType: type), data.count <= remainingBytes else { return nil }
+                    remainingBytes -= data.count
                     values[type.rawValue] = data
                 }
+                result.append(values)
             }
-            return values
-        }
-        return PasteboardSnapshot(items: items)
+            return PasteboardSnapshot(items: result)
+        }.value
     }
 
     func restore(_ snapshot: PasteboardSnapshot) {

@@ -114,6 +114,57 @@ final class DictationControllerTests: XCTestCase {
         }
     }
 
+    func testAnalyzerOverrunSignalsOnceAndDiscardsPartialTranscript() async {
+        let controller = makeController()
+        var alerts = 0
+        controller.signalAudioOverrun = { alerts += 1 }
+        transcriber.failFeed = true
+        await runSession(controller)
+        XCTAssertEqual(controller.state, .failed(.audioOverrun))
+        XCTAssertEqual(alerts, 1)
+        XCTAssertTrue(controller.history.isEmpty)
+        XCTAssertTrue(inserter.insertedTexts.isEmpty)
+    }
+
+    func testCaptureOverrunDiscardsAudioAndSignalsBeforeInsertion() async {
+        let controller = makeController()
+        var alerts = 0
+        controller.signalAudioOverrun = { alerts += 1 }
+        trigger.emit(.began)
+        await controller.waitForCurrentSession()
+        let format = AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)!
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 160_001)!
+        buffer.frameLength = 160_001
+        XCTAssertThrowsError(try capture.bufferContinuation?.yield(buffer))
+        clock.addTimeInterval(1)
+        trigger.emit(.ended)
+        await controller.waitForCurrentSession()
+        XCTAssertEqual(controller.state, .failed(.audioOverrun))
+        XCTAssertEqual(alerts, 1)
+        XCTAssertFalse(transcriber.finishCalled)
+        XCTAssertTrue(inserter.insertedTexts.isEmpty)
+    }
+
+    func testStalledConsumerAudioBudgetPerformance() {
+        let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+        let packet = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 480)!
+        packet.frameLength = 480
+        measure {
+            let queue = DictationPCMQueue()
+            var accepted = 0
+            do {
+                for _ in 0..<2_000 {
+                    try queue.yield(packet)
+                    accepted += 1
+                }
+                XCTFail("Stalled pipeline exceeded ten seconds")
+            } catch {
+                XCTAssertEqual(error as? DictationFailure, .audioOverrun)
+            }
+            XCTAssertEqual(Double(accepted) / 100, 10, accuracy: 0.011)
+        }
+    }
+
     func testNormalFlowInsertsTranscriptAndRecordsHistory() async {
         transcriber.finalText = "  merhaba dünya  "
         inserter.result = .insertedViaAccessibility
@@ -361,6 +412,7 @@ final class DictationControllerTests: XCTestCase {
 
         XCTAssertEqual(controller.state, .idle)
         XCTAssertFalse(controller.canUndoLastDictation)
+        XCTAssertFalse(inserter.canUndoLastInsertion)
         let durations = await slept.values
         XCTAssertTrue(durations.contains(3), "\(durations)")
         XCTAssertFalse(durations.contains(1), "\(durations)")
@@ -521,15 +573,15 @@ final class DictationControllerTests: XCTestCase {
 final class FakeDictationCapture: DictationAudioCapturing {
     var startError: Error?
     private(set) var stopCount = 0
-    private(set) var bufferContinuation: AsyncStream<AVAudioPCMBuffer>.Continuation?
+    private(set) var bufferContinuation: DictationPCMQueue?
     private(set) var levelContinuation: AsyncStream<Float>.Continuation?
     private let format = AVAudioFormat(standardFormatWithSampleRate: 16_000, channels: 1)!
 
     func start(deviceID: String?) async throws -> DictationAudioStream {
         if let startError { throw startError }
-        let (buffers, bufferContinuation) = AsyncStream.makeStream(of: AVAudioPCMBuffer.self)
+        let buffers = DictationPCMQueue()
         let (levels, levelContinuation) = AsyncStream.makeStream(of: Float.self)
-        self.bufferContinuation = bufferContinuation
+        self.bufferContinuation = buffers
         self.levelContinuation = levelContinuation
         return DictationAudioStream(format: format, buffers: buffers, levels: levels)
     }
@@ -538,7 +590,7 @@ final class FakeDictationCapture: DictationAudioCapturing {
         for _ in 0..<count {
             let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 160)!
             buffer.frameLength = 160
-            bufferContinuation?.yield(buffer)
+            try? bufferContinuation?.yield(buffer)
         }
     }
 
@@ -572,7 +624,9 @@ final class FakeDictationTranscriber: DictationTranscribing, @unchecked Sendable
         return stream
     }
 
-    func feed(_ buffer: AVAudioPCMBuffer) {
+    var failFeed = false
+    func feed(_ buffer: AVAudioPCMBuffer) throws {
+        if failFeed { throw DictationFailure.audioOverrun }
         lock.withLock { fed += 1 }
     }
 

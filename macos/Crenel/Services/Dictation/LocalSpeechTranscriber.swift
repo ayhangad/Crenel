@@ -7,7 +7,7 @@ protocol DictationTranscribing: AnyObject {
     /// Starts a session and returns live partial transcripts (finalized text + volatile tail).
     func start(localeIdentifier: String, vocabulary: [String]) async throws -> AsyncStream<String>
     /// Thread-safe; may be called from any thread while a session is active.
-    func feed(_ buffer: AVAudioPCMBuffer)
+    func feed(_ buffer: AVAudioPCMBuffer) throws
     func finish() async throws -> String
     func cancel() async
 }
@@ -37,7 +37,7 @@ extension DictationSpeechAssetManaging {
 final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetManaging, @unchecked Sendable {
     private let lock = NSLock()
     private var analyzer: SpeechAnalyzer?
-    private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
+    private var inputQueue: DictationPCMQueue?
     private var partialContinuation: AsyncStream<String>.Continuation?
     private var resultsTask: Task<String, Error>?
     private var analyzerFormat: AVAudioFormat?
@@ -124,7 +124,8 @@ final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetM
             throw DictationFailure.transcriptionFailed
         }
 
-        let (inputStream, inputContinuation) = AsyncStream.makeStream(of: AnalyzerInput.self)
+        let inputQueue = DictationPCMQueue()
+        let inputStream = inputQueue.map { AnalyzerInput(buffer: $0) }
         let (partials, partialContinuation) = AsyncStream.makeStream(
             of: String.self,
             bufferingPolicy: .bufferingNewest(1)
@@ -147,7 +148,7 @@ final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetM
 
         lock.withLock {
             self.analyzer = analyzer
-            self.inputContinuation = inputContinuation
+            self.inputQueue = inputQueue
             self.partialContinuation = partialContinuation
             self.resultsTask = resultsTask
             self.analyzerFormat = format
@@ -164,22 +165,22 @@ final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetM
         return partials
     }
 
-    func feed(_ buffer: AVAudioPCMBuffer) {
+    func feed(_ buffer: AVAudioPCMBuffer) throws {
         lock.lock()
         defer { lock.unlock() }
-        guard let inputContinuation else { return }
+        guard let inputQueue else { return }
         guard let converted = convertLocked(buffer) else { return }
-        inputContinuation.yield(AnalyzerInput(buffer: converted))
+        try inputQueue.yield(converted)
     }
 
     func finish() async throws -> String {
-        let (analyzer, inputContinuation, resultsTask) = lock.withLock {
-            let snapshot = (self.analyzer, self.inputContinuation, self.resultsTask)
-            self.inputContinuation = nil
+        let (analyzer, inputQueue, resultsTask) = lock.withLock {
+            let snapshot = (self.analyzer, self.inputQueue, self.resultsTask)
+            self.inputQueue = nil
             return snapshot
         }
         guard let analyzer, let resultsTask else { return "" }
-        inputContinuation?.finish()
+        inputQueue?.finish()
         do {
             try await analyzer.finalizeAndFinishThroughEndOfInput()
             let text = try await resultsTask.value
@@ -192,12 +193,12 @@ final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetM
     }
 
     func cancel() async {
-        let (analyzer, inputContinuation, partialContinuation, resultsTask) = lock.withLock {
-            let snapshot = (self.analyzer, self.inputContinuation, self.partialContinuation, self.resultsTask)
-            self.inputContinuation = nil
+        let (analyzer, inputQueue, partialContinuation, resultsTask) = lock.withLock {
+            let snapshot = (self.analyzer, self.inputQueue, self.partialContinuation, self.resultsTask)
+            self.inputQueue = nil
             return snapshot
         }
-        inputContinuation?.finish()
+        inputQueue?.finish()
         resultsTask?.cancel()
         partialContinuation?.finish()
         if let analyzer {
@@ -211,7 +212,7 @@ final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetM
     private func clearSession() {
         lock.withLock {
             analyzer = nil
-            inputContinuation = nil
+            inputQueue = nil
             partialContinuation = nil
             resultsTask = nil
             analyzerFormat = nil

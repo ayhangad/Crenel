@@ -2,10 +2,74 @@
 import CoreAudio
 import Foundation
 
+/// Both stages use the actual PCM duration, since the audio unit can vary its tap size.
+/// A stalled consumer gets a terminal error instead of a transcript with missing audio.
+final class DictationPCMQueue: AsyncSequence, @unchecked Sendable {
+    typealias Element = AVAudioPCMBuffer
+    private let lock = NSLock()
+    private let stream: AsyncStream<Element>
+    private let continuation: AsyncStream<Element>.Continuation
+    private let maximumSeconds: Double
+    private var queuedSeconds = 0.0
+    private var overrun = false
+
+    init(maximumSeconds: Double = 10) {
+        self.maximumSeconds = maximumSeconds
+        (stream, continuation) = AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(2048))
+    }
+
+    func yield(_ buffer: Element) throws {
+        guard buffer.frameLength > 0 else { return }
+        let seconds = Double(buffer.frameLength) / buffer.format.sampleRate
+        try lock.withLock {
+            guard !overrun else { throw DictationFailure.audioOverrun }
+            if queuedSeconds + seconds <= maximumSeconds {
+                switch continuation.yield(buffer) {
+                case .enqueued:
+                    queuedSeconds += seconds
+                    return
+                case .terminated: return
+                case .dropped: break
+                @unknown default: break
+                }
+            }
+            overrun = true
+            continuation.finish()
+            throw DictationFailure.audioOverrun
+        }
+    }
+
+    func finish() { continuation.finish() }
+
+    struct AsyncIterator: AsyncIteratorProtocol {
+        fileprivate var iterator: AsyncStream<Element>.Iterator
+        fileprivate let queue: DictationPCMQueue
+
+        mutating func next() async throws -> Element? {
+            let buffer = await iterator.next()
+            try queue.consumed(buffer)
+            return buffer
+        }
+    }
+
+    func makeAsyncIterator() -> AsyncIterator {
+        AsyncIterator(iterator: stream.makeAsyncIterator(), queue: self)
+    }
+
+    private func consumed(_ buffer: Element?) throws {
+        try lock.withLock {
+            if overrun { throw DictationFailure.audioOverrun }
+            if let buffer {
+                queuedSeconds = Swift.max(0, queuedSeconds - Double(buffer.frameLength) / buffer.format.sampleRate)
+            }
+        }
+    }
+}
+
 /// Live microphone audio for one dictation session. Nothing is ever written to disk.
 struct DictationAudioStream {
     let format: AVAudioFormat
-    let buffers: AsyncStream<AVAudioPCMBuffer>
+    let buffers: DictationPCMQueue
     /// Normalized 0...1 level, throttled to roughly 20 Hz.
     let levels: AsyncStream<Float>
 }
@@ -22,7 +86,7 @@ protocol DictationAudioCapturing: AnyObject {
 final class DictationAudioCapture: DictationAudioCapturing, @unchecked Sendable {
     private let lock = NSLock()
     private var engine: AVAudioEngine?
-    private var bufferContinuation: AsyncStream<AVAudioPCMBuffer>.Continuation?
+    private var bufferQueue: DictationPCMQueue?
     private var levelContinuation: AsyncStream<Float>.Continuation?
     private var lastLevelHostTime: UInt64 = 0
     private let levelInterval: TimeInterval
@@ -61,19 +125,16 @@ final class DictationAudioCapture: DictationAudioCapturing, @unchecked Sendable 
             throw DictationFailure.microphoneUnavailable
         }
 
-        let (buffers, bufferContinuation) = AsyncStream.makeStream(
-            of: AVAudioPCMBuffer.self,
-            bufferingPolicy: .unbounded
-        )
+        let buffers = DictationPCMQueue()
         let (levels, levelContinuation) = AsyncStream.makeStream(
             of: Float.self,
             bufferingPolicy: .bufferingNewest(1)
         )
 
-        if !deliversBuffers { bufferContinuation.finish() }
+        if !deliversBuffers { buffers.finish() }
         lock.withLock {
             self.engine = engine
-            self.bufferContinuation = deliversBuffers ? bufferContinuation : nil
+            self.bufferQueue = deliversBuffers ? buffers : nil
             self.levelContinuation = levelContinuation
             self.lastLevelHostTime = 0
         }
@@ -95,9 +156,9 @@ final class DictationAudioCapture: DictationAudioCapturing, @unchecked Sendable 
 
     func stop() {
         let (engine, buffers, levels) = lock.withLock {
-            let snapshot = (self.engine, self.bufferContinuation, self.levelContinuation)
+            let snapshot = (self.engine, self.bufferQueue, self.levelContinuation)
             self.engine = nil
-            self.bufferContinuation = nil
+            self.bufferQueue = nil
             self.levelContinuation = nil
             return snapshot
         }
@@ -116,7 +177,7 @@ final class DictationAudioCapture: DictationAudioCapturing, @unchecked Sendable 
         }
         guard let copy = Self.copy(buffer) else { return }
         let (buffers, levels, shouldReportLevel) = lock.withLock { () -> (
-            AsyncStream<AVAudioPCMBuffer>.Continuation?,
+            DictationPCMQueue?,
             AsyncStream<Float>.Continuation?,
             Bool
         ) in
@@ -124,9 +185,9 @@ final class DictationAudioCapture: DictationAudioCapturing, @unchecked Sendable 
                 - AVAudioTime.seconds(forHostTime: lastLevelHostTime)
             let report = lastLevelHostTime == 0 || elapsed >= levelInterval
             if report { lastLevelHostTime = hostTime }
-            return (bufferContinuation, levelContinuation, report)
+            return (bufferQueue, levelContinuation, report)
         }
-        buffers?.yield(copy)
+        try? buffers?.yield(copy) // The consumer receives the same terminal error.
         if shouldReportLevel {
             levels?.yield(Self.normalizedLevel(of: copy))
         }
