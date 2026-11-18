@@ -24,7 +24,12 @@ final class AppUpdateCoordinator {
     private var updater: AppUpdater?
     private var clearUpdated: Task<Void, Never>?
 
-    init(appState: AppState) {
+    private let waitBeforeRestart: @MainActor () async -> Void
+
+    init(appState: AppState, waitBeforeRestart: @escaping @MainActor () async -> Void = {
+        try? await Task.sleep(for: .seconds(AppUpdateCoordinator.restartingDelay))
+    }) {
+        self.waitBeforeRestart = waitBeforeRestart
         self.appState = appState
     }
 
@@ -38,20 +43,28 @@ final class AppUpdateCoordinator {
     }
 
     /// Restart ↩: never during a recording.
-    func restartToUpdate() {
-        guard case .ready(let version) = appState.updatePhase, !isRecording else { return }
+    @discardableResult
+    func restartToUpdate() -> Task<Void, Never>? {
+        guard case .ready(let version) = appState.updatePhase, !audioIsBusy else { return nil }
         appState.updateUpdatePhase(.restarting(version))
-        Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.restartingDelay))
-            self?.updater?.installAndRelaunch()
+        return Task { [weak self, waitBeforeRestart] in
+            await waitBeforeRestart()
+            guard let self, appState.updatePhase == .restarting(version) else { return }
+            guard !audioIsBusy else {
+                appState.updateUpdatePhase(.ready(version))
+                return
+            }
+            updater?.installAndRelaunch()
         }
     }
 
-    var canRestart: Bool { appState.updatePhase.isReady && !isRecording }
+    var canRestart: Bool { appState.updatePhase.isReady && !audioIsBusy }
 
-    private var isRecording: Bool {
-        if case .recording = appState.meetingFlow { return true }
-        return false
+    private var audioIsBusy: Bool {
+        switch appState.meetingFlow {
+        case .preparingRecording, .recording, .finalizingAudio: true
+        default: false
+        }
     }
 
     /// On launch: if this is a newer version than last time, say so for a few seconds.

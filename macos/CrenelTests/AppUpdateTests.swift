@@ -58,6 +58,32 @@ final class AppUpdateTests: XCTestCase {
         XCTAssertNil(AppLaunchVersion.updatedVersion(current: "1.9", defaults: defaults), "a downgrade is not an update")
     }
 
+    func testDelayedRestartRechecksEveryAudioPhase() async {
+        final class Updater: AppUpdater {
+            var onPhaseChange: ((AppUpdatePhase) -> Void)?
+            var installs = 0
+            func checkForUpdates() {}
+            func installAndRelaunch() { installs += 1 }
+        }
+        for phase in [MeetingFlowState.Phase.idle, .preparingRecording, .recording, .finalizingAudio] {
+            let state = AppState(initialFlow: .idle)
+            let updater = Updater()
+            let coordinator = AppUpdateCoordinator(appState: state) {
+                if phase != .idle { _ = state.prepareForRecording() }
+                if phase == .recording || phase == .finalizingAudio { state.send(.recordingStarted(at: Date())) }
+                if phase == .finalizingAudio { _ = state.stopRecording() }
+            }
+            coordinator.attach(updater)
+            state.updateUpdatePhase(.ready(version))
+            await coordinator.restartToUpdate()?.value
+            XCTAssertEqual(updater.installs, phase == .idle ? 1 : 0)
+            if phase != .idle {
+                XCTAssertEqual(state.updatePhase, .ready(version))
+                XCTAssertFalse(coordinator.canRestart)
+            }
+        }
+    }
+
     func testRestartIsRefusedDuringARecording() {
         let appState = AppState(initialFlow: .recording(startedAt: Date()))
         let coordinator = AppUpdateCoordinator(appState: appState)
