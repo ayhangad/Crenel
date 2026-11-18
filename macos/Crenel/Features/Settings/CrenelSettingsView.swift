@@ -112,7 +112,7 @@ struct DictationSettingsView: View {
         }
 
         SettingsGroup("Speech model", index: 2) {
-            SettingsRow(glyph: .shield, title: "On this Mac", detail: Text("Nothing you say leaves the Mac")) {
+            SettingsRow(glyph: .shield, title: "On this Mac", detail: Text("Speech recognition runs locally. AI clean-up follows your provider choice.")) {
                 HudButton("Download", glyph: .chevronDown, size: .small, action: crenelActions.dictation.prepareSpeechAssets)
                     .accessibilityLabel("Download model")
             }
@@ -300,7 +300,7 @@ struct AgentSettingsView<Extra: View>: View {
 
     private var providerDetail: Text? {
         switch provider {
-        case .anthropic, .openAI: Text("Notes, tasks and dictation clean-up · billed to you")
+        case .anthropic, .openAI: Text("Sends text to your provider for notes, tasks and dictation clean-up")
         case .claudeCode: Text("Sends transcript text to Anthropic using your Claude Code sign-in for notes and tasks")
         case .onDevice: onDeviceStatus.map { Text(verbatim: $0) } ?? Text("Apple’s model · free, stays on this Mac")
         case .automatic: Text("Anthropic, then OpenAI, then this Mac")

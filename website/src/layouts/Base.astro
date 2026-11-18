@@ -8,7 +8,7 @@ import Wallpaper from '../components/Wallpaper.astro';
 interface Props { title?: string; description?: string; path?: string }
 const {
   title = "Crenel: your Mac's notch, at work",
-  description = 'Calendar, dictation, tasks and meeting notes in the MacBook notch. Free and open source. Your data stays on your Mac.',
+  description = 'Calendar, dictation, tasks and meeting notes in the MacBook notch. Free and open source. On-device transcription and notes by default.',
 } = Astro.props;
 // Pages are built as files (releases.html); the public URL has no extension.
 const path = Astro.url.pathname.replace(/index\.html$/, '').replace(/\.html$/, '');

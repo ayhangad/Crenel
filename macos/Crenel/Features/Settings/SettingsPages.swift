@@ -324,7 +324,7 @@ extension SettingsView {
     // MARK: Data (`s-data`, `s-data-busy`)
 
     @ViewBuilder var dataPage: some View {
-        SettingsPageHeader(glyph: .archive, title: "Data", sentence: "Everything stays in one folder on this Mac.") {
+        SettingsPageHeader(glyph: .archive, title: "Data", sentence: "Manage the meeting files stored on this Mac.") {
             SettingsReadoutWell(values: dataReadout)
         }
 

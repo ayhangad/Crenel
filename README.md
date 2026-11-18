@@ -7,7 +7,7 @@
 **Your Mac's notch, at work.**
 
 Calendar, dictation, tasks and meeting notes, right beside the camera.
-Open source. Your data stays on your Mac.
+Open source. On-device transcription and notes by default.
 
 [**Download for macOS**](https://github.com/ayhangad/Crenel/releases/latest) · [Watch the video](docs/media/crenel-promo.mp4) · [How it's built](docs/DEVELOPMENT.md)
 

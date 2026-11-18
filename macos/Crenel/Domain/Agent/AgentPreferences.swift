@@ -2,7 +2,7 @@ import Foundation
 
 /// Which language model the dictation agent uses. `.off` keeps only the deterministic pass.
 enum AgentProviderKind: String, Codable, CaseIterable, Equatable, Sendable {
-    /// Recommended default: the Anthropic key if there is one, else the OpenAI key, else on-device.
+    /// Previously saved automatic choices use Anthropic, then OpenAI, then the on-device model.
     /// Resolved to a concrete provider by `AgentProviderResolver` before any request is built.
     case automatic
     case onDevice
@@ -14,7 +14,7 @@ enum AgentProviderKind: String, Codable, CaseIterable, Equatable, Sendable {
 
     var displayName: String {
         switch self {
-        case .automatic: "Automatic (recommended)"
+        case .automatic: "Automatic"
         case .onDevice: "On-device (Apple Intelligence)"
         case .openAI: "OpenAI"
         case .anthropic: "Anthropic Claude"

@@ -253,10 +253,13 @@ Sentetik ekran matrisi `NotchPresentationTests` ve `DesktopWorkspaceTests` için
 ## 2026-09-14 hibrit mimari kararı
 
 Bu bölüm aşağıdaki eski tek servis/extractive-only sözleşmelerini günceller.
-Ses yalnız ElevenLabs'e, özet için konuşmacı/zaman/segment kimlikli metin yalnız OpenAI'ye
-gönderilir. OpenAI key ayrı Keychain service'inde tutulur; eski ElevenLabs key değişmez.
-Transkript özetten ÖNCE kalıcılaştırılır; retry mevcut transkripti kullanır. OpenAI
-bağlantısı yoksa transkript kullanılabilir kalır, detayda özet bağlantı durumu açıklanır.
+Yeni kurulumda birleşik toplantı sesini Apple Speech, transkript metnini Apple Foundation Models
+cihazda işler. ElevenLabs açıkça seçilirse birleşik ses ElevenLabs'a gönderilir.
+Özet için OpenAI seçilirse transkript metni, konuşmacı etiketleri ve zaman bilgileri OpenAI'a,
+Anthropic API veya Claude Code seçilirse Anthropic'e gönderilir. API anahtarları ayrı
+Keychain servislerinde saklanır. Claude Code mevcut CLI oturumunu kullanır.
+Transkript özetten ÖNCE kalıcılaştırılır; retry mevcut transkripti kullanır. Seçilen özet sağlayıcısı
+kullanılamazsa transkript korunur, detay görünümünde hata açıklanır.
 AI çıktıları JSON şeması ve yerel segment/konuşmacı/tarih doğrulamasından geçer. Transkript
 metni talimat olarak yürütülmez; modelin araç erişimi yoktur. Kullanıcı kişi eşleştirmeleri
 kalıcıdır. Görev aktarımı deterministik kaynak kimliğiyle yinelenmez.
@@ -297,7 +300,7 @@ macos/Crenel/
     Audio/          Mikrofon, sistem sesi, senkronizasyon ve encode
     Calendar/       EventKit sorguları ve planlanmış meeting bağlamı
     Meeting/        İstemci/process sinyalleri, session detector ve mute adapter'ları
-    Transcription/  Tek ElevenLabs servisi ve test edilebilir HTTP sınırı
+    Transcription/  Apple Speech ve ElevenLabs yönlendirmesi, test edilebilir HTTP sınırı
     Summary/        Özet, karar ve aksiyon maddesi üretimi
   Infrastructure/
     Persistence/    Dosya tabanlı repository'ler ve recovery
@@ -316,7 +319,7 @@ Klasörler ihtiyaç oldukça açılır; boş mimari katman oluşturulmaz.
 - Domain katmanı DynamicNotchKit, AppKit ve ağ istemcilerinden bağımsız kalır.
 - Ana UI durumu `AppState` üzerinden gözlemlenir; gerçek iş servisler tarafından yapılır.
 - Uzun işler iptal edilebilir `async` operasyonlar olarak tasarlanır.
-- Tek ElevenLabs API anahtarı yalnızca Keychain'de tutulur.
+- Servis API anahtarları yalnızca Keychain'de tutulur.
 - Meeting client adapter'ları Accessibility UI metinlerini domain'e taşımaz; yalnız
   normalize kanıt ve `open/closed/unknown` mute durumu üretir.
 - Algılama belirsizliği UI'da kesin duruma yükseltilmez. Mikrofon gate'i belirsizlikte
@@ -391,7 +394,7 @@ moduna düşer; UI otomatik algılama iddiasında bulunmaz.
 Google Meet system audio izolasyonu Chrome'un process sınırından çıkarılamaz. Bu istemcide
 tek güvenli production yolu ayrı Manifest V3 extension'dır: kullanıcı aktif Meet sekmesinde
 extension action'ı açar; popup seçili sekme sesinin yerel uygulamada nasıl işleneceğini ve
-kayıt sonrası ElevenLabs sınırını yakalama öncesi açıkça gösterir. Kullanıcının `Meet sekmesini
+kayıt sonrası ses ve metnin seçili sağlayıcıda işlenmesini yakalama öncesi açıkça gösterir. Kullanıcının `Meet sekmesini
 bağla` onayıyla `chrome.tabCapture.getMediaStreamId()` yalnız o sekme için stream üretir ve
 offscreen document stream'i tüketirken sesi tekrar yerel çıkışa bağlar. Extension ID'si
 sabittir; başka origin, kullanıcı gesture'ı olmayan başlangıç veya native bridge kaybı
@@ -507,8 +510,8 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   işlenemez. Uygulama açılışında yarım kalan `running` işler `queued` durumuna alınır,
   bozuk kuyruk belgesi Recovery alanında korunur ve başarısız işler içerik taşımayan hata
   koduyla kullanıcıya tekrar deneme olanağı verir.
-- Kuyruk worker'ına tek `TranscriptionServicing` bağımlılığı enjekte edilir; production
-  implementasyonu ElevenLabs'tir ve protokol yalnız test doubles için korunur. Worker meeting
+- Kuyruk, `TranscriptionServicing` üzerinden her işte tercihi okuyan yönlendiriciyi çağırır.
+  Okunamayan ayarlarda kaydı korur ve işi bekletir. Worker meeting
   repository'den birleşik M4A'yı alır ve aynı anda yalnızca claim edilmiş işi yürütür.
   Normalize sonuç önce sürümlü
   `transcript.json`, sonra tamamlandı durumu olarak atomik yazılır; bu sıra force-quit
@@ -672,9 +675,10 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   durdurma/finalize sonrasında tek M4A olarak kalıcı kuyruğa girer. ElevenLabs'in ayrı
   `scribe_v2_realtime` WebSocket modeli V1 sonrası kapsamındadır.
 
-- Production'da yalnız `ElevenLabsTranscriptionService` bulunur. Dar
-  `TranscriptionServicing` sözleşmesi ağ implementasyonunu test double'dan ayırır; runtime
-  provider seçimi veya plugin noktası değildir.
+- `MeetingTranscriptionRouter` açık tercihe göre `LocalMeetingTranscriptionService` veya
+  `ElevenLabsTranscriptionService` seçer. Yerel motor dil seçimi boşken Mac dilini kullanır.
+  Toplantı detayındaki yeniden transkripsiyon işlemi sesi güncel dil ve motorla işler.
+  Yeni metin başarıyla üretilene kadar önceki transkript korunur.
 - Capability doğrulaması ElevenLabs'in desteklenen formatını, dosya boyutu sınırını,
   diarization ve otomatik dil algılama gereksinimlerini istek başlamadan kontrol eder.
 - Transport ve HTTP hataları authentication, rate limit, timeout, bağlantı, provider ve
