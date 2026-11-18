@@ -25,18 +25,38 @@ verify_sparkle_archive "${fixture}/archive" "${digest}"
 print -n 'd' >> "${fixture}/archive"
 if verify_sparkle_archive "${fixture}/archive" "${digest}"; then exit 1; fi
 
-# The first upload fails after creation. The next run reuses the release.
+# The first upload fails after creation. The next run reuses the draft and publishes it.
+cd "${fixture}"
+print -r 'local-digest  example.dmg' > example.dmg.sha256
 gh() {
     case "$2" in
-        view) [[ -f "${fixture}/release" ]] ;;
-        create) [[ ! -f "${fixture}/release" ]] && touch "${fixture}/release" ;;
+        view)
+            [[ -f "${fixture}/offline" ]] && { print 'error connecting to api.github.com'; return 1; }
+            [[ -f "${fixture}/release" ]] || { print 'release not found'; return 1; }
+            [[ -f "${fixture}/public" ]] && print false || print true ;;
+        create)
+            [[ " $* " == *" --draft "* && ! -f "${fixture}/release" ]] && touch "${fixture}/release" ;;
         upload)
-            [[ "${@[-1]}" == --clobber ]] || return 1
-            [[ -f "${fixture}/allow-upload" ]] ;;
+            [[ "${@[-1]}" == --clobber && -f "${fixture}/allow-upload" ]] || return 1
+            cp example.dmg.sha256 "${fixture}/remote.sha256" ;;
+        edit) [[ "${@[-1]}" == --draft=false ]] && touch "${fixture}/public" ;;
+        download) cat "${fixture}/remote.sha256" ;;
         *) return 1 ;;
     esac
 }
-if upload_release_assets 1.0 example.dmg notes.md revision; then exit 1; fi
+if upload_release_assets 1.0 example.dmg notes.md revision 2>/dev/null; then exit 1; fi
+[[ ! -f "${fixture}/public" ]]
 touch "${fixture}/allow-upload"
 upload_release_assets 1.0 example.dmg notes.md revision
+[[ -f "${fixture}/public" ]]
+# The same build again only continues to the feed. A different build is refused.
+rm "${fixture}/allow-upload"
+upload_release_assets 1.0 example.dmg notes.md revision
+print -r 'other-digest  example.dmg' > example.dmg.sha256
+if upload_release_assets 1.0 example.dmg notes.md revision 2>/dev/null; then exit 1; fi
+# A failed lookup is not taken for a missing release.
+touch "${fixture}/offline"
+rm "${fixture}/release"
+if upload_release_assets 2.0 example.dmg notes.md revision 2>/dev/null; then exit 1; fi
+[[ ! -f "${fixture}/release" ]]
 print 'Sparkle integrity and resumable publication checks passed.'
