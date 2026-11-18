@@ -195,19 +195,20 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
   zeminde siyah çizildi ve pencere istenenden uzun açılıp alt kısım beyaz kaldı; arka plan
   1100 pt uzun çiziliyor, etiketlerin altına açık zemin kondu; pencere 600 pt, yerleşim 480 pt.
 
-### C11 — Yayın öncesi son düzeltmeler (2026-11-18)
+### C11 · Yayın öncesi son düzeltmeler (2026-11-18)
 
-- [ ] A ve 01-25: hover kararlılığı ve denetim düzeltmeleri. 🚧 Devam ediyor: 2026-11-18. Gerçek cihaz ve yayın kabulü ayrıca izlenecek.
-- [ ] 08. Herkese açık 1.0 DMG ve Sparkle beslemesi. 🚧 Devam ediyor. 18 Kasım'da sürüm listesi boş, v1.0 ve appcast HTTP 404. 17 ve 18 için yerel betik testleri geçti. Yayın kullanıcı onayı bekliyor. Yayın sonrası kontrol: `python3 macos/Scripts/release-availability-test.py 1.0`.
-
-
-- [x] Güvenlik, gizlilik, performans ve ürün kalitesini monorepo genelinde denetleyip tek raporda belgelemek. — ✅ 2026-11-18 · [Denetim raporu](docs/DENETIM-2026-11-18.md)
+- [x] Notch hover düzeltmesini ve 01-07, 09-25 bulgularının kod düzeltmelerini davranış testleriyle doğrulamak. 18 Kasım 2026. Tam macOS koşusunda 666 test, 5 atlama, 0 hata. Chrome uzantısında 10, sitede 4 tarayıcı testi geçti. Bulgulara karşılık gelen testler ve performans ölçümü [denetim raporunda](docs/DENETIM-2026-11-18.md).
+- [ ] A. Gerçek imleçle, notch’tan hızla listenin altına indikten ve içerik kısaldıktan sonra kapanma kabulü. Kullanıcı doğrulayacak.
+- [ ] 01. İzinli gerçek toplantıda dikte, sessize alma, erişim kaybı ve kayıt başlangıcı sırasında ham mikrofon ve birleşik ses kabulü.
+- [ ] 05 ve 06. Gerçek Chrome'da Meet sekmesini yenileme, başka kökene geçiş ve yakalama başlarken durdurma kabulü.
+- [ ] 08. Herkese açık 1.0 DMG ve Sparkle beslemesi. 🚧 Devam ediyor. 18 Kasım'da sürüm listesi boş, v1.0 ve appcast HTTP 404. Yayın kullanıcı onayı bekliyor. Yayın sonrası kontrol: `python3 macos/Scripts/release-availability-test.py 1.0`.
+- [ ] 08, 15, 16 ve 19. Dağıtım imzasıyla temiz Mac'te noter, Applications'a taşıma, yerel yardımcı ve iki imzalı sürüm arasında güncelleme kabulü.
+- [x] Güvenlik, gizlilik, performans ve ürün kalitesini monorepo genelinde denetleyip tek raporda belgelemek. 18 Kasım 2026. [Denetim raporu](docs/DENETIM-2026-11-18.md)
 
 - [x] Çoklu ekran: kullanıcı notch'u tutup başka ekranın üstüne sürükleyebilsin; bıraktığı
   ekranda çalışsın ve seçim (ekran UUID'si) hatırlansın. Ekran çıkarılınca fiziksel notch'lu
   ekrana düşer, geri takılınca seçtiği ekrana döner. — ✅ 2026-11-18 (kullanıcı iki ekranda denedi)
-- [x] Hızlıca açık panele inen imleç paneli kapatmasın: şekil yerine oturana kadar eski
-  büyük çerçeve sayılır, kapatmadan önce imleç yeniden kontrol edilir. — ✅ 2026-11-18 (631 test; cihaz kabulü kullanıcıda)
+- [x] Önceki hover denemesindeki 0,6 saniyelik süreyi açılış boyunca geçerli geometri takibiyle değiştirmek. Cihaz kabulü yukarıda açık.
 
 ### C8 — Gerçek cihaz kabulü
 
