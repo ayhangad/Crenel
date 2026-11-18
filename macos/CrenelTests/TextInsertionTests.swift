@@ -228,13 +228,39 @@ final class TextInsertionTests: XCTestCase {
     func testSystemClipboardHonorsCumulativeByteBudget() async {
         let board = NSPasteboard.withUniqueName()
         defer { board.releaseGlobally() }
+        let half = SystemDictationPasteboard.snapshotByteBudget / 2
         let first = NSPasteboardItem()
-        first.setData(Data(repeating: 65, count: 1_500_000), forType: .string)
+        first.setData(Data(repeating: 65, count: half + 1), forType: .string)
         let second = NSPasteboardItem()
-        second.setData(Data(repeating: 66, count: 700_000), forType: .string)
+        second.setData(Data(repeating: 66, count: half), forType: .string)
         board.writeObjects([first, second])
         let snapshot = await SystemDictationPasteboard(pasteboard: board).snapshot()
         XCTAssertNil(snapshot)
+    }
+
+    func testSystemClipboardKeepsACopiedImageSizedItem() async {
+        let board = NSPasteboard.withUniqueName()
+        defer { board.releaseGlobally() }
+        let image = NSPasteboardItem()
+        image.setData(Data(repeating: 1, count: 8_000_000), forType: .tiff)
+        board.writeObjects([image])
+        let snapshot = await SystemDictationPasteboard(pasteboard: board).snapshot()
+        XCTAssertEqual(snapshot?.items.first?[NSPasteboard.PasteboardType.tiff.rawValue]?.count, 8_000_000)
+    }
+
+    func testSystemClipboardSkipsAnAdvertisedTypeWithoutData() async {
+        final class Provider: NSObject, NSPasteboardItemDataProvider {
+            func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {}
+        }
+        let board = NSPasteboard.withUniqueName()
+        defer { board.releaseGlobally() }
+        let provider = Provider()
+        let item = NSPasteboardItem()
+        item.setString("kept", forType: .string)
+        item.setDataProvider(provider, forTypes: [NSPasteboard.PasteboardType("com.example.lazy")])
+        board.writeObjects([item])
+        let snapshot = await SystemDictationPasteboard(pasteboard: board).snapshot()
+        XCTAssertEqual(snapshot?.items.first?[NSPasteboard.PasteboardType.string.rawValue], Data("kept".utf8))
     }
 
     func testUndoRestoresAccessibilityInsertionAndSelection() async {

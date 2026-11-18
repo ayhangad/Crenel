@@ -457,13 +457,17 @@ final class SystemDictationPasteboard: DictationPasteboard {
 
     var changeCount: Int { pasteboard.changeCount }
 
+    nonisolated static let snapshotByteBudget = 64 * 1024 * 1024
+
     func snapshot() async -> PasteboardSnapshot? {
         let name = pasteboard.name
         return await Task.detached(priority: .userInitiated) {
             let board = NSPasteboard(name: name)
             guard let items = board.pasteboardItems else { return PasteboardSnapshot(items: []) }
             guard items.count <= 32 else { return nil }
-            var remainingBytes = 2 * 1024 * 1024
+            // Room for a copied screenshot or photo, so dictating doesn't replace an image the
+            // user copied. Anything larger is left to the copy-only fallback.
+            var remainingBytes = SystemDictationPasteboard.snapshotByteBudget
             var remainingTypes = 64
             var result: [[String: Data]] = []
             for item in items {
@@ -472,7 +476,9 @@ final class SystemDictationPasteboard: DictationPasteboard {
                 remainingTypes -= types.count
                 var values: [String: Data] = [:]
                 for type in types {
-                    guard let data = item.data(forType: type), data.count <= remainingBytes else { return nil }
+                    // Apps may advertise a type they can't deliver; skip it like before.
+                    guard let data = item.data(forType: type) else { continue }
+                    guard data.count <= remainingBytes else { return nil }
                     remainingBytes -= data.count
                     values[type.rawValue] = data
                 }
