@@ -17,6 +17,13 @@ struct MeetingMicrophoneGateEvent: Codable, Equatable, Sendable {
     let confidence: DetectionConfidence
 }
 
+/// Whether the user's microphone reaches the recording.
+///
+/// 2026-11-20 decision: every recording starts with the microphone open; the user closes
+/// it in the notch or with the shortcut. Starting closed recorded only the other side of
+/// calls Crenel can't read (Slack huddles, Teams, FaceTime) unless the user noticed the
+/// warning and opened it. A call app's confirmed mute still closes it and a confirmed
+/// unmute opens it; an unreadable or unknown call state leaves it as it is.
 struct MeetingMicrophoneGate: Equatable, Sendable {
     private var baseState: MeetingMicrophoneState
     private(set) var dictationHeld: Bool
@@ -28,11 +35,11 @@ struct MeetingMicrophoneGate: Equatable, Sendable {
 
     init(recordingStartedAt: Date, dictationHeld: Bool = false) {
         self.dictationHeld = dictationHeld
-        baseState = .closed
+        baseState = .open
         events = [
             MeetingMicrophoneGateEvent(
                 timestamp: recordingStartedAt,
-                state: .closed,
+                state: dictationHeld ? .closed : .open,
                 source: .recordingStarted,
                 confidence: .confirmed
             )
@@ -51,14 +58,11 @@ struct MeetingMicrophoneGate: Equatable, Sendable {
         confidence: DetectionConfidence,
         at timestamp: Date
     ) -> MeetingMicrophoneGateEvent? {
-        let safeState: MeetingMicrophoneState
-        if observedState == .open && confidence != .confirmed {
-            safeState = .unknown
-        } else {
-            safeState = observedState
-        }
+        // An unconfirmed "open" or an unknown state is no news: keep the current state.
+        guard observedState == .closed || confidence == .confirmed,
+              observedState != .unknown else { return nil }
         return transition(
-            to: safeState,
+            to: observedState,
             source: .clientAdapter,
             confidence: confidence,
             at: timestamp
@@ -79,28 +83,21 @@ struct MeetingMicrophoneGate: Equatable, Sendable {
         )
     }
 
+    /// The call app can no longer be read. The user's own choice (or the default open
+    /// state) stands; nothing about the mute is known.
     @discardableResult
     mutating func adapterBecameUnavailable(
         at timestamp: Date
     ) -> MeetingMicrophoneGateEvent? {
-        transition(
-            to: .unknown,
-            source: .adapterUnavailable,
-            confidence: .unknown,
-            at: timestamp
-        )
+        nil
     }
 
+    /// The recorded call process went away; the microphone is still the user's choice.
     @discardableResult
     mutating func meetingProcessChanged(
         at timestamp: Date
     ) -> MeetingMicrophoneGateEvent? {
-        transition(
-            to: .unknown,
-            source: .processChanged,
-            confidence: .unknown,
-            at: timestamp
-        )
+        nil
     }
 
     @discardableResult

@@ -80,9 +80,9 @@ final class MicrophonePCMPrivacyGateTests: XCTestCase {
         gate.setDictationHeld(false, at: date)
         XCTAssertEqual(gate.state, .closed)
         gate.setDictationHeld(true, at: date)
-        gate.adapterBecameUnavailable(at: date)
+        gate.observeClientState(.open, confidence: .confirmed, at: date)
         gate.setDictationHeld(false, at: date)
-        XCTAssertEqual(gate.state, .unknown)
+        XCTAssertEqual(gate.state, .open)
     }
 
     private func makeBuffer(value: Float, frames: AVAudioFrameCount) -> AVAudioPCMBuffer {

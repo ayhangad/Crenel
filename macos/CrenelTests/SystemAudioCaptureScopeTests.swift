@@ -90,7 +90,8 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
         )
     }
 
-    func testScheduledSupportedMeetingFailsClosedBeforeProcessIsVerified() {
+    func testCalendarLinkAloneDoesNotBlockRecordingAnotherCall() throws {
+        // A Slack huddle while a Zoom or Meet event sits in the calendar.
         let zoomMeeting = Meeting(
             title: "Zoom",
             startDate: .now,
@@ -104,15 +105,103 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
             meetingURL: URL(string: "https://meet.google.com/abc-defg-hij")
         )
 
-        XCTAssertThrowsError(try resolver.resolve(detection: nil, meeting: zoomMeeting)) {
-            XCTAssertEqual($0 as? RecordingCaptureError, .meetingProcessUnavailable)
+        XCTAssertEqual(try resolver.resolve(detection: nil, meeting: zoomMeeting), .explicitManualGlobal)
+        XCTAssertEqual(try resolver.resolve(detection: nil, meeting: meetMeeting), .explicitManualGlobal)
+    }
+
+    func testEndedSessionNoLongerScopesTheNextRecording() throws {
+        let detection = MeetingSessionDetectionSnapshot(
+            session: MeetingSession(state: .ended, clientID: .zoom, processID: 4_200),
+            audioProcess: nil,
+            client: nil
+        )
+
+        XCTAssertEqual(try resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
+    }
+
+    func testIdleZoomInTheBackgroundIsNotACall() throws {
+        let process = AudioProcessSnapshot(
+            audioObjectID: 81,
+            processID: 4_200,
+            bundleIdentifier: "us.zoom.xos",
+            isRunningInput: false,
+            isRunningOutput: false
+        )
+        let detection = MeetingSessionDetectionSnapshot(
+            session: MeetingSession(state: .candidate, clientID: .zoom, processID: process.processID),
+            audioProcess: process,
+            client: clientSnapshot(.zoom, processID: process.processID, inCall: false)
+        )
+
+        XCTAssertEqual(try resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
+    }
+
+    func testChromePlayingAudioWithoutAMeetCallUsesGlobalScope() throws {
+        // Slack in a Chrome tab, or a video, while Chrome is readable and shows no Meet call.
+        let process = AudioProcessSnapshot(
+            audioObjectID: 91,
+            processID: 5_200,
+            bundleIdentifier: "com.google.Chrome",
+            isRunningInput: true,
+            isRunningOutput: true
+        )
+        let detection = MeetingSessionDetectionSnapshot(
+            session: MeetingSession(state: .candidate, clientID: .googleMeetChrome, processID: process.processID),
+            audioProcess: process,
+            client: clientSnapshot(.googleMeetChrome, processID: process.processID, inCall: false)
+        )
+
+        XCTAssertEqual(try resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
+    }
+
+    func testVisibleMeetCallStillFailsClosedWithoutTheBridge() {
+        let detection = MeetingSessionDetectionSnapshot(
+            session: MeetingSession(state: .ready, clientID: .googleMeetChrome, processID: 5_200),
+            audioProcess: nil,
+            client: clientSnapshot(.googleMeetChrome, processID: 5_200, inCall: true)
+        )
+
+        XCTAssertThrowsError(try resolver.resolve(detection: detection, meeting: nil)) {
+            XCTAssertEqual($0 as? RecordingCaptureError, .browserMeetingAudioIsolationUnavailable)
         }
-        XCTAssertThrowsError(try resolver.resolve(detection: nil, meeting: meetMeeting)) {
-            XCTAssertEqual(
-                $0 as? RecordingCaptureError,
-                .browserMeetingAudioIsolationUnavailable
-            )
+    }
+
+    func testUnreadableChromeFailsClosedOnlyWhenTheCalendarSaysMeet() throws {
+        let unreadable = MeetingClientSnapshot(
+            clientID: .googleMeetChrome,
+            processID: 5_200,
+            availability: .accessibilityPermissionRequired,
+            meetingWindowPresent: false,
+            callControlsPresent: false,
+            microphoneState: .unknown
+        )
+        let detection = MeetingSessionDetectionSnapshot(
+            session: MeetingSession(state: .candidate, clientID: .googleMeetChrome, processID: 5_200),
+            audioProcess: nil,
+            client: unreadable
+        )
+        let meetMeeting = Meeting(
+            title: "Meet",
+            startDate: .now,
+            endDate: .now.addingTimeInterval(1_800),
+            meetingURL: URL(string: "https://meet.google.com/abc-defg-hij")
+        )
+
+        XCTAssertEqual(try resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
+        XCTAssertThrowsError(try resolver.resolve(detection: detection, meeting: meetMeeting)) {
+            XCTAssertEqual($0 as? RecordingCaptureError, .browserMeetingAudioIsolationUnavailable)
         }
+    }
+
+    private func clientSnapshot(_ client: MeetingClientID, processID: Int32, inCall: Bool) -> MeetingClientSnapshot {
+        MeetingClientSnapshot(
+            clientID: client,
+            processID: processID,
+            availability: .available,
+            meetingWindowPresent: inCall,
+            callControlsPresent: inCall,
+            microphoneState: inCall ? .open : .unknown
+        )
     }
 
     func testExplicitManualRecordingWithoutSupportedMeetingUsesGlobalScope() throws {

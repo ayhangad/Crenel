@@ -79,6 +79,18 @@ struct MeetingStatusView: View {
         let memory = appState.todayFlowMemory
 
         Group {
+            if showsCancelConfirmation, Self.isCancellable(appState.meetingFlow.phase) {
+                CancelConfirmationSurface(
+                    title: cancelConfirmationTitle,
+                    message: cancelConfirmationMessage,
+                    confirmTitle: cancelConfirmationButtonTitle,
+                    onKeep: { showsCancelConfirmation = false },
+                    onConfirm: {
+                        showsCancelConfirmation = false
+                        onCancelFlow()
+                    }
+                )
+            } else {
             switch appState.meetingFlow {
             case .idle, .upcomingMeeting:
                 TodaySurface(
@@ -136,14 +148,13 @@ struct MeetingStatusView: View {
             case .cancelled:
                 stopped(after: memory.phaseBeforeCancel)
             }
-        }
-        .alert(cancelConfirmationTitle, isPresented: $showsCancelConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button(cancelConfirmationButtonTitle, role: .destructive) {
-                onCancelFlow()
             }
-        } message: {
-            Text(cancelConfirmationMessage)
+        }
+        // Asked inside the notch: a system alert attached to the non-activating notch panel
+        // could open out of reach of the pointer or vanish when the panel folded, so Stop
+        // and Cancel looked like they did nothing.
+        .onChange(of: appState.meetingFlow.phase) { _, phase in
+            if !Self.isCancellable(phase) { showsCancelConfirmation = false }
         }
         .task(id: appState.completedMeeting?.id) {
             resultStats = nil
@@ -266,7 +277,14 @@ struct MeetingStatusView: View {
         }
     }
 
-    // MARK: Alerts
+    // MARK: Cancel confirmation
+
+    static func isCancellable(_ phase: MeetingFlowState.Phase) -> Bool {
+        switch phase {
+        case .preparingRecording, .recording, .uploading, .transcribing, .summarizing: true
+        default: false
+        }
+    }
 
     private var cancelConfirmationTitle: String {
         switch appState.meetingFlow.phase {
@@ -299,6 +317,39 @@ struct MeetingStatusView: View {
         default:
             "Temporary recording files will be deleted."
         }
+    }
+}
+
+// MARK: - Cancel confirmation
+
+/// Stop or delete, confirmed in place. Esc keeps going, Return confirms.
+struct CancelConfirmationSurface: View {
+    let title: String
+    let message: String
+    let confirmTitle: String
+    let onKeep: () -> Void
+    let onConfirm: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                HudStatusShape(.warn)
+                Text(verbatim: title).hud(.body, Hud.Ink.ink1)
+            }
+            Text(verbatim: message).hud(.meta, Hud.Ink.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+            HudActions {
+                HudButton("Keep", key: "esc", size: .small, action: onKeep)
+                    .hudShortcut(.cancelAction)
+                HudButton(confirmTitle, key: "↩", kind: .danger, size: .small, action: onConfirm)
+                    .hudShortcut(.defaultAction)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.top, 4)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
     }
 }
 

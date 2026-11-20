@@ -218,6 +218,26 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
 - [x] Deepgram gerçek anahtar kabulü. — ✅ 2026-11-18 (kullanıcı Debug build'de denedi, çalışıyor)
 - [x] 1.1 yayını: imzalı DMG, GitHub Release (`Crenel.dmg` dahil), appcast. — ✅ 2026-11-18 (v1.1 build 154 Latest; `release-availability-test.py 1.1` geçti; site indirme bağlantısı 1.1 DMG'sini veriyor. İlk deneme, test sırasında build klasörleri silindiği için yayınlanmadan durdu.)
 
+### C12 · Test kullanıcısı geri bildirimi (2026-11-20)
+
+Bir test kullanıcısı dört sorun bildirdi; kullanıcı ayrıca kaydın mikrofonu açık başlatmasını
+istedi. Karar (2026-11-20): toplantı mikrofonu her kayıtta açık başlar, isteyen kapatır. Bu,
+aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kuralının yerine geçer.
+
+- [x] Takvim izni ilk açılışta çalışmıyor, yeniden başlatınca çalışıyordu: izin gelince
+  EventKit store'u yeniden kurmak (takvim ve Hatırlatıcılar). — ✅ 2026-11-20 (otomatik test)
+- [x] Fn dikte tuşuyken Crenel kapandıktan sonra 🌐 tuşu Mac yeniden başlatılana dek
+  çalışmıyordu: ayarı HIToolbox ile canlı yazıp geri yüklemek. — ✅ 2026-11-20 (otomatik test)
+- [x] Slack huddle'da “toplantı yok” deyip kayıt başlamıyordu: eski oturum, Meet olmayan
+  Chrome sesi, boşta Zoom ve takvim linki kaydı engellemesin; sistem sesinin tamamıyla
+  kaydetsin. — ✅ 2026-11-20 (otomatik test)
+- [x] Notch'taki Cancel/Stop işe yaramıyordu: onayı sistem alert'i yerine notch içinde
+  sormak. — ✅ 2026-11-20 (otomatik test; tam koşu 691 test, 5 atlama, 0 hata)
+- [x] Kayıt mikrofonu varsayılan açık; mute sinyali kapatır, belirsizlik değiştirmez. — ✅ 2026-11-20 (otomatik test)
+- [ ] Cihaz kabulü: temiz izinle takvim bağlantısı; Fn ile dil değiştirme Crenel kapanınca
+  hemen geri geliyor; Slack huddle kaydında iki taraf da duyuluyor; notch'ta Cancel ve
+  Stop processing onayı. Kullanıcı ve test kullanıcısı doğrulayacak.
+
 ### C8 — Gerçek cihaz kabulü
 
 Otomatik testler gerçek izinleri, EventKit/Hatırlatıcılar hesaplarını, event tap'i,
@@ -524,7 +544,7 @@ olarak modellenir. Her snapshot `confidence`, `evidence`, `clientID`, `processID
 - Her gate geçişi kayıt metadata'sına timestamp ve kaynakla yazılır; ham konuşma veya UI
   metni loglanmaz.
 - Manuel fallback global shortcut ve notch kontrolüyle çalışır, kayıt boyunca görünürdür ve
-  yeni oturumda varsayılan olarak kapalı başlar.
+  yeni oturumda varsayılan olarak kapalı başlar. (2026-11-20: C12 kararıyla varsayılan açık.)
 - Privacy kabul testi, mute iken söylenen benzersiz test cümlesinin ne ham mikrofon
   parçasında ne birleşik M4A'da ne de transkriptte bulunmadığını doğrular.
 

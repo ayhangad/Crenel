@@ -45,12 +45,14 @@ protocol ReminderStore: Sendable {
 }
 
 actor EventKitReminderStore: ReminderStore {
-    private let eventStore: EKEventStore
+    private var eventStore: EKEventStore
     private let calendar: Calendar
 
-    init(eventStore: EKEventStore = EKEventStore(), calendar: Calendar = .current) {
-        self.eventStore = eventStore
+    init(calendar: Calendar = .current) {
+        self.eventStore = EKEventStore()
         self.calendar = calendar
+        let status = EKEventStore.authorizationStatus(for: .reminder)
+        self.hasSeenAccess = status == .fullAccess || status == .authorized
     }
 
     func accessState() -> ReminderAccessState {
@@ -66,8 +68,7 @@ actor EventKitReminderStore: ReminderStore {
     func requestAccess() async throws -> Bool {
         let granted = try await eventStore.requestFullAccessToReminders()
         if granted {
-            eventStore.reset()
-            hasSeenAccess = true
+            refreshAfterGrant()
         }
         return granted
     }
@@ -111,14 +112,15 @@ actor EventKitReminderStore: ReminderStore {
         return Array(parts.prefix(3))
     }
 
-    /// An event store made before access was granted keeps seeing no sources or lists.
-    /// The first time access is found, start it over so a grant works without relaunching.
-    private var hasSeenAccess = false
+    /// An event store made before access was granted keeps seeing no sources or lists,
+    /// and `reset()` does not always revive it. The first time access is found, a new store
+    /// replaces it so a grant works without relaunching.
+    private var hasSeenAccess: Bool
 
     private func refreshAfterGrant() {
         guard !hasSeenAccess else { return }
         hasSeenAccess = true
-        eventStore.reset()
+        eventStore = EKEventStore()
     }
 
     func prepareList(preferredIdentifier: String?, title: String) async throws -> String {

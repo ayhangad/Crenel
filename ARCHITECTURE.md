@@ -141,7 +141,8 @@ Akıllı giriş `TaskInputParser` kurallı, deterministik ve yerel çalışır (
 
 ### Dikte
 
-Tetik `CGEventTap` (yalnız dinler; Input Monitoring izni) ile Fn/sağ ⌥/sağ ⌘ basılı tut veya
+Tetik `CGEventTap` (yalnız dinler; Input Monitoring izni; Fn seçiliyken 🌐 sistem ayarı
+HIToolbox üzerinden canlı değiştirilir ve geri yüklenir) ile Fn/sağ ⌥/sağ ⌘ basılı tut veya
 aç-kapa; Esc iptal. Ses `AVAudioEngine` ile bellekte kalır, diske yazılmaz.
 `SpeechAnalyzer` + `SpeechTranscriber` (yoksa `DictationTranscriber`) cihazda çalışır;
 model `AssetInventory` ile indirilir. Metin önce Accessibility ile seçili metin alanına
@@ -173,6 +174,36 @@ model yalnızca onun görevlerini döndürür; `MeetingSummaryRouter` her servis
 bir kişiye ya da adı verilmiş başka bir konuşmacıya açıkça atanmış maddeleri ayıklar.
 Sahibi belirsiz maddeler (ad yok, “Speaker 2” gibi etiket) korunur. Ek konuşmacı tanıma
 yapılmaz.
+
+### Kayıt, izin ve Fn düzeltmeleri (2026-11-20, test kullanıcısı geri bildirimi)
+
+Bu alt bölüm aşağıdaki eski mikrofon gate ve kayıt kapsamı kurallarının yerine geçer.
+
+- **Mikrofon varsayılan açık.** `MeetingMicrophoneGate` her kayıtta `open` başlar (dikte
+  basılıyken `closed`). Kullanıcı notch'tan veya kısayoldan kapatır. Desteklenen istemcinin
+  kesin mute sinyali kapatır, doğrulanmış unmute açar; okunamayan istemci, `unknown` durum ve
+  süreç değişimi gate'i değiştirmez. Sistem uykusu hâlâ `unknown` üretir (kayıt zaten biter).
+  Kapsamsız (`explicitManualGlobal`) kayıtta gate algılanan başka bir Zoom/Chrome penceresinin
+  mute durumunu izlemez. Kapalı ve `unknown` aralıklarında PCM yine sıfırlanır.
+- **Kayıt kapsamı.** `MeetingAudioCaptureScopeResolver` yalnız gerçekten süren bir Zoom
+  (çağrı penceresi veya ses IO'su) için süreç tap'i, görünen bir Meet çağrısı için sekme
+  köprüsü ister; köprü yoksa Meet kaydı yine başlamaz. Bitmiş oturum, Meet göstermeyen Chrome,
+  arka planda boşta Zoom veya takvimdeki link tek başına kaydı engellemez; kayıt sistem sesinin
+  tamamıyla başlar (Slack huddle, Teams, FaceTime). Chrome okunamıyorsa yalnız takvim Meet
+  diyorsa kapalı kalınır.
+- **İptal onayı notch içinde.** Kayıt hazırlığını iptal, kaydı silme ve işlemeyi durdurma
+  onayı `CancelConfirmationSurface` satırıdır. Etkinleşmeyen notch paneline bağlı SwiftUI
+  `alert` imleç dışında açılıp tıklanamıyor ya da panel katlanınca kayboluyordu.
+- **Takvim/Hatırlatıcılar izni.** İzin yokken oluşturulan `EKEventStore` izin gelince
+  `reset()` ile her zaman canlanmıyordu. `EventKitMeetingProvider` ve `EventKitReminderStore`
+  erişimi ilk gördükleri anda (sistem istemi, kurulum veya Sistem Ayarları) yeni store kurar.
+- **Fn / 🌐 ayarı.** `AppleFnUsageType` CFPreferences ile yazılınca yalnız dosya değişiyor,
+  🌐 tuşunu işleyen TextInputSwitcher eski değeri oturum sonuna kadar tutuyordu; Crenel
+  kapandıktan sonra tuş Mac yeniden başlatılana dek çalışmıyordu. `SystemFnUsageSettingStore`
+  Sistem Ayarları gibi HIToolbox `TISGetFnUsageType` / `TISUpdateFnUsageType` (çalışma anında
+  `dlsym`) kullanır; değer yazılır ve tüm süreçlere yayınlanır. Fonksiyon yoksa CFPreferences'a
+  düşer. Eski sürümlerin "anahtar yoktu" kaydı, macOS'un o Mac için varsayılanı açık değer
+  olarak canlı uygulanarak geri yüklenir.
 
 ## Masaüstü ve notch birlikte çalışma sözleşmesi
 
@@ -323,7 +354,7 @@ Klasörler ihtiyaç oldukça açılır; boş mimari katman oluşturulmaz.
 - Meeting client adapter'ları Accessibility UI metinlerini domain'e taşımaz; yalnız
   normalize kanıt ve `open/closed/unknown` mute durumu üretir.
 - Algılama belirsizliği UI'da kesin duruma yükseltilmez. Mikrofon gate'i belirsizlikte
-  fail-closed davranır.
+  son durumunu korur; varsayılanı açıktır (2026-11-20).
 
 ## Ana ürün akışı
 
@@ -574,8 +605,8 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   Böylece LaunchServices'ın bellekteki eski build'i öne getirmesi engellenir.
 - Accessibility izni yalnız desteklenen istemcide meeting window/call control ve mute
   durumunu yerel olarak okumak için istenir. Ret veya sonradan kaldırılma kayıt erişimini
-  kapatmaz; session detector düşük güvene, microphone gate ise `unknown → closed` durumuna
-  düşer ve manuel fallback'i görünür yapar.
+  kapatmaz; session detector düşük güvene düşer, microphone gate kullanıcının seçimini
+  korur (2026-11-20; bkz. üstteki düzeltmeler).
 
 ## Mikrofon cihaz yaşam döngüsü
 
@@ -617,15 +648,15 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   uyarılır ve gerekiyorsa kayıt güvenli biçimde finalize edilir.
 - `kAudioProcessPropertyIsRunningInput`, input stream aktivitesini bildirir fakat istemci
   mute durumunu kanıtlamaz. Gate'i tek başına açması yasaktır.
-- `MeetingMicrophoneGate` `open`, `closed`, `unknown` durumlarını taşır ve her kayıt
-  `closed` başlar. Desteklenen Accessibility adapter'ından doğrulanmış unmute veya kullanıcının
-  görünür manuel kontrolü `open` üretebilir.
+- `MeetingMicrophoneGate` `open`, `closed`, `unknown` durumlarını taşır ve 2026-11-20'den
+  beri her kayıt `open` başlar. Kullanıcının manuel kontrolü veya istemcinin kesin mute
+  sinyali `closed`, doğrulanmış unmute `open` üretir.
 - `closed` ve `unknown` aralıklarında mikrofon PCM frame'leri encode edilmeden önce zero
   fill edilir. Frame sayısı ve timestamp korunur; ortak timeline kaymaz. Gate sınırında kısa
   fade click'i önler; konuşma pre-roll'u tutulmaz.
 - Gate geçişleri session metadata'sına timestamp, normalize source ve confidence ile
   yazılır. UI metni, konuşma içeriği veya Accessibility ağacı kalıcılaştırılmaz.
-- Adapter/Accessibility kaybı anında `unknown`, ardından fail-closed davranış üretir.
+- Adapter/Accessibility kaybı gate'i değiştirmez (2026-11-20).
   Notch kayıt boyunca `Açık/Kapalı/Bilinmiyor` durumunu ve manuel shortcut'ı görünür tutar.
 - Privacy testi mute aralığında söylenen benzersiz canary phrase'i ham mic, birleşik M4A ve
   transkriptte arar. Bu test geçmeden bir client adapter'ı “desteklenen” sayılamaz.

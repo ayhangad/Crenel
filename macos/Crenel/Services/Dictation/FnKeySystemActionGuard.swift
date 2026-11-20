@@ -55,6 +55,12 @@ final class FnKeySystemActionGuard {
     }
 }
 
+/// Live store. Writing `AppleFnUsageType` with CFPreferences alone only changed the file:
+/// the system process that handles the 🌐 key (TextInputSwitcher) keeps its cached value
+/// until the next login, so the key stayed "Do Nothing" after Crenel quit until the Mac
+/// restarted. System Settings changes it through HIToolbox's `TISUpdateFnUsageType`, which
+/// writes the value and tells every process to re-read it; Crenel does the same and only
+/// falls back to CFPreferences if that function is missing.
 final class SystemFnUsageSettingStore: FnUsageSettingStore {
     private static let domain = "com.apple.HIToolbox" as CFString
     private static let key = "AppleFnUsageType" as CFString
@@ -62,19 +68,36 @@ final class SystemFnUsageSettingStore: FnUsageSettingStore {
     private static let absentMarker = -1
 
     private let defaults: UserDefaults
+    private let toolbox: FnUsageToolbox?
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, toolbox: FnUsageToolbox? = .live) {
         self.defaults = defaults
+        self.toolbox = toolbox
     }
 
     func systemValue() -> Int? {
+        // The effective value, including macOS's own default when the key is absent.
+        if let toolbox { return Int(toolbox.get()) }
         CFPreferencesAppSynchronize(Self.domain)
         return (CFPreferencesCopyAppValue(Self.key, Self.domain) as? NSNumber)?.intValue
     }
 
     func setSystemValue(_ value: Int?) {
-        CFPreferencesSetAppValue(Self.key, value.map { NSNumber(value: $0) }, Self.domain)
-        CFPreferencesAppSynchronize(Self.domain)
+        guard let toolbox else {
+            CFPreferencesSetAppValue(Self.key, value.map { NSNumber(value: $0) }, Self.domain)
+            CFPreferencesAppSynchronize(Self.domain)
+            return
+        }
+        if let value, (0...3).contains(value) {
+            toolbox.update(Int32(value))
+            return
+        }
+        // Earlier builds saved "absent" when the user had never picked a value. Remove the
+        // key, let HIToolbox work out macOS's default for this Mac, and apply that live.
+        // The first update clears HIToolbox's in-process cache so the default is re-read.
+        toolbox.update(toolbox.get())
+        toolbox.clearStoredValue()
+        toolbox.update(toolbox.get())
     }
 
     var savedOriginal: Int?? {
@@ -89,4 +112,27 @@ final class SystemFnUsageSettingStore: FnUsageSettingStore {
             }
         }
     }
+}
+
+/// HIToolbox's own getter and setter for "Press 🌐 key to", loaded at run time.
+struct FnUsageToolbox {
+    let get: () -> Int32
+    let update: (Int32) -> Void
+    /// Removes the stored value so macOS falls back to its default.
+    var clearStoredValue: () -> Void = {
+        let domain = "com.apple.HIToolbox" as CFString
+        CFPreferencesSetAppValue("AppleFnUsageType" as CFString, nil, domain)
+        CFPreferencesAppSynchronize(domain)
+    }
+
+    static let live: FnUsageToolbox? = {
+        typealias Getter = @convention(c) () -> Int32
+        typealias Setter = @convention(c) (Int32) -> Void
+        guard let carbon = dlopen("/System/Library/Frameworks/Carbon.framework/Carbon", RTLD_LAZY),
+              let getter = dlsym(carbon, "TISGetFnUsageType"),
+              let setter = dlsym(carbon, "TISUpdateFnUsageType") else { return nil }
+        let get = unsafeBitCast(getter, to: Getter.self)
+        let update = unsafeBitCast(setter, to: Setter.self)
+        return FnUsageToolbox(get: { get() }, update: { update($0) })
+    }()
 }

@@ -14,18 +14,32 @@ extension CalendarMeetingProviding {
 }
 
 actor EventKitMeetingProvider: CalendarMeetingProviding {
-    private let eventStore: EKEventStore
+    private var eventStore: EKEventStore
     private let urlMatcher: MeetingURLMatcher
     private var selectedCalendarIDs: [String]?
+    /// An event store made before calendar access was granted keeps returning no
+    /// calendars, and `reset()` does not always revive it; only a relaunch did. The store
+    /// is replaced the first time access is seen, whichever path granted it (the system
+    /// prompt, onboarding, or a switch flipped in System Settings).
+    private var storeCreatedWithAccess: Bool
 
     func selectCalendars(_ ids: [String]?) async { selectedCalendarIDs = ids }
 
-    init(
-        eventStore: EKEventStore = EKEventStore(),
-        urlMatcher: MeetingURLMatcher = MeetingURLMatcher()
-    ) {
-        self.eventStore = eventStore
+    init(urlMatcher: MeetingURLMatcher = MeetingURLMatcher()) {
+        self.eventStore = EKEventStore()
         self.urlMatcher = urlMatcher
+        self.storeCreatedWithAccess = Self.hasFullAccess(EKEventStore.authorizationStatus(for: .event))
+    }
+
+    static func hasFullAccess(_ status: EKAuthorizationStatus) -> Bool {
+        status == .fullAccess || status == .authorized
+    }
+
+    private func replaceStoreIfCreatedWithoutAccess() {
+        guard !storeCreatedWithAccess,
+              Self.hasFullAccess(EKEventStore.authorizationStatus(for: .event)) else { return }
+        eventStore = EKEventStore()
+        storeCreatedWithAccess = true
     }
 
     func authorizationState() -> CalendarAccessState {
@@ -46,7 +60,7 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
     func requestAccess() async throws -> Bool {
         let granted = try await eventStore.requestFullAccessToEvents()
         if granted {
-            eventStore.reset()
+            replaceStoreIfCreatedWithoutAccess()
         }
         return granted
     }
@@ -55,6 +69,7 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
         from startDate: Date,
         to endDate: Date
     ) -> CalendarMeetingQueryResult {
+        replaceStoreIfCreatedWithoutAccess()
         eventStore.refreshSourcesIfNecessary()
         let allCalendars = eventStore.calendars(for: .event)
         let calendars = allCalendars.filter { selectedCalendarIDs?.contains($0.calendarIdentifier) ?? true }

@@ -86,13 +86,13 @@ final class TodaySurfaceGalleryTests: XCTestCase {
 
     func testRecordingWarningsCarryTheirShape() {
         var gate = MeetingMicrophoneGate(recordingStartedAt: Self.now)
-        gate.adapterBecameUnavailable(at: Self.now)
+        gate.systemWasInterrupted(at: Self.now)
         var capture = RecordingCaptureStatus()
         capture.microphone.connectionState = .disconnected(deviceName: "AirPods Pro")
         capture.systemAudio.connectionState = .pipelineStalled
         let warnings = RecordingSurface.warnings(gate: gate, clientName: "Zoom", capture: capture, safetyMessage: nil)
         XCTAssertEqual(warnings.map(\.status), [.warn, .err, .err])
-        XCTAssertEqual(warnings.first?.text, "Couldn’t read Zoom’s mute state, so your mic is kept off")
+        XCTAssertEqual(warnings.first?.text, "Mac is going to sleep. Mic is off and the recording is ending.")
         XCTAssertTrue(RecordingSurface.warnings(gate: MeetingMicrophoneGate(recordingStartedAt: Self.now), clientName: "Zoom",
                                                 capture: RecordingCaptureStatus(), safetyMessage: nil).isEmpty)
     }

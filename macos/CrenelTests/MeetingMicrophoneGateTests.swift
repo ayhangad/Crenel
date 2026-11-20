@@ -4,17 +4,17 @@ import XCTest
 final class MeetingMicrophoneGateTests: XCTestCase {
     private let start = Date(timeIntervalSince1970: 1_000)
 
-    func testEveryRecordingStartsClosedWithTimestampedEvent() {
+    func testEveryRecordingStartsOpenWithTimestampedEvent() {
         let gate = MeetingMicrophoneGate(recordingStartedAt: start)
 
-        XCTAssertEqual(gate.state, .closed)
-        XCTAssertFalse(gate.permitsAudio)
+        XCTAssertEqual(gate.state, .open)
+        XCTAssertTrue(gate.permitsAudio)
         XCTAssertEqual(
             gate.events,
             [
                 MeetingMicrophoneGateEvent(
                     timestamp: start,
-                    state: .closed,
+                    state: .open,
                     source: .recordingStarted,
                     confidence: .confirmed
                 )
@@ -22,34 +22,39 @@ final class MeetingMicrophoneGateTests: XCTestCase {
         )
     }
 
-    func testOnlyConfirmedClientOpenSignalPermitsAudio() {
-        var gate = MeetingMicrophoneGate(recordingStartedAt: start)
+    func testStartingWhileDictationIsHeldRecordsTheClosedState() {
+        let gate = MeetingMicrophoneGate(recordingStartedAt: start, dictationHeld: true)
 
-        gate.observeClientState(.open, confidence: .probable, at: start.addingTimeInterval(1))
-        XCTAssertEqual(gate.state, .unknown)
+        XCTAssertFalse(gate.permitsAudio)
+        XCTAssertEqual(gate.events.first?.state, .closed)
+    }
+
+    func testOnlyConfirmedClientOpenSignalReopensAfterMute() {
+        var gate = MeetingMicrophoneGate(recordingStartedAt: start)
+        gate.observeClientState(.closed, confidence: .confirmed, at: start.addingTimeInterval(1))
         XCTAssertFalse(gate.permitsAudio)
 
-        gate.observeClientState(.open, confidence: .confirmed, at: start.addingTimeInterval(2))
+        XCTAssertNil(gate.observeClientState(.open, confidence: .probable, at: start.addingTimeInterval(2)))
+        XCTAssertEqual(gate.state, .closed)
+
+        gate.observeClientState(.open, confidence: .confirmed, at: start.addingTimeInterval(3))
         XCTAssertEqual(gate.state, .open)
         XCTAssertTrue(gate.permitsAudio)
     }
 
-    func testClosedAndUnknownClientSignalsFailClosed() {
+    func testUnknownClientStateKeepsTheMicrophoneAsItIs() {
         var gate = MeetingMicrophoneGate(recordingStartedAt: start)
-        gate.observeClientState(.open, confidence: .confirmed, at: start.addingTimeInterval(1))
 
-        gate.observeClientState(.unknown, confidence: .unknown, at: start.addingTimeInterval(2))
-        XCTAssertFalse(gate.permitsAudio)
-        XCTAssertEqual(gate.state, .unknown)
+        XCTAssertNil(gate.observeClientState(.unknown, confidence: .unknown, at: start.addingTimeInterval(1)))
+        XCTAssertTrue(gate.permitsAudio)
 
-        gate.observeClientState(.closed, confidence: .confirmed, at: start.addingTimeInterval(3))
-        XCTAssertFalse(gate.permitsAudio)
+        gate.observeClientState(.closed, confidence: .probable, at: start.addingTimeInterval(2))
+        XCTAssertFalse(gate.permitsAudio, "A mute in the call app closes the microphone")
         XCTAssertEqual(gate.state, .closed)
     }
 
     func testManualMuteDuringDictationSurvivesRelease() {
         var gate = MeetingMicrophoneGate(recordingStartedAt: start)
-        gate.observeClientState(.open, confidence: .confirmed, at: start.addingTimeInterval(1))
         gate.setDictationHeld(true, at: start.addingTimeInterval(2))
         XCTAssertFalse(gate.permitsAudio)
         gate.setManualState(gate.nextManualState, at: start.addingTimeInterval(3))
@@ -61,18 +66,18 @@ final class MeetingMicrophoneGateTests: XCTestCase {
     func testVisibleManualControlCanOpenAndCloseGate() {
         var gate = MeetingMicrophoneGate(recordingStartedAt: start)
 
-        let opened = gate.setManualState(.open, at: start.addingTimeInterval(1))
-        let closed = gate.setManualState(.closed, at: start.addingTimeInterval(2))
+        let closed = gate.setManualState(.closed, at: start.addingTimeInterval(1))
+        let opened = gate.setManualState(.open, at: start.addingTimeInterval(2))
 
-        XCTAssertEqual(opened?.source, .manualControl)
-        XCTAssertEqual(opened?.confidence, .confirmed)
+        XCTAssertEqual(closed?.source, .manualControl)
+        XCTAssertEqual(closed?.confidence, .confirmed)
         XCTAssertEqual(closed?.state, .closed)
-        XCTAssertFalse(gate.permitsAudio)
+        XCTAssertEqual(opened?.state, .open)
+        XCTAssertTrue(gate.permitsAudio)
     }
 
     func testManualUnknownRequestIsNormalizedToClosed() {
         var gate = MeetingMicrophoneGate(recordingStartedAt: start)
-        gate.observeClientState(.open, confidence: .confirmed, at: start.addingTimeInterval(1))
 
         let event = gate.setManualState(.unknown, at: start.addingTimeInterval(2))
 
@@ -80,25 +85,20 @@ final class MeetingMicrophoneGateTests: XCTestCase {
         XCTAssertFalse(gate.permitsAudio)
     }
 
-    func testAdapterLossAndProcessChangeImmediatelyFailClosed() {
+    func testAdapterLossAndProcessChangeKeepTheUsersChoice() {
         var gate = MeetingMicrophoneGate(recordingStartedAt: start)
-        gate.observeClientState(.open, confidence: .confirmed, at: start.addingTimeInterval(1))
 
-        let adapterEvent = gate.adapterBecameUnavailable(at: start.addingTimeInterval(2))
-        XCTAssertEqual(adapterEvent?.source, .adapterUnavailable)
-        XCTAssertEqual(gate.state, .unknown)
-        XCTAssertFalse(gate.permitsAudio)
+        XCTAssertNil(gate.adapterBecameUnavailable(at: start.addingTimeInterval(1)))
+        XCTAssertNil(gate.meetingProcessChanged(at: start.addingTimeInterval(2)))
+        XCTAssertTrue(gate.permitsAudio)
 
-        gate.setManualState(.open, at: start.addingTimeInterval(3))
-        let processEvent = gate.meetingProcessChanged(at: start.addingTimeInterval(4))
-        XCTAssertEqual(processEvent?.source, .processChanged)
-        XCTAssertEqual(gate.state, .unknown)
+        gate.setManualState(.closed, at: start.addingTimeInterval(3))
+        XCTAssertNil(gate.adapterBecameUnavailable(at: start.addingTimeInterval(4)))
         XCTAssertFalse(gate.permitsAudio)
     }
 
     func testSystemInterruptionImmediatelyFailsClosedAndIsPersistable() throws {
         var gate = MeetingMicrophoneGate(recordingStartedAt: start)
-        gate.setManualState(.open, at: start.addingTimeInterval(1))
 
         let event = gate.systemWasInterrupted(at: start.addingTimeInterval(2))
 
@@ -117,26 +117,26 @@ final class MeetingMicrophoneGateTests: XCTestCase {
 
         XCTAssertNil(
             gate.observeClientState(
-                .closed,
+                .open,
                 confidence: .confirmed,
                 at: start.addingTimeInterval(1)
             )
         )
-        gate.observeClientState(.open, confidence: .confirmed, at: start.addingTimeInterval(2))
+        gate.observeClientState(.closed, confidence: .confirmed, at: start.addingTimeInterval(2))
         XCTAssertNil(
             gate.observeClientState(
-                .closed,
+                .open,
                 confidence: .confirmed,
                 at: start.addingTimeInterval(1)
             )
         )
-        XCTAssertEqual(gate.state, .open)
+        XCTAssertEqual(gate.state, .closed)
         XCTAssertEqual(gate.events.count, 2)
     }
 
     func testGateEventsRoundTripWithoutRawUIContent() throws {
         var gate = MeetingMicrophoneGate(recordingStartedAt: start)
-        gate.observeClientState(.open, confidence: .confirmed, at: start.addingTimeInterval(1))
+        gate.observeClientState(.closed, confidence: .confirmed, at: start.addingTimeInterval(1))
 
         let data = try JSONEncoder().encode(gate.events)
         let decoded = try JSONDecoder().decode([MeetingMicrophoneGateEvent].self, from: data)

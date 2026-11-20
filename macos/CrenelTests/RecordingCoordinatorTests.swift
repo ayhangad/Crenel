@@ -262,20 +262,40 @@ final class RecordingCoordinatorTests: XCTestCase {
                 audioObjectID: 71,
                 processID: 7_100,
                 availability: .available,
-                microphoneState: .open
+                microphoneState: .closed
             ),
             at: session.startedAt.addingTimeInterval(1)
         )
 
-        XCTAssertEqual(gateChanges.map(\.state), [.closed, .open])
-        XCTAssertEqual(microphone.receivedGates.last?.state, .open)
+        XCTAssertEqual(gateChanges.map(\.state), [.open, .closed])
+        XCTAssertEqual(microphone.receivedGates.last?.state, .closed)
         XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .clientAdapter)
 
         let result = try await coordinator.stop()
-        XCTAssertEqual(result.session.microphoneGateEvents.map(\.state), [.closed, .open])
+        XCTAssertEqual(result.session.microphoneGateEvents.map(\.state), [.open, .closed])
     }
 
-    func testAccessibilityLossMakesOpenMicrophoneGateUnknown() async throws {
+    func testUnscopedRecordingIgnoresOtherCallAppsMuteState() async throws {
+        // Recording a Slack huddle while a muted Zoom window is open somewhere.
+        let microphone = MockAudioCaptureSource(kind: .microphone)
+        let coordinator = makeCoordinator(microphone: microphone, systemAudio: MockAudioCaptureSource(kind: .systemAudio))
+        let session = try await coordinator.start(meeting: nil, systemAudioScope: .explicitManualGlobal)
+
+        coordinator.updateMicrophoneGate(
+            from: detectionSnapshot(
+                audioObjectID: 71,
+                processID: 7_100,
+                availability: .available,
+                microphoneState: .closed
+            ),
+            at: session.startedAt.addingTimeInterval(1)
+        )
+
+        XCTAssertEqual(microphone.receivedGates.last?.state, .open)
+        await coordinator.cancel()
+    }
+
+    func testAccessibilityLossKeepsTheMicrophoneOpen() async throws {
         let microphone = MockAudioCaptureSource(kind: .microphone)
         let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
         let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
@@ -303,12 +323,12 @@ final class RecordingCoordinatorTests: XCTestCase {
             at: session.startedAt.addingTimeInterval(2)
         )
 
-        XCTAssertEqual(microphone.receivedGates.last?.state, .unknown)
-        XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .adapterUnavailable)
+        XCTAssertEqual(microphone.receivedGates.last?.state, .open)
+        XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .recordingStarted)
         await coordinator.cancel()
     }
 
-    func testMeetingProcessChangeMakesOpenMicrophoneGateUnknown() async throws {
+    func testMeetingProcessChangeKeepsTheMicrophoneOpen() async throws {
         let microphone = MockAudioCaptureSource(kind: .microphone)
         let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
         let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
@@ -336,12 +356,12 @@ final class RecordingCoordinatorTests: XCTestCase {
             at: session.startedAt.addingTimeInterval(2)
         )
 
-        XCTAssertEqual(microphone.receivedGates.last?.state, .unknown)
-        XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .processChanged)
+        XCTAssertEqual(microphone.receivedGates.last?.state, .open)
+        XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .recordingStarted)
         await coordinator.cancel()
     }
 
-    func testManualMicrophoneControlOverridesUnknownAndPersistsEvent() async throws {
+    func testManualMicrophoneControlClosesAndPersistsEvent() async throws {
         let microphone = MockAudioCaptureSource(kind: .microphone)
         let systemAudio = MockAudioCaptureSource(kind: .systemAudio)
         let coordinator = makeCoordinator(microphone: microphone, systemAudio: systemAudio)
@@ -351,14 +371,14 @@ final class RecordingCoordinatorTests: XCTestCase {
         )
 
         coordinator.setManualMicrophoneState(
-            .open,
+            .closed,
             at: session.startedAt.addingTimeInterval(1)
         )
 
-        XCTAssertEqual(microphone.receivedGates.last?.state, .open)
+        XCTAssertEqual(microphone.receivedGates.last?.state, .closed)
         XCTAssertEqual(microphone.receivedGates.last?.events.last?.source, .manualControl)
         let result = try await coordinator.stop()
-        XCTAssertEqual(result.session.microphoneGateEvents.last?.state, .open)
+        XCTAssertEqual(result.session.microphoneGateEvents.last?.state, .closed)
         XCTAssertEqual(result.session.microphoneGateEvents.last?.source, .manualControl)
     }
 
@@ -370,6 +390,7 @@ final class RecordingCoordinatorTests: XCTestCase {
             meeting: nil,
             systemAudioScope: .explicitManualGlobal
         )
+        coordinator.setManualMicrophoneState(.closed)
 
         microphone.emitConnectionState(.recovered(deviceName: "Kulaklık Mikrofonu"))
         await Task.yield()

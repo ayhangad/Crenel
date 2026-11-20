@@ -160,6 +160,9 @@ final class RecordingCoordinator {
         at timestamp: Date = Date()
     ) {
         guard var gate = microphoneGate else { return }
+        // A recording of a call Crenel doesn't scope (Slack, Teams, a manual start) must
+        // not follow the mute button of some other Zoom or Chrome window.
+        if systemAudioScope == .explicitManualGlobal { return }
 
         if case .meetingProcesses(let objectIDs) = systemAudioScope,
            !objectIDs.contains(snapshot.audioProcess?.audioObjectID ?? 0) {
