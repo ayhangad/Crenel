@@ -3,6 +3,30 @@
     <channel>
         <title>Crenel</title>
         <item>
+            <title>1.2</title>
+            <pubDate>Fri, 20 Nov 2026 15:28:15 +0300</pubDate>
+            <sparkle:version>157</sparkle:version>
+            <sparkle:shortVersionString>1.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Crenel 1.2
+
+- **Your mic is on when a recording starts.** Turn it off in the notch or with the shortcut.
+  Muting yourself in Zoom or Google Meet still turns it off, and unmuting turns it back on.
+  If Crenel can't read the call app's mute button, it leaves your mic as it is.
+- **Record Slack huddles and other calls.** Recording no longer stops with "couldn't verify
+  the meeting audio" because the calendar has a Zoom or Meet link, Zoom is open in the
+  background, or Chrome is playing something else. Calls in apps Crenel doesn't track
+  directly (Slack, Teams, FaceTime) are recorded from all system audio.
+- **Cancel and Stop work in the notch.** Deleting a recording, cancelling setup and stopping
+  processing are confirmed right in the notch, not in a system alert that could open out of reach.
+- **Calendar works right after you allow it.** No relaunch needed; Reminders too.
+- **The 🌐 key comes back as soon as you quit.** With fn as the dictation key, quitting
+  Crenel or choosing another key restores your "Press 🌐 key to" setting immediately. Before,
+  it took a restart.
+]]></description>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.2/Crenel-1.2.dmg" length="9496320" type="application/octet-stream" sparkle:edSignature="HpqEP/l1VDQCM0Sx1WiD3z9AiQalo5Vq1tuxhMuL3UsFfGPkkM1/zD8XEt/oTr6Kyd2NLphn8y6kOkbtDbNuDQ=="/>
+        </item>
+        <item>
             <title>1.1</title>
             <pubDate>Wed, 18 Nov 2026 20:33:20 +0300</pubDate>
             <sparkle:version>154</sparkle:version>
@@ -18,7 +42,7 @@
 - **Markdown export.** Exported notes no longer name a transcription service, since the
   transcript doesn't record which one wrote it.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.1/Crenel-1.1.dmg" length="9481472" type="application/octet-stream" sparkle:edSignature="496oShZBSzpQhKmWPBI0s4guzeKcgV2mB5PSaOgpHIxK+Gy1TGNJJfTTYNY0V48VYGSYEoie8iq9d/5Nc0XDBg=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.2/Crenel-1.1.dmg" length="9481472" type="application/octet-stream" sparkle:edSignature="496oShZBSzpQhKmWPBI0s4guzeKcgV2mB5PSaOgpHIxK+Gy1TGNJJfTTYNY0V48VYGSYEoie8iq9d/5Nc0XDBg=="/>
         </item>
         <item>
             <title>1.0</title>
@@ -48,7 +72,7 @@ notes in one place. Recordings and meeting notes are stored on your Mac.
   dictated text.
 - **Updates.** Crenel checks for updates itself and installs them when you're not on a call.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.1/Crenel-1.0.dmg" length="9449216" type="application/octet-stream" sparkle:edSignature="CsWg2Y3KkVVzXSSTg5Rw4I67W9b7NoaZwJHrdStQ8SH10WrxD9kR6kxXFGG3GTyqfUugcIXEYM7Fmgywtph0CA=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.2/Crenel-1.0.dmg" length="9449216" type="application/octet-stream" sparkle:edSignature="CsWg2Y3KkVVzXSSTg5Rw4I67W9b7NoaZwJHrdStQ8SH10WrxD9kR6kxXFGG3GTyqfUugcIXEYM7Fmgywtph0CA=="/>
         </item>
     </channel>
 </rss>
