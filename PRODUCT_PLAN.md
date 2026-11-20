@@ -234,6 +234,7 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
 - [x] Notch'taki Cancel/Stop işe yaramıyordu: onayı sistem alert'i yerine notch içinde
   sormak. — ✅ 2026-11-20 (otomatik test; tam koşu 691 test, 5 atlama, 0 hata)
 - [x] Kayıt mikrofonu varsayılan açık; mute sinyali kapatır, belirsizlik değiştirmez. — ✅ 2026-11-20 (otomatik test)
+- [x] 1.2 yayını: imzalı ve noter onaylı DMG, GitHub Release (`Crenel.dmg` dahil), appcast. — ✅ 2026-11-20 (v1.2 build 157 Latest; `release-availability-test.py 1.2` geçti)
 - [ ] Cihaz kabulü: temiz izinle takvim bağlantısı; Fn ile dil değiştirme Crenel kapanınca
   hemen geri geliyor; Slack huddle kaydında iki taraf da duyuluyor; notch'ta Cancel ve
   Stop processing onayı. Kullanıcı ve test kullanıcısı doğrulayacak.
