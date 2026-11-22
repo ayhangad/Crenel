@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Crenel · Notch rafine çalışması · tur 5</title>
+<title>Crenel · Notch rafine çalışması · tur 6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -17,25 +17,29 @@
        · Bir geçişteki boşluk = margin + iki taraftaki padding'lerin toplamıdır; her yerde
          bu toplam yazılır, tek bir sayı değil.
 
-     Basamaklar (yakınlık: içerideki boşluk dışarıdakinden her zaman küçük):
-       6   başlık ↔ meta, sayı ↔ birimi           (aynı şey)
-       12  etiket ↔ grubunun ilk öğesi            (ait olan)
-       16  grup içi bloklar (kahraman ↔ cetvel)   (aynı hikâye)
-       20  listede öğeden öğeye = 6 + 8 + 6       (kardeşler)
-       40  gruptan gruba                           (ayrı şeyler)  ·  40 / 20 = 2
-       24  panel kenarı ↔ içerik, dört yönde
-     Zemin payı (6) ile satır arası (8) ayrıdır: zemin içeriğe sıkı sarılır, liste yine nefes alır.
-     Yatay: içerik 24 → 536. Zeminler 18 → 542 (24 − 6).
-     Yarıçap iç içe: karo 4 + 6 = zemin 10; zemin 10 + 18 = panel 28.
+     Basamaklar (referansın ritmi: öğe aralığı, etiket aralığı ve bölüm aralığı birbirine yakın):
+       7   başlık ↔ meta                          (aynı şey)
+       16  grup içi bloklar (kahraman ↔ cetvel)
+       20  öğeden öğeye = satır payı 10 + 10      (kardeşler)
+       20  etiket → grubunun ilk öğesi = 10 + 10  (etiket grubuna, öğelerin birbirine olduğu kadar yakın)
+       28  son öğe → sonraki etiket = 10 + 18     (bölüm; referansta 24 + çizgi)
+       20  panel kenarı ↔ içerik, dört yönde
+     Tek satırlık görev satırı 33 = 10 + 13 + 10; iki satırlık takvim satırı 48 = 10 + 28 + 10.
+     Alan 34: ikon dikeyde 10.5 içeride, solda 10.
+     Yatay: içerik 20 → 540, zeminler 10 → 550.
      ════════════════════════════════════════════════════════════════════════════════════ */
   :root {
     --ink-1: #f3f1ec; --ink-2: #aaa7a1; --ink-3: #76736e; --ink-4: #4c4a47; --ink-5: #2e2d2b;
     --amber: #ffad33; --red: #ff5a47; --teal: #34e6cb;
-    --E: 24px;    /* panel kenarı → içerik */
-    --S: 6px;     /* etkileşim zemininin içeriği sarması (sıkı kalır) */
-    --pair: 6px; --label: 12px; --blk: 16px; --in: 20px; --out: 40px;
-    --rowgap: calc(var(--in) - 2 * var(--S));   /* satırlar arası: 20 = 6 + 8 + 6 */
-    --r-tile: 4px; --r-hit: 10px; --r-panel: 28px;
+    /* Referanstan ölçülen oranlar (gövde yazısı f = 13 pt):
+       başlık ↔ meta 0.58f ≈ 7 · öğeden öğeye 1.5f ≈ 20–22 · etiket → grup 1.32f ≈ 20
+       bölümden bölüme 1.67f ≈ 24 (+ çizgi; bizde çizgi yok, 28) · iki satırlık öğe 3.55f ≈ 46–48
+       alan 2.65f ≈ 34, metin payı 0.95f ≈ 12. Ritim baştan sona neredeyse aynı; ayrımı etiket yapar. */
+    --E: 20px;    /* panel kenarı → içerik */
+    --S: 10px;    /* satırın iç payı: öğe taranabilir, zemin dört yönden 10 */
+    --pair: 7px; --label: 20px; --blk: 16px; --in: 20px; --out: 28px;
+    --rowgap: calc(var(--in) - 2 * var(--S));   /* 0: satırlar birbirine dayanır, aradaki 20 = 10 + 10 */
+    --r-tile: 4px; --r-hit: 10px; --r-panel: 20px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { background: #17171a; color: var(--ink-1); font-family: Geist, ui-sans-serif, system-ui; -webkit-font-smoothing: antialiased; }
@@ -284,8 +288,8 @@
 <div id="redline"></div>
 
 <header class="page">
-  <h1>Notch rafine çalışması <span style="color:var(--ink-3);font-weight:400">· tur 5</span></h1>
-  <p>Tur 4'ün hesap modeli aynen korunuyor, yalnızca değerler büyüdü. Hover zemini içeriği hâlâ sıkı sarıyor (6), ama satırlar artık birbirine değmiyor: aralarında 8 var, öğeden öğeye görünen boşluk 20. Gruplar arası 40, yani grup içinin iki katı. Panel kenarı 24. "Ölçüler" düğmesi bu toplamları panelin üstüne çiziyor; en alttaki tablo render edilmiş görüntüden ölçüldü.</p>
+  <h1>Notch rafine çalışması <span style="color:var(--ink-3);font-weight:400">· tur 6</span></h1>
+  <p>Ölçüler referanstan çıkarıldı: ekran görüntüsü piksel taranıp her boşluk gövde yazısına oranlandı, sonra 13 pt'ye çevrildi. Referansın dersi: öğe aralığı (≈20), etiketten gruba aralık (≈20) ve bölüm aralığı (≈24 + çizgi) birbirine yakın; ritim baştan sona aynı, bölümleri etiket ayırıyor. Satırlar taranabilir olsun diye iç pay 10, alan 34. "Ölçüler" düğmesi toplamları çiziyor, alttaki tablo render'dan ölçüldü.</p>
   <div class="bar">
     <button id="bR">Ölçüler</button>
     <button id="bZ1" class="on">1x</button>
@@ -316,7 +320,7 @@
         </div>
         <div class="ruler" id="today-ruler" data-span="8-20" data-now="10.7" data-events="14.5-15.25:focus|16-17|17.5-18:invite|19-20:dim"></div>
 
-        <!-- Bugün: etiket ↔ ilk karo 12, karo ↔ karo 20 -->
+        <!-- Bugün: etiket → ilk karo 20, karo → karo 20 -->
         <div class="lbl" id="today-l1"><span class="t-sec">Today</span><span class="c">3</span></div>
         <div class="stack">
           <div class="hit hov" style="gap:12px">
@@ -354,11 +358,11 @@
     </div>
   </div>
   <ul class="notes">
-    <li><b>Liste nefes alıyor.</b> Satır zemini karoyu yine 6 ile sarıyor, ama satırlar arasında 8 var. Karodan karoya 20 = 6 + 8 + 6. Tur 4'te zeminler birbirine değiyordu ve aradaki boşluk 12 kalıyordu.</li>
-    <li><b>Gruplar arası 40, grup içinin iki katı.</b> Son satırdan sonraki etikete 40 = 6 + 34. Etiketten ilk karoya 12 = 6 + 6. Etiket grubuna, öğelerin birbirine olduğundan daha yakın.</li>
-    <li><b>Kahraman ve cetvel 16.</b> Aynı gruptalar ama iki ayrı blok; bu yüzden aralarındaki boşluk liste öğeleri arasındakinden (20) küçük, başlık ↔ meta arasındakinden (6) büyük.</li>
-    <li><b>Panel kenarı her yönde 24.</b> Altta 24 = padding 18 + son satırın paddingi 6. Köşeler iç içe: karo 4 + 6 = zemin 10, zemin 10 + 18 = panel 28.</li>
-    <li><b>Hover zemini dört yönden 6.</b> Zemin 18'de başlıyor, karo 24'te; üstte ve altta da 6 var.</li>
+    <li><b>Referansın ritmi.</b> Karodan karoya 20 (satır payı 10 + 10), etiketten ilk karoya 20, son satırdan sonraki etikete 28. Üçü birbirine yakın; bölümü boşluk değil etiket ayırıyor. Tur 5'te etiket 12'de yapışıktı, bölümler arası 40'tı.</li>
+    <li><b>Satır 48 = 10 + 28 + 10.</b> Hover zemini karoyu dört yönden 10 ile sarıyor; satırlar arasında ek boşluk yok, zeminler birbirine dayanıyor. Referanstaki iki satırlık öğe 46–48.</li>
+    <li><b>Başlık ↔ meta 7.</b> Referansta 0.58 × gövde yazısı.</li>
+    <li><b>Kahraman ↔ cetvel 16, cetvelden "Today"e 28.</b> Cetvel kahramanın parçası; liste bir sonraki bölüm.</li>
+    <li><b>Panel kenarı her yönde 20.</b> Altta 20 = padding 10 + son satırın payı 10.</li>
     <li><b>Karo 54×28.</b> 12'lik segmentin etrafında yatayda ve dikeyde 8. Tarih karosunda gün ve hafta günü yan yana.</li>
   </ul>
 </section>
@@ -382,8 +386,8 @@
           <span class="tab"><span class="t-label">Recordings</span></span>
           <span class="tab on"><span class="t-label">Tasks</span><span class="n">5</span></span>
         </div>
-        <!-- Sekme çizgisinin altından alana 24 (çizgi: etiket + 8 + 2) -->
-        <div class="hit field" style="margin-top:calc(8px + 2px + var(--E))"><svg class="i"><use href="#i-plus"/></svg><span class="ph">Add a task, like <q>call mom tomorrow 3pm</q></span><span class="t-micro">↩</span></div>
+        <!-- Sekme çizgisinin altından alana 20 (çizgi: etiket + 8 + 2) -->
+        <div class="hit field" style="margin-top:calc(8px + 2px + var(--E));min-height:34px"><svg class="i"><use href="#i-plus"/></svg><span class="ph">Add a task, like <q>call mom tomorrow 3pm</q></span><span class="t-micro">↩</span></div>
 
         <div class="lbl" style="margin-top:var(--out)"><span class="t-sec">Today</span>
           <span class="hstack" style="gap:3px"><span class="lamp on-w"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></span></div>
@@ -430,7 +434,7 @@
           <span class="hstack" style="flex:1"><span class="t-body" style="color:var(--ink-4)">Share sprint notes</span></span>
         </div>
 
-        <!-- Durum: son satırdan butona 40 = 6 + 34. Lamba 13'lük ikon kolonunda (ikonların görünen genişliği) ortalı, metin 45'te. -->
+        <!-- Durum: son satırdan butona 28 = 10 + 18. Lamba 13'lük ikon kolonunda (ikonların görünen genişliği) ortalı, metin 45'te. -->
         <div class="hstack after-hit" style="gap:12px">
           <span class="hstack" style="width:13px;justify-content:center"><span class="lamp on-g"></span></span>
           <span class="t-meta" style="color:var(--ink-2)">Synced with Reminders</span><span class="sp"></span>
@@ -440,12 +444,12 @@
     </div>
   </div>
   <ul class="notes">
-    <li><b>Satırlar ayrıştı.</b> Görev satırı 25 = 6 + 13 + 6, satırlar arasında 8; işaretten işarete 20. Hover zemini işareti dört yönden yine 6 ile sarıyor.</li>
-    <li><b>Gruplar arası 40.</b> Alandan "Today"e 40. Son satırdan sonraki etikete 40 = 6 + 34. Etiketten ilk işarete 12.</li>
-    <li><b>Metin kolonu 49.</b> 24 + işaretin görünen genişliği 13 + 12. Alan metni, görev başlıkları ve durum yazısı aynı kolonda.</li>
-    <li><b>Krom.</b> Kamera bandı 37 = 12 + 13 + 12. Seçili sekme çizgisi etiketin 8 altında, alan çizginin 24 altında: margin 8 + çizgi 2 + 24.</li>
-    <li><b>Kuyruk kolonları sabit.</b> Sayaç 52, öncelik 10, tekrar 12, tarih 60; aralarında 10. Değerler 536'da bitiyor, Finished butonu da orada.</li>
-    <li><b>Buton içi.</b> Tuş kapaklı butonda kapak dikeyde 6 içeride, sağda da 6; köşe 4 + 6 = 10. Kapaksız butonda iki yanda 10.</li>
+    <li><b>Satırlar taranabilir.</b> Görev satırı 33 = 10 + 13 + 10. Satıra bakınca göz işarete ve başlığa düşüyor, boşluğa değil; işaretten işarete 20, başlıktan başlığa yaklaşık 24.</li>
+    <li><b>Ekleme alanı 34.</b> Referanstaki alan 2.65 × gövde yazısı = 34. İkon dikeyde 10.5, solda 10 içeride; yazmak için yeterli yükseklik.</li>
+    <li><b>Etiket grubuna 20, öncekinden 28.</b> Etiket kendi listesine öğelerin birbirine olduğu kadar yakın; içine gömülmüyor, öncekinden 28 ile ayrılıyor.</li>
+    <li><b>Metin kolonu 45.</b> 20 + işaretin görünen genişliği 13 + 12. Alan metni, görev başlıkları ve durum yazısı aynı kolonda.</li>
+    <li><b>Kuyruk kolonları sabit.</b> Sayaç 52, öncelik 10, tekrar 12, tarih 60; aralarında 10. Değerler 540'ta bitiyor, Finished butonu da orada.</li>
+    <li><b>Krom.</b> Kamera bandı 37 = 12 + 13 + 12. Seçili sekme çizgisi etiketin 8 altında, alan çizginin 20 altında.</li>
   </ul>
 </section>
 
@@ -470,12 +474,12 @@
             <button class="round"><svg class="i12" style="color:var(--red)"><use href="#s-stop"/></svg></button>
           </span>
         </div>
-        <!-- Sinyal: gruptan gruba 40; dalga ↔ zaman etiketleri 6 -->
+        <!-- Sinyal: gruptan gruba 28; dalga ↔ zaman etiketleri 7 -->
         <div class="stack" data-a style="margin-top:var(--out);gap:var(--pair)">
           <div class="wave" id="wave"></div>
           <span class="hstack" style="justify-content:space-between"><span class="t-micro">−2:00</span><span class="t-micro">−1:00</span><span class="t-micro">now</span></span>
         </div>
-        <!-- Girişler: 40 aşağıda; satırdan satıra 20 (etkileşim yok, zemin yok) -->
+        <!-- Girişler: 28 aşağıda; satırdan satıra 20 (etkileşim yok, zemin yok) -->
         <div class="stack" data-a style="margin-top:var(--out);gap:var(--in)">
           <span class="hstack" style="gap:12px"><svg class="i"><use href="#f-mic"/></svg><span class="t-body" style="width:88px;color:var(--ink-2)">Your mic</span><span class="vu" data-vu="14"></span></span>
           <span class="hstack" style="gap:12px"><svg class="i"><use href="#f-speaker"/></svg><span class="t-body" style="width:88px;color:var(--ink-2)">The call</span><span class="vu" data-vu="12"></span></span>
@@ -485,12 +489,12 @@
     </div>
   </div>
   <ul class="notes">
-    <li><b>Üç grup, aralarında 40.</b> Kontrol (durum, süre, plan, tuşlar), sinyal (dalga formu) ve girişler (mikrofon, çağrı, mute).</li>
-    <li><b>Kontrol bloğunun içi 16'şar.</b> Durum satırından sayaca 16, sayaçtan rampaya 16. Tuşlar bloğun dikey ortasında; mikrofon lambası tuşun 6 altında.</li>
-    <li><b>Girişler 20 ritminde.</b> Etkileşimli değiller, zemin payları yok; ikondan ikona 20. Mute notu aynı ritimde, bu yüzden mikrofona ait okunuyor.</li>
-    <li><b>Hizalama.</b> Lamba, ikonların mürekkebi ve sayaç 24'te; etiketler 49'da; iki ölçer aynı x'ten başlayıp 536'da bitiyor.</li>
-    <li><b>Panel kenarı her yönde 24.</b> Üstte "Recording" yazısının harf yüksekliğine, altta mute notunun taban çizgisine 24.</li>
-    <li><b>Dalga ↔ zaman etiketleri 6.</b> Etiketler dalganın parçası, aralarında "aynı şey" boşluğu var.</li>
+    <li><b>Üç grup, aralarında 28.</b> Kontrol (durum, süre, plan, tuşlar), sinyal (dalga formu) ve girişler (mikrofon, çağrı, mute).</li>
+    <li><b>Kontrol bloğunun içi 16'şar.</b> Durum satırından sayaca 16, sayaçtan rampaya 16. Tuşlar bloğun dikey ortasında.</li>
+    <li><b>Girişler 20 ritminde.</b> Listelerle aynı öğe aralığı; mute notu aynı ritimde, bu yüzden mikrofona ait okunuyor.</li>
+    <li><b>Hizalama.</b> Lamba, ikonların mürekkebi ve sayaç 20'de; etiketler 45'te; iki ölçer aynı x'ten başlayıp 540'ta bitiyor.</li>
+    <li><b>Panel kenarı her yönde 20.</b></li>
+    <li><b>Dalga ↔ zaman etiketleri 7.</b> Etiketler dalganın parçası.</li>
   </ul>
 </section>
 
@@ -498,57 +502,57 @@
 <section class="study">
   <h2>Ölçüm <span>render edilmiş görüntüden, piksel taranarak</span></h2>
   <!--AUDIT--><table class="audit"><tr><th>Ekran</th><th>Geçiş (mürekkepten mürekkebe)</th><th>Hedef</th><th>Ölçülen</th><th>Not</th></tr>
-<tr><td>Today</td><td>panel üstü → kahraman</td><td>24</td><td class="ok">24</td><td></td></tr>
+<tr><td>Today</td><td>panel üstü → kahraman</td><td>20</td><td class="ok">20</td><td></td></tr>
 <tr><td>Today</td><td>kahraman → cetvel</td><td>16</td><td class="ok">16</td><td>halkanın gerçek alt ucundan</td></tr>
-<tr><td>Today</td><td>cetvel → Today 3</td><td>40</td><td class="ok">40</td><td></td></tr>
-<tr><td>Today</td><td>Today 3 → Lunch with Deniz Karaköy L</td><td>12</td><td class="ok">12</td><td></td></tr>
-<tr><td>Today</td><td>Lunch with Deniz Karaköy L → Later 2</td><td>40</td><td class="ok">40</td><td></td></tr>
-<tr><td>Today</td><td>Later 2 → Wed Weekly sync 10:00 · Zo</td><td>12</td><td class="ok">12</td><td></td></tr>
-<tr><td>Today</td><td>Wed Weekly sync 10:00 · Zo → panel altı</td><td>24</td><td class="ok">24</td><td></td></tr>
-<tr><td>Today</td><td>grup içi: Lunch with Deniz → Partner call</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 6 + 8 + 6</td></tr>
-<tr><td>Today</td><td>grup içi: Partner call → Gym</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 6 + 8 + 6</td></tr>
-<tr><td>Today</td><td>grup içi: Wed → Thu</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 6 + 8 + 6</td></tr>
-<tr><td>Today</td><td>blok içi: Design review → 14:30 · Google Mee</td><td>6</td><td class="ok">6</td><td>başlık ↔ meta / dalga ↔ etiket</td></tr>
-<tr><td>Today</td><td>zemin payı: Lunch with Deniz (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · 5.5 · 6</td><td>sağ: metin kutusu 5.6, son harfin mürekkebi 6 (optik kenar −0.4)</td></tr>
-<tr><td>Today</td><td>zemin payı: Partner call (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · 5.5 · 6</td><td>sağ: metin kutusu 5.6, son harfin mürekkebi 6 (optik kenar −0.4)</td></tr>
-<tr><td>Today</td><td>zemin payı: Gym (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · 5.5 · 6</td><td>sağ: metin kutusu 5.6, son harfin mürekkebi 6 (optik kenar −0.4)</td></tr>
-<tr><td>Today</td><td>zemin payı: Wed (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · 5.5 · 6</td><td>sağ: metin kutusu 5.6, son harfin mürekkebi 6 (optik kenar −0.4)</td></tr>
-<tr><td>Today</td><td>zemin payı: Thu (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · — · 6</td><td>sağda değer yok</td></tr>
-<tr><td>Today</td><td>içerik kenarı (sol · sağ)</td><td>24 · 24</td><td class="ok">24 · 23.5</td><td></td></tr>
+<tr><td>Today</td><td>cetvel → Today 3</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Today</td><td>Today 3 → Lunch with Deniz Karaköy L</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Today</td><td>Lunch with Deniz Karaköy L → Later 2</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Today</td><td>Later 2 → Wed Weekly sync 10:00 · Zo</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Today</td><td>Wed Weekly sync 10:00 · Zo → panel altı</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Today</td><td>grup içi: Lunch with Deniz → Partner call</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
+<tr><td>Today</td><td>grup içi: Partner call → Gym</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
+<tr><td>Today</td><td>grup içi: Wed → Thu</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
+<tr><td>Today</td><td>blok içi: Design review → 14:30 · Google Mee</td><td>7</td><td class="ok">7</td><td>başlık ↔ meta / dalga ↔ etiket</td></tr>
+<tr><td>Today</td><td>satır payı: Lunch with Deniz (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Today</td><td>satır payı: Partner call (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Today</td><td>satır payı: Gym (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Today</td><td>satır payı: Wed (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Today</td><td>satır payı: Thu (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · — · 10</td><td>sağda değer yok</td></tr>
+<tr><td>Today</td><td>içerik kenarı (sol · sağ)</td><td>20 · 20</td><td class="ok">20 · 19.5</td><td></td></tr>
 <tr><td>Tasks</td><td>panel üstü → Crenel</td><td>12</td><td class="ok">12</td><td>kamera bandı</td></tr>
 <tr><td>Tasks</td><td>Crenel → Today Recordings Tasks 5</td><td>12</td><td class="ok">12</td><td></td></tr>
-<tr><td>Tasks</td><td>Today Recordings Tasks 5 → Add a task, like call mom </td><td>34</td><td class="ok">34</td><td>sekme çizgisinden 24 (etiket + 8 + çizgi 2 + 24)</td></tr>
-<tr><td>Tasks</td><td>Add a task, like call mom  → Today</td><td>40</td><td class="ok">40</td><td></td></tr>
-<tr><td>Tasks</td><td>Today → Finish onboarding flow min</td><td>12</td><td class="ok">12</td><td></td></tr>
-<tr><td>Tasks</td><td>Finish onboarding flow min → Later 1</td><td>40</td><td class="ok">40</td><td></td></tr>
-<tr><td>Tasks</td><td>Later 1 → Reading list Mon 30</td><td>12</td><td class="ok">12</td><td></td></tr>
-<tr><td>Tasks</td><td>Reading list Mon 30 → Done 1</td><td>40</td><td class="ok">40</td><td></td></tr>
-<tr><td>Tasks</td><td>Done 1 → Share sprint notes</td><td>12</td><td class="ok">12</td><td></td></tr>
-<tr><td>Tasks</td><td>Share sprint notes → Synced with Reminders Fini</td><td>40</td><td class="ok">40</td><td></td></tr>
-<tr><td>Tasks</td><td>Synced with Reminders Fini → panel altı</td><td>24</td><td class="ok">24</td><td></td></tr>
-<tr><td>Tasks</td><td>grup içi: Finish onboarding flow → Legal sign-off</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 6 + 8 + 6</td></tr>
-<tr><td>Tasks</td><td>grup içi: Legal sign-off → Write weekly report</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 6 + 8 + 6</td></tr>
-<tr><td>Tasks</td><td>grup içi: Write weekly report → Call mom</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 6 + 8 + 6</td></tr>
-<tr><td>Tasks</td><td>zemin payı: Add a task, like call mo (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · 6 · 6</td><td></td></tr>
-<tr><td>Tasks</td><td>zemin payı: Finish onboarding flow (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · — · 6</td><td>sağda değer yok</td></tr>
-<tr><td>Tasks</td><td>zemin payı: Legal sign-off (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · — · 6</td><td>sağda değer yok</td></tr>
-<tr><td>Tasks</td><td>zemin payı: Write weekly report (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · 5.5 · 6</td><td>sağ: metin kutusu 5.6, son harfin mürekkebi 6 (optik kenar −0.4)</td></tr>
-<tr><td>Tasks</td><td>zemin payı: Call mom (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · 5.5 · 6</td><td>sağ: metin kutusu 5.6, son harfin mürekkebi 6 (optik kenar −0.4)</td></tr>
-<tr><td>Tasks</td><td>zemin payı: Reading list (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · 5.5 · 6</td><td>sağ: metin kutusu 5.6, son harfin mürekkebi 6 (optik kenar −0.4)</td></tr>
-<tr><td>Tasks</td><td>zemin payı: Share sprint notes (sol · üst · sağ · alt)</td><td>6</td><td class="ok">6 · 6 · — · 6</td><td>sağda değer yok</td></tr>
-<tr><td>Tasks</td><td>içerik kenarı (sol · sağ)</td><td>24 · 24</td><td class="ok">18 · 18</td><td>alanın zemini 18’de başlar, içeriği 24’te</td></tr>
-<tr><td>Kayıt</td><td>panel üstü → Recording Design review of</td><td>24</td><td class="ok">24</td><td></td></tr>
-<tr><td>Kayıt</td><td>Recording Design review of → dalga + zaman</td><td>40</td><td class="ok">40</td><td></td></tr>
-<tr><td>Kayıt</td><td>dalga + zaman → Your mic The call Your mic</td><td>40</td><td class="ok">40</td><td></td></tr>
-<tr><td>Kayıt</td><td>Your mic The call Your mic → panel altı</td><td>24</td><td class="ok">24</td><td></td></tr>
+<tr><td>Tasks</td><td>Today Recordings Tasks 5 → Add a task, like call mom </td><td>30</td><td class="ok">30</td><td>sekme çizgisinden 20 (etiket + 8 + çizgi 2 + 20)</td></tr>
+<tr><td>Tasks</td><td>Add a task, like call mom  → Today</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Tasks</td><td>Today → Finish onboarding flow min</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Tasks</td><td>Finish onboarding flow min → Later 1</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Tasks</td><td>Later 1 → Reading list Mon 30</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Tasks</td><td>Reading list Mon 30 → Done 1</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Tasks</td><td>Done 1 → Share sprint notes</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Tasks</td><td>Share sprint notes → Synced with Reminders Fini</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Tasks</td><td>Synced with Reminders Fini → panel altı</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Tasks</td><td>grup içi: Finish onboarding flow → Legal sign-off</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
+<tr><td>Tasks</td><td>grup içi: Legal sign-off → Write weekly report</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
+<tr><td>Tasks</td><td>grup içi: Write weekly report → Call mom</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
+<tr><td>Tasks</td><td>satır payı: Add a task, like call mo (sol · üst · sağ · alt)</td><td>10 · 10.5</td><td class="ok">10 · 10.5 · 10 · 10.5</td><td></td></tr>
+<tr><td>Tasks</td><td>satır payı: Finish onboarding flow (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · — · 10</td><td>sağda değer yok</td></tr>
+<tr><td>Tasks</td><td>satır payı: Legal sign-off (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · — · 10</td><td>sağda değer yok</td></tr>
+<tr><td>Tasks</td><td>satır payı: Write weekly report (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Tasks</td><td>satır payı: Call mom (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Tasks</td><td>satır payı: Reading list (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Tasks</td><td>satır payı: Share sprint notes (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · — · 10</td><td>sağda değer yok</td></tr>
+<tr><td>Tasks</td><td>içerik kenarı (sol · sağ)</td><td>20 · 20</td><td class="ok">10 · 10</td><td>alanın zemini 10’da başlar, içeriği 20’de</td></tr>
+<tr><td>Kayıt</td><td>panel üstü → Recording Design review of</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Kayıt</td><td>Recording Design review of → dalga + zaman</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Kayıt</td><td>dalga + zaman → Your mic The call Your mic</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Kayıt</td><td>Your mic The call Your mic → panel altı</td><td>20</td><td class="ok">20</td><td></td></tr>
 <tr><td>Kayıt</td><td>blok içi: Recording Design r → segd</td><td>16</td><td class="ok">16</td><td>grup içi bloklar</td></tr>
 <tr><td>Kayıt</td><td>blok içi: segd → of 60 min</td><td>16</td><td class="ok">16</td><td>grup içi bloklar</td></tr>
-<tr><td>Kayıt</td><td>blok içi: wave → −2:00 −1:00 now</td><td>6</td><td class="ok">6</td><td>başlık ↔ meta / dalga ↔ etiket</td></tr>
+<tr><td>Kayıt</td><td>blok içi: wave → −2:00 −1:00 now</td><td>7</td><td class="ok">7</td><td>başlık ↔ meta / dalga ↔ etiket</td></tr>
 <tr><td>Kayıt</td><td>blok içi: Your mic → The call</td><td>20</td><td class="ok">20</td><td>liste öğeleri</td></tr>
 <tr><td>Kayıt</td><td>blok içi: The call → Your mic follows m</td><td>20</td><td class="ok">20</td><td>liste öğeleri</td></tr>
-<tr><td>Kayıt</td><td>içerik kenarı (sol · sağ)</td><td>24 · 24</td><td class="ok">24 · 24</td><td></td></tr>
-<tr><td>piksel</td><td>hover zemini: Lunch with Deniz (sol · üst · sağ · alt)</td><td>6</td><td>6 · 7 · 6.5 · 6</td><td>render’dan, 4x; alt kenarda komşu lambanın ışığı ölçüme girer</td></tr>
-<tr><td>piksel</td><td>hover zemini: Write weekly report (sol · üst · sağ · alt)</td><td>6</td><td>6.5 · 6.5 · 6 · 6</td><td>render’dan, 4x; alt kenarda komşu lambanın ışığı ölçüme girer</td></tr>
+<tr><td>Kayıt</td><td>içerik kenarı (sol · sağ)</td><td>20 · 20</td><td class="ok">20 · 20</td><td></td></tr>
+<tr><td>piksel</td><td>hover zemini: Lunch with Deniz (sol · üst · sağ · alt)</td><td>10</td><td>10 · 11 · 10.5 · 10</td><td>render’dan, 4x; alt kenarda komşu lambanın ışığı ölçüme girer</td></tr>
+<tr><td>piksel</td><td>hover zemini: Write weekly report (sol · üst · sağ · alt)</td><td>10</td><td>10.5 · 10.5 · 10 · 10</td><td>render’dan, 4x; alt kenarda komşu lambanın ışığı ölçüme girer</td></tr>
 </table><!--/AUDIT-->
 </section>
 
