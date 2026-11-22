@@ -1,0 +1,589 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crenel · Notch rafine çalışması</title>
+<!--
+  Çalışma: notch'un üç ekranını aynı stil ve akışla, daha disiplinli ölçülerle yeniden kurar.
+  Solda bugünkü SwiftUI render'ı (macos/artifacts/ui-audit, galeri testleri üretir), sağda öneri.
+  "Kılavuz" iki tarafa da aynı çizgileri çizer: 12 kap kenarı, 20 içerik kenarı, 48 metin kolonu.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ═══ Sözleşme ═══ */
+  :root {
+    --ink-1: #f3f1ec; --ink-2: #aaa7a1; --ink-3: #76736e; --ink-4: #4c4a47; --ink-5: #2e2d2b;
+    --amber: #ffad33; --red: #ff5a47; --teal: #34e6cb;
+
+    --W: 560px;     /* açık panel */
+    --P: 12px;      /* kap kenarı: zeminli her şey (alan, hover zemini, kart) buradan başlar */
+    --G: 20px;      /* içerik kenarı: metin, ikon, buton buradan başlar ve burada biter */
+    --C: 48px;      /* metin kolonu: G + 16 glif + 12 boşluk */
+
+    --row-1: 36px;  /* tek satır */
+    --row-2: 52px;  /* iki satır */
+    --sec: 32px;    /* bölüm başlığı */
+    --r-panel: 22px; --r-box: 10px; --r-tile: 8px;  /* 22 = 10 + 12: iç içe yarıçap */
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { background: #17171a; color: var(--ink-1); font-family: Geist, ui-sans-serif, system-ui; -webkit-font-smoothing: antialiased; }
+  body { padding: 48px 56px 120px; font-feature-settings: 'tnum' 1; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: default; }
+  svg.i { width: 16px; height: 16px; flex: none; display: block; }
+  svg.i12 { width: 12px; height: 12px; flex: none; display: block; }
+
+  /* ═══ Tipografi: 3 ağırlık (400/500/600), 600 yalnız kahraman ve başlıkta ═══ */
+  .t-hero  { font-size: 18px; line-height: 22px; font-weight: 600; letter-spacing: -.014em; }
+  .t-title { font-size: 13px; line-height: 18px; font-weight: 600; letter-spacing: -.004em; }
+  .t-body  { font-size: 13px; line-height: 18px; font-weight: 500; letter-spacing: -.003em; }
+  .t-label { font-size: 12.5px; line-height: 16px; font-weight: 500; }
+  .t-meta  { font-size: 12px; line-height: 16px; font-weight: 400; color: var(--ink-3); }
+  .t-sec   { font-size: 12px; line-height: 16px; font-weight: 500; color: var(--ink-3); }
+  .t-value { font-size: 12.5px; line-height: 16px; font-weight: 400; color: var(--ink-2); }
+  .t-micro { font-size: 10.5px; line-height: 12px; font-weight: 500; color: var(--ink-4); }
+
+  /* ═══ Sayfa ═══ */
+  header.page { max-width: 1240px; margin-bottom: 40px; }
+  header.page h1 { font-size: 22px; font-weight: 600; letter-spacing: -.02em; }
+  header.page p { color: var(--ink-2); font-size: 14px; line-height: 22px; margin-top: 8px; max-width: 760px; }
+  .bar { display: flex; gap: 8px; margin-top: 20px; }
+  .bar button { height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; color: var(--ink-2);
+    background: linear-gradient(180deg, rgba(255,255,255,.088), rgba(255,255,255,.046)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), 0 1px 2px rgba(0,0,0,.45); }
+  .bar button.on { color: #0b0b0a; background: linear-gradient(180deg, #fdfcf9, #e2dfd8); }
+
+  section.study { margin-top: 56px; }
+  section.study > h2 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  section.study > h2 span { color: var(--ink-3); font-weight: 400; margin-left: 8px; }
+  .pair { display: flex; gap: 48px; margin-top: 16px; align-items: flex-start; flex-wrap: wrap; }
+  .col > .cap { font-size: 12px; color: var(--ink-3); margin-bottom: 10px; font-weight: 500; }
+  .col > .cap b { color: var(--ink-1); font-weight: 500; }
+  .zoom { zoom: var(--z, 1); }
+  .notes { margin-top: 20px; max-width: 1170px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 48px; }
+  .notes li { list-style: none; font-size: 13px; line-height: 20px; color: var(--ink-2); padding-left: 14px; position: relative; }
+  .notes li::before { content: ''; position: absolute; left: 0; top: 8px; width: 6px; height: 3px; border-radius: 1px; background: var(--ink-4); }
+  .notes li b { color: var(--ink-1); font-weight: 500; }
+
+  /* Bugünkü render (2x PNG'ler 560 pt'ye ölçeklenir) */
+  .shot { position: relative; width: var(--W); background: #000 no-repeat 0 0 / 560px auto; border-radius: 0 0 var(--r-panel) var(--r-panel); overflow: hidden; }
+  .shot.crop { background-size: 860px auto; background-position: -150px 0; border-radius: 0 0 24px 24px; }
+
+  /* ═══ Panel ═══ */
+  .panel { position: relative; width: var(--W); background: #000; border-radius: 0 0 var(--r-panel) var(--r-panel); padding-bottom: var(--G); }
+  .pad { padding: 0 var(--G); }
+
+  /* Kılavuz: iki tarafa aynı çizgiler */
+  .guides { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 5;
+    background:
+      linear-gradient(90deg, transparent 12px, rgba(80,160,255,.55) 12px 13px, transparent 13px),
+      linear-gradient(90deg, transparent 20px, rgba(255,64,160,.7) 20px 21px, transparent 21px),
+      linear-gradient(90deg, transparent 48px, rgba(255,64,160,.35) 48px 49px, transparent 49px),
+      linear-gradient(90deg, transparent 539px, rgba(255,64,160,.7) 539px 540px, transparent 540px),
+      linear-gradient(90deg, transparent 547px, rgba(80,160,255,.55) 547px 548px, transparent 548px),
+      repeating-linear-gradient(180deg, rgba(255,255,255,.045) 0 1px, transparent 1px 4px); }
+  body.g .guides { display: block; }
+  body.g .panel [data-box] { outline: 1px dashed rgba(80,160,255,.35); outline-offset: -1px; }
+
+  /* Krom: marka satırı ve sekmeler */
+  .chrome { height: 40px; display: flex; align-items: center; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand svg { color: #14f0d4; filter: drop-shadow(0 0 2.5px rgba(20,240,212,.55)); }
+  .chrome .sp { flex: 1; }
+  .chrome .tools { display: flex; gap: 16px; color: var(--ink-3); }
+  .tabs { height: 36px; display: flex; gap: 20px; align-items: flex-start; position: relative; }
+  .tab { height: 36px; padding-top: 6px; display: inline-flex; gap: 5px; align-items: baseline; color: var(--ink-3); position: relative; }
+  .tab .n { font-size: 12px; color: var(--ink-4); }
+  .tab.on { color: var(--ink-1); }
+  .tab.on .n { color: var(--ink-3); }
+  .tab.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: 8px; height: 2px; border-radius: 1px; background: var(--ink-1); box-shadow: 0 0 6px rgba(243,241,236,.6); }
+
+  /* Bölüm başlığı: etiket alt kenara oturur, sayı sağ kenarda biter */
+  .sec { height: var(--sec); display: flex; align-items: flex-end; justify-content: space-between; padding: 0 var(--G) 6px; }
+  .sec .c { font-size: 12px; color: var(--ink-4); }
+
+  /* Satır: zemin kap kenarından, içerik içerik kenarından */
+  .row { position: relative; display: flex; align-items: center; gap: 12px; padding: 0 var(--G); margin: 0 var(--P); padding-left: calc(var(--G) - var(--P)); padding-right: calc(var(--G) - var(--P)); border-radius: var(--r-box); }
+  .row.h1 { height: var(--row-1); }
+  .row.h2 { height: var(--row-2); }
+  .row.hov { background: rgba(255,255,255,.055); }
+  .row .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .row .txt .t-body { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .meta { display: flex; align-items: center; gap: 6px; }
+  .row .meta i.dot { width: 2px; height: 2px; border-radius: 1px; background: var(--ink-4); }
+
+  /* Kuyruk kolonları: her satırda aynı genişlik, boş olsa da yer tutar */
+  .tail { display: flex; align-items: center; gap: 10px; flex: none; }
+  .tail > .k { display: flex; justify-content: flex-end; align-items: center; }
+  .k-timer { width: 52px; } .k-pri { width: 12px; } .k-rep { width: 14px; } .k-due { width: 60px; } .k-dur { width: 56px; }
+
+  /* Saat karosu: tüm satırlarda aynı boy */
+  .tile { position: relative; width: 44px; height: 36px; flex: none; border-radius: var(--r-tile); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+  .tile .wd { font-size: 9.5px; line-height: 10px; font-weight: 500; color: var(--ink-3); }
+  .tile .lamp { position: absolute; top: -3px; right: -3px; }
+
+  /* Alan: zemin 12'den, ikon 20'den, metin 48'den */
+  .field { height: 40px; margin: 0 var(--P); padding: 0 calc(var(--G) - var(--P)); border-radius: var(--r-box); display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,.055); box-shadow: inset 0 0 0 1px rgba(255,255,255,.04); color: var(--ink-3); }
+  .field .ph { flex: 1; font-size: 13px; font-weight: 400; color: var(--ink-3); }
+  .field .ph q { quotes: '“' '”'; color: var(--ink-2); }
+
+  /* Eylem satırı */
+  .actions { height: 44px; margin-top: 8px; padding: 0 var(--G); display: flex; align-items: center; gap: 12px; }
+  .actions .lampcol { width: 16px; display: flex; justify-content: center; }
+  .actions .sp { flex: 1; }
+
+  /* ═══ Prototipten birebir: lamba, buton, tuş, öncelik, segment, gösterge, cetvel, VU ═══ */
+  .lamp { display: inline-block; flex: none; width: 8px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.09); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.05); }
+  .lamp.dot { width: 7px; height: 7px; border-radius: 50%; }
+  .lamp.on-w { background: radial-gradient(ellipse 70% 80% at 50% 45%, #fff, #f3f1ec 70%); box-shadow: 0 0 5px rgba(243,241,236,.6), 0 0 14px rgba(243,241,236,.16); }
+  .lamp.on-a { background: radial-gradient(ellipse 70% 80% at 50% 45%, #ffe2b3, #ffad33 72%); box-shadow: 0 0 6px rgba(255,173,51,.7), 0 0 16px rgba(255,173,51,.22); }
+  .lamp.on-r { background: radial-gradient(ellipse 70% 80% at 50% 45%, #ffc2b8, #ff5a47 72%); box-shadow: 0 0 6px rgba(255,90,71,.75), 0 0 16px rgba(255,90,71,.24); }
+  .lamp.on-g { background: radial-gradient(ellipse 70% 80% at 50% 45%, #b9fff3, #34e6cb 72%); box-shadow: 0 0 6px rgba(52,230,203,.65), 0 0 16px rgba(52,230,203,.2); }
+
+  .btn { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 28px; padding: 0 10px 0 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; white-space: nowrap; flex: none; }
+  .btn.sm { height: 26px; padding: 0 8px 0 10px; gap: 5px; }
+  .btn-secondary { color: var(--ink-1); background: linear-gradient(180deg, rgba(255,255,255,.088), rgba(255,255,255,.046));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.075), 0 1px 2px rgba(0,0,0,.45); }
+  .btn-secondary > svg { color: var(--ink-2); }
+  .kbd { display: inline-flex; align-items: center; justify-content: center; height: 16px; min-width: 16px; padding: 0 4px; margin-left: 2px; border-radius: 4px; font-size: 10.5px; font-weight: 500; line-height: 1;
+    color: var(--ink-3); background: rgba(255,255,255,.055); box-shadow: inset 0 0 0 .5px rgba(255,255,255,.08), inset 0 -1px 0 rgba(0,0,0,.5); }
+  .btn.sm .kbd { height: 15px; min-width: 15px; font-size: 10px; }
+  .round { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative;
+    background: linear-gradient(180deg, rgba(255,255,255,.088), rgba(255,255,255,.046)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07), inset 0 1px 0 rgba(255,255,255,.075), 0 1px 2px rgba(0,0,0,.45); }
+  .round .lamp { position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); }
+
+  .pri { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 10px; }
+  .pri > i { display: block; width: 2px; border-radius: 1px; background: var(--ink-5); }
+  .pri > i:nth-child(1) { height: 4px } .pri > i:nth-child(2) { height: 7px } .pri > i:nth-child(3) { height: 10px }
+  .pri > i.on { background: currentColor; }
+
+  .segd { display: inline-block; line-height: 0; }
+  .segd svg { overflow: visible; filter: drop-shadow(0 0 1.5px color-mix(in srgb, currentColor 60%, transparent)) drop-shadow(0 0 7px color-mix(in srgb, currentColor 24%, transparent)); }
+  .segd .g { opacity: .075; }
+  .gauge svg { overflow: visible; display: block; }
+  .gauge .lit { filter: drop-shadow(0 0 1.6px color-mix(in srgb, currentColor 70%, transparent)); }
+  .gauge .head { stroke: color-mix(in srgb, currentColor 55%, white); }
+  .gauge .g { opacity: .13; }
+  .gauge .halo { opacity: .2; }
+  .gauge-box { position: relative; width: 96px; height: 96px; flex: none; }
+  .gauge-box::before { content: ''; position: absolute; inset: -16px; border-radius: 50%; background: radial-gradient(closest-side, rgba(243,241,236,.10), rgba(243,241,236,.03) 60%, transparent); }
+  .gauge-c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .gauge-c .t-micro { color: var(--ink-3); }
+
+  .ruler { position: relative; height: 46px; }
+  .ruler .ev { position: absolute; top: 6px; height: 6px; border-radius: 2px; background: var(--ink-3); }
+  .ruler .ev.focus { background: var(--ink-1); box-shadow: 0 0 6px rgba(243,241,236,.45); }
+  .ruler .ev.invite { background: transparent; box-shadow: inset 0 0 0 1px var(--amber); }
+  .ruler .ev.dim { background: var(--ink-4); }
+  .ruler .tk { position: absolute; top: 20px; width: 1px; height: 3px; background: var(--ink-4); }
+  .ruler .tk.M { height: 6px; background: var(--ink-3); }
+  .ruler .tk.past { opacity: .45; }
+  .ruler .lb { position: absolute; top: 31px; transform: translateX(-50%); font-size: 10.5px; line-height: 12px; font-weight: 500; color: var(--ink-3); }
+  .ruler .now { position: absolute; top: 1px; width: 1px; height: 26px; background: var(--amber); box-shadow: 0 0 6px rgba(255,173,51,.8); }
+  .ruler .now::before { content: ''; position: absolute; top: -1px; left: -2.5px; width: 6px; height: 3px; border-radius: 1px; background: var(--amber); }
+  .ruler .past-mask { position: absolute; left: 0; top: 4px; height: 10px; background: linear-gradient(90deg, rgba(0,0,0,.72), rgba(0,0,0,.5)); }
+
+  .vu { display: flex; gap: 2px; flex: 1; align-items: center; }
+  .vu > i { display: block; flex: 1; height: 7px; border-radius: 1.5px; background: rgba(255,255,255,.07); }
+  .vu > i.red { background: rgba(255,90,71,.12); }
+  .vu > i.on { background: var(--ink-1); box-shadow: 0 0 4px rgba(243,241,236,.3); }
+
+  .wave { display: flex; align-items: center; gap: 2px; height: 40px; }
+  .wave > i { flex: 1; border-radius: 1px; background: var(--ink-3); }
+  .wave > i.now { background: var(--ink-1); box-shadow: 0 0 5px rgba(243,241,236,.6); }
+
+  /* Kayıt yüzeyinin hafif kırmızı sızması */
+  .rec-glow { background: radial-gradient(ellipse 70% 55% at 30% 0%, rgba(255,90,71,.07), transparent 70%), #000; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-calendar" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4.25 3.25H11.75L13.25 4.75V11.75L11.75 13.25H4.25L2.75 11.75V4.75Z"/><path d="M2.75 6.75H13.25M5.25 1.75V3.25M10.75 1.75V3.25"/><rect x="9.25" y="9.25" width="2.25" height="2.25" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><rect x="2" y="2.75" width="3.5" height="3.5" fill="currentColor" stroke="none"/><path d="M8.25 4.5H13.75M2.75 8.5H13.75M2.75 12.5H10.25"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M6.25 1.75H9.75L10.75 2.75V8.25L9.75 9.25H6.25L5.25 8.25V2.75Z"/><path d="M3.25 7V8.5L5.75 11.5H10.25L12.75 8.5V7M8 11.5V14.25M5.75 14.25H10.25"/></symbol>
+  <symbol id="i-micoff" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M6.25 1.75H9.75L10.75 2.75V8.25L9.75 9.25H6.25L5.25 8.25V2.75Z"/><path d="M3.25 7V8.5L5.75 11.5H10.25L12.75 8.5V7M8 11.5V14.25M5.75 14.25H10.25"/><path d="M2 2L14 14" fill="none" style="stroke:var(--surface,#000)" stroke-width="3.5" stroke-linecap="butt"/><path d="M2.75 2.75L13.25 13.25"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M1.75 5.75H4.5L8.25 2.5V13.5L4.5 10.25H1.75Z"/><path d="M10.75 6L11.75 8L10.75 10M12.75 3.75L14.25 8L12.75 12.25"/></symbol>
+  <symbol id="i-video" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3 4.25H9.25L10.25 5.25V10.75L9.25 11.75H3L2 10.75V5.25Z"/><path d="M10.25 7L14 4.75V11.25L10.25 9"/></symbol>
+  <symbol id="i-window" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M1.75 2.75H14.25V13.25H1.75ZM1.75 6.25H14.25"/><rect x="3.5" y="3.75" width="1.5" height="1.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.75 2.25H10.25M6.75 2.25V5.75L4.5 8.75H11.5L9.25 5.75V2.25M8 8.75V13.75"/></symbol>
+  <symbol id="i-history" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3 11L2.25 8L3 5L6 2.5H10L13 5L13.75 8L13 11L10 13.5H6.5"/><path d="M2.25 2.25V5H5M8 5.25V8.25L10.25 9.75"/></symbol>
+  <symbol id="i-tape" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.75 3.25H13.25L14.25 4.25V12.75H1.75V4.25Z"/><path d="M3.75 5.75H6.25V8.25H3.75ZM9.75 5.75H12.25V8.25H9.75ZM6.25 8.25H9.75M4.25 12.75L5.25 10.75H10.75L11.75 12.75"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.75 7.25V4.25H13.25M11 2L13.25 4.25L11 6.5M13.25 8.75V11.75H2.75M5 14L2.75 11.75L5 9.5"/></symbol>
+  <symbol id="i-record" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="4" fill="currentColor"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 16 16" fill="none"><rect x="4.25" y="4.25" width="7.5" height="7.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M6.25 3.5L10.75 8L6.25 12.5"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M9.75 3.5L5.25 8L9.75 12.5"/></symbol>
+  <symbol id="i-chevron-down" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3.5 6.25L8 10.75L12.5 6.25"/></symbol>
+  <symbol id="i-arrow-right" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.75 8H13M9 4L13 8L9 12"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 3V13M3 8H13"/></symbol>
+  <symbol id="i-close" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4.25 4.25L11.75 11.75M11.75 4.25L4.25 11.75"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 1.75L9.5 6.5L14.25 8L9.5 9.5L8 14.25L6.5 9.5L1.75 8L6.5 6.5Z"/></symbol>
+  <symbol id="i-link" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M9.75 2.25H13.75V6.25M13.25 2.75L7.75 8.25M11.75 9.75V13.75H2.25V4.25H6.25"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3.75 11.25V6.5L6 3.25H10L12.25 6.5V11.25L13.5 12.5H2.5Z"/><path d="M6.75 14.25H9.25"/></symbol>
+  <symbol id="i-place" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 14.25L3.25 9V5.25L5.75 2.25H10.25L12.75 5.25V9Z"/><rect x="7" y="5.25" width="2" height="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-transcript" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3.25 1.75H9.5L12.75 5V14.25H3.25Z"/><path d="M9.25 1.75V5.25H12.75M5.75 8.25H10.25M5.75 11H8.5"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2 5H7M11.5 5H14M2 11H3.5M8 11H14M7 3.25H10.5V6.75H7ZM3.75 9.25H7.25V12.75H3.75Z"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 1.75L13.25 3.75V8L8 14.25L2.75 8V3.75Z"/></symbol>
+  <symbol id="i-warning" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 2.25L14.25 13.25H1.75Z"/><path d="M8 6.75V9"/><rect x="7.25" y="10.5" width="1.5" height="1.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-people" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4.75 2.5H7.25L8.25 3.5V6L7.25 7H4.75L3.75 6V3.5ZM1.75 13.75V11.75L3.75 9.75H8.25L10.25 11.75V13.75M10.75 2.5H11.75L12.75 3.5V6L11.75 7H10.75M12 9.75L14.25 11.75V13.75"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.5 3.75H13.5L14.5 4.75V11.25L13.5 12.25H2.5L1.5 11.25V4.75Z"/><path d="M4.5 6.75H4.51M7 6.75H7.01M9.5 6.75H9.51M12 6.75H12.01M5.25 9.5H10.75"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M10.5 2.25L13.75 5.5L5.5 13.75H2.25V10.5ZM8.5 4.25L11.75 7.5"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.25 5.25H13.75V13.75H5.25ZM10.75 5.25V2.25H2.25V10.75H5.25"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.5 4.25H13.5M6.25 4.25V2.25H9.75V4.25M3.75 4.25L4.5 14H11.5L12.25 4.25M6.75 7V11M9.25 7V11"/></symbol>
+  <symbol id="i-more" viewBox="0 0 16 16" fill="none"><rect x="2.5" y="7.25" width="2" height="2" fill="currentColor" stroke="none"/><rect x="7" y="7.25" width="2" height="2" fill="currentColor" stroke="none"/><rect x="11.5" y="7.25" width="2" height="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-play" viewBox="0 0 16 16" fill="none"><path d="M4.5 2.75V13.25L13 8Z" fill="currentColor"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 16 16" fill="none"><rect x="4" y="3" width="2.75" height="10" fill="currentColor" stroke="none"/><rect x="9.25" y="3" width="2.75" height="10" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-waveform" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M2.75 7V9M5.25 5V11M7.75 2.75V13.25M10.25 5.5V10.5M12.75 7V9"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M4.75 2.25H8.25L10.75 4.75V8.25L8.25 10.75H4.75L2.25 8.25V4.75ZM10.5 10.5L13.75 13.75"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M1.75 2.75H14.25V6.25H1.75ZM2.75 6.25V13.25H13.25V6.25M6.5 9H9.5"/></symbol>
+  <symbol id="i-accessibility" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><rect x="7.25" y="1.5" width="1.5" height="1.5" fill="currentColor" stroke="none"/><path d="M2.75 5.5H13.25M8 5.5V9.5M8 9.5L5.5 14.25M8 9.5L10.5 14.25"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.75 5.75H10.25V10.25H5.75ZM8 1.75V3M8 13V14.25M1.75 8H3M13 8H14.25M3.6 3.6L4.3 4.3M11.7 11.7L12.4 12.4M3.6 12.4L4.3 11.7M11.7 4.3L12.4 3.6"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3 12.5L2.25 9L3.5 5.25L6.25 3H9.75L12.5 5.25L13.75 9L13 12.5M8 9L10.75 6.25"/><rect x="7" y="8" width="2" height="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.5 1.75H10.5L14.25 5.5V10.5L10.5 14.25H5.5L1.75 10.5V5.5ZM8 4.75V8H10.5"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M5.5 1.75H10.5L14.25 5.5V10.5L10.5 14.25H5.5L1.75 10.5V5.5ZM1.75 8H14.25M8 1.75L10.5 8L8 14.25L5.5 8Z"/></symbol>
+  <symbol id="i-share" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M8 10V2.5M5.25 5.25L8 2.5L10.75 5.25M4.75 7.25H2.25V13.75H13.75V7.25H11.25"/></symbol>
+  <symbol id="f-calendar" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M4 2.5H12L14 4.5V12L12 14H4L2 12V4.5ZM3.5 6H12.5V7.5H3.5ZM9 9H11.5V11.5H9Z"/><rect x="4.5" y="0.75" width="1.5" height="2.5" fill="currentColor" stroke="none"/><rect x="10" y="0.75" width="1.5" height="2.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="f-queue" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><rect x="1.5" y="2" width="4.5" height="4.5" fill="currentColor" stroke="none"/><rect x="7.5" y="3.5" width="6.75" height="2" fill="currentColor" stroke="none"/><rect x="1.5" y="7.5" width="12.75" height="2" fill="currentColor" stroke="none"/><rect x="1.5" y="11.5" width="9" height="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="f-mic" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M6 1H10L11.5 2.5V8.5L10 10H6L4.5 8.5V2.5ZM6.5 4H9.5V5H6.5ZM6.5 6H9.5V7H6.5Z"/><path d="M3.25 7V8.5L5.75 11.5H10.25L12.75 8.5V7M8 11.5V14.25M5.75 14.25H10.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-micoff" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M6 1H10L11.5 2.5V8.5L10 10H6L4.5 8.5V2.5ZM6.5 4H9.5V5H6.5ZM6.5 6H9.5V7H6.5Z"/><path d="M3.25 7V8.5L5.75 11.5H10.25L12.75 8.5V7M8 11.5V14.25M5.75 14.25H10.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/><path d="M2 2L14 14" fill="none" style="stroke:var(--surface,#000)" stroke-width="3.5" stroke-linecap="butt"/><path d="M2.75 2.75L13.25 13.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-speaker" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M1 5H4.25L8.75 1.5V14.5L4.25 11H1Z"/><path d="M10.75 6L11.75 8L10.75 10M12.75 3.75L14.25 8L12.75 12.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-video" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.5 3.75H9.75L11 5V11L9.75 12.25H2.5L1.25 11V5ZM11.75 6.75L14.75 4.75V11.25L11.75 9.25Z"/></symbol>
+  <symbol id="f-tape" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.5 2.5H13.5L15 4V13.5H1V4ZM3.5 5.5H6.5V8.5H3.5ZM9.5 5.5H12.5V8.5H9.5ZM5 13.5L5.75 11H10.25L11 13.5Z"/></symbol>
+  <symbol id="f-transcript" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.5 1H9.75L13.5 4.75V15H2.5ZM5 7.5H11V9H5ZM5 10.5H9V12H5Z"/></symbol>
+  <symbol id="f-spark" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M8 .75L9.9 6.1L15.25 8L9.9 9.9L8 15.25L6.1 9.9L.75 8L6.1 6.1Z"/></symbol>
+  <symbol id="f-keyboard" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2 3H14L15 4V12L14 13H2L1 12V4ZM3.75 5.75H5.25V7.25H3.75ZM6.25 5.75H7.75V7.25H6.25ZM8.75 5.75H10.25V7.25H8.75ZM11.25 5.75H12.75V7.25H11.25ZM4.5 9H11.5V10.5H4.5Z"/></symbol>
+  <symbol id="f-accessibility" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><rect x="6.75" y="0.75" width="2.5" height="2.5" fill="currentColor" stroke="none"/><path d="M2.5 5.5H13.5M8 5.5V9.5M8 9.5L5.25 14.5M8 9.5L10.75 14.5" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-gauge" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.25 12.75L1.25 8.75L2.75 4.5L6 1.75H10L13.25 4.5L14.75 8.75L13.75 12.75ZM7.25 9.5L10.6 5.4L11.4 6L8.6 10.5Z"/></symbol>
+  <symbol id="f-waveform" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2.75 7V9M5.25 5V11M7.75 2.75V13.25M10.25 5.5V10.5M12.75 7V9" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-sliders" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M2 5H7M11.5 5H14M2 11H3.5M8 11H14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/><rect x="6.5" y="2.75" width="4.5" height="4.5" fill="currentColor" stroke="none"/><rect x="3.25" y="8.75" width="4.5" height="4.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="f-sun" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><rect x="5" y="5" width="6" height="6" fill="currentColor" stroke="none"/><path d="M8 1.75V2.75M8 13.25V14.25M1.75 8H2.75M13.25 8H14.25M3.6 3.6L4.1 4.1M11.9 11.9L12.4 12.4M3.6 12.4L4.1 11.9M11.9 4.1L12.4 3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"/></symbol>
+  <symbol id="f-archive" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M1 2H15V6H1ZM2 7H14V14H2ZM6 9H10V10.5H6Z"/></symbol>
+  <symbol id="f-warning" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M8 1L15.25 14H.75ZM7.25 5.75H8.75V9.5H7.25ZM7.25 10.75H8.75V12.25H7.25Z"/></symbol>
+  <symbol id="f-bell" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M3 11V6.25L5.75 2.5H10.25L13 6.25V11L14.5 12.5V13H1.5V12.5Z"/><rect x="6.25" y="14" width="3.5" height="1.5" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="f-shield" viewBox="0 0 16 16" fill="currentColor" fill-rule="evenodd"><path d="M8 1L14 3.25V8.25L8 15L2 8.25V3.25Z"/></symbol>
+  <symbol id="mod-bang" viewBox="0 0 16 16" fill="none"><rect x="9.25" y="9.25" width="6.75" height="6.75" fill="currentColor" style="stroke:var(--surface,#000)" stroke-width="1.5"/><rect x="12" y="10.5" width="1.25" height="3" style="fill:var(--surface,#000)"/><rect x="12" y="14" width="1.25" height="1.1" style="fill:var(--surface,#000)"/></symbol>
+  <symbol id="mod-x" viewBox="0 0 16 16" fill="none"><rect x="9.25" y="9.25" width="6.75" height="6.75" fill="currentColor" style="stroke:var(--surface,#000)" stroke-width="1.5"/><path d="M11.1 11.1L14.15 14.15M14.15 11.1L11.1 14.15" style="stroke:var(--surface,#000)" stroke-width="1.2"/></symbol>
+  <!-- Status shapes: the shape says what kind of state it is; colour only says how bad. -->
+  <symbol id="s-err" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M8 1L15.25 14H.75ZM7.25 5.75H8.75V9.5H7.25ZM7.25 10.75H8.75V12.25H7.25Z"/></symbol>
+  <symbol id="s-warn" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M8 .5L15.5 8L8 15.5L.5 8ZM7.25 4.25H8.75V8.75H7.25ZM7.25 10H8.75V11.5H7.25Z"/></symbol>
+  <symbol id="s-off" viewBox="0 0 16 16"><path fill="currentColor" fill-rule="evenodd" d="M5 1H11L15 5V11L11 15H5L1 11V5ZM3.75 7.1H12.25V8.9H3.75Z"/></symbol>
+  <symbol id="s-wait" viewBox="0 0 16 16"><path fill="currentColor" d="M3 1H13V3.25L9.5 8L13 12.75V15H3V12.75L6.5 8L3 3.25Z"/></symbol>
+  <symbol id="s-stop" viewBox="0 0 16 16"><path fill="currentColor" d="M3 3H13V13H3Z"/></symbol>
+  <symbol id="i-paren" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><path d="M3.5 1.75L1.5 8L3.5 14.25M20.5 1.75L22.5 8L20.5 14.25"/></symbol>
+  <!-- The mark: six lamps in a crenel (the app icon's glyph). Opacity per lamp is part of the mark. -->
+  <symbol id="i-mark" viewBox="0 0 472 296"><g fill="currentColor"><rect opacity=".7" x="59" width="118" height="119"/><rect opacity=".76" y="119" width="118" height="118"/><rect opacity=".5" x="118" y="178" width="118" height="118"/><rect opacity=".65" x="236" y="178" width="118" height="118"/><rect opacity=".56" x="295" width="118" height="119"/><rect x="354" y="119" width="118" height="118"/></g></symbol>
+  <symbol id="i-logo" viewBox="0 0 24 24"><path fill="currentColor" d="M8 6.5H7.5Q8.5 6.5 8.5 7.5V8.7Q8.5 9.7 9.5 9.7H14.5Q15.5 9.7 15.5 8.7V7.5Q15.5 6.5 16.5 6.5H16A5.5 5.5 0 0 1 21.5 12A5.5 5.5 0 0 1 16 17.5H8A5.5 5.5 0 0 1 2.5 12A5.5 5.5 0 0 1 8 6.5Z"/></symbol>
+
+  <!-- Task marks: a chamfered square whose fill level says the state; never a tick. -->
+  <symbol id="m-open" viewBox="0 0 16 16"><path d="M4.75 2.25H11.25L13.75 4.75V11.25L11.25 13.75H4.75L2.25 11.25V4.75Z" fill="none" stroke="#76736e" stroke-width="1.5"/></symbol>
+  <symbol id="m-progress" viewBox="0 0 16 16"><path d="M4.75 2.25H11.25L13.75 4.75V11.25L11.25 13.75H4.75L2.25 11.25V4.75Z" fill="none" stroke="#ffad33" stroke-width="1.5"/><path d="M8 5H10L11 6V10L10 11H8Z" fill="#ffad33"/></symbol>
+  <symbol id="m-blocked" viewBox="0 0 16 16"><path d="M4.75 2.25H11.25L13.75 4.75V11.25L11.25 13.75H4.75L2.25 11.25V4.75Z" fill="none" stroke="#ff5a47" stroke-width="1.5"/><rect x="5" y="7.25" width="6" height="1.5" fill="#ff5a47"/></symbol>
+  <symbol id="m-done" viewBox="0 0 16 16"><path d="M4.75 2.25H11.25L13.75 4.75V11.25L11.25 13.75H4.75L2.25 11.25V4.75Z" fill="none" stroke="#4c4a47" stroke-width="1.5"/><path d="M6 5H10L11 6V10L10 11H6L5 10V6Z" fill="#4c4a47"/></symbol>
+</svg>
+
+<header class="page">
+  <h1>Notch rafine çalışması</h1>
+  <p>Stil, ikonlar, lambalar, segment rakamlar ve akış aynı. Değişen yalnızca ölçüler: tek kap kenarı (12), tek içerik kenarı (20), tek metin kolonu (48), iki satır boyu (36 / 52), sabit kuyruk kolonları ve sadeleşmiş bir yazı skalası. Solda bugünkü render, sağda öneri.</p>
+  <div class="bar">
+    <button id="bG">Kılavuz çizgileri</button>
+    <button id="bZ1" class="on">1x</button>
+    <button id="bZ2">1.5x</button>
+  </div>
+</header>
+
+<!-- ═══════════════ 1 · TODAY ═══════════════ -->
+<section class="study">
+  <h2>Today <span>açık panel, takvim</span></h2>
+  <div class="pair zoom">
+    <div class="col"><div class="cap">Şimdi</div>
+      <div class="shot" style="height:516px;background-image:url(../../macos/artifacts/ui-audit/today/o-today.png)"><div class="guides"></div></div>
+    </div>
+    <div class="col"><div class="cap"><b>Rafine</b></div>
+      <div class="panel" style="padding-top:16px">
+        <div class="guides"></div>
+        <!-- Kahraman: gösterge 20'de, metin bloğu ve buton aynı dikey merkezde -->
+        <div class="pad" style="display:flex;align-items:center;gap:20px">
+          <div class="gauge-box">
+            <div class="gauge" style="color:var(--ink-1)" data-gauge="0" data-size="96" data-ticks="60" data-major="15"></div>
+            <div class="gauge-c"><span class="segd" style="color:var(--ink-1)" data-seg="14:30" data-h="17"></span><span class="t-micro">in 3 h 48</span></div>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+            <div class="t-hero">Design review</div>
+            <div class="t-meta meta" style="display:flex;gap:6px;align-items:center;color:var(--ink-2)"><span>14:30</span><i style="width:2px;height:2px;border-radius:1px;background:var(--ink-4)"></i><svg class="i12" style="color:var(--ink-3)"><use href="#i-video"/></svg><span>Google Meet</span></div>
+          </div>
+          <button class="btn btn-secondary" data-box><span class="lamp dot on-r" style="width:6px;height:6px"></span>Record<span class="kbd">⌘R</span></button>
+        </div>
+        <!-- Cetvel: içerik kenarından içerik kenarına -->
+        <div class="pad" style="margin-top:16px"><div class="ruler" data-span="8-20" data-now="10.7" data-events="14.5-15.25:focus|16-17|17.5-18:invite|19-20:dim"></div></div>
+
+        <div class="sec" style="margin-top:4px"><span class="t-sec">Today</span><span class="c">3</span></div>
+        <div class="row h2 hov">
+          <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="16:00" data-h="12"></span></div>
+          <div class="txt"><span class="t-body">Lunch with Deniz</span><span class="t-meta">Karaköy Lokantası</span></div>
+          <div class="tail"><span class="k k-dur t-value">1h 00m</span></div>
+        </div>
+        <div class="row h2">
+          <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="17:30" data-h="12"></span><span class="lamp dot on-a"></span></div>
+          <div class="txt"><span class="t-body">Partner call</span><span class="t-meta meta"><span>Zoom</span><i class="dot"></i><svg class="i12" style="color:var(--amber)"><use href="#s-warn"/></svg><span style="color:var(--amber)">Invite</span></span></div>
+          <div class="tail"><span class="k k-dur t-value">30m</span></div>
+        </div>
+        <div class="row h2">
+          <div class="tile" style="opacity:.55"><span class="segd" style="color:var(--ink-2)" data-seg="19:00" data-h="12"></span></div>
+          <div class="txt"><span class="t-body" style="color:var(--ink-3)">Gym</span><span class="t-meta" style="color:var(--ink-4)">Personal</span></div>
+          <div class="tail"><span class="k k-dur t-value" style="color:var(--ink-4)">1h 00m</span></div>
+        </div>
+
+        <div class="sec" style="margin-top:8px"><span class="t-sec">Later</span><span class="c">2</span></div>
+        <div class="row h2">
+          <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="18" data-h="11"></span><span class="wd">Wed</span></div>
+          <div class="txt"><span class="t-body">Weekly sync</span><span class="t-meta meta"><span>10:00</span><i class="dot"></i><span>Zoom</span></span></div>
+          <div class="tail"><span class="k k-dur t-value">30m</span></div>
+        </div>
+        <div class="row h2">
+          <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="19" data-h="11"></span><span class="wd">Thu</span></div>
+          <div class="txt"><span class="t-body">Company offsite</span><span class="t-meta meta"><span>All day</span><i class="dot"></i><span>Work</span></span></div>
+          <div class="tail"><span class="k k-dur t-value"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b>Tek satır boyu.</b> Bugün 52, Later 62 idi. Tarih karosu da saat karosuyla aynı boya (44×36) indi, bütün liste 52 ritminde.</li>
+    <li><b>Tek sağ kenar.</b> Record butonu, cetvel, sayılar ve süreler aynı çizgide (540) bitiyor. Önceden buton 6 pt taşıyordu.</li>
+    <li><b>Kahraman ortalı.</b> Gösterge, başlık bloğu ve Record aynı dikey merkezde. Başlık 17'den 18'e, meta ink-2'ye çıktı. Kahraman satırı daha net okunuyor.</li>
+    <li><b>Bölüm başlıkları sakin.</b> 13'ten 12'ye indi ve alt kenara oturdu. Sayı ink-4 oldu, böylece satır başlığıyla yarışmıyor.</li>
+    <li><b>Hover zemini kap kenarından başlar (12).</b> İçerik ise 20'de kalır. Panel köşesi 22 = 10 + 12, yani köşeler iç içe uyumlu.</li>
+    <li><b>Süreler sabit kolonda.</b> Sağa yaslı, tabular rakam ve ink-2 değer stili. Boş olsa da kolon yer tutuyor.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ 2 · TASKS ═══════════════ -->
+<section class="study">
+  <h2>Tasks <span>açık panel, krom dahil</span></h2>
+  <div class="pair zoom">
+    <div class="col"><div class="cap">Şimdi</div>
+      <div class="shot crop" style="height:512px;background-image:url(../../macos/artifacts/ui-audit/crenel/expanded-tasks.png)"><div class="guides"></div></div>
+    </div>
+    <div class="col"><div class="cap"><b>Rafine</b></div>
+      <div class="panel">
+        <div class="guides"></div>
+        <div class="chrome pad">
+          <div class="brand"><svg class="i"><use href="#i-mark"/></svg><span class="t-title">Crenel</span></div>
+          <span class="sp"></span>
+          <div class="tools"><svg class="i"><use href="#i-window"/></svg><svg class="i"><use href="#i-pin"/></svg></div>
+        </div>
+        <div class="tabs pad">
+          <span class="tab t-label">Today</span>
+          <span class="tab t-label">Recordings</span>
+          <span class="tab t-label on">Tasks<span class="n">5</span></span>
+        </div>
+
+        <div class="field" data-box style="margin-top:4px"><svg class="i"><use href="#i-plus"/></svg><span class="ph">Add a task, like <q>call mom tomorrow 3pm</q></span><span class="kbd">↩</span></div>
+
+        <div class="sec" style="margin-top:8px"><span class="t-sec">Today</span>
+          <span style="display:flex;gap:3px;margin-bottom:6px"><span class="lamp on-w"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></span></div>
+        <div class="row h1">
+          <svg class="i"><use href="#m-progress"/></svg>
+          <div class="txt" style="flex-direction:row;align-items:center;gap:8px"><span class="t-body">Finish onboarding flow</span><svg class="i12" style="color:var(--ink-4)"><use href="#i-transcript"/></svg></div>
+          <div class="tail">
+            <span class="k k-timer" style="color:var(--amber);gap:4px;align-items:baseline"><span class="segd" data-seg="29" data-h="11"></span><span style="font-size:11px;font-weight:500">min</span></span>
+            <span class="k k-pri" style="color:var(--amber)"><span class="pri"><i class="on"></i><i class="on"></i><i class="on"></i></span></span>
+            <span class="k k-rep"></span>
+            <span class="k k-due t-value"></span>
+          </div>
+        </div>
+        <div class="row h1">
+          <svg class="i"><use href="#m-blocked"/></svg>
+          <div class="txt"><span class="t-body">Legal sign-off</span></div>
+          <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due t-value"></span></div>
+        </div>
+        <div class="row h1 hov">
+          <svg class="i"><use href="#m-open"/></svg>
+          <div class="txt"><span class="t-body">Write weekly report</span></div>
+          <div class="tail"><span class="k k-timer"></span>
+            <span class="k k-pri" style="color:var(--ink-2)"><span class="pri"><i class="on"></i><i class="on"></i><i></i></span></span>
+            <span class="k k-rep" style="color:var(--ink-3)"><svg class="i12"><use href="#i-repeat"/></svg></span>
+            <span class="k k-due t-value">15:44</span></div>
+        </div>
+        <div class="row h1">
+          <svg class="i"><use href="#m-open"/></svg>
+          <div class="txt"><span class="t-body">Call mom</span></div>
+          <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due t-value" style="color:var(--red)">Yesterday</span></div>
+        </div>
+
+        <div class="sec" style="margin-top:8px"><span class="t-sec">Later</span><span class="c">1</span></div>
+        <div class="row h1">
+          <svg class="i"><use href="#m-open"/></svg>
+          <div class="txt"><span class="t-body">Reading list</span></div>
+          <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due t-value">Mon 30</span></div>
+        </div>
+
+        <div class="sec" style="margin-top:8px"><span class="t-sec">Done</span></div>
+        <div class="row h1">
+          <svg class="i"><use href="#m-done"/></svg>
+          <div class="txt"><span class="t-body" style="color:var(--ink-4)">Share sprint notes</span></div>
+        </div>
+
+        <div class="actions">
+          <span class="lampcol"><span class="lamp on-g"></span></span>
+          <span class="t-meta" style="color:var(--ink-2)">Synced with Reminders</span>
+          <span class="sp"></span>
+          <button class="btn sm btn-secondary" data-box><svg class="i12"><use href="#i-history"/></svg>Finished</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b>Tek sol sistem.</b> Marka, sekmeler, alan ikonu, görev işaretleri ve senkron lambası 20'de. Başlıklar, alan metni ve durum yazısı 48'de. Önceden 12, 14, 24 ve 28 vardı.</li>
+    <li><b>Zeminler 12'de.</b> Ekleme alanı ve hover zemini aynı kenardan başlayıp bitiyor. Alan 44'ten 40'a indi, köşe 10 oldu.</li>
+    <li><b>Kuyruk kolonları sabit.</b> Sağdan sola son tarih (60), tekrar (14), öncelik (12) ve sayaç (52) her satırda aynı x'te duruyor. Boş kolon da yer tutuyor, böylece ikonlar artık satırdan satıra kaymıyor.</li>
+    <li><b>Not işareti başlığa taşındı.</b> Başlığın hemen yanında ink-4 renkte duruyor. Böylece sağ kenarı bozmuyor, sağda yalnız zamanla ilgili bilgiler kalıyor.</li>
+    <li><b>Satır 36, bölüm 32.</b> Bölümler arasında sabit 8 boşluk var. Liste baştan sona aynı ritimde akıyor.</li>
+    <li><b>Krom hafifledi.</b> Marka satırı 40, sekme satırı 36. Sekmeler 12.5/500, sayaçlar ink-4. Seçili sekmede beyaz ışık çizgisi var.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ 3 · RECORDING ═══════════════ -->
+<section class="study">
+  <h2>Kayıt <span>canlı toplantı</span></h2>
+  <div class="pair zoom">
+    <div class="col"><div class="cap">Şimdi</div>
+      <div class="shot" style="height:315px;background-image:url(../../macos/artifacts/ui-audit/today/o-recording.png)"><div class="guides"></div></div>
+    </div>
+    <div class="col"><div class="cap"><b>Rafine</b></div>
+      <div class="panel rec-glow" style="padding-top:16px">
+        <div class="guides"></div>
+        <div class="pad" style="display:flex;align-items:center;gap:12px;height:20px">
+          <span style="width:16px;display:flex;justify-content:center"><span class="lamp dot on-r"></span></span>
+          <span class="t-title" style="margin-left:0">Recording</span><span class="t-meta" style="color:var(--ink-2)">Design review</span>
+        </div>
+        <div class="pad" style="display:flex;align-items:center;margin-top:12px">
+          <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+            <span class="segd" style="color:var(--ink-1)" data-seg="12:48" data-h="34" data-cells="5"></span>
+            <div style="display:flex;align-items:flex-end;gap:10px"><div class="ramp" data-from="768" data-plan="3600" data-max="4500" data-w="196"></div><span class="t-micro" style="color:var(--ink-3);margin-bottom:-1px">of 60 min</span></div>
+          </div>
+          <div style="display:flex;gap:12px">
+            <button class="round" data-box><svg class="i"><use href="#f-mic"/></svg><span class="lamp on-w"></span></button>
+            <button class="round" data-box><svg class="i12" style="color:var(--red)"><use href="#s-stop"/></svg></button>
+          </div>
+        </div>
+
+        <div class="pad" style="margin-top:24px"><div class="wave" id="wave"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px" class="t-micro"><span>−2:00</span><span>−1:00</span><span>now</span></div></div>
+
+        <div style="margin-top:16px">
+          <div class="pad" style="display:flex;align-items:center;gap:12px;height:32px">
+            <svg class="i"><use href="#f-mic"/></svg><span class="t-body" style="width:100px;color:var(--ink-2)">Your mic</span><div class="vu" data-vu="14"></div>
+          </div>
+          <div class="pad" style="display:flex;align-items:center;gap:12px;height:32px">
+            <svg class="i"><use href="#f-speaker"/></svg><span class="t-body" style="width:100px;color:var(--ink-2)">The call</span><div class="vu" data-vu="12"></div>
+          </div>
+        </div>
+        <div class="actions" style="margin-top:8px;height:32px">
+          <svg class="i" style="color:var(--teal)"><use href="#f-accessibility"/></svg>
+          <span class="t-meta">Your mic follows mute in Zoom</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b>Dikey ritim düzeldi.</b> Bloklar arası boşluklar 24 / 16 / 8 oldu. Önceden dalga formuyla ölçerler arasında ve ölçerlerle not arasında belirgin farklı boşluklar vardı.</li>
+    <li><b>Butonlar segment bloğunun ortasında.</b> İki 40'lık tuş sağ kenarda bitiyor ve sayaçla rampanın oluşturduğu bloğun dikey merkezinde duruyor.</li>
+    <li><b>Ölçerler kolonlu.</b> İkon 20'de, etiket 48'de, ölçer etiketten sonra aynı x'ten başlayıp 540'ta bitiyor. Not satırı da aynı ikon ve metin kolonunda.</li>
+    <li><b>Başlık satırı.</b> Kırmızı lamba 16'lık ikon kolonunda ortalandı. Böylece "Recording" yazısı alttaki etiketlerle aynı kolona (48) oturuyor.</li>
+    <li><b>Etiketler ink-2.</b> Ölçer etiketleri artık başlık gibi değil değer gibi okunuyor. Görsel ağırlık ölçerde kalıyor.</li>
+    <li><b>Dalga formu ve etiketleri</b> içerik kenarından içerik kenarına uzanıyor. Zaman etiketleri micro stile indi.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════ Sözleşme ═══════════════ -->
+<section class="study">
+  <h2>Sözleşme <span>bu çalışmanın kuralları</span></h2>
+  <ul class="notes" style="margin-top:12px">
+    <li><b>Yatay:</b> 12 kap kenarı, 20 içerik kenarı, 48 metin kolonu, sağda 540 / 548. Başka yatay kenar yok.</li>
+    <li><b>Dikey:</b> satır 36 veya 52, bölüm başlığı 32, bloklar arası 8 / 16 / 24. Bunların hepsi 4'lük ızgarada.</li>
+    <li><b>Yarıçap:</b> panel 22, kutu 10, karo 8, buton 8, tuş 4. İç içe duran köşeler dış = iç + boşluk kuralına uyuyor.</li>
+    <li><b>Yazı:</b> hero 18/600, title 13/600, body 13/500, label 12.5/500, value 12.5/400 ink-2, meta 12/400 ink-3, section 12/500 ink-3, micro 10.5/500. Rakamların hepsi tabular.</li>
+    <li><b>Kuyruk:</b> sağdaki bilgiler sabit genişlikli kolonlarda duruyor, kolon boş olsa da yer tutuyor. Değerler sağa yaslı.</li>
+    <li><b>Renk hiyerarşisi:</b> başlık ink-1, değer ink-2, meta ink-3, sayaç ve pasif öğeler ink-4. Hiyerarşi ağırlıkla değil, renkle kuruluyor.</li>
+  </ul>
+</section>
+
+<script>
+const SEGS = (() => {
+  const g = .55
+  const H = (x1, x2, y) => `${x1},${y} ${x1 + 1},${y - 1} ${x2 - 1},${y - 1} ${x2},${y} ${x2 - 1},${y + 1} ${x1 + 1},${y + 1}`
+  const V = (x, y1, y2) => `${x},${y1} ${x + 1},${y1 + 1} ${x + 1},${y2 - 1} ${x},${y2} ${x - 1},${y2 - 1} ${x - 1},${y1 + 1}`
+  return { a: H(1 + g, 9 - g, 1), b: V(9, 1 + g, 9 - g), c: V(9, 9 + g, 17 - g), d: H(1 + g, 9 - g, 17), e: V(1, 9 + g, 17 - g), f: V(1, 1 + g, 9 - g), g: H(1 + g, 9 - g, 9) }
+})()
+const SEGMAP = { 0: 'abcdef', 1: 'bc', 2: 'abged', 3: 'abgcd', 4: 'fgbc', 5: 'afgcd', 6: 'afgedc', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg', '-': 'g', ' ': '' }
+function drawSeg(el) {
+  let text = el.dataset.seg
+  const cells = +el.dataset.cells || 0
+  if (cells && text.length < cells) text = ' '.repeat(cells - text.length) + text
+  const h = +el.dataset.h || 14
+  let x = 0, out = ''
+  for (const ch of text) {
+    if (ch === ':' || ch === '.') { out += (ch === ':' ? [5.5, 12.5] : [16.5]).map(y => `<rect x="${x + 1}" y="${y - 1}" width="2" height="2" rx=".4"/>`).join(''); x += 5; continue }
+    const on = SEGMAP[ch] ?? ''
+    for (const k in SEGS) out += `<polygon points="${SEGS[k]}" transform="translate(${x} 0)" class="${on.includes(k) ? 'on' : 'g'}"/>`
+    x += 13
+  }
+  const w = x - 3 + 2.6
+  el.innerHTML = `<svg viewBox="0 0 ${w} 18" height="${h}" width="${(w / 18 * h).toFixed(1)}" fill="currentColor"><g transform="translate(2.2 0) skewX(-7)">${out}</g></svg>`
+}
+let gaugeId = 0
+function drawGauge(el) {
+  const v = +el.dataset.gauge, n = +el.dataset.ticks || 60, size = +el.dataset.size || 104, sweep = 270, maj = +el.dataset.major || 0, c = size / 2, r = c - 1.5
+  const lit = Math.round(v * n), ang = i => (-sweep / 2 + sweep * i / (n - 1)) * Math.PI / 180
+  let ghost = '', on = '', dots = ''
+  for (let i = 0; i < n; i++) {
+    const a = ang(i), major = maj && i % maj === 0, len = major ? size * .085 : size * .05
+    const x1 = c + Math.sin(a) * (r - len), y1 = c - Math.cos(a) * (r - len), x2 = c + Math.sin(a) * r, y2 = c - Math.cos(a) * r
+    const line = cls => `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke-width="${major ? 1.7 : 1.25}"${cls}/>`
+    if (i < lit) on += line(''); else ghost += line(' class="g"')
+    if (major && size >= 96) { const rd = r - size * .085 - size * .055; dots += `<circle cx="${(c + Math.sin(a) * rd).toFixed(2)}" cy="${(c - Math.cos(a) * rd).toFixed(2)}" r=".85" stroke="none" fill="currentColor" opacity="${i < lit ? .9 : .22}"/>` }
+  }
+  el.innerHTML = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" stroke="currentColor" stroke-linecap="round">${dots}<g>${ghost}</g><g class="lit">${on}</g></svg>`
+}
+function drawRuler(el) {
+  const [a, b] = el.dataset.span.split('-').map(Number), now = +el.dataset.now
+  const pct = t => ((t - a) / (b - a) * 100).toFixed(3)
+  let html = ''
+  el.dataset.events.split('|').forEach(e => { const [rng, kind = ''] = e.split(':'), [s, f] = rng.split('-').map(Number); html += `<i class="ev ${kind}" style="left:${pct(s)}%;width:calc(${pct(f) - pct(s)}% - 2px)"></i>` })
+  for (let t = a; t <= b + 1e-6; t += .5) {
+    const M = Number.isInteger(t)
+    html += `<i class="tk ${M ? 'M' : ''} ${t < now ? 'past' : ''}" style="left:calc(${pct(t)}% - ${t === b ? 1 : 0}px)"></i>`
+    if (M && t % 2 === 0 && t > a && t < b) html += `<span class="lb" style="left:${pct(t)}%">${String(t).padStart(2, '0')}</span>`
+  }
+  html += `<i class="past-mask" style="width:${pct(now)}%"></i><i class="now" style="left:${pct(now)}%"></i>`
+  el.innerHTML = html
+}
+function drawRamp(el) {
+  const W = +el.dataset.w, H = 11, plan = +el.dataset.plan, max = +el.dataset.max, sec = +el.dataset.from
+  const x = t => Math.min(W, t / max * W), y = px => H - 1.5 - (px / W) * (H - 3.5), xp = x(plan), xv = x(sec)
+  const band = (x0, x1) => `M${x0.toFixed(1)} ${H} L${x0.toFixed(1)} ${y(x0).toFixed(2)} L${x1.toFixed(1)} ${y(x1).toFixed(2)} L${x1.toFixed(1)} ${H}Z`
+  let ticks = ''
+  for (let t = 0; t <= max + 1; t += 300) { const M = t % 900 === 0; ticks += `<rect x="${(x(t) - .5).toFixed(1)}" y="${H + 2}" width="1" height="${M ? 4 : 2}" fill="${t > plan ? '#ff5a47' : M ? '#76736e' : '#4c4a47'}"/>` }
+  el.innerHTML = `<svg width="${W}" height="${H + 6}" style="display:block;overflow:visible"><path d="${band(0, W)}" fill="rgba(255,255,255,.07)"/><path d="${band(xp, W)}" fill="rgba(255,90,71,.22)"/><path d="${band(0, Math.min(xv, xp))}" fill="#f3f1ec" style="filter:drop-shadow(0 0 2px rgba(243,241,236,.5))"/><rect x="${xp.toFixed(1)}" y="${H + 1}" width="${(W - xp).toFixed(1)}" height="1" fill="#ff5a47" opacity=".8"/>${ticks}</svg>`
+}
+document.querySelectorAll('.segd[data-seg]').forEach(drawSeg)
+document.querySelectorAll('.gauge[data-gauge]').forEach(drawGauge)
+document.querySelectorAll('.ruler[data-span]').forEach(drawRuler)
+document.querySelectorAll('.ramp').forEach(drawRamp)
+document.querySelectorAll('.vu[data-vu]').forEach(el => { const n = 28, lit = +el.dataset.vu; el.innerHTML = Array.from({ length: n }, (_, i) => `<i class="${i >= n - 4 ? 'red' : ''} ${i < lit ? 'on' : ''}"></i>`).join('') })
+// Belirlenimci dalga formu: eski kısım sönük, son çubuk "şimdi".
+;(() => { const el = document.getElementById('wave'), n = 120; let s = 7, h = ''
+  for (let i = 0; i < n; i++) { s = (s * 9301 + 49297) % 233280; const r = s / 233280, amp = .18 + .62 * Math.abs(Math.sin(i * .37) * .6 + r * .5), op = (.25 + .75 * i / n).toFixed(2)
+    h += `<i class="${i === n - 1 ? 'now' : ''}" style="height:${Math.min(100, amp * 100).toFixed(0)}%;opacity:${i === n - 1 ? 1 : op}"></i>` }
+  el.innerHTML = h })()
+
+const $ = id => document.getElementById(id)
+$('bG').onclick = () => { document.body.classList.toggle('g'); $('bG').classList.toggle('on') }
+const zoom = z => { document.querySelectorAll('.zoom').forEach(e => e.style.setProperty('--z', z)); $('bZ1').classList.toggle('on', z === 1); $('bZ2').classList.toggle('on', z === 1.5) }
+$('bZ1').onclick = () => zoom(1); $('bZ2').onclick = () => zoom(1.5)
+</script>
+</body>
+</html>
