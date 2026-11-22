@@ -196,6 +196,43 @@
 
   /* Kayıt yüzeyinin hafif kırmızı sızması */
   .rec-glow { background: radial-gradient(ellipse 70% 55% at 30% 0%, rgba(255,90,71,.07), transparent 70%), #000; }
+
+  /* ═══ v2 · Gestalt katmanı ═══
+     Boşluk ilişkiyi söyler. Üç basamak var, başka değer yok:
+       2  — aynı şeyin parçaları (başlık + meta)
+       8  — etiket ile grubu, grup içi bloklar
+       24 — gruplar arası
+     Etiket kendi grubuna (8) bir önceki gruptan (24) üç kat yakındır. */
+  :root { --s-pair: 2px; --s-near: 8px; --s-far: 24px; --inset: 4px; --r-well: 14px; --r-panel2: 26px; }
+  .panel.v2 { border-radius: 0 0 var(--r-panel2) var(--r-panel2); padding-bottom: var(--P); }
+  .v2 .grp { position: relative; }
+  .v2 .grp + .grp { margin-top: var(--s-far); }
+  .v2 .lbl { height: 16px; margin-bottom: var(--s-near); padding: 0 var(--G); display: flex; align-items: center; justify-content: space-between; }
+  .v2 .lbl .c { font-size: 12px; color: var(--ink-4); }
+
+  /* Ortak bölge: kuyu. Kenarı 12'de, içi 4, satır zemini 16'da, içerik 20'de.
+     Yarıçaplar iç içe: panel 26 = kuyu 14 + 12, kuyu 14 = satır 10 + 4. */
+  .well { margin: 0 var(--P); padding: var(--inset); border-radius: var(--r-well);
+    background: rgba(255,255,255,.028); box-shadow: inset 0 0 0 1px rgba(255,255,255,.045); }
+  .well.dim { background: rgba(255,255,255,.014); box-shadow: inset 0 0 0 1px rgba(255,255,255,.03); }
+  .well > .row { margin: 0; padding: 0 var(--inset); }
+  .v2 .row.h2 { height: 48px; }
+  .v2 .row .txt { gap: var(--s-pair); }
+  .v2 .field { border-radius: var(--r-well); }
+
+  /* Grup katmanı */
+  body.gr [data-group] { outline: 1px dashed rgba(255,173,51,.75); outline-offset: 0; }
+  body.gr [data-group]::after { content: attr(data-group); position: absolute; right: 4px; top: 2px; z-index: 6;
+    font-size: 9.5px; line-height: 12px; font-weight: 600; color: #000; background: rgba(255,173,51,.9); padding: 0 4px; border-radius: 3px; }
+  body.gr .well[data-group], body.gr .field[data-group] { position: relative; }
+
+  /* Sayfadaki ilke şeması */
+  .ladder { display: flex; gap: 32px; margin-top: 16px; flex-wrap: wrap; }
+  .ladder .st { display: flex; align-items: flex-end; gap: 10px; }
+  .ladder .st i { display: block; width: 28px; background: rgba(255,173,51,.25); box-shadow: inset 0 0 0 1px rgba(255,173,51,.6); border-radius: 2px; }
+  .ladder .st div { font-size: 12px; line-height: 16px; color: var(--ink-2); }
+  .ladder .st div b { display: block; color: var(--ink-1); font-weight: 500; font-size: 13px; }
+
 </style>
 </head>
 <body>
@@ -284,9 +321,16 @@
 </svg>
 
 <header class="page">
-  <h1>Notch rafine çalışması</h1>
-  <p>Stil, ikonlar, lambalar, segment rakamlar ve akış aynı. Değişen yalnızca ölçüler: tek kap kenarı (12), tek içerik kenarı (20), tek metin kolonu (48), iki satır boyu (36 / 52), sabit kuyruk kolonları ve sadeleşmiş bir yazı skalası. Solda bugünkü render, sağda öneri.</p>
+  <h1>Notch rafine çalışması <span style="color:var(--ink-3);font-weight:400">· tur 2</span></h1>
+  <p>Stil, ikonlar, lambalar, segment rakamlar ve akış aynı. Bu tur ölçüler gestalt ilkelerinden türetildi: boşluk ilişkiyi söylüyor, satır grupları ortak bir bölgede duruyor, aynı türden her şey aynı görünüyor ve aynı çizgiye oturuyor. Solda bugünkü render, sağda öneri.</p>
+  <div class="ladder">
+    <div class="st"><i style="height:2px"></i><div><b>2 · aynı şey</b>başlık ve meta tek birim okunur</div></div>
+    <div class="st"><i style="height:8px"></i><div><b>8 · ait olan</b>etiket ve grubu, grup içi bloklar</div></div>
+    <div class="st"><i style="height:24px"></i><div><b>24 · ayrı grup</b>gruplar arası, başka değer yok</div></div>
+    <div class="st"><i style="height:24px;width:44px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);border-radius:6px"></i><div><b>Kuyu · ortak bölge</b>çizgi yerine satır grubunu sınırlar</div></div>
+  </div>
   <div class="bar">
+    <button id="bR">Gruplar</button>
     <button id="bG">Kılavuz çizgileri</button>
     <button id="bZ1" class="on">1x</button>
     <button id="bZ2">1.5x</button>
@@ -301,61 +345,71 @@
       <div class="shot" style="height:516px;background-image:url(../../macos/artifacts/ui-audit/today/o-today.png)"><div class="guides"></div></div>
     </div>
     <div class="col"><div class="cap"><b>Rafine</b></div>
-      <div class="panel" style="padding-top:16px">
+      <div class="panel v2" style="padding-top:16px">
         <div class="guides"></div>
-        <!-- Kahraman: gösterge 20'de, metin bloğu ve buton aynı dikey merkezde -->
-        <div class="pad" style="display:flex;align-items:center;gap:20px">
-          <div class="gauge-box">
-            <div class="gauge" style="color:var(--ink-1)" data-gauge="0" data-size="96" data-ticks="60" data-major="15"></div>
-            <div class="gauge-c"><span class="segd" style="color:var(--ink-1)" data-seg="14:30" data-h="17"></span><span class="t-micro">in 3 h 48</span></div>
+        <!-- Grup 1: şimdi ve gün. Kahraman ile cetvel aynı hikâye, aralarında 12. -->
+        <div class="grp" data-group="Şimdi">
+          <div class="pad" style="display:flex;align-items:center;gap:20px">
+            <div class="gauge-box">
+              <div class="gauge" style="color:var(--ink-1)" data-gauge="0" data-size="96" data-ticks="60" data-major="15"></div>
+              <div class="gauge-c"><span class="segd" style="color:var(--ink-1)" data-seg="14:30" data-h="17"></span><span class="t-micro">in 3 h 48</span></div>
+            </div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--s-pair)">
+              <div class="t-hero">Design review</div>
+              <div class="t-meta" style="display:flex;gap:6px;align-items:center;color:var(--ink-2)"><span>14:30</span><i style="width:2px;height:2px;border-radius:1px;background:var(--ink-4)"></i><svg class="i12" style="color:var(--ink-3)"><use href="#i-video"/></svg><span>Google Meet</span></div>
+            </div>
+            <button class="btn btn-secondary"><span class="lamp dot on-r" style="width:6px;height:6px"></span>Record<span class="kbd">⌘R</span></button>
           </div>
-          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
-            <div class="t-hero">Design review</div>
-            <div class="t-meta meta" style="display:flex;gap:6px;align-items:center;color:var(--ink-2)"><span>14:30</span><i style="width:2px;height:2px;border-radius:1px;background:var(--ink-4)"></i><svg class="i12" style="color:var(--ink-3)"><use href="#i-video"/></svg><span>Google Meet</span></div>
-          </div>
-          <button class="btn btn-secondary" data-box><span class="lamp dot on-r" style="width:6px;height:6px"></span>Record<span class="kbd">⌘R</span></button>
-        </div>
-        <!-- Cetvel: içerik kenarından içerik kenarına -->
-        <div class="pad" style="margin-top:16px"><div class="ruler" data-span="8-20" data-now="10.7" data-events="14.5-15.25:focus|16-17|17.5-18:invite|19-20:dim"></div></div>
-
-        <div class="sec" style="margin-top:4px"><span class="t-sec">Today</span><span class="c">3</span></div>
-        <div class="row h2 hov">
-          <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="16:00" data-h="12"></span></div>
-          <div class="txt"><span class="t-body">Lunch with Deniz</span><span class="t-meta">Karaköy Lokantası</span></div>
-          <div class="tail"><span class="k k-dur t-value">1h 00m</span></div>
-        </div>
-        <div class="row h2">
-          <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="17:30" data-h="12"></span><span class="lamp dot on-a"></span></div>
-          <div class="txt"><span class="t-body">Partner call</span><span class="t-meta meta"><span>Zoom</span><i class="dot"></i><svg class="i12" style="color:var(--amber)"><use href="#s-warn"/></svg><span style="color:var(--amber)">Invite</span></span></div>
-          <div class="tail"><span class="k k-dur t-value">30m</span></div>
-        </div>
-        <div class="row h2">
-          <div class="tile" style="opacity:.55"><span class="segd" style="color:var(--ink-2)" data-seg="19:00" data-h="12"></span></div>
-          <div class="txt"><span class="t-body" style="color:var(--ink-3)">Gym</span><span class="t-meta" style="color:var(--ink-4)">Personal</span></div>
-          <div class="tail"><span class="k k-dur t-value" style="color:var(--ink-4)">1h 00m</span></div>
+          <div class="pad" style="margin-top:12px"><div class="ruler" data-span="8-20" data-now="10.7" data-events="14.5-15.25:focus|16-17|17.5-18:invite|19-20:dim"></div></div>
         </div>
 
-        <div class="sec" style="margin-top:8px"><span class="t-sec">Later</span><span class="c">2</span></div>
-        <div class="row h2">
-          <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="18" data-h="11"></span><span class="wd">Wed</span></div>
-          <div class="txt"><span class="t-body">Weekly sync</span><span class="t-meta meta"><span>10:00</span><i class="dot"></i><span>Zoom</span></span></div>
-          <div class="tail"><span class="k k-dur t-value">30m</span></div>
+        <!-- Grup 2: bugün. Etiket gruba 8, önceki gruba 24. -->
+        <div class="grp">
+          <div class="lbl"><span class="t-sec">Today</span><span class="c">3</span></div>
+          <div class="well" data-group="Bugün">
+            <div class="row h2 hov">
+              <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="16:00" data-h="12"></span></div>
+              <div class="txt"><span class="t-body">Lunch with Deniz</span><span class="t-meta">Karaköy Lokantası</span></div>
+              <div class="tail"><span class="k k-dur t-value">1h 00m</span></div>
+            </div>
+            <div class="row h2">
+              <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="17:30" data-h="12"></span><span class="lamp dot on-a"></span></div>
+              <div class="txt"><span class="t-body">Partner call</span><span class="t-meta meta"><span>Zoom</span><i class="dot"></i><svg class="i12" style="color:var(--amber)"><use href="#s-warn"/></svg><span style="color:var(--amber)">Invite</span></span></div>
+              <div class="tail"><span class="k k-dur t-value">30m</span></div>
+            </div>
+            <div class="row h2">
+              <div class="tile" style="opacity:.55"><span class="segd" style="color:var(--ink-2)" data-seg="19:00" data-h="12"></span></div>
+              <div class="txt"><span class="t-body" style="color:var(--ink-3)">Gym</span><span class="t-meta" style="color:var(--ink-4)">Personal</span></div>
+              <div class="tail"><span class="k k-dur t-value" style="color:var(--ink-4)">1h 00m</span></div>
+            </div>
+          </div>
         </div>
-        <div class="row h2">
-          <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="19" data-h="11"></span><span class="wd">Thu</span></div>
-          <div class="txt"><span class="t-body">Company offsite</span><span class="t-meta meta"><span>All day</span><i class="dot"></i><span>Work</span></span></div>
-          <div class="tail"><span class="k k-dur t-value"></span></div>
+
+        <div class="grp">
+          <div class="lbl"><span class="t-sec">Later</span><span class="c">2</span></div>
+          <div class="well" data-group="Sonra">
+            <div class="row h2">
+              <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="18" data-h="11"></span><span class="wd">Wed</span></div>
+              <div class="txt"><span class="t-body">Weekly sync</span><span class="t-meta meta"><span>10:00</span><i class="dot"></i><span>Zoom</span></span></div>
+              <div class="tail"><span class="k k-dur t-value">30m</span></div>
+            </div>
+            <div class="row h2">
+              <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="19" data-h="11"></span><span class="wd">Thu</span></div>
+              <div class="txt"><span class="t-body">Company offsite</span><span class="t-meta meta"><span>All day</span><i class="dot"></i><span>Work</span></span></div>
+              <div class="tail"><span class="k k-dur t-value"></span></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
   <ul class="notes">
-    <li><b>Tek satır boyu.</b> Bugün 52, Later 62 idi. Tarih karosu da saat karosuyla aynı boya (44×36) indi, bütün liste 52 ritminde.</li>
-    <li><b>Tek sağ kenar.</b> Record butonu, cetvel, sayılar ve süreler aynı çizgide (540) bitiyor. Önceden buton 6 pt taşıyordu.</li>
-    <li><b>Kahraman ortalı.</b> Gösterge, başlık bloğu ve Record aynı dikey merkezde. Başlık 17'den 18'e, meta ink-2'ye çıktı. Kahraman satırı daha net okunuyor.</li>
-    <li><b>Bölüm başlıkları sakin.</b> 13'ten 12'ye indi ve alt kenara oturdu. Sayı ink-4 oldu, böylece satır başlığıyla yarışmıyor.</li>
-    <li><b>Hover zemini kap kenarından başlar (12).</b> İçerik ise 20'de kalır. Panel köşesi 22 = 10 + 12, yani köşeler iç içe uyumlu.</li>
-    <li><b>Süreler sabit kolonda.</b> Sağa yaslı, tabular rakam ve ink-2 değer stili. Boş olsa da kolon yer tutuyor.</li>
+    <li><b>Yakınlık.</b> Ekranda üç grup var: şimdi, bugün, sonra. Grup içi boşluk 8 ya da daha az, gruplar arası 24. Etiket kendi grubuna, bir önceki gruba olduğundan üç kat yakın. Bu yüzden göz grupları sayarak değil, görerek ayırıyor.</li>
+    <li><b>Ortak bölge.</b> Satırlar hafif bir kuyuda toplandı, çizgi kullanılmadı ("çizgi yok" kuralı korunuyor). Hover zemini kuyunun içinde 4'ten başlıyor.</li>
+    <li><b>Süreklilik.</b> Kahraman ile cetvel tek bir hikâye anlatıyor (şimdi → gün), aralarında 12 var. Liste bu hikâyeden 24 ile ayrılıyor.</li>
+    <li><b>Benzerlik.</b> Saat ve tarih karoları aynı boyda (44×36), satırlar 48. Süreler aynı kolonda, aynı stilde.</li>
+    <li><b>Kapanış.</b> Kuyunun panel kenarlarına uzaklığı her yönde 12. Yarıçaplar iç içe: panel 26 = kuyu 14 + 12, kuyu 14 = satır zemini 10 + 4.</li>
+    <li><b>Figür ve zemin.</b> Kahraman zeminsiz kalıyor, listeler kuyuda duruyor. Odak doğal olarak kahramana düşüyor.</li>
   </ul>
 </section>
 
@@ -367,81 +421,93 @@
       <div class="shot crop" style="height:512px;background-image:url(../../macos/artifacts/ui-audit/crenel/expanded-tasks.png)"><div class="guides"></div></div>
     </div>
     <div class="col"><div class="cap"><b>Rafine</b></div>
-      <div class="panel">
+      <div class="panel v2">
         <div class="guides"></div>
-        <div class="chrome pad">
-          <div class="brand"><svg class="i"><use href="#i-mark"/></svg><span class="t-title">Crenel</span></div>
-          <span class="sp"></span>
-          <div class="tools"><svg class="i"><use href="#i-window"/></svg><svg class="i"><use href="#i-pin"/></svg></div>
-        </div>
-        <div class="tabs pad">
-          <span class="tab t-label">Today</span>
-          <span class="tab t-label">Recordings</span>
-          <span class="tab t-label on">Tasks<span class="n">5</span></span>
-        </div>
-
-        <div class="field" data-box style="margin-top:4px"><svg class="i"><use href="#i-plus"/></svg><span class="ph">Add a task, like <q>call mom tomorrow 3pm</q></span><span class="kbd">↩</span></div>
-
-        <div class="sec" style="margin-top:8px"><span class="t-sec">Today</span>
-          <span style="display:flex;gap:3px;margin-bottom:6px"><span class="lamp on-w"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></span></div>
-        <div class="row h1">
-          <svg class="i"><use href="#m-progress"/></svg>
-          <div class="txt" style="flex-direction:row;align-items:center;gap:8px"><span class="t-body">Finish onboarding flow</span><svg class="i12" style="color:var(--ink-4)"><use href="#i-transcript"/></svg></div>
-          <div class="tail">
-            <span class="k k-timer" style="color:var(--amber);gap:4px;align-items:baseline"><span class="segd" data-seg="29" data-h="11"></span><span style="font-size:11px;font-weight:500">min</span></span>
-            <span class="k k-pri" style="color:var(--amber)"><span class="pri"><i class="on"></i><i class="on"></i><i class="on"></i></span></span>
-            <span class="k k-rep"></span>
-            <span class="k k-due t-value"></span>
+        <div class="grp" data-group="Krom">
+          <div class="chrome pad">
+            <div class="brand"><svg class="i"><use href="#i-mark"/></svg><span class="t-title">Crenel</span></div>
+            <span class="sp"></span>
+            <div class="tools"><svg class="i"><use href="#i-window"/></svg><svg class="i"><use href="#i-pin"/></svg></div>
+          </div>
+          <div class="tabs pad">
+            <span class="tab t-label">Today</span>
+            <span class="tab t-label">Recordings</span>
+            <span class="tab t-label on">Tasks<span class="n">5</span></span>
           </div>
         </div>
-        <div class="row h1">
-          <svg class="i"><use href="#m-blocked"/></svg>
-          <div class="txt"><span class="t-body">Legal sign-off</span></div>
-          <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due t-value"></span></div>
-        </div>
-        <div class="row h1 hov">
-          <svg class="i"><use href="#m-open"/></svg>
-          <div class="txt"><span class="t-body">Write weekly report</span></div>
-          <div class="tail"><span class="k k-timer"></span>
-            <span class="k k-pri" style="color:var(--ink-2)"><span class="pri"><i class="on"></i><i class="on"></i><i></i></span></span>
-            <span class="k k-rep" style="color:var(--ink-3)"><svg class="i12"><use href="#i-repeat"/></svg></span>
-            <span class="k k-due t-value">15:44</span></div>
-        </div>
-        <div class="row h1">
-          <svg class="i"><use href="#m-open"/></svg>
-          <div class="txt"><span class="t-body">Call mom</span></div>
-          <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due t-value" style="color:var(--red)">Yesterday</span></div>
+
+        <div class="field" data-group="Giriş" style="margin-top:4px"><svg class="i"><use href="#i-plus"/></svg><span class="ph">Add a task, like <q>call mom tomorrow 3pm</q></span><span class="kbd">↩</span></div>
+
+        <div class="grp" style="margin-top:var(--s-far)">
+          <div class="lbl"><span class="t-sec">Today</span>
+            <span style="display:flex;gap:3px"><span class="lamp on-w"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></span></div>
+          <div class="well" data-group="Bugün">
+            <div class="row h1">
+              <svg class="i"><use href="#m-progress"/></svg>
+              <div class="txt" style="flex-direction:row;align-items:center;gap:8px"><span class="t-body">Finish onboarding flow</span><svg class="i12" style="color:var(--ink-4)"><use href="#i-transcript"/></svg></div>
+              <div class="tail">
+                <span class="k k-timer" style="color:var(--amber);gap:4px;align-items:baseline"><span class="segd" data-seg="29" data-h="11"></span><span style="font-size:11px;font-weight:500">min</span></span>
+                <span class="k k-pri" style="color:var(--amber)"><span class="pri"><i class="on"></i><i class="on"></i><i class="on"></i></span></span>
+                <span class="k k-rep"></span><span class="k k-due t-value"></span>
+              </div>
+            </div>
+            <div class="row h1">
+              <svg class="i"><use href="#m-blocked"/></svg>
+              <div class="txt"><span class="t-body">Legal sign-off</span></div>
+              <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due t-value"></span></div>
+            </div>
+            <div class="row h1 hov">
+              <svg class="i"><use href="#m-open"/></svg>
+              <div class="txt"><span class="t-body">Write weekly report</span></div>
+              <div class="tail"><span class="k k-timer"></span>
+                <span class="k k-pri" style="color:var(--ink-2)"><span class="pri"><i class="on"></i><i class="on"></i><i></i></span></span>
+                <span class="k k-rep" style="color:var(--ink-3)"><svg class="i12"><use href="#i-repeat"/></svg></span>
+                <span class="k k-due t-value">15:44</span></div>
+            </div>
+            <div class="row h1">
+              <svg class="i"><use href="#m-open"/></svg>
+              <div class="txt"><span class="t-body">Call mom</span></div>
+              <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due t-value" style="color:var(--red)">Yesterday</span></div>
+            </div>
+          </div>
         </div>
 
-        <div class="sec" style="margin-top:8px"><span class="t-sec">Later</span><span class="c">1</span></div>
-        <div class="row h1">
-          <svg class="i"><use href="#m-open"/></svg>
-          <div class="txt"><span class="t-body">Reading list</span></div>
-          <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due t-value">Mon 30</span></div>
+        <div class="grp">
+          <div class="lbl"><span class="t-sec">Later</span><span class="c">1</span></div>
+          <div class="well" data-group="Sonra">
+            <div class="row h1">
+              <svg class="i"><use href="#m-open"/></svg>
+              <div class="txt"><span class="t-body">Reading list</span></div>
+              <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due t-value">Mon 30</span></div>
+            </div>
+          </div>
         </div>
 
-        <div class="sec" style="margin-top:8px"><span class="t-sec">Done</span></div>
-        <div class="row h1">
-          <svg class="i"><use href="#m-done"/></svg>
-          <div class="txt"><span class="t-body" style="color:var(--ink-4)">Share sprint notes</span></div>
+        <div class="grp">
+          <div class="lbl"><span class="t-sec">Done</span><span class="c">1</span></div>
+          <div class="well dim" data-group="Bitti">
+            <div class="row h1">
+              <svg class="i"><use href="#m-done"/></svg>
+              <div class="txt"><span class="t-body" style="color:var(--ink-4)">Share sprint notes</span></div>
+            </div>
+          </div>
         </div>
 
-        <div class="actions">
-          <span class="lampcol"><span class="lamp on-g"></span></span>
-          <span class="t-meta" style="color:var(--ink-2)">Synced with Reminders</span>
-          <span class="sp"></span>
-          <button class="btn sm btn-secondary" data-box><svg class="i12"><use href="#i-history"/></svg>Finished</button>
+        <div class="grp" data-group="Durum" style="height:28px;margin-top:16px;padding:0 var(--G);display:flex;align-items:center;gap:12px;margin-bottom:4px">
+          <span style="width:16px;display:flex;justify-content:center"><span class="lamp on-g"></span></span>
+          <span class="t-meta" style="color:var(--ink-2);flex:1">Synced with Reminders</span>
+          <button class="btn sm btn-secondary"><svg class="i12"><use href="#i-history"/></svg>Finished</button>
         </div>
       </div>
     </div>
   </div>
   <ul class="notes">
-    <li><b>Tek sol sistem.</b> Marka, sekmeler, alan ikonu, görev işaretleri ve senkron lambası 20'de. Başlıklar, alan metni ve durum yazısı 48'de. Önceden 12, 14, 24 ve 28 vardı.</li>
-    <li><b>Zeminler 12'de.</b> Ekleme alanı ve hover zemini aynı kenardan başlayıp bitiyor. Alan 44'ten 40'a indi, köşe 10 oldu.</li>
-    <li><b>Kuyruk kolonları sabit.</b> Sağdan sola son tarih (60), tekrar (14), öncelik (12) ve sayaç (52) her satırda aynı x'te duruyor. Boş kolon da yer tutuyor, böylece ikonlar artık satırdan satıra kaymıyor.</li>
-    <li><b>Not işareti başlığa taşındı.</b> Başlığın hemen yanında ink-4 renkte duruyor. Böylece sağ kenarı bozmuyor, sağda yalnız zamanla ilgili bilgiler kalıyor.</li>
-    <li><b>Satır 36, bölüm 32.</b> Bölümler arasında sabit 8 boşluk var. Liste baştan sona aynı ritimde akıyor.</li>
-    <li><b>Krom hafifledi.</b> Marka satırı 40, sekme satırı 36. Sekmeler 12.5/500, sayaçlar ink-4. Seçili sekmede beyaz ışık çizgisi var.</li>
+    <li><b>Ortak bölge.</b> Today, Later ve Done ayrı kuyularda. Done kuyusu daha sönük, çünkü bitmiş işler zeminden de geri çekiliyor.</li>
+    <li><b>Benzerlik.</b> Ekleme alanı ile kuyular aynı köşeyi (14) ve aynı kenarı (12) paylaşıyor. Alan bir "liste girişi" gibi okunuyor, ayrı bir kontrol gibi değil.</li>
+    <li><b>Hizalama.</b> İkonlar, işaretler ve lamba 20'de, metinler 48'de. Alan ikonu ile görev işaretleri, alan metni ile görev başlıkları alt alta.</li>
+    <li><b>Kuyruk kolonları sabit.</b> Sayaç, öncelik, tekrar ve tarih her satırda aynı x'te. Sağ kenar 540'ta bitiyor, Finished butonu da orada.</li>
+    <li><b>Yakınlık.</b> Krom, giriş, üç liste ve durum satırı ayrı gruplar. Aralarında 24 var (durum satırında 16), grup içinde boşluk yok.</li>
+    <li><b>Sayaçlar etikette.</b> Sayılar her bölüm etiketinin sağ ucunda, aynı stilde. Done da artık sayısını gösteriyor.</li>
   </ul>
 </section>
 
@@ -453,48 +519,55 @@
       <div class="shot" style="height:315px;background-image:url(../../macos/artifacts/ui-audit/today/o-recording.png)"><div class="guides"></div></div>
     </div>
     <div class="col"><div class="cap"><b>Rafine</b></div>
-      <div class="panel rec-glow" style="padding-top:16px">
+      <div class="panel v2 rec-glow" style="padding-top:16px">
         <div class="guides"></div>
-        <div class="pad" style="display:flex;align-items:center;gap:12px;height:20px">
-          <span style="width:16px;display:flex;justify-content:center"><span class="lamp dot on-r"></span></span>
-          <span class="t-title" style="margin-left:0">Recording</span><span class="t-meta" style="color:var(--ink-2)">Design review</span>
-        </div>
-        <div class="pad" style="display:flex;align-items:center;margin-top:12px">
-          <div style="flex:1;display:flex;flex-direction:column;gap:12px">
+        <!-- Grup 1: kontrol. Durum, süre, plan ve tuşlar tek blok. -->
+        <div class="grp pad" data-group="Kontrol" style="display:flex;align-items:center">
+          <div style="flex:1;display:flex;flex-direction:column;gap:var(--s-near)">
+            <div style="display:flex;align-items:center;gap:8px;height:16px">
+              <span class="lamp dot on-r"></span>
+              <span class="t-title">Recording</span><span class="t-meta" style="color:var(--ink-2)">Design review</span>
+            </div>
             <span class="segd" style="color:var(--ink-1)" data-seg="12:48" data-h="34" data-cells="5"></span>
             <div style="display:flex;align-items:flex-end;gap:10px"><div class="ramp" data-from="768" data-plan="3600" data-max="4500" data-w="196"></div><span class="t-micro" style="color:var(--ink-3);margin-bottom:-1px">of 60 min</span></div>
           </div>
           <div style="display:flex;gap:12px">
-            <button class="round" data-box><svg class="i"><use href="#f-mic"/></svg><span class="lamp on-w"></span></button>
-            <button class="round" data-box><svg class="i12" style="color:var(--red)"><use href="#s-stop"/></svg></button>
+            <button class="round"><svg class="i"><use href="#f-mic"/></svg><span class="lamp on-w"></span></button>
+            <button class="round"><svg class="i12" style="color:var(--red)"><use href="#s-stop"/></svg></button>
           </div>
         </div>
 
-        <div class="pad" style="margin-top:24px"><div class="wave" id="wave"></div>
-          <div style="display:flex;justify-content:space-between;margin-top:6px" class="t-micro"><span>−2:00</span><span>−1:00</span><span>now</span></div></div>
-
-        <div style="margin-top:16px">
-          <div class="pad" style="display:flex;align-items:center;gap:12px;height:32px">
-            <svg class="i"><use href="#f-mic"/></svg><span class="t-body" style="width:100px;color:var(--ink-2)">Your mic</span><div class="vu" data-vu="14"></div>
-          </div>
-          <div class="pad" style="display:flex;align-items:center;gap:12px;height:32px">
-            <svg class="i"><use href="#f-speaker"/></svg><span class="t-body" style="width:100px;color:var(--ink-2)">The call</span><div class="vu" data-vu="12"></div>
-          </div>
+        <!-- Grup 2: sinyal -->
+        <div class="grp pad" data-group="Sinyal">
+          <div class="wave" id="wave"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px" class="t-micro"><span>−2:00</span><span>−1:00</span><span>now</span></div>
         </div>
-        <div class="actions" style="margin-top:8px;height:32px">
-          <svg class="i" style="color:var(--teal)"><use href="#f-accessibility"/></svg>
-          <span class="t-meta">Your mic follows mute in Zoom</span>
+
+        <!-- Grup 3: girişler, ortak bölgede -->
+        <div class="grp">
+          <div class="well" data-group="Girişler">
+            <div class="row" style="height:32px">
+              <svg class="i"><use href="#f-mic"/></svg><span class="t-body" style="width:88px;color:var(--ink-2)">Your mic</span><div class="vu" data-vu="14"></div>
+            </div>
+            <div class="row" style="height:32px">
+              <svg class="i"><use href="#f-speaker"/></svg><span class="t-body" style="width:88px;color:var(--ink-2)">The call</span><div class="vu" data-vu="12"></div>
+            </div>
+            <div class="row" style="height:32px">
+              <svg class="i" style="color:var(--teal)"><use href="#f-accessibility"/></svg>
+              <span class="t-meta">Your mic follows mute in Zoom</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
   <ul class="notes">
-    <li><b>Dikey ritim düzeldi.</b> Bloklar arası boşluklar 24 / 16 / 8 oldu. Önceden dalga formuyla ölçerler arasında ve ölçerlerle not arasında belirgin farklı boşluklar vardı.</li>
-    <li><b>Butonlar segment bloğunun ortasında.</b> İki 40'lık tuş sağ kenarda bitiyor ve sayaçla rampanın oluşturduğu bloğun dikey merkezinde duruyor.</li>
-    <li><b>Ölçerler kolonlu.</b> İkon 20'de, etiket 48'de, ölçer etiketten sonra aynı x'ten başlayıp 540'ta bitiyor. Not satırı da aynı ikon ve metin kolonunda.</li>
-    <li><b>Başlık satırı.</b> Kırmızı lamba 16'lık ikon kolonunda ortalandı. Böylece "Recording" yazısı alttaki etiketlerle aynı kolona (48) oturuyor.</li>
-    <li><b>Etiketler ink-2.</b> Ölçer etiketleri artık başlık gibi değil değer gibi okunuyor. Görsel ağırlık ölçerde kalıyor.</li>
-    <li><b>Dalga formu ve etiketleri</b> içerik kenarından içerik kenarına uzanıyor. Zaman etiketleri micro stile indi.</li>
+    <li><b>Üç grup.</b> Kontrol (durum, süre, plan, tuşlar), sinyal (dalga formu) ve girişler (mikrofon, çağrı, mute). Aralarında 24 var, grup içi 8 ya da daha az.</li>
+    <li><b>Kontrol tek blok.</b> Durum satırı, sayaç ve rampa 8'er arayla tek kolon oluşturuyor. Tuşlar bu bloğun dikey ortasında, sağ kenarda.</li>
+    <li><b>Ortak bölge.</b> Mute notu mikrofonla ilgili olduğu için girişlerin kuyusuna girdi. Önceden boşlukta tek başına duruyordu.</li>
+    <li><b>Hizalama.</b> İkonlar 20'de, etiketler 48'de. İki ölçer aynı x'ten başlayıp 540'ta bitiyor.</li>
+    <li><b>Benzerlik.</b> Kuyudaki üç satırın hepsi 32. Etiketler ink-2 değer stilinde, böylece ağırlık ölçerde kalıyor.</li>
+    <li><b>Sinyal grubu</b> zeminsiz kalıyor. Dalga formu kendisi bir figür, kutuya ihtiyacı yok.</li>
   </ul>
 </section>
 
@@ -502,14 +575,15 @@
 <section class="study">
   <h2>Sözleşme <span>bu çalışmanın kuralları</span></h2>
   <ul class="notes" style="margin-top:12px">
-    <li><b>Yatay:</b> 12 kap kenarı, 20 içerik kenarı, 48 metin kolonu, sağda 540 / 548. Başka yatay kenar yok.</li>
-    <li><b>Dikey:</b> satır 36 veya 52, bölüm başlığı 32, bloklar arası 8 / 16 / 24. Bunların hepsi 4'lük ızgarada.</li>
-    <li><b>Yarıçap:</b> panel 22, kutu 10, karo 8, buton 8, tuş 4. İç içe duran köşeler dış = iç + boşluk kuralına uyuyor.</li>
+    <li><b>Dikey boşluk ilişkiden gelir:</b> 2 aynı şey, 8 ait olan, 24 ayrı grup. Satırlar arası boşluk yok, satır boyu ritmi verir (36 / 48 / 32).</li>
+    <li><b>Yatay:</b> 12 kap kenarı, 16 satır zemini, 20 içerik kenarı, 48 metin kolonu. Sağda 540 / 548.</li>
+    <li><b>Ortak bölge:</b> birden fazla satırlık grup kuyuda durur. Tek figürler (kahraman, dalga formu) zeminsiz kalır.</li>
+    <li><b>Yarıçap:</b> panel 26, kuyu ve alan 14, satır zemini 10, karo ve buton 8, tuş 4. İç içe duran köşelerde dış = iç + boşluk.</li>
     <li><b>Yazı:</b> hero 18/600, title 13/600, body 13/500, label 12.5/500, value 12.5/400 ink-2, meta 12/400 ink-3, section 12/500 ink-3, micro 10.5/500. Rakamların hepsi tabular.</li>
-    <li><b>Kuyruk:</b> sağdaki bilgiler sabit genişlikli kolonlarda duruyor, kolon boş olsa da yer tutuyor. Değerler sağa yaslı.</li>
-    <li><b>Renk hiyerarşisi:</b> başlık ink-1, değer ink-2, meta ink-3, sayaç ve pasif öğeler ink-4. Hiyerarşi ağırlıkla değil, renkle kuruluyor.</li>
+    <li><b>Kuyruk:</b> sağdaki bilgiler sabit genişlikli kolonlarda, kolon boş olsa da yer tutar. Değerler sağa yaslı.</li>
   </ul>
 </section>
+
 
 <script>
 const SEGS = (() => {
@@ -581,6 +655,7 @@ document.querySelectorAll('.vu[data-vu]').forEach(el => { const n = 28, lit = +e
   el.innerHTML = h })()
 
 const $ = id => document.getElementById(id)
+$('bR').onclick = () => { document.body.classList.toggle('gr'); $('bR').classList.toggle('on') }
 $('bG').onclick = () => { document.body.classList.toggle('g'); $('bG').classList.toggle('on') }
 const zoom = z => { document.querySelectorAll('.zoom').forEach(e => e.style.setProperty('--z', z)); $('bZ1').classList.toggle('on', z === 1); $('bZ2').classList.toggle('on', z === 1.5) }
 $('bZ1').onclick = () => zoom(1); $('bZ2').onclick = () => zoom(1.5)
