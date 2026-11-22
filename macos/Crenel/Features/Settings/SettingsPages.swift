@@ -9,20 +9,22 @@ extension SettingsView {
     @ViewBuilder var generalPage: some View {
         SettingsPageHeader(glyph: .sun, title: "General", sentence: "How Crenel starts and how long it keeps things.")
 
-        SettingsGroup("Startup", index: 1) {
-            SettingsRow(glyph: .sun, title: "Open at login",
-                        detail: Text("Crenel sits in the notch from the moment you log in")) {
-                SettingsToggle("Open at login", isOn: $launchAtLogin)
+        SettingsCard {
+            SettingsGroup("Startup") {
+                SettingsRow(glyph: .sun, title: "Open at login",
+                            detail: Text("Crenel sits in the notch from the moment you log in")) {
+                    SettingsToggle("Open at login", isOn: $launchAtLogin)
+                }
             }
-        }
 
-        SettingsGroup("Storage", index: 2) {
-            SettingsRow(glyph: .archive, title: "Keep meetings",
-                        detail: Text("Older meetings are deleted with their audio")) {
-                HudSelect(selection: $retentionDays, options: [
-                    (nil as Int?, "Forever"), (7 as Int?, "7 days"), (30 as Int?, "30 days"), (90 as Int?, "90 days")
-                ])
-                .accessibilityLabel("Keep meetings")
+            SettingsGroup("Storage") {
+                SettingsRow(glyph: .archive, title: "Keep meetings",
+                            detail: Text("Older meetings are deleted with their audio")) {
+                    HudSelect(selection: $retentionDays, options: [
+                        (nil as Int?, "Forever"), (7 as Int?, "7 days"), (30 as Int?, "30 days"), (90 as Int?, "90 days")
+                    ])
+                    .accessibilityLabel("Keep meetings")
+                }
             }
         }
 
@@ -38,7 +40,9 @@ extension SettingsView {
                 .disabled(isLoadingGeneralSettings || isSavingGeneralSettings)
                 .accessibilityLabel("Save changes")
         }
-        .settingsStagger(3)
+        // The key ends on the card's control line.
+        .padding(.horizontal, Hud.Layout.edge)
+        .settingsStagger(2)
     }
 
     // MARK: Calendar (`s-calendar-*`)
@@ -57,60 +61,62 @@ extension SettingsView {
             }
         }
 
-        SettingsGroup("Calendar", index: 1) {
-            SettingsRow(glyph: .calendar, title: "Show meetings in the notch") {
-                SettingsToggle("Show meetings in the notch", isOn: calendarBinding($isCalendarEnabled))
-            }
-            SettingsRow(glyph: .bell, title: "Heads-up") {
-                HudSelect(selection: calendarBinding($reminderLeadTime), options: [
-                    (TimeInterval(5 * 60), "5 min and 1 min before"),
-                    (TimeInterval(10 * 60), "10 min and 1 min before"),
-                    (TimeInterval(15 * 60), "15 min and 1 min before")
-                ])
-                .disabled(!isCalendarEnabled)
-                .accessibilityLabel("Meeting reminder")
-            }
-            SettingsRow(glyph: .people, title: "Connection", detail: connectionDetail) {
-                calendarConnection
-            }
-            SettingsRow(title: "Accounts", detail: Text(verbatim: accountsDetail)) {
-                HudButton("Open", glyph: .link, size: .small, action: onOpenInternetAccounts)
-                    .disabled(!isCalendarEnabled)
-                    .accessibilityLabel("Open accounts")
-            }
-            if calendarIsConnected, let snapshot = appState.calendarIntegrationSnapshot, !snapshot.hasGoogleAccount {
-                SettingsNote("Google Calendar missing · add it in Internet Accounts", status: .warn)
-            }
-            SettingsMessage(message: calendarMessage, failed: true)
-        }
-
-        if let notificationService {
-            MeetingNotificationSettingsView(service: notificationService, index: 2)
-        }
-
-        if calendarIsConnected, let calendars = appState.calendarIntegrationSnapshot?.calendars, !calendars.isEmpty {
-            SettingsGroup("Calendars", index: 3) {
-                SettingsRow(glyph: .calendar, title: "All calendars") {
-                    SettingsToggle("All calendars", isOn: Binding(
-                        get: { selectedCalendarIDs == nil },
-                        set: {
-                            selectedCalendarIDs = $0 ? nil : calendars.map(\.id)
-                            saveCalendarSettings()
-                        }
-                    ))
+        SettingsCard {
+            SettingsGroup("Calendar") {
+                SettingsRow(glyph: .calendar, title: "Show meetings in the notch") {
+                    SettingsToggle("Show meetings in the notch", isOn: calendarBinding($isCalendarEnabled))
                 }
-                if selectedCalendarIDs != nil {
-                    ForEach(calendars) { calendar in
-                        SettingsRow(title: calendar.title) {
-                            SettingsToggle(calendar.title, isOn: Binding(
-                                get: { selectedCalendarIDs?.contains(calendar.id) ?? true },
-                                set: { selected in
-                                    var ids = Set(selectedCalendarIDs ?? [])
-                                    if selected { ids.insert(calendar.id) } else { ids.remove(calendar.id) }
-                                    selectedCalendarIDs = ids.sorted()
-                                    saveCalendarSettings()
-                                }
-                            ))
+                SettingsRow(glyph: .bell, title: "Heads-up") {
+                    HudSelect(selection: calendarBinding($reminderLeadTime), options: [
+                        (TimeInterval(5 * 60), "5 min and 1 min before"),
+                        (TimeInterval(10 * 60), "10 min and 1 min before"),
+                        (TimeInterval(15 * 60), "15 min and 1 min before")
+                    ])
+                    .disabled(!isCalendarEnabled)
+                    .accessibilityLabel("Meeting reminder")
+                }
+                SettingsRow(glyph: .people, title: "Connection", detail: connectionDetail) {
+                    calendarConnection
+                }
+                SettingsRow(title: "Accounts", detail: Text(verbatim: accountsDetail)) {
+                    HudButton("Open", glyph: .link, size: .small, action: onOpenInternetAccounts)
+                        .disabled(!isCalendarEnabled)
+                        .accessibilityLabel("Open accounts")
+                }
+                if calendarIsConnected, let snapshot = appState.calendarIntegrationSnapshot, !snapshot.hasGoogleAccount {
+                    SettingsNote("Google Calendar missing · add it in Internet Accounts", status: .warn)
+                }
+                SettingsMessage(message: calendarMessage, failed: true)
+            }
+
+            if let notificationService {
+                MeetingNotificationSettingsView(service: notificationService)
+            }
+
+            if calendarIsConnected, let calendars = appState.calendarIntegrationSnapshot?.calendars, !calendars.isEmpty {
+                SettingsGroup("Calendars", count: calendars.count) {
+                    SettingsRow(glyph: .calendar, title: "All calendars") {
+                        SettingsToggle("All calendars", isOn: Binding(
+                            get: { selectedCalendarIDs == nil },
+                            set: {
+                                selectedCalendarIDs = $0 ? nil : calendars.map(\.id)
+                                saveCalendarSettings()
+                            }
+                        ))
+                    }
+                    if selectedCalendarIDs != nil {
+                        ForEach(calendars) { calendar in
+                            SettingsRow(title: calendar.title) {
+                                SettingsToggle(calendar.title, isOn: Binding(
+                                    get: { selectedCalendarIDs?.contains(calendar.id) ?? true },
+                                    set: { selected in
+                                        var ids = Set(selectedCalendarIDs ?? [])
+                                        if selected { ids.insert(calendar.id) } else { ids.remove(calendar.id) }
+                                        selectedCalendarIDs = ids.sorted()
+                                        saveCalendarSettings()
+                                    }
+                                ))
+                            }
                         }
                     }
                 }
@@ -178,89 +184,91 @@ extension SettingsView {
             recordingReadout
         }
 
-        SettingsGroup("Source", index: 1) {
-            SettingsRow(glyph: .mic, title: "Microphone",
-                        detail: availableMicrophones.isEmpty && !isLoadingMicrophones
-                            ? Text("No mic connected") : nil) {
-                if isSavingMicrophone { HudSpinner() }
-                HudSelect(selection: Binding(
-                    get: { selectedMicrophoneID },
-                    set: { selectedMicrophoneID = $0; saveMicrophoneSelection() }
-                ), options: microphoneOptions)
-                    .disabled(isLoadingMicrophones || isSavingMicrophone || availableMicrophones.isEmpty)
-                    .accessibilityLabel("Recording mic")
-            }
-            SettingsRow(title: "Level", detail: levelDetail) {
-                HudCapacityScale(level: liveMicLevel ?? micLevelTest.level, isOff: !canTestMicLevel)
-                    .frame(width: 232)
-                    .opacity(canTestMicLevel ? 1 : 0.5)
-            }
-            .accessibilityElement(children: .combine)
-            .disabled(!canTestMicLevel)
-            // Only while this page is on screen, and never when Crenel is already listening.
-            .onChange(of: micLevelTestKey, initial: true) { _, key in
-                if let key { micLevelTest.start(deviceID: key.deviceID) } else { micLevelTest.stop() }
-            }
-            .onDisappear { micLevelTest.stop() }
-            SettingsMessage(message: microphoneSettingsMessage, failed: microphoneSettingsFailed)
-        }
-
-        SettingsGroup("Permissions", index: 2) {
-            SettingsPermissionRow(
-                source: .microphone,
-                title: "Microphone",
-                detail: "Your voice",
-                status: appState.audioCapturePermissions.microphone,
-                onRequestAccess: onRequestMicrophoneAccess,
-                onOpenSystemSettings: onOpenSystemSettings
-            )
-            SettingsPermissionRow(
-                source: .systemAudio,
-                title: "System audio",
-                detail: "Everyone else on the call",
-                status: appState.audioCapturePermissions.systemAudio,
-                onRequestAccess: onRequestSystemAudioAccess,
-                onOpenSystemSettings: onOpenSystemSettings,
-                onRelaunchApplication: onRelaunchApplication
-            )
-            SettingsRow(glyph: .accessibility, title: "Mute tracking",
-                        detail: appState.accessibilityPermissionGranted
-                            ? Text("Reads mute in Zoom and Meet") : Text("Needs Accessibility")) {
-                if appState.accessibilityPermissionGranted {
-                    HudStatusWord(.ok, "Allowed")
-                } else {
-                    HudStatusWord(.off(), "Off")
-                    HudIconButton(.link, framed: true, small: true, help: "Open Accessibility settings",
-                                  action: onOpenAccessibilitySettings)
-                    HudButton("Allow", size: .small, action: onRequestAccessibilityAccess)
-                        .accessibilityLabel("Allow Accessibility")
+        SettingsCard {
+            SettingsGroup("Source") {
+                SettingsRow(glyph: .mic, title: "Microphone",
+                            detail: availableMicrophones.isEmpty && !isLoadingMicrophones
+                                ? Text("No mic connected") : nil) {
+                    if isSavingMicrophone { HudSpinner() }
+                    HudSelect(selection: Binding(
+                        get: { selectedMicrophoneID },
+                        set: { selectedMicrophoneID = $0; saveMicrophoneSelection() }
+                    ), options: microphoneOptions)
+                        .disabled(isLoadingMicrophones || isSavingMicrophone || availableMicrophones.isEmpty)
+                        .accessibilityLabel("Recording mic")
                 }
+                SettingsRow(title: "Level", detail: levelDetail) {
+                    HudCapacityScale(level: liveMicLevel ?? micLevelTest.level, isOff: !canTestMicLevel)
+                        .frame(width: 232)
+                        .opacity(canTestMicLevel ? 1 : 0.5)
+                }
+                .accessibilityElement(children: .combine)
+                .disabled(!canTestMicLevel)
+                // Only while this page is on screen, and never when Crenel is already listening.
+                .onChange(of: micLevelTestKey, initial: true) { _, key in
+                    if let key { micLevelTest.start(deviceID: key.deviceID) } else { micLevelTest.stop() }
+                }
+                .onDisappear { micLevelTest.stop() }
+                SettingsMessage(message: microphoneSettingsMessage, failed: microphoneSettingsFailed)
             }
-        }
 
-        SettingsGroup("Privacy guard", index: 3) {
-            SettingsRow(glyph: .shield, title: "Meet tab") {
-                switch appState.browserAudioConnectionStatus {
-                case .unavailable: HudStatusWord(.dim, "Unavailable")
-                case .waitingForMeetTab: HudStatusWord(.dim, "Waiting for a call tab")
-                case .tabConnected: HudStatusWord(.ok, "Connected")
-                case .recording:
-                    HStack(spacing: 8) {
-                        HudLamp(.red, form: .dot, loop: .pulse)
-                        Text("Recording").hud(.label, Hud.Ink.ink2)
+            SettingsGroup("Permissions") {
+                SettingsPermissionRow(
+                    source: .microphone,
+                    title: "Microphone",
+                    detail: "Your voice",
+                    status: appState.audioCapturePermissions.microphone,
+                    onRequestAccess: onRequestMicrophoneAccess,
+                    onOpenSystemSettings: onOpenSystemSettings
+                )
+                SettingsPermissionRow(
+                    source: .systemAudio,
+                    title: "System audio",
+                    detail: "Everyone else on the call",
+                    status: appState.audioCapturePermissions.systemAudio,
+                    onRequestAccess: onRequestSystemAudioAccess,
+                    onOpenSystemSettings: onOpenSystemSettings,
+                    onRelaunchApplication: onRelaunchApplication
+                )
+                SettingsRow(glyph: .accessibility, title: "Mute tracking",
+                            detail: appState.accessibilityPermissionGranted
+                                ? Text("Reads mute in Zoom and Meet") : Text("Needs Accessibility")) {
+                    if appState.accessibilityPermissionGranted {
+                        HudStatusWord(.ok, "Allowed")
+                    } else {
+                        HudStatusWord(.off(), "Off")
+                        HudIconButton(.link, framed: true, small: true, help: "Open Accessibility settings",
+                                      action: onOpenAccessibilitySettings)
+                        HudButton("Allow", size: .small, action: onRequestAccessibilityAccess)
+                            .accessibilityLabel("Allow Accessibility")
                     }
                 }
             }
-            SettingsExpand(title: "How your mic is handled", isExpanded: $showsPrivacyDetails)
-                .accessibilityLabel("Advanced recording details")
-            if showsPrivacyDetails {
-                Group {
-                    SettingsRow(title: "Your mic") { SettingsValue("Starts muted") }
-                    SettingsRow(title: "Mute state unknown") { SettingsValue("Not recorded") }
-                    SettingsRow(title: "By hand") { SettingsValue("Notch or ⌥⌘M") }
-                    SettingsRow(title: "Google Meet") { SettingsValue("Connected call tab only") }
+
+            SettingsGroup("Privacy guard") {
+                SettingsRow(glyph: .shield, title: "Meet tab") {
+                    switch appState.browserAudioConnectionStatus {
+                    case .unavailable: HudStatusWord(.dim, "Unavailable")
+                    case .waitingForMeetTab: HudStatusWord(.dim, "Waiting for a call tab")
+                    case .tabConnected: HudStatusWord(.ok, "Connected")
+                    case .recording:
+                        HStack(spacing: 8) {
+                            HudLamp(.red, form: .dot, loop: .pulse)
+                            Text("Recording").hud(.label, Hud.Ink.ink2)
+                        }
+                    }
                 }
-                .transition(.opacity)
+                SettingsExpand(title: "How your mic is handled", isExpanded: $showsPrivacyDetails)
+                    .accessibilityLabel("Advanced recording details")
+                if showsPrivacyDetails {
+                    Group {
+                        SettingsRow(title: "Your mic") { SettingsValue("Starts muted") }
+                        SettingsRow(title: "Mute state unknown") { SettingsValue("Not recorded") }
+                        SettingsRow(title: "By hand") { SettingsValue("Notch or ⌥⌘M") }
+                        SettingsRow(title: "Google Meet") { SettingsValue("Connected call tab only") }
+                    }
+                    .transition(.opacity)
+                }
             }
         }
         .animation(reduceMotion ? nil : Hud.Motion.change, value: showsPrivacyDetails)
@@ -328,36 +336,38 @@ extension SettingsView {
             SettingsReadoutWell(values: dataReadout)
         }
 
-        SettingsGroup("Folder", index: 1) {
-            SettingsRow(glyph: .archive, title: "Data folder",
-                        detail: dataFolder.map { Text(verbatim: $0.path) }) {
-                HudButton("Show in Finder", size: .small, action: onOpenDataDirectory)
-                    .accessibilityLabel("Open data folder")
-            }
-            SettingsRow(glyph: .window, title: "Setup", detail: Text("Walk through permissions again")) {
-                HudButton("Run again", size: .small, action: resetOnboarding)
-                    .accessibilityLabel("Open setup guide")
-            }
-        }
-
-        SettingsGroup("Danger zone", index: 2) {
-            SettingsRow(glyph: .trash, title: "Delete all data",
-                        detail: appState.requiresTerminationConfirmation
-                            ? Text("Not while recording or processing")
-                            : Text("Meetings, audio, tasks on this Mac, settings and keys")) {
-                if isDeletingAllData { HudSpinner() }
-                HudButton("Delete…", kind: .danger, size: .small) {
-                    showsDeleteAllDataConfirmation = true
+        SettingsCard {
+            SettingsGroup("Folder") {
+                SettingsRow(glyph: .archive, title: "Data folder",
+                            detail: dataFolder.map { Text(verbatim: $0.path) }) {
+                    HudButton("Show in Finder", size: .small, action: onOpenDataDirectory)
+                        .accessibilityLabel("Open data folder")
                 }
-                .disabled(appState.requiresTerminationConfirmation || isDeletingAllData)
-                .accessibilityLabel("Delete all data…")
+                SettingsRow(glyph: .window, title: "Setup", detail: Text("Walk through permissions again")) {
+                    HudButton("Run again", size: .small, action: resetOnboarding)
+                        .accessibilityLabel("Open setup guide")
+                }
             }
-            SettingsMessage(message: dataMessage, failed: dataFailed)
+
+            SettingsGroup("Danger zone") {
+                SettingsRow(glyph: .trash, title: "Delete all data",
+                            detail: appState.requiresTerminationConfirmation
+                                ? Text("Not while recording or processing")
+                                : Text("Meetings, audio, tasks on this Mac, settings and keys")) {
+                    if isDeletingAllData { HudSpinner() }
+                    HudButton("Delete…", kind: .danger, size: .small) {
+                        showsDeleteAllDataConfirmation = true
+                    }
+                    .disabled(appState.requiresTerminationConfirmation || isDeletingAllData)
+                    .accessibilityLabel("Delete all data…")
+                }
+                SettingsMessage(message: dataMessage, failed: dataFailed)
+            }
         }
 
-        HStack(spacing: 12) {
+        HStack(spacing: Hud.Row.gap) {
             HudAppTile(size: 22)
-            Text(verbatim: versionLine).hud(.meta)
+            Text(verbatim: versionLine).hudTrimmed(.meta)
             Spacer(minLength: 8)
             if case .ready(let version) = appState.updatePhase {
                 HudButton("Restart to update to \(version.shortVersion)", lamp: .teal, size: .small,
@@ -367,9 +377,9 @@ extension SettingsView {
                     .disabled(appState.updatePhase != .idle)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 4)
-        .settingsStagger(3)
+        // Tile and key on the card's content edges.
+        .padding(.horizontal, Hud.Layout.edge)
+        .settingsStagger(2)
         .accessibilityElement(children: .combine)
     }
 
@@ -397,7 +407,7 @@ extension SettingsView {
         let engine = crenel.preferences.meetingProcessing.transcription
         let cloud = SettingsVoiceProvider(engine)
         let hasKey = cloud.map(hasStoredKey) ?? false
-        SettingsGroup("Voice", index: 2) {
+        SettingsGroup("Voice") {
             SettingsRow(glyph: .waveform, title: "Provider", detail: voiceDetail(engine)) {
                 if cloud != nil, !isLoadingTranscriptionSettings {
                     if hasKey { HudStatusWord(.ok, "Connected") } else { HudStatusWord(.warn, "Needs a key") }

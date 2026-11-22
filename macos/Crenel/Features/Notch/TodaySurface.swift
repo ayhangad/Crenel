@@ -161,24 +161,26 @@ struct TodaySurface: View {
                     onRecord: onStartRecording,
                     onJoin: agenda.focus.flatMap { event in event.meetingURL.map { url in { onOpenMeetingURL(url) } } }
                 )
-                .padding(.horizontal, 2)
-                .padding(.bottom, 12)
+                .padding(.top, Hud.Layout.block)
                 .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
             }
 
             if agenda.hasRows || agenda.focus != nil {
                 ruler(agenda, now: now)
+                    .padding(.top, agenda.focus == nil ? 0 : TodayLayout.heroToRuler)
                     .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
                 timetable(agenda, now: now)
-                    .padding(.top, 4)
+                    .padding(.top, TodayLayout.rulerToLabel)
                     .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
             } else if state == .ready {
                 ruler(agenda, now: now)
                     .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
                 nothingElseRow(agenda, now: now, canRecord: console == nil)
+                    .padding(.top, TodayLayout.rulerToLabel - Hud.Layout.rowPad)
                     .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
                 if !agenda.later.isEmpty {
                     group(String(localized: "Later"), agenda.later, now: now, isFirst: false)
+                        .padding(.top, HudRowKind.icon.sectionGap)
                         .hudStagger(4, shown: appeared, reduceMotion: reduceMotion)
                 }
             } else {
@@ -199,7 +201,7 @@ struct TodaySurface: View {
     private func ruler(_ agenda: TodayAgenda, now: Date) -> some View {
         let scale = TodayRulerScale(agenda: agenda, now: now)
         return HudDayRuler(span: scale.span, now: scale.now, events: scale.events)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, Hud.Layout.rowPad)
     }
 
     // MARK: Timetable
@@ -212,6 +214,7 @@ struct TodaySurface: View {
             }
             if !agenda.later.isEmpty {
                 group(String(localized: "Later"), agenda.later, now: now, isFirst: agenda.today.isEmpty)
+                    .padding(.top, agenda.today.isEmpty ? 0 : HudRowKind.tile.sectionGap)
             }
         }
     }
@@ -225,16 +228,13 @@ struct TodaySurface: View {
     private func nothingElseRow(_ agenda: TodayAgenda, now: Date, canRecord: Bool) -> some View {
         HStack(spacing: 12) {
             HudLamp(.teal)
-            Text("Nothing else today").hud(.body, Hud.Ink.ink2)
+            Text("Nothing else today").hudTrimmed(.body, Hud.Ink.ink2)
             Spacer(minLength: 8)
             if canRecord {
                 TodayRecordButton(action: onStartRecording)
             }
         }
-        .padding(.leading, 10)
-        .padding(.trailing, canRecord ? 4 : 10)
-        .padding(.top, 4)
-        .padding(.bottom, 8)
+        .hudRow(.icon)
         .accessibilityElement(children: .contain)
     }
 
@@ -242,6 +242,18 @@ struct TodaySurface: View {
     private func join(_ event: Meeting) -> (() -> Void)? {
         event.meetingURL.map { url in { onOpenMeetingURL(url) } }
     }
+}
+
+// MARK: - Layout
+
+/// Today's vertical rhythm in visible gaps (measured from the gauge's and the ruler's ink,
+/// not their boxes). The 270° gauge is open at the bottom: its ink ends 15 % above its
+/// box. The ruler's box has 4.4 pt under its hour labels.
+enum TodayLayout {
+    /// Gauge ink → ruler ink: `Hud.Layout.block` (16).
+    static let heroToRuler: CGFloat = Hud.Layout.block - 104 * 0.15 - 1
+    /// Ruler labels → the first section label: `Hud.Layout.section` (28).
+    static let rulerToLabel: CGFloat = Hud.Layout.section - 4.4
 }
 
 // MARK: - Agenda
@@ -364,14 +376,16 @@ private struct TodayEventGroup: View {
     @Namespace private var glide
 
     var body: some View {
-        VStack(alignment: .leading, spacing: RecordingRow.spacing) {
-            HudListHeader(title, count: events.count, isFirst: isFirst)
-                .padding(.bottom, -RecordingRow.spacing)
-            ForEach(events) { event in
-                let join = event.meetingURL.map { url in { onOpenMeetingURL(url) } }
-                TodayEventRow(event: event, now: now, isHovered: previewHover == AnyHashable(event.id), onJoin: join)
-                    .modifier(EventActions(event: event, join: join, onStartRecording: onStartRecording))
-                    .hudGlide(event.id, hovered: $hovered, in: glide, forced: previewHover)
+        VStack(alignment: .leading, spacing: 0) {
+            HudListHeader(title, count: events.count, rows: .tile)
+            VStack(alignment: .leading, spacing: HudRowKind.tile.spacing) {
+                ForEach(events) { event in
+                    let join = event.meetingURL.map { url in { onOpenMeetingURL(url) } }
+                    TodayEventRow(event: event, now: now, isHovered: previewHover == AnyHashable(event.id), onJoin: join)
+                        .modifier(EventActions(event: event, join: join, onStartRecording: onStartRecording))
+                        .hudGlide(event.id, hovered: $hovered, in: glide, forced: previewHover)
+                        .hudTileOutset()
+                }
             }
         }
     }
@@ -464,31 +478,30 @@ private struct TodayHero: View {
     private var isToday: Bool { Calendar.current.isDate(event.startDate, inSameDayAs: now) }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: Hud.Layout.edge) {
             gauge
                 .opacity(isDimmed ? 0.55 : 1)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(event.title).hud(.hero).lineLimit(1).truncationMode(.tail)
+            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                Text(event.title).hudTrimmed(.hero).truncationMode(.tail)
                 HStack(spacing: 6) {
-                    Text(verbatim: timeWord).hud(.meta)
+                    Text(verbatim: timeWord).hudTrimmed(.meta, Hud.Ink.ink2)
                     if let venue = event.venueWord, !venue.isEmpty {
-                        Text(verbatim: "·").hud(.meta, Hud.Ink.ink4)
-                        Text(verbatim: venue).hud(.meta).lineLimit(1)
+                        Text(verbatim: "·").hudTrimmed(.meta, Hud.Ink.ink4)
+                        Text(verbatim: venue).hudTrimmed(.meta, Hud.Ink.ink2)
                     }
                 }
                 if let people = MeetingPeopleFormatter.short(event.attendees) {
                     HStack(spacing: 6) {
-                        HudIcon(.people, size: 12).foregroundStyle(Hud.Ink.ink4)
-                        Text(verbatim: people).hud(.meta).lineLimit(1).truncationMode(.tail)
+                        HudIcon(.people, size: 12).foregroundStyle(Hud.Ink.ink4).padding(.vertical, -2)
+                        Text(verbatim: people).hudTrimmed(.meta).truncationMode(.tail)
                     }
                     .accessibilityElement(children: .combine)
                 }
                 if event.responseStatus == .pending {
-                    HStack(spacing: 8) {
-                        HudStatusShape(.warn)
-                        Text("Invite").hud(.meta, Hud.Ink.ink2)
+                    HStack(spacing: 6) {
+                        HudStatusShape(.warn).padding(.vertical, -2)
+                        Text("Invite").hudTrimmed(.meta, Hud.Ink.ink2)
                     }
-                    .padding(.top, 1)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -502,10 +515,8 @@ private struct TodayHero: View {
                 }
             }
         }
-        .padding(.leading, 6)
-        .padding(.trailing, onRecord == nil ? 10 : 4)
-        .padding(.top, 4)
-        .padding(.bottom, 12)
+        // Gauge, text and Record on the content edge (the panel container sits 10 out).
+        .padding(.horizontal, Hud.Layout.rowPad)
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
     }
@@ -652,22 +663,20 @@ private struct TodayEventRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: Hud.Row.gap) {
             tile
-            VStack(alignment: .leading, spacing: 2) {
-                Text(event.title).hud(.body).lineLimit(1).truncationMode(.tail)
+            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                Text(event.title).hudTrimmed(.body).truncationMode(.tail)
                 metaLine
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             if let length {
                 Text(verbatim: length)
-                    .hud(.meta, Hud.Ink.ink2)
-                    .monospacedDigit()
+                    .hudTrimmed(.meta, Hud.Ink.ink2)
                     .fixedSize()
                     .opacity(showsJoin ? 0 : 1)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, Hud.Row.inset)
-        .padding(.vertical, RecordingRow.verticalPadding)
+        .hudRow(.tile)
         .contentShape(Rectangle())
         .opacity(isDimmed ? 0.55 : 1)
         .overlay(alignment: .trailing) {
@@ -714,6 +723,7 @@ private struct TodayEventRow: View {
         }
         .hud(.meta)
         .lineLimit(1)
+        .hudTrim(.meta)
         }
     }
 
@@ -744,19 +754,18 @@ private struct TodayEmptyState: View {
     var onRecord: (() -> Void)?
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        HStack(alignment: .center, spacing: Hud.Layout.edge) {
             HudRestingGauge(status: gaugeStatus)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title).hud(.title)
+            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                Text(title).hudTrimmed(.title)
                 if let detail {
-                    Text(verbatim: detail).hud(.meta).fixedSize(horizontal: false, vertical: true)
+                    Text(verbatim: detail).hud(.meta).fixedSize(horizontal: false, vertical: true).hudTrim(.meta)
                 }
                 if state == .waiting {
                     HStack(spacing: 8) {
                         HudStatusShape(.warn, loop: .blink)
-                        Text("System dialog is open").hud(.meta)
+                        Text("System dialog is open").hudTrimmed(.meta)
                     }
-                    .padding(.top, 6)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -765,9 +774,7 @@ private struct TodayEmptyState: View {
                 TodayRecordButton(action: onRecord)
             }
         }
-        .padding(.leading, 6)
-        .padding(.trailing, 4)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Hud.Layout.rowPad)
         .accessibilityElement(children: .contain)
     }
 

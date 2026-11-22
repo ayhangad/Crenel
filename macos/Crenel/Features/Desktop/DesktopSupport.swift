@@ -516,9 +516,9 @@ struct DesktopSearchField: View {
                     .accessibilityLabel("Clear search")
             }
         }
-        .padding(.leading, 10)
+        .padding(.leading, Hud.Layout.rowPad)
         .padding(.trailing, 5)
-        .frame(width: width, height: 30)
+        .frame(width: width, height: Hud.Layout.field)
         .background(
             shape.fill(Color(white: 1, opacity: focus.wrappedValue ? 0.075 : 0.045)
                 .shadow(.inner(color: .black.opacity(0.3), radius: 0.5, x: 0, y: 1)))
@@ -549,8 +549,42 @@ struct DesktopToolbar<Actions: View>: View {
             Spacer(minLength: 8)
             actions()
         }
-        .padding(.leading, 24)
-        .padding(.trailing, 16)
+        // The page gutter on both sides, so the actions end on the cards' trailing edge.
+        .padding(.horizontal, DesktopPageLayout.gutter)
         .frame(height: Hud.Window.toolbarHeight)
+    }
+}
+
+// MARK: - Time column
+
+/// The time column of desktop list rows in the measure model: the start time and an
+/// optional second word (a length, the app the words went to), trimmed and `pair` apart,
+/// so its two lines sit level with the row's title and meta line.
+struct DesktopTimeColumn: View {
+    let top: String
+    var bottom: String?
+
+    init(_ top: String, _ bottom: String? = nil) {
+        self.top = top
+        self.bottom = bottom
+    }
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: Hud.Layout.pair) {
+            // "24 Nov" is a little wider than the column: shrink it rather than cut it.
+            Text(verbatim: top).hudTrimmed(.body).minimumScaleFactor(0.8)
+            if let bottom {
+                Text(verbatim: bottom).hudTrimmed(.meta)
+            }
+        }
+        .frame(width: Hud.Row.timeColumn, alignment: .trailing)
+    }
+}
+
+extension View {
+    /// Lets a control (a mini button, a spinner) sit on a label's line without making the
+    /// line taller: the gaps around the line stay the gaps around its trimmed text.
+    func desktopInline() -> some View {
+        frame(height: 0)
     }
 }

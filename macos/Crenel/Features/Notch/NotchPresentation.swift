@@ -107,7 +107,8 @@ struct NotchPanelLayout: Equatable {
     static let minimumWidth: CGFloat = 320
     static let preferredContentHeight: CGFloat = 600
     /// Space between the camera band and the content under it.
-    static let bandGap: CGFloat = 8
+    /// Tab lamp → content: 20 visible (the lamp ends 1 pt above the tab row's bottom).
+    static let bandGap: CGFloat = Hud.Layout.edge - 1
     // The band is the menu-bar row, which the viewport already leaves out. What remains
     // outside the scroll view is the tab row under the band, the gap under it, the bottom
     // padding, and room for one strip line (a prompt arriving while the panel is open).

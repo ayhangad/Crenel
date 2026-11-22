@@ -206,10 +206,9 @@ struct RecordingRow: View {
     /// the list's sliding slab.
     @State private var hovering = false
 
-    /// Vertical padding inside the row; the list adds `RecordingRow.spacing` between rows
-    /// so hover slabs never touch.
-    static let verticalPadding: CGFloat = 7
-    static let spacing: CGFloat = 4
+    /// A tile row (`HudRowKind.tile`): the list adds this between rows so hover slabs
+    /// never touch; tile to tile 12.
+    static let spacing: CGFloat = Hud.Layout.tileGap
     static let trailingWidth: CGFloat = 140
 
     var body: some View {
@@ -219,19 +218,18 @@ struct RecordingRow: View {
         HStack(alignment: .center, spacing: Hud.Row.gap) {
             RecordingDateTile(date: meeting.startedAt, attention: attention)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(meeting.title).hud(.body).lineLimit(1)
+            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                Text(meeting.title).hudTrimmed(.body)
                 metaLine(attention)
                 if let gist = RecordingPreview.firstLine(preview?.overview) {
-                    Text(gist).hud(.meta, Hud.Ink.ink4).lineLimit(1).padding(.top, 1)
+                    Text(gist).hudTrimmed(.meta, Hud.Ink.ink4)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            VStack(alignment: .trailing, spacing: 6) {
+            VStack(alignment: .trailing, spacing: Hud.Layout.pair) {
                 Text(verbatim: RecordingsFormat.length(meeting.duration))
-                    .hud(.meta, Hud.Ink.ink2)
-                    .monospacedDigit()
+                    .hudTrimmed(.meta, Hud.Ink.ink2)
                     .fixedSize()
                 // Both stay in the tree; hover only swaps which one shows, with no animation.
                 ZStack(alignment: .trailing) {
@@ -248,10 +246,8 @@ struct RecordingRow: View {
             // Wide enough for Play and Open, so hovering never moves the text.
             .frame(width: Self.trailingWidth, alignment: .trailing)
         }
-        // The tile stretches to the text's height; the row keeps its natural height.
         .fixedSize(horizontal: false, vertical: true)
-        .padding(.horizontal, Hud.Row.inset)
-        .padding(.vertical, Self.verticalPadding)
+        .hudRow(.tile)
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .task(id: "\(meeting.id)|\(meeting.processingStatus.rawValue)") { await load() }
@@ -279,6 +275,7 @@ struct RecordingRow: View {
         }
         .hud(.meta)
         .lineLimit(1)
+        .hudTrim(.meta)
     }
 
     private var dot: some View {

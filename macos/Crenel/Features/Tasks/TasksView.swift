@@ -50,13 +50,13 @@ struct TasksView: View {
                             initialText: initialInput,
                             onSubmit: actions.tasks.add
                         )
-                        .padding(.bottom, 8)
+                                                .padding(.bottom, Hud.Layout.section)
                         activeContent(presentation, now: context.date)
                     }
                     .transition(.opacity.combined(with: .offset(x: -14)))
                 }
                 footer(presentation)
-                    .padding(.top, 12)
+                    .padding(.top, HudRowKind.icon.sectionGap)
             }
         }
         .animation(motion(Hud.Motion.enter), value: showsHistory)
@@ -104,7 +104,7 @@ struct TasksView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         switch group.id {
                         case .today:
-                            HudGroupHeader(title: "Today") {
+                            HudGroupHeader(title: "Today", count: group.rows.count) {
                                 HudCells(done: doneToday, total: group.rows.count + doneToday)
                                     .accessibilityElement()
                                     .accessibilityLabel("\(doneToday) of \(group.rows.count + doneToday) done")
@@ -113,13 +113,13 @@ struct TasksView: View {
                         case .later:
                             HudGroupHeader(title: "Later", count: group.rows.count)
                         case .done:
-                            HudGroupHeader(title: "Done")
+                            HudGroupHeader(title: "Done", count: group.rows.count)
                         }
                         ForEach(group.rows, id: \.task.id) { item in
                             row(item.task, now: now, isOverdue: item.isOverdue)
                         }
                     }
-                    .padding(.top, index == 0 ? 0 : 8)
+                    .padding(.top, index == 0 ? 0 : HudRowKind.icon.sectionGap)
                 }
             }
         }
@@ -174,10 +174,9 @@ struct TasksView: View {
     private func quietRow<Leading: View>(_ title: LocalizedStringKey, @ViewBuilder leading: () -> Leading) -> some View {
         HStack(spacing: Hud.Row.gap) {
             leading()
-            Text(title).hud(.body, Hud.Ink.ink2)
+            Text(title).hudTrimmed(.body, Hud.Ink.ink2)
         }
-        .padding(.horizontal, Hud.Row.inset)
-        .frame(height: Hud.Row.oneLine)
+        .hudRow(.icon)
     }
 
     // MARK: Finished
@@ -192,12 +191,12 @@ struct TasksView: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(presentation.history.enumerated()), id: \.element.id) { index, day in
                     VStack(alignment: .leading, spacing: 0) {
-                        HudGroupHeader(title: TaskRowFormat.historyTitle(for: day.day, now: now))
+                        HudGroupHeader(title: TaskRowFormat.historyTitle(for: day.day, now: now), count: day.tasks.count)
                         ForEach(day.tasks) { task in
                             row(task, now: now, isOverdue: false, showsFinishedTime: true)
                         }
                     }
-                    .padding(.top, index == 0 ? 0 : 8)
+                    .padding(.top, index == 0 ? 0 : HudRowKind.icon.sectionGap)
                 }
             }
         }
@@ -210,14 +209,14 @@ struct TasksView: View {
     private func footer(_ presentation: TaskListPresentation) -> some View {
         HudActions {
             if showsHistory {
-                HudLamp(.dim)
+                HudLamp(.dim).frame(width: 13)
                 Text(appState.taskStorageStatus.isReminders ? "Finished in the last 30 days" : "Finished tasks")
             } else if appState.taskStorageStatus.isReminders {
-                HudLamp(.teal)
+                HudLamp(.teal).frame(width: 13)
                 Text("Synced with Reminders")
                     .help("Tasks live in the “Crenel” list in Apple Reminders, so they also show on iPhone and Apple Watch.")
             } else {
-                HudLamp(.off)
+                HudLamp(.off).frame(width: 13)
                 Text("On this Mac only")
             }
         } buttons: {
@@ -236,8 +235,7 @@ struct TasksView: View {
                 }
             }
         }
-        .padding(.leading, Hud.Row.inset)
-        .padding(.trailing, 2)
+        .padding(.horizontal, Hud.Layout.rowPad)
     }
 
     private var canConnectReminders: Bool {

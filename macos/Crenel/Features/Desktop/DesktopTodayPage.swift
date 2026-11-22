@@ -64,9 +64,9 @@ struct DesktopTodayPage: View {
                         .disabled(appState.requiresTerminationConfirmation)
                 }
                 ScrollView {
-                    VStack(spacing: 16) {
+                    VStack(spacing: Hud.Layout.block) {
                         hero(now: now).desktopEnter(0)
-                        HStack(alignment: .top, spacing: 16) {
+                        HStack(alignment: .top, spacing: Hud.Layout.block) {
                             tasksTile(now: now)
                             tapeTile(now: now)
                             dictationTile(now: now)
@@ -74,8 +74,8 @@ struct DesktopTodayPage: View {
                         .desktopEnter(1)
                         recent(now: now).desktopEnter(2)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, DesktopPageLayout.gutter)
+                    .padding(.bottom, DesktopPageLayout.gutter)
                 }
                 .scrollIndicators(.never)
             }
@@ -87,7 +87,7 @@ struct DesktopTodayPage: View {
     private func hero(now: Date) -> some View {
         let status = NotchAgendaStatus.resolve(items: appState.upcomingMeetings, now: now, horizon: 24 * 3_600)
         return VStack(spacing: 0) {
-            HStack(spacing: 28) {
+            HStack(spacing: Hud.Layout.section) {
                 if let status {
                     heroGauge(status)
                     heroText(status, now: now)
@@ -96,13 +96,12 @@ struct DesktopTodayPage: View {
                     restingHero
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
             HudDayRuler(span: rulerSpan(now: now), now: DesktopFormat.decimalHour(now), events: rulerEvents(now: now, focus: status), wide: true)
-                .padding(.horizontal, 20)
-                .padding(.top, 20)
-                .padding(.bottom, 12)
+                .padding(.top, DesktopPageLayout.gaugeToRuler)
         }
+        .padding(.horizontal, Hud.Layout.edge)
+        .padding(.top, Hud.Layout.edge - DesktopPageLayout.gaugeTop)
+        .padding(.bottom, Hud.Layout.edge - DesktopPageLayout.rulerFoot)
         .hudPanel()
     }
 
@@ -113,7 +112,7 @@ struct DesktopTodayPage: View {
             case .upcoming(let startsIn):
                 let minutes = max(1, Int((startsIn / 60).rounded(.up)))
                 let tint = minutes <= 2 ? Hud.Ink.live : (minutes <= 10 ? Hud.Ink.signal : Hud.Ink.ink1)
-                HudGauge(value: min(1, Double(minutes) / 60), size: 148, tint: Hud.Ink.ink1, zones: HudGaugeZone.countdown,
+                HudGauge(value: min(1, Double(minutes) / 60), size: DesktopPageLayout.gauge, tint: Hud.Ink.ink1, zones: HudGaugeZone.countdown,
                          labels: ["0", "15", "30", "45", "60"], ignite: ignite) {
                     if minutes <= 99 {
                         HudSegmentDigits("\(minutes)", height: 36, cells: 2, color: tint)
@@ -126,7 +125,7 @@ struct DesktopTodayPage: View {
             case .ongoing(let remaining):
                 let length = max(60, status.item.endDate.timeIntervalSince(status.item.startDate))
                 let minutes = max(1, Int((remaining / 60).rounded(.up)))
-                HudGauge(value: min(1, max(0, remaining / length)), size: 148, tint: Hud.Ink.signal, zones: HudGaugeZone.redline, ignite: ignite) {
+                HudGauge(value: min(1, max(0, remaining / length)), size: DesktopPageLayout.gauge, tint: Hud.Ink.signal, zones: HudGaugeZone.redline, ignite: ignite) {
                     if minutes <= 99 {
                         HudSegmentDigits("\(minutes)", height: 36, cells: 2, color: Hud.Ink.signal)
                         Text("left").hud(.micro, Hud.Ink.ink3)
@@ -137,41 +136,42 @@ struct DesktopTodayPage: View {
                 }
             }
         }
-        .frame(width: 148, height: 148)
+        .frame(width: DesktopPageLayout.gauge, height: DesktopPageLayout.gauge)
         .accessibilityElement()
         .accessibilityLabel(Text(verbatim: NotchAgendaFormatter.accessibilityText(for: status)))
     }
 
     private func heroText(_ status: NotchAgendaStatus, now: Date) -> some View {
         let item = status.item
-        return VStack(alignment: .leading, spacing: 8) {
-            Text(status.phase.isOngoing ? "Happening now" : (item.isMeetingLike ? "Next meeting" : "Next event")).hud(.meta)
-            Text(verbatim: item.title).hud(.page).lineLimit(1).truncationMode(.tail)
+        return VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+            Text(status.phase.isOngoing ? "Happening now" : (item.isMeetingLike ? "Next meeting" : "Next event")).hudTrimmed(.meta)
+            Text(verbatim: item.title).hudTrimmed(.page).truncationMode(.tail)
             HStack(spacing: 8) {
                 Text(verbatim: status.phase.isOngoing ? "Until \(DesktopFormat.clock(item.endDate))" : startText(item, now: now))
+                    .hudTrimmed(.label, Hud.Ink.ink2)
                 if let venue = DesktopFormat.venue(item) {
-                    Text(verbatim: "·").foregroundStyle(Hud.Ink.ink4)
-                    HudIcon(DesktopFormat.venueGlyph(item), size: 12).foregroundStyle(Hud.Ink.ink3)
-                    Text(verbatim: venue).lineLimit(1)
+                    Text(verbatim: "·").hudTrimmed(.label, Hud.Ink.ink4)
+                    HudIcon(DesktopFormat.venueGlyph(item), size: 12).foregroundStyle(Hud.Ink.ink3).padding(.vertical, -2)
+                    Text(verbatim: venue).hudTrimmed(.label, Hud.Ink.ink2)
                 }
             }
-            .hud(.label, Hud.Ink.ink2)
-            .padding(.top, 2)
-            if item.responseStatus == .pending {
-                HStack(spacing: 8) {
-                    HudLamp(.amber)
-                    Text("Invite, waiting for your answer").hud(.meta)
+            // The last line is its own block: who, or what waits for you.
+            Group {
+                if item.responseStatus == .pending {
+                    HStack(spacing: 12) {
+                        HudLamp(.amber).frame(width: 13)
+                        Text("Invite, waiting for your answer").hudTrimmed(.meta)
+                    }
+                } else if let people = MeetingPeopleFormatter.short(item.attendees) {
+                    HStack(spacing: 10) {
+                        HudFaces(initials: MeetingPeopleFormatter.initials(item.attendees))
+                        Text(verbatim: people).hudTrimmed(.meta).truncationMode(.tail)
+                    }
+                } else if let calendar = item.calendarTitle, DesktopFormat.venue(item) != calendar {
+                    Text(verbatim: calendar).hudTrimmed(.meta)
                 }
-                .padding(.top, 8)
-            } else if let people = MeetingPeopleFormatter.short(item.attendees) {
-                HStack(spacing: 10) {
-                    HudFaces(initials: MeetingPeopleFormatter.initials(item.attendees))
-                    Text(verbatim: people).hud(.meta).lineLimit(1).truncationMode(.tail)
-                }
-                .padding(.top, 8)
-            } else if let calendar = item.calendarTitle, DesktopFormat.venue(item) != calendar {
-                Text(verbatim: calendar).hud(.meta).lineLimit(1).padding(.top, 8)
             }
+            .padding(.top, Hud.Layout.block - Hud.Layout.pair)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -190,16 +190,17 @@ struct DesktopTodayPage: View {
             return true
         }()
         return VStack(alignment: .trailing, spacing: 0) {
-            HStack(spacing: 8) {
+            HStack(spacing: 12) {
                 if canJoin {
-                    HudLamp(.amber)
-                    Text(status.phase.isOngoing ? "In progress" : "Starting soon").hud(.meta)
+                    HudLamp(.amber).frame(width: 13)
+                    Text(status.phase.isOngoing ? "In progress" : "Starting soon").hudTrimmed(.meta)
                 } else if item.meetingURL != nil {
-                    HudLamp(.off)
-                    Text(verbatim: "Join opens at \(DesktopFormat.clock(joinOpens))").hud(.meta)
+                    HudLamp(.off).frame(width: 13)
+                    Text(verbatim: "Join opens at \(DesktopFormat.clock(joinOpens))").hudTrimmed(.meta)
                 }
             }
-            Spacer(minLength: 12)
+            .padding(.top, DesktopPageLayout.gaugeTop)
+            Spacer(minLength: Hud.Layout.block)
             HStack(spacing: 8) {
                 if let url = item.meetingURL {
                     HudButton(copiedLink ? "Copied" : "Copy link", glyph: .copy, size: .small) {
@@ -214,8 +215,9 @@ struct DesktopTodayPage: View {
                 }
             }
         }
-        .padding(.vertical, 6)
-        .frame(height: 148)
+        // The buttons end where the gauge's ink ends, not its open-bottomed box.
+        .frame(height: DesktopPageLayout.gauge - DesktopPageLayout.gaugeFoot)
+        .frame(height: DesktopPageLayout.gauge, alignment: .top)
         .task(id: copiedLink) {
             guard copiedLink else { return }
             try? await Task.sleep(for: .seconds(1.6))
@@ -234,24 +236,24 @@ struct DesktopTodayPage: View {
             default: return nil
             }
         }()
-        HudRestingGauge(status: status, size: 148)
-            .frame(width: 148, height: 148)
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Next meeting").hud(.meta)
+        HudRestingGauge(status: status, size: DesktopPageLayout.gauge)
+            .frame(width: DesktopPageLayout.gauge, height: DesktopPageLayout.gauge)
+        VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+            Text("Next meeting").hudTrimmed(.meta)
             switch status {
             case .off:
-                Text("Calendar access is off").hud(.page).lineLimit(1)
-                Text("Allow Calendar in System Settings to see what’s next.").hud(.label, Hud.Ink.ink2)
+                Text("Calendar access is off").hudTrimmed(.page)
+                Text("Allow Calendar in System Settings to see what’s next.").hudTrimmed(.label, Hud.Ink.ink2)
             case .err:
-                Text("Calendar can’t refresh").hud(.page).lineLimit(1)
-                Text("Your events will be back once Calendar answers.").hud(.label, Hud.Ink.ink2)
+                Text("Calendar can’t refresh").hudTrimmed(.page)
+                Text("Your events will be back once Calendar answers.").hudTrimmed(.label, Hud.Ink.ink2)
             default:
                 if !appState.isCalendarEnabled || access == .notDetermined {
-                    Text("Calendar isn’t connected").hud(.page).lineLimit(1)
-                    Text("Connect Apple Calendar to see the next meeting here.").hud(.label, Hud.Ink.ink2)
+                    Text("Calendar isn’t connected").hudTrimmed(.page)
+                    Text("Connect Apple Calendar to see the next meeting here.").hudTrimmed(.label, Hud.Ink.ink2)
                 } else {
-                    Text("Nothing coming up").hud(.page).lineLimit(1)
-                    Text("The rest of the day is clear.").hud(.label, Hud.Ink.ink2)
+                    Text("Nothing coming up").hudTrimmed(.page)
+                    Text("The rest of the day is clear.").hudTrimmed(.label, Hud.Ink.ink2)
                 }
             }
         }
@@ -300,14 +302,15 @@ struct DesktopTodayPage: View {
                                                     @ViewBuilder header: @escaping () -> Header,
                                                     @ViewBuilder content: @escaping () -> Content) -> some View {
         DesktopTile(help: help, action: action) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: Hud.Layout.block) {
                 HStack(spacing: 8) {
-                    HudIcon(glyph, size: 14).foregroundStyle(Hud.Ink.ink3)
-                    Text(title).hud(.label, Hud.Ink.ink2)
+                    HudIcon(glyph, size: 14).foregroundStyle(Hud.Ink.ink3).padding(-DesktopPageLayout.smallGlyphInset)
+                    Text(title).hudTrimmed(.label, Hud.Ink.ink2)
                     Spacer(minLength: 4)
-                    header()
+                    header().desktopInline()
                 }
-                content()
+                // The tile's own blocks (readout, spacer, rows) keep their own gaps.
+                VStack(alignment: .leading, spacing: 0) { content() }
             }
         }
     }
@@ -330,16 +333,17 @@ struct DesktopTodayPage: View {
             }
             Spacer(minLength: 8)
             if rows.isEmpty {
-                Text(presentation.activeCount == 0 && done > 0 ? "Everything is done for today." : "Nothing on the list yet.").hud(.meta)
+                Text(presentation.activeCount == 0 && done > 0 ? "Everything is done for today." : "Nothing on the list yet.").hudTrimmed(.meta)
             } else {
-                VStack(alignment: .leading, spacing: 10) {
+                // No slab here (the whole tile is the button), so rows stand `item` apart.
+                VStack(alignment: .leading, spacing: DesktopPageLayout.tileItem) {
                     ForEach(Array(rows), id: \.1.id) { kind, task in
-                        HStack(spacing: 10) {
-                            HudStateMark(state: task.status, size: 14)
-                            Text(verbatim: task.title).hud(.label, task.status == .inProgress ? Hud.Ink.ink1 : Hud.Ink.ink2)
-                                .lineLimit(1).truncationMode(.tail)
+                        HStack(spacing: 12) {
+                            HudStateMark(state: task.status, size: 14).padding(-DesktopPageLayout.smallGlyphInset)
+                            Text(verbatim: task.title).hudTrimmed(.label, task.status == .inProgress ? Hud.Ink.ink1 : Hud.Ink.ink2)
+                                .truncationMode(.tail)
                             Spacer(minLength: 4)
-                            taskTrailing(task, kind: kind, now: now)
+                            taskTrailing(task, kind: kind, now: now).desktopInline()
                         }
                     }
                 }
@@ -358,7 +362,7 @@ struct DesktopTodayPage: View {
             }
         } else if let label = TaskDueFormatter.label(for: task, now: now) {
             Text(verbatim: label.hasPrefix("Today ") ? String(label.dropFirst(6)) : label)
-                .hud(.meta, kind == .overdue ? Hud.Ink.live : Hud.Ink.ink3).lineLimit(1).fixedSize()
+                .hudTrimmed(.meta, kind == .overdue ? Hud.Ink.live : Hud.Ink.ink3).fixedSize()
         }
     }
 
@@ -366,7 +370,7 @@ struct DesktopTodayPage: View {
         let week = DesktopStats.week(meetings: appState.storedMeetings, now: now)
         let total = week.reduce(0) { $0 + $1.seconds }
         return tile(.tape, "On tape", help: "Open Meetings", action: { navigation.section = .meetings }) {
-            Text("this week").hud(.meta)
+            Text("this week").hudTrimmed(.meta)
         } content: {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 HudSegmentDigits(DesktopFormat.hoursMinutes(total), height: 30)
@@ -375,14 +379,13 @@ struct DesktopTodayPage: View {
             Spacer(minLength: 8)
             HStack(alignment: .bottom, spacing: 8) {
                 ForEach(week, id: \.date) { day in
-                    VStack(spacing: 8) {
+                    VStack(spacing: Hud.Layout.pair) {
                         HudLEDStack(lit: DesktopStats.stackCells(day.seconds, week: week), tone: day.isToday ? .today : .past)
-                        Text(verbatim: day.label).hud(.micro, day.isToday ? Hud.Ink.ink1 : Hud.Ink.ink4)
+                        Text(verbatim: day.label).hudTrimmed(.micro, day.isToday ? Hud.Ink.ink1 : Hud.Ink.ink4)
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
-            .padding(.horizontal, 4)
             .accessibilityElement()
             .accessibilityLabel(Text(verbatim: "\(DesktopFormat.minutes(total)) recorded this week"))
         }
@@ -395,23 +398,22 @@ struct DesktopTodayPage: View {
         let scale = DesktopStats.dictationScale(todayWords: today.words, usual: usual)
         let last = appState.dictationHistory.first
         return tile(.waveform, "Dictation", help: "Open Dictation", action: { navigation.section = .dictation }) {
-            Text("today").hud(.meta)
+            Text("today").hudTrimmed(.meta)
         } content: {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 HudSegmentDigits("\(today.words)", height: 30)
                 Text("words").hud(.unit)
             }
             Spacer(minLength: 8)
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: Hud.Layout.block) {
                 // Today against your usual day (the triangle); a plain scale until there is one.
                 HudDotMatrix(value: scale.value, count: 78, mark: scale.mark)
-                    .padding(.bottom, 8)
                     .help(usual.map { "Your usual day: \(Int($0.rounded())) words" } ?? "")
                 if let last {
                     Text(verbatim: "“\(last.finalText)”" + (last.appName.map { " · \($0)" } ?? ""))
-                        .hud(.meta).lineLimit(1).truncationMode(.tail)
+                        .hudTrimmed(.meta).truncationMode(.tail)
                 } else {
-                    Text(verbatim: "Hold \(preferences.keyPhrase) and speak to dictate.").hud(.meta).lineLimit(1)
+                    Text(verbatim: "Hold \(preferences.keyPhrase) and speak to dictate.").hudTrimmed(.meta)
                 }
             }
         }
@@ -421,46 +423,44 @@ struct DesktopTodayPage: View {
 
     private func recent(now: Date) -> some View {
         let meetings = Array(appState.storedMeetings.prefix(3))
-        return VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Text("Recent meetings").hud(.label, Hud.Ink.ink2)
-                Spacer(minLength: 4)
+        return VStack(alignment: .leading, spacing: 0) {
+            HudGroupHeader(title: "Recent meetings") {
                 HudButton("All meetings", trailingGlyph: .chevronRight, size: .mini) { navigation.section = .meetings }
+                    .desktopInline()
             }
-            .padding(.leading, 12)
-            .padding(.trailing, 4)
-            .frame(height: 36)
+            .padding(.top, Hud.Layout.rowPad)
             if meetings.isEmpty {
                 HStack(spacing: 12) {
-                    Text("No recordings yet").hud(.body, Hud.Ink.ink2)
-                    Text("Crenel offers to record when a call starts.").hud(.meta)
+                    Text("No recordings yet").hudTrimmed(.body, Hud.Ink.ink2)
+                    Text("Crenel offers to record when a call starts.").hudTrimmed(.meta)
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 12)
-                .frame(height: Hud.Row.twoLine)
+                .hudRow(.icon)
             } else {
                 ForEach(meetings) { meeting in
                     Button {
                         navigation.selectedMeeting = meeting.id
                         navigation.section = .meetings
                     } label: {
-                        HudRow(.twoLine) {
-                            HudTimeColumn(DesktopFormat.clock(meeting.startedAt), DesktopFormat.runLength(meeting.duration))
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(verbatim: meeting.title).hud(.body).lineLimit(1).truncationMode(.tail)
-                                Text(verbatim: recentMeta(meeting, now: now)).hud(.meta).lineLimit(1).truncationMode(.tail)
+                        HStack(alignment: .center, spacing: Hud.Row.gap) {
+                            DesktopTimeColumn(DesktopFormat.clock(meeting.startedAt), DesktopFormat.runLength(meeting.duration))
+                            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                                Text(verbatim: meeting.title).hudTrimmed(.body).truncationMode(.tail)
+                                Text(verbatim: recentMeta(meeting, now: now)).hudTrimmed(.meta).truncationMode(.tail)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             DesktopMeetingStatusWord(state: DesktopMeetingState.resolve(meeting, jobs: appState.processingJobs))
-                                .padding(.top, 2)
                         }
+                        .hudRow(.icon)
+                        .contentShape(Rectangle())
                         .hudGlide(meeting.id, hovered: $hoveredRecent, in: recentSpace)
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
-        .padding(8)
+        // The list sits `rowPad` inside the card; rows add theirs, so text is `edge` in.
+        .padding(Hud.Layout.edge - Hud.Layout.rowPad)
         .hudPanel()
     }
 
@@ -485,29 +485,52 @@ struct DesktopMeetingStatusWord: View {
     var body: some View {
         switch state {
         case .ready:
-            HudStatusWord(.ok, "Notes ready").font(Hud.font(11.5, .medium))
+            HudStatusWord(.ok, "Notes ready").font(Hud.font(11.5, .medium)).desktopInline()
         case .processing:
             HStack(spacing: 8) {
-                HudBusy()
-                Text("Processing").hud(.meta, Hud.Ink.ink2)
+                HudBusy().desktopInline()
+                Text("Processing").hudTrimmed(.meta, Hud.Ink.ink2)
             }
         case .failed:
             HStack(spacing: 8) {
-                HudStatusShape(.err)
-                Text("Failed").hud(.meta, Hud.Ink.ink2)
+                HudStatusShape(.err).desktopInline()
+                Text("Failed").hudTrimmed(.meta, Hud.Ink.ink2)
             }
         case .transcriptOnly:
             HStack(spacing: 8) {
-                HudStatusShape(.warn)
-                Text("Transcript only").hud(.meta, Hud.Ink.ink2)
+                HudStatusShape(.warn).desktopInline()
+                Text("Transcript only").hudTrimmed(.meta, Hud.Ink.ink2)
             }
         case .notTranscribed:
             HStack(spacing: 8) {
-                HudStatusShape(.wait)
-                Text("Not transcribed").hud(.meta, Hud.Ink.ink2)
+                HudStatusShape(.wait).desktopInline()
+                Text("Not transcribed").hudTrimmed(.meta, Hud.Ink.ink2)
             }
         }
     }
+}
+
+/// Page geometry of the desktop dashboard pages, in visible gaps (measure model).
+enum DesktopPageLayout {
+    /// Window floor → page content, beside and under the cards.
+    static let gutter: CGFloat = Hud.Space.x6
+    /// The big gauge of the Today hero.
+    static let gauge: CGFloat = 148
+    /// The 270° gauge is open at the bottom: its lowest ink (the ends of the arc) sits
+    /// 16 % above its box (measured on the render).
+    static let gaugeFootRatio: CGFloat = 0.16
+    static let gaugeFoot: CGFloat = gauge * gaugeFootRatio
+    /// Its top tick sits a hair inside the box.
+    static let gaugeTop: CGFloat = 1
+    /// The wide ruler's box has this much above its event bars and under its hour labels.
+    static let rulerHead: CGFloat = 6.2
+    static let rulerFoot: CGFloat = 4.4
+    /// Gauge ink → ruler ink: `Hud.Layout.block`.
+    static let gaugeToRuler: CGFloat = Hud.Layout.block - gaugeFoot - rulerHead
+    /// A 14 pt glyph's ink starts this far inside its box (16 pt → 1.5).
+    static let smallGlyphInset: CGFloat = 14 * Hud.Layout.glyphInset / 16
+    /// Rows without a slab in an instrument tile: `Hud.Layout.item` between inks.
+    static let tileItem: CGFloat = Hud.Layout.item
 }
 
 /// An instrument tile (`.tile`): a panel that lifts on hover and opens its page.
@@ -520,7 +543,7 @@ private struct DesktopTile<Content: View>: View {
     var body: some View {
         Button(action: action) {
             content()
-                .padding(16)
+                .padding(Hud.Layout.edge)
                 .frame(maxWidth: .infinity, minHeight: 196, maxHeight: 196, alignment: .topLeading)
                 .hudPanel(isHovering: isHovering)
                 .contentShape(RoundedRectangle(cornerRadius: Hud.Radius.panel, style: .continuous))

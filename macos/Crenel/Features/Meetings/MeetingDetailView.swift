@@ -341,8 +341,7 @@ struct MeetingDetailView: View {
         LazyVStack(alignment: .leading, spacing: 0) {
             if showsHeader {
                 MeetingDetailHeader(meeting: content.meeting, transcript: content.storedTranscription?.transcript)
-                    .padding(.top, 4)
-                    .padding(.bottom, 16)
+                    .padding(.bottom, Hud.Layout.section)
                     .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
             }
 
@@ -357,26 +356,26 @@ struct MeetingDetailView: View {
                         editingSpeakerName = speaker.storedName ?? ""
                         analysisFailure = nil
                     }
-                    .padding(.top, 12)
+                    .padding(.top, Hud.Layout.block)
                     .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
                 }
 
                 if let analysisFailure, editingSpeakerID == nil {
-                    HStack(spacing: 8) {
-                        HudStatusShape(.err)
+                    HStack(spacing: 12) {
+                        HudStatusShape(.err).frame(width: 13)
                         Text(analysisFailure).hud(.meta, Hud.Ink.ink2).fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.horizontal, Hud.Row.inset)
-                    .padding(.top, 10)
+                    .padding(.horizontal, Hud.Layout.rowPad)
+                    .padding(.top, Hud.Layout.block)
                     .transition(.opacity)
                 }
 
                 notes(stored)
                     .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
 
-                HudGroupHeader(title: "Transcript")
+                HudGroupHeader(title: "Transcript", rows: transcript.segments.isEmpty ? .plain : .icon)
                     .accessibilityAddTraits(.isHeader)
-                    .padding(.top, 16)
+                    .padding(.top, Self.sectionGap(after: stored))
                     .hudStagger(4, shown: appeared, reduceMotion: reduceMotion)
 
                 if transcript.segments.isEmpty {
@@ -384,8 +383,8 @@ struct MeetingDetailView: View {
                         .hud(.read)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, Hud.Row.inset)
-                        .padding(.vertical, 8)
+                        .hudTrim(.read)
+                        .padding(.horizontal, Hud.Layout.rowPad)
                 } else {
                     let selectable = TranscriptPresentationPolicy.allowsInlineTextSelection(segmentCount: transcript.segments.count)
                     ForEach(transcript.segments) { segment in
@@ -403,7 +402,7 @@ struct MeetingDetailView: View {
                 MeetingTranscriptStateConsole(state: MeetingTranscriptState(content.meeting.processingStatus)) {
                     onRetry(content.meeting)
                 }
-                .padding(.top, 16)
+                .padding(.top, Hud.Layout.section)
                 .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
             }
         }
@@ -440,6 +439,12 @@ struct MeetingDetailView: View {
 
     // MARK: Notes
 
+    /// The last notes section → "Transcript": 28 visible; For you rows carry their own 10.
+    static func sectionGap(after stored: StoredTranscription) -> CGFloat {
+        let endsWithRows = stored.summaryFailure == nil && stored.summary?.actionItems.isEmpty == false
+        return endsWithRows ? HudRowKind.icon.sectionGap : Hud.Layout.section
+    }
+
     /// Summary, Decided and For you — or, without notes, the reason and the way out.
     @ViewBuilder
     private func notes(_ stored: StoredTranscription) -> some View {
@@ -451,11 +456,11 @@ struct MeetingDetailView: View {
                     isDisabled: savingSpeaker,
                     onRewrite: { onRetry(content.meeting) }
                 )
-                .padding(.top, 16)
+                .padding(.top, Hud.Layout.section)
 
                 if !summary.decisions.isEmpty {
                     MeetingDecidedSection(decisions: summary.decisions)
-                        .padding(.top, 12)
+                        .padding(.top, Hud.Layout.section)
                 }
 
                 if !summary.actionItems.isEmpty {
@@ -466,7 +471,7 @@ struct MeetingDetailView: View {
                         onPlay: { player.play(from: $0) },
                         onAdd: addToTasks
                     )
-                    .padding(.top, 12)
+                    .padding(.top, Hud.Layout.section)
                 }
             }
         } else {
@@ -476,13 +481,13 @@ struct MeetingDetailView: View {
                     onRewrite: { onRetry(content.meeting) },
                     isRewriting: isProcessing
                 )
-                .padding(.top, 16)
+                .padding(.top, Hud.Layout.section)
                 MeetingSummarySection(
                     overview: nil,
                     placeholder: MeetingNotesMissingConsole.remainder(stored.summaryFailure),
                     isRewriting: isProcessing
                 )
-                .padding(.top, 16)
+                .padding(.top, Hud.Layout.section)
             }
         }
     }

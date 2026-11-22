@@ -3,10 +3,9 @@ import SwiftUI
 /// Settings › Calendar › Notifications.
 struct MeetingNotificationSettingsView: View {
     @ObservedObject var service: MeetingNotificationService
-    var index = 2
 
     var body: some View {
-        SettingsGroup("Notifications", index: index) {
+        SettingsGroup("Notifications") {
             MeetingNotificationRow(status: service.status) {
                 Task { await service.requestAccess() }
             }

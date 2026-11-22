@@ -5,6 +5,35 @@ Kod: `macos/Crenel/Features/Design/System/` (`Hud*`, API başvurusu aynı klasö
 `README.md`). Aşağıdaki ölçüler prototipteki CSS ve çizim kodunun
 karşılığıdır. Çelişki olursa prototip esastır.
 
+## Ölçü modeli (2026-11-22, C13)
+
+Stil aynı kalır; boşluk, hiza ve tipografi bu modelden gelir. Çalışma ve ölçümler:
+`docs/design/notch-refine-study.html` (tur 6). Kod: `Hud.Layout`, `hudTrim`/`hudTrimmed`,
+`HudRowKind`, `hudRow(_:)`, `hudTileOutset()`, `HudGroupHeader`.
+
+- **Görünen boşluk.** Her ölçü bir mürekkep kenarından ötekinedir. Metin büyük harf
+  yüksekliğinden taban çizgisine kırpılır (`hudTrim`; Geist'ın satır kutusu harf
+  yüksekliğinin üstünde ve taban çizgisinin altında eşit 0.295 em ekler). 16 pt ikonun
+  mürekkebi 13 pt'dir, kutusunun 1.5 pt içinden başlar; yerleşim mürekkebe göre yapılır.
+- **Ritim (referanstan ölçüldü).** Başlık ↔ meta 7 · bir gruptaki bloklar 16 · öğeden öğeye
+  20 · etiket → grubunun ilk öğesi 20 · son öğe → sonraki etiket 28 · kenar → içerik 20.
+  Öğe, etiket ve bölüm aralıkları birbirine yakındır; bölümü büyük boşluk değil etiket ayırır.
+- **Bölüm etiketi** "Today · 3": ad, sönük orta nokta, sayı. Sayı hiçbir zaman sağ uçta tek
+  başına durmaz. Etiketin sağındaki küçük gösterge (hücreler, mini buton) etiketi uzatmaz.
+- **İki satır tipi.** İkonlu satır (`.icon`) her yönde 10 pay alır; tek satırlık görev satırı
+  33 = 10 + 13 + 10, satırlar arası boşluk yok, mürekkepten mürekkebe 20. Karolu satır
+  (`.tile`): ağırlığı karo verir; zemin karoyu üst, sol ve altta 4 ile sarar, sağdaki değer 10
+  içeridedir; satırlar arası 4, karodan karoya 12. Karo 56 × 36, köşe 6.
+- **Köşeler.** Bütün hover zeminleri 10 (karo 6 + 4). Panel 20. Yarıçap iç içe hesap uğruna
+  büyütülmez.
+- **Alan** 34 yüksekliğindedir; metin ve ikon 10 içeride.
+- **Hiza.** Liste kapları içerik kenarının 10 dışında durur, satırlar kendi 10'unu ekler:
+  zemin kenardan taşar, mürekkep kenarda kalır. Önde duran lamba ve şekiller 13'lük ikon
+  kolonunda ortalanır, metin 12 sonra başlar.
+- **Tipografi.** hero 18/600 · title 15/600 · body 13/500 · label 12.5/500 · section 12/500
+  ink-3 · meta 12/400 ink-3 · unit 11/500 · micro 10.5/500 ink-4. Hiyerarşi ağırlıktan çok
+  tonla kurulur: başlık ink-1, değer ink-2, meta ink-3, sayaç ve pasif öğe ink-4.
+
 ## Fikir
 
 Çağdaş bir ürün yapısı içinde retro gösterge ayrıntıları kullanılır. İskelet bugünün

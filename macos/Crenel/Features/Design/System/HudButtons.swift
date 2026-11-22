@@ -508,7 +508,9 @@ struct HudActions<Note: View, Buttons: View>: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            HStack(spacing: 10) { note() }
+            // A lamp or shape leads in the 13 pt icon column, text after it at 12, so the
+            // note lines up with the list's titles.
+            HStack(spacing: 12) { note() }
                 .hud(.meta, Hud.Ink.ink2)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -541,7 +543,9 @@ struct HudConsole<Note: View, Buttons: View>: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: Hud.Radius.console, style: .continuous)
         HStack(spacing: 8) {
-            HStack(spacing: 10) { note() }
+            // A lamp or shape leads in the 13 pt icon column, text after it at 12, so the
+            // note lines up with the list's titles.
+            HStack(spacing: 12) { note() }
                 .hud(.meta, Hud.Ink.ink2)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)

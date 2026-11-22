@@ -37,8 +37,8 @@ struct DesktopMeetingsPage: View {
                     sheet
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .hudSheet()
-                        .padding(.trailing, 12)
-                        .padding(.bottom, 12)
+                        .padding(.trailing, Hud.Space.x3)
+                        .padding(.bottom, Hud.Space.x3)
                 }
             }
         }
@@ -75,9 +75,9 @@ struct DesktopMeetingsPage: View {
         let needsCount = appState.storedMeetings.filter(DesktopMeetingFilter.needsUser).count
         VStack(alignment: .leading, spacing: 0) {
             if isEmpty {
-                VStack(spacing: 6) {
-                    Text("No recordings yet").hud(.body, Hud.Ink.ink2)
-                    Text("Crenel offers to record when a call starts.").hud(.meta)
+                VStack(spacing: Hud.Layout.pair) {
+                    Text("No recordings yet").hudTrimmed(.body, Hud.Ink.ink2)
+                    Text("Crenel offers to record when a call starts.").hud(.meta).hudTrim(.meta)
                         .multilineTextAlignment(.center)
                 }
                 .frame(maxWidth: 240)
@@ -90,13 +90,16 @@ struct DesktopMeetingsPage: View {
                                        .init(DesktopMeetingFilter.forYou, "For you")],
                                selection: $filter)
                     .frame(height: 26)
-                    .padding(.leading, 10)
-                    .padding(.bottom, 6)
+                    .padding(.leading, Hud.Layout.rowPad)
+                    // Its words sit 6.5 inside the 26 pt box: label 20 from their ink.
+                    .padding(.bottom, Hud.Layout.label - 6.5)
                 list(now: now)
             }
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 12)
+        // The list sits `rowPad` outside the content edge, so titles line up with the
+        // toolbar title and hover slabs bleed past them.
+        .padding(.leading, DesktopPageLayout.gutter - Hud.Layout.rowPad)
+        .padding(.trailing, Hud.Space.x3)
     }
 
     private func list(now: Date) -> some View {
@@ -108,28 +111,28 @@ struct DesktopMeetingsPage: View {
         return ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 if !upcoming.isEmpty {
-                    HudGroupHeader(title: "Coming up").accessibilityAddTraits(.isHeader)
+                    HudGroupHeader(title: "Coming up", count: upcoming.count)
                     ForEach(upcoming) { meeting in upcomingRow(meeting, now: now) }
                 }
                 if meetings.isEmpty {
-                    VStack(spacing: 4) {
-                        Text(query.isEmpty ? "Nothing here" : "No results").hud(.body, Hud.Ink.ink2)
-                        Text(query.isEmpty ? "No recording matches this filter." : "Try another name or a phrase from the call.").hud(.meta)
+                    VStack(spacing: Hud.Layout.pair) {
+                        Text(query.isEmpty ? "Nothing here" : "No results").hudTrimmed(.body, Hud.Ink.ink2)
+                        Text(query.isEmpty ? "No recording matches this filter." : "Try another name or a phrase from the call.").hud(.meta).hudTrim(.meta)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.top, 32)
+                    .padding(.top, upcoming.isEmpty ? Hud.Layout.edge : HudRowKind.icon.sectionGap)
                 }
                 ForEach(Array(groups.enumerated()), id: \.element.key) { offset, group in
-                    HudGroupHeader(title: DesktopFormat.dayGroup(group.key, now: now))
-                        .padding(.top, offset > 0 || !upcoming.isEmpty ? 8 : 0)
-                        .accessibilityAddTraits(.isHeader)
-                    ForEach(group.value.sorted { $0.startedAt > $1.startedAt }) { meeting in
+                    let rows = group.value.sorted { $0.startedAt > $1.startedAt }
+                    HudGroupHeader(title: DesktopFormat.dayGroup(group.key, now: now), count: rows.count)
+                        .padding(.top, offset > 0 || !upcoming.isEmpty ? HudRowKind.icon.sectionGap : 0)
+                    ForEach(rows) { meeting in
                         meetingRow(meeting)
                     }
                 }
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, Hud.Space.x3)
         }
         .scrollIndicators(.never)
         .focusable()
@@ -139,14 +142,16 @@ struct DesktopMeetingsPage: View {
     }
 
     private func upcomingRow(_ meeting: Meeting, now: Date) -> some View {
-        HudRow(.twoLine) {
-            HudTimeColumn(DesktopFormat.clock(meeting.startDate))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(verbatim: meeting.title).hud(.body).lineLimit(1).truncationMode(.tail)
-                Text(verbatim: upcomingMeta(meeting, now: now)).hud(.meta).lineLimit(1)
+        HStack(alignment: .top, spacing: Hud.Row.gap) {
+            DesktopTimeColumn(DesktopFormat.clock(meeting.startDate))
+            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                Text(verbatim: meeting.title).hudTrimmed(.body).truncationMode(.tail)
+                Text(verbatim: upcomingMeta(meeting, now: now)).hudTrimmed(.meta)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .hudRow(.icon)
+        .contentShape(Rectangle())
         .hudGlide(AnyHashable("upcoming-\(meeting.id)"), hovered: $hoveredRow, in: listSpace)
         .contextMenu {
             if let url = meeting.meetingURL {
@@ -173,28 +178,32 @@ struct DesktopMeetingsPage: View {
         return Button {
             selection = meeting.id
         } label: {
-            HudRow(.twoLine) {
-                HudTimeColumn(DesktopFormat.clock(meeting.startedAt), DesktopFormat.runLength(meeting.duration))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(verbatim: meeting.title).hud(.body).lineLimit(1).truncationMode(.tail)
-                    Text(verbatim: rowMeta(meeting, state: state)).hud(.meta).lineLimit(1).truncationMode(.tail)
+            // Time column and titles are both two trimmed lines `pair` apart, so the row
+            // centres them level; the state shape sits on the row's middle.
+            HStack(alignment: .center, spacing: Hud.Row.gap) {
+                DesktopTimeColumn(DesktopFormat.clock(meeting.startedAt), DesktopFormat.runLength(meeting.duration))
+                VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                    Text(verbatim: meeting.title).hudTrimmed(.body).truncationMode(.tail)
+                    Text(verbatim: rowMeta(meeting, state: state)).hudTrimmed(.meta).truncationMode(.tail)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 switch state {
-                case .processing: HudBusy().padding(.top, 5)
-                case .failed: HudStatusShape(.err).padding(.top, 3)
-                case .transcriptOnly: HudStatusShape(.warn).padding(.top, 3)
+                case .processing: HudBusy()
+                case .failed: HudStatusShape(.err)
+                case .transcriptOnly: HudStatusShape(.warn)
                 case .ready, .notTranscribed: EmptyView()
                 }
             }
+            .hudRow(.icon)
+            .contentShape(Rectangle())
             .background {
                 if isSelected {
-                    RoundedRectangle(cornerRadius: Hud.Row.radius, style: .continuous).fill(Color(white: 1, opacity: 0.06))
-                        .overlay(alignment: .topLeading) {
+                    RoundedRectangle(cornerRadius: Hud.Layout.hitRadius, style: .continuous).fill(Color(white: 1, opacity: 0.06))
+                        .overlay(alignment: .leading) {
                             Capsule().fill(Hud.Ink.ink1)
                                 .shadow(color: Hud.Ink.ink1.opacity(0.7), radius: 3)
                                 .frame(width: 3, height: 22)
-                                .offset(x: 3, y: 14)
+                                .offset(x: 3)
                         }
                         .matchedGeometryEffect(id: "desktop.meeting", in: listSpace)
                 }
@@ -257,11 +266,11 @@ struct DesktopMeetingsPage: View {
                 .id(detail.id)
         } else if let selected {
             if loadError {
-                VStack(spacing: 16) {
+                VStack(spacing: Hud.Layout.block) {
                     HudStatusWell(.err)
-                    VStack(spacing: 4) {
-                        Text("Couldn’t open this meeting").hud(.body, Hud.Ink.ink1)
-                        Text("Its files couldn’t be read. The audio is still on disk.").hud(.meta)
+                    VStack(spacing: Hud.Layout.pair) {
+                        Text("Couldn’t open this meeting").hudTrimmed(.body, Hud.Ink.ink1)
+                        Text("Its files couldn’t be read. The audio is still on disk.").hudTrimmed(.meta)
                     }
                     HStack(spacing: 8) {
                         HudButton("Show in Finder", glyph: .archive) { actions.revealMeetingAudio(selected) }
@@ -277,15 +286,15 @@ struct DesktopMeetingsPage: View {
                 }
             }
         } else {
-            VStack(spacing: 20) {
+            VStack(spacing: Hud.Layout.edge) {
                 HudGauge(value: 0, size: 120, bleed: false) {
                     HudIcon(.tape, size: 20).foregroundStyle(Hud.Ink.ink4)
                 }
                 .frame(width: 120, height: 120)
                 .accessibilityHidden(true)
-                VStack(spacing: 4) {
-                    Text("Pick a meeting").hud(.body, Hud.Ink.ink2)
-                    Text("Notes, tasks and the transcript open here.").hud(.meta)
+                VStack(spacing: Hud.Layout.pair) {
+                    Text("Pick a meeting").hudTrimmed(.body, Hud.Ink.ink2)
+                    Text("Notes, tasks and the transcript open here.").hudTrimmed(.meta)
                 }
                 HudButton("New recording", lamp: .red, action: actions.startRecording)
                     .disabled(appState.requiresTerminationConfirmation)

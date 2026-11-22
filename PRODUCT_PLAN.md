@@ -239,6 +239,20 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
   hemen geri geliyor; Slack huddle kaydında iki taraf da duyuluyor; notch'ta Cancel ve
   Stop processing onayı. Kullanıcı ve test kullanıcısı doğrulayacak.
 
+### C13 · Ölçü sistemi ve rafine arayüz (2026-11-22)
+
+Kullanıcı kararı: stil, ikonlar ve akış aynı kalır; boşluk, hiza ve tipografi
+`docs/design/notch-refine-study.html` (tur 6) çalışmasındaki ölçü modeliyle bütün uygulamaya
+uygulanır. Model: görünen boşluk (harf yüksekliği/taban çizgisi ve ikon mürekkebi), referans
+ritmi (başlık ↔ meta 7, öğeden öğeye 20, etiket → grup 20, bölüm 28, kenar 20), iki satır tipi
+(ikonlu satır payı 10; karolu satırda karo etrafında 4), tek hover köşesi 10, etiket sayacı
+“Label · n”, alan yüksekliği 34.
+
+- [x] Ölçü token'ları, yazı kırpma ve satır tiplerini `Hud`'a eklemek; notch, masaüstü ve
+  Ayarlar ekranlarını bu modele taşımak; galeri render'larıyla doğrulamak. — ✅ 2026-11-22
+  (tam macOS koşusu 691 test, 5 atlama, 0 hata; galeriler piksel ölçümüyle kontrol edildi)
+- [ ] Kullanıcının uygulamada gözden geçirmesi.
+
 ### C8 — Gerçek cihaz kabulü
 
 Otomatik testler gerçek izinleri, EventKit/Hatırlatıcılar hesaplarını, event tap'i,

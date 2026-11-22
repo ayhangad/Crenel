@@ -19,24 +19,26 @@ struct DesktopTasksPage: View {
                         HudButton("Open in Reminders", glyph: .link, size: .small, action: actions.openReminders)
                     }
                 }
-                HStack(alignment: .top, spacing: 24) {
+                HStack(alignment: .top, spacing: DesktopPageLayout.gutter) {
                     ScrollView {
                         TasksView()
                             .frame(maxWidth: 620, alignment: .leading)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.bottom, 24)
+                            .padding(.bottom, DesktopPageLayout.gutter)
                     }
                     .scrollIndicators(.never)
-                    VStack(spacing: 16) {
+                    VStack(spacing: Hud.Layout.block) {
                         dayGauge(presentation, done: done, now: now).desktopEnter(0)
                         duePanel(presentation, now: now).desktopEnter(1)
                         storagePanel.desktopEnter(2)
                     }
                     .frame(width: 268)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, DesktopPageLayout.gutter)
                 }
-                .padding(.leading, 20)
-                .padding(.trailing, 24)
+                // The task list sits `rowPad` outside the content edge (its rows add theirs),
+                // so titles line up with the toolbar title.
+                .padding(.leading, DesktopPageLayout.gutter - Hud.Layout.rowPad)
+                .padding(.trailing, DesktopPageLayout.gutter)
             }
         }
     }
@@ -49,25 +51,33 @@ struct DesktopTasksPage: View {
 
     private func dayGauge(_ presentation: TaskListPresentation, done: Int, now: Date) -> some View {
         let total = done + presentation.activeCount
-        return VStack(spacing: 16) {
-            HudGauge(value: total > 0 ? Double(done) / Double(total) : 0, ticks: 40, major: 8, size: 128, tint: Hud.Ink.ok, ignite: fixedNow == nil) {
+        return VStack(spacing: 0) {
+            HudGauge(value: total > 0 ? Double(done) / Double(total) : 0, ticks: 40, major: 8, size: Self.gauge, tint: Hud.Ink.ok, ignite: fixedNow == nil) {
                 HudSegmentDigits("\(done)", height: 30)
                 Text(verbatim: "of \(total) done").hud(.micro, Hud.Ink.ink3)
             }
-            .frame(width: 128, height: 128)
+            .frame(width: Self.gauge, height: Self.gauge)
             .accessibilityElement()
             .accessibilityLabel(Text(verbatim: "\(done) of \(total) done today"))
+            // The gauge is open at the bottom: its ink ends `gaugeFoot` above its box.
             Text(verbatim: sentence(presentation, total: total, now: now))
                 .hud(.meta)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+                .hudTrim(.meta)
+                .padding(.top, Hud.Layout.block - Self.gaugeFoot)
         }
-        .padding(.top, 24)
-        .padding(.bottom, 20)
-        .padding(.horizontal, 20)
+        .padding(.top, Hud.Layout.edge - DesktopPageLayout.gaugeTop)
+        .padding(.bottom, Hud.Layout.edge)
+        .padding(.horizontal, Hud.Layout.edge)
         .frame(maxWidth: .infinity)
         .hudPanel()
     }
+
+    private static let gauge: CGFloat = 128
+    /// This 40-tick gauge has no scale labels: the ends of its arc sit 13.7 % above its
+    /// box (measured on the render).
+    private static let gaugeFoot: CGFloat = gauge * 0.137
 
     private func sentence(_ presentation: TaskListPresentation, total: Int, now: Date) -> String {
         if let task = presentation.inProgress {
@@ -88,48 +98,47 @@ struct DesktopTasksPage: View {
             .filter { $0.isActive && ($0.dueDate.map { $0 < endOfDay } ?? false) }
             .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
         let nextTimed = due.first { $0.dueHasTime && ($0.dueDate ?? now) >= now }?.id
-        return VStack(spacing: 0) {
-            HStack {
-                Text("Due").hud(.label, Hud.Ink.ink2)
-                Spacer(minLength: 4)
-                Text("today").hud(.micro)
+        return VStack(alignment: .leading, spacing: 0) {
+            HudGroupHeader(title: "Due", count: due.count) {
+                Text("today").hudTrimmed(.micro)
             }
-            .padding(.horizontal, 10)
-            .frame(height: 32)
+            .padding(.top, Hud.Layout.rowPad)
             if due.isEmpty {
                 HStack(spacing: 12) {
-                    HudLamp(.off)
-                    Text("Nothing due today").hud(.label, Hud.Ink.ink3)
+                    HudLamp(.off).frame(width: 13)
+                    Text("Nothing due today").hudTrimmed(.label, Hud.Ink.ink3)
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 10)
-                .frame(height: 36)
+                .hudRow(.icon)
             }
             ForEach(due.prefix(6)) { task in
                 let overdue = isOverdue(task, now: now, calendar: calendar)
                 HStack(spacing: 12) {
-                    if overdue {
-                        HudStatusShape(.warn, tint: Hud.Ink.live).help("Overdue")
-                    } else {
-                        HudLamp(task.id == nextTimed ? .white : .off)
+                    Group {
+                        if overdue {
+                            HudStatusShape(.warn, tint: Hud.Ink.live).help("Overdue")
+                        } else {
+                            HudLamp(task.id == nextTimed ? .white : .off)
+                        }
                     }
-                    Text(verbatim: task.title).hud(.label, overdue || task.id == nextTimed ? Hud.Ink.ink1 : Hud.Ink.ink2)
-                        .lineLimit(1).truncationMode(.tail)
+                    .frame(width: 13)
+                    Text(verbatim: task.title).hudTrimmed(.label, overdue || task.id == nextTimed ? Hud.Ink.ink1 : Hud.Ink.ink2)
+                        .truncationMode(.tail)
                     Spacer(minLength: 4)
                     if overdue {
-                        Text("overdue").hud(.meta, Hud.Ink.live)
+                        Text("overdue").hudTrimmed(.meta, Hud.Ink.live)
                     } else if task.dueHasTime, let date = task.dueDate {
                         HudSegmentDigits(DesktopFormat.clock(date), height: 10, color: task.id == nextTimed ? Hud.Ink.ink2 : Hud.Ink.ink3, glows: false)
                     } else {
-                        Text("today").hud(.meta)
+                        Text("today").hudTrimmed(.meta)
                     }
                 }
-                .padding(.horizontal, 10)
-                .frame(height: 36)
+                .hudRow(.icon)
                 .accessibilityElement(children: .combine)
             }
         }
-        .padding(8)
+        // The rows sit `rowPad` inside the card and add theirs: text is `edge` in.
+        .padding(Hud.Layout.edge - Hud.Layout.rowPad)
         .frame(maxWidth: .infinity)
         .hudPanel()
     }
@@ -145,34 +154,34 @@ struct DesktopTasksPage: View {
         HStack(spacing: 12) {
             switch appState.taskStorageStatus {
             case .reminders(let listTitle):
-                HudLamp(.teal)
+                HudLamp(.teal).frame(width: 13)
                 storageText("Apple Reminders", "“\(listTitle)” list · synced")
             case .localNotConnected:
-                HudLamp(.off)
+                HudLamp(.off).frame(width: 13)
                 storageText("On this Mac only", "Reminders isn’t connected")
                 HudButton("Connect", size: .mini, action: crenelActions.tasks.connectReminders)
             case .localDenied:
-                HudStatusShape(.off)
+                HudStatusShape(.off).frame(width: 13)
                 storageText("On this Mac only", "Reminders access is off")
                 HudButton("Settings", size: .mini) { openSettings(.tasks) }
             case .localByChoice:
-                HudLamp(.off)
+                HudLamp(.off).frame(width: 13)
                 storageText("On this Mac only", "Kept in a local file")
             case .localAfterError(let message):
-                HudStatusShape(.err)
+                HudStatusShape(.err).frame(width: 13)
                 storageText("On this Mac only", message)
                 HudButton("Settings", size: .mini) { openSettings(.tasks) }
             }
         }
-        .padding(14)
+        .padding(Hud.Layout.edge)
         .frame(maxWidth: .infinity, alignment: .leading)
         .hudPanel()
     }
 
     private func storageText(_ title: LocalizedStringKey, _ detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title).hud(.label, Hud.Ink.ink1)
-            Text(verbatim: detail).hud(.meta).lineLimit(1).truncationMode(.tail)
+        VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+            Text(title).hudTrimmed(.label, Hud.Ink.ink1)
+            Text(verbatim: detail).hudTrimmed(.meta).truncationMode(.tail)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

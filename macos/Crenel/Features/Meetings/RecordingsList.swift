@@ -76,7 +76,7 @@ struct RecentMeetingsList: View, Equatable {
         VStack(alignment: .leading, spacing: 0) {
             if let recovery {
                 RecordingsRecoveryNotice(summary: recovery, onOpenRecovery: onOpenRecovery, onDismiss: onDismissRecovery)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, Hud.Layout.section)
                     .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
             }
             if meetings.isEmpty {
@@ -86,21 +86,23 @@ struct RecentMeetingsList: View, Equatable {
                 let week = RecordingsWeek(meetings: weekMeetings ?? meetings, now: now)
                 if week.total > 0 {
                     RecordingsWeekMeter(week: week)
-                        .padding(.horizontal, Hud.Row.inset)
-                        .padding(.bottom, 12)
+                        .padding(.horizontal, Hud.Layout.rowPad)
+                        .padding(.bottom, Hud.Layout.section)
                         .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
                 }
                 let groups = RecordingsMonth.groups(meetings, now: now)
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(groups) { group in
-                        HudListHeader(group.title, count: group.meetings.count, isFirst: group.id == groups.first?.id)
+                        HudListHeader(group.title, count: group.meetings.count, rows: .tile)
 
                         VStack(alignment: .leading, spacing: RecordingRow.spacing) {
                             ForEach(group.meetings) { meeting in
                                 row(meeting)
                                     .hudGlide(meeting.id, hovered: $hovered, in: glide, forced: forcedHover.map(AnyHashable.init))
+                                    .hudTileOutset()
                             }
                         }
+                        .padding(.bottom, group.id == groups.last?.id ? 0 : HudRowKind.tile.sectionGap)
                     }
                 }
                 .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
@@ -118,8 +120,7 @@ struct RecentMeetingsList: View, Equatable {
             Spacer(minLength: 8)
             Text("Crenel offers when a call starts").hud(.meta).lineLimit(1)
         }
-        .padding(.horizontal, Hud.Row.inset)
-        .frame(height: Hud.Row.oneLine)
+        .hudRow(.icon)
         .accessibilityElement(children: .combine)
     }
 

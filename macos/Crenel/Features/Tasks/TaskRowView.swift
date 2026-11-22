@@ -49,6 +49,8 @@ struct TaskRowView: View {
                 HStack(spacing: Hud.Row.gap) {
                     HudStateMark(state: displayStatus)
                         .frame(width: 16, height: 16)
+                        // Lay out by the mark's ink (13 of 16), so it sits 10 from the slab.
+                        .padding(-Hud.Layout.glyphInset)
                     Text(task.title)
                         .hud(.body, displayStatus == .completed ? Hud.Ink.ink3 : Hud.Ink.ink1)
                         .lineLimit(1)

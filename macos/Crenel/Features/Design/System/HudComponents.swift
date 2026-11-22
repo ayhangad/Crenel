@@ -103,54 +103,124 @@ struct HudFrame<Content: View>: View {
 
 // MARK: - Group header
 
-/// A group title (`.group-h`): label in ink-3, an optional dim count beside it, an
-/// optional trailing readout (cells, a small button). No rule, no caps.
+/// A section label: "Today · 3" — the name, a dim middle dot and the count beside it,
+/// never a lone number at the far edge. An optional trailing readout (cells, a small
+/// button) ends at the content edge. The label is trimmed to its cap height and sits
+/// `Hud.Layout.label` above the ink of the first item; pass the kind of rows that follow
+/// so their own padding is counted.
 ///
 ///     HudGroupHeader(title: "Today", count: 3)
+///     HudGroupHeader(title: "Later", count: 2, rows: .tile)
 ///     HudGroupHeader(title: "Today") { HudCells(done: 1, total: 5) }
 struct HudGroupHeader<Trailing: View>: View {
     let title: Text
     var count: Int?
+    var rows: HudRowKind = .icon
     @ViewBuilder var trailing: () -> Trailing
 
-    init(title: LocalizedStringKey, count: Int? = nil, @ViewBuilder trailing: @escaping () -> Trailing) {
+    init(title: LocalizedStringKey, count: Int? = nil, rows: HudRowKind = .icon, @ViewBuilder trailing: @escaping () -> Trailing) {
         self.title = Text(title)
         self.count = count
+        self.rows = rows
         self.trailing = trailing
     }
 
     @_disfavoredOverload
-    init<S: StringProtocol>(title: S, count: Int? = nil, @ViewBuilder trailing: @escaping () -> Trailing) {
+    init<S: StringProtocol>(title: S, count: Int? = nil, rows: HudRowKind = .icon, @ViewBuilder trailing: @escaping () -> Trailing) {
         self.title = Text(title)
         self.count = count
+        self.rows = rows
         self.trailing = trailing
     }
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            title.hud(.label, Hud.Ink.ink3)
+        HStack(alignment: .center, spacing: 6) {
+            title.hudTrimmed(.section)
             if let count {
-                Text(verbatim: "\(count)").hud(.label, Hud.Ink.ink4)
+                Text(verbatim: "·").hudTrimmed(.section, Hud.Ink.ink4)
+                Text(verbatim: "\(count)").hudTrimmed(.section)
             }
             Spacer(minLength: 0)
-            trailing()
         }
-        .lineLimit(1)
-        .padding(.horizontal, Hud.Row.inset)
-        .padding(.top, 6)
-        .frame(height: Hud.Row.groupHeader, alignment: .top)
-        .padding(.bottom, 2)
+        // The trailing readout (cells, a small button) does not make the label taller:
+        // the label → first item gap is measured from the label's own ink.
+        .overlay(alignment: .trailing) { trailing() }
+        .padding(.horizontal, Hud.Layout.rowPad)
+        .padding(.bottom, Hud.Layout.label - rows.verticalPad)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 
 extension HudGroupHeader where Trailing == EmptyView {
-    init(title: LocalizedStringKey, count: Int? = nil) {
-        self.init(title: title, count: count) { EmptyView() }
+    init(title: LocalizedStringKey, count: Int? = nil, rows: HudRowKind = .icon) {
+        self.init(title: title, count: count, rows: rows) { EmptyView() }
     }
 
     @_disfavoredOverload
-    init<S: StringProtocol>(title: S, count: Int? = nil) {
-        self.init(title: title, count: count) { EmptyView() }
+    init<S: StringProtocol>(title: S, count: Int? = nil, rows: HudRowKind = .icon) {
+        self.init(title: title, count: count, rows: rows) { EmptyView() }
+    }
+}
+
+// MARK: - Row kinds (measure model)
+
+/// The two list rows of the measure model. Lists sit `rowPad` outside the content edge,
+/// so the hover slab can bleed past the text and every row's ink lands on the edge.
+enum HudRowKind: Sendable {
+    /// An icon (or lamp, or text alone) leads: 10 on every side. A 16 pt glyph is 13 pt
+    /// of ink, so a one-line icon row is 33 = 10 + 13 + 10 and its slab sits 10 around
+    /// the ink.
+    case icon
+    /// A date/time tile leads: the slab hugs the tile by 4 on top, left and bottom; the
+    /// trailing value keeps 10. Rows stand 4 apart (tile to tile 12).
+    case tile
+    /// No hover slab: plain content placed on the content edge.
+    case plain
+
+    /// The row's own padding above and below its ink.
+    var verticalPad: CGFloat {
+        switch self {
+        case .icon: Hud.Layout.rowPad
+        case .tile: Hud.Layout.tilePad
+        case .plain: 0
+        }
+    }
+
+    /// Space between rows of this kind in one list.
+    var spacing: CGFloat {
+        switch self {
+        case .icon: 0
+        case .tile: Hud.Layout.tileGap
+        case .plain: Hud.Layout.item
+        }
+    }
+
+    /// Margin above the next section's label after a list of these rows (28 visible).
+    var sectionGap: CGFloat { Hud.Layout.section - verticalPad }
+}
+
+extension View {
+    /// Pads a row for its kind. Apply it before `hudGlide`; for `.tile` rows apply
+    /// `hudTileOutset()` after the glide, so the slab starts 4 left of the tile.
+    func hudRow(_ kind: HudRowKind) -> some View {
+        Group {
+            switch kind {
+            case .icon:
+                padding(Hud.Layout.rowPad)
+            case .tile:
+                padding(.leading, Hud.Layout.tilePad)
+                    .padding(.trailing, Hud.Layout.rowPad)
+                    .padding(.vertical, Hud.Layout.tilePad)
+            case .plain:
+                padding(.horizontal, Hud.Layout.rowPad)
+            }
+        }
+    }
+
+    /// The tile row's slab starts 4 left of the tile while the list sits 10 out.
+    func hudTileOutset() -> some View {
+        padding(.leading, Hud.Layout.rowPad - Hud.Layout.tilePad)
     }
 }
 
@@ -224,13 +294,11 @@ struct HudTimeColumn: View {
 
 // MARK: - Date tile
 
-/// A day as a small well (`.dtile`): the day of the month in segment digits over a short
-/// word — the month in Recordings, the weekday in Today's later events — or, for an
-/// event today, just its start time. It is at least as tall as its own content plus
-/// 6 pt above and below, and stretches to the row when the row is taller; centre the
-/// row (`HStack(alignment: .center)`) and fix its height
-/// (`.fixedSize(horizontal: false, vertical: true)`). An optional corner lamp marks a row
-/// that needs something; rows that are fine have none.
+/// A day as a small well (`.dtile`), 56 × 36: the day of the month in segment digits
+/// beside a short word — the month in Recordings, the weekday in Today's later events —
+/// or, for an event today, just its start time. Every tile has the same size, so a list
+/// of them reads as one column. An optional corner lamp marks a row that needs
+/// something; rows that are fine have none.
 ///
 ///     HudDateTile(date: meeting.startedAt, caption: .month)
 ///     HudDateTile(date: event.startDate, caption: .weekday, lamp: .amber)
@@ -246,8 +314,8 @@ struct HudDateTile: View {
     var lampLoop: HudLoop = .steady
     var calendar: Calendar = .current
 
-    static let width: CGFloat = 44
-    static let verticalPadding: CGFloat = 6
+    static let width: CGFloat = Hud.Layout.tile.width
+    static let height: CGFloat = Hud.Layout.tile.height
 
     init(date: Date, caption: Caption = .month, lamp: Hud.LampColor? = nil, lampLoop: HudLoop = .steady,
          calendar: Calendar = .current) {
@@ -275,28 +343,22 @@ struct HudDateTile: View {
         Group {
             switch content {
             case .day:
-                VStack(spacing: 4) {
-                    HudSegmentDigits(String(format: "%02d", calendar.component(.day, from: date)), height: 15, cells: 2)
-                    Text(verbatim: word).hud(.micro, Hud.Ink.ink3)
+                HStack(alignment: .center, spacing: 5) {
+                    HudSegmentDigits(String(format: "%02d", calendar.component(.day, from: date)), height: 13, cells: 2)
+                    Text(verbatim: word).hudTrimmed(.micro, Hud.Ink.ink3)
                 }
-                // The word's line box keeps room for descenders it does not have, so the
-                // visible ink sat 1.5 pt high (measured 6 pt above, 9 pt below).
-                .offset(y: 1.5)
             case .time:
-                HudSegmentDigits(HudFormat.clock(date), height: 12)
+                HudSegmentDigits(HudFormat.clock(date), height: 13)
             case .allDay:
-                Text("All day").hud(.micro, Hud.Ink.ink3).multilineTextAlignment(.center)
+                Text("All day").hudTrimmed(.micro, Hud.Ink.ink3)
             }
         }
-        .lineLimit(2)
-        .padding(.vertical, Self.verticalPadding)
-        .frame(width: Self.width)
-        .frame(maxHeight: .infinity)
+        .frame(width: Self.width, height: Self.height)
         .background {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
+            RoundedRectangle(cornerRadius: Hud.Layout.tileRadius, style: .continuous)
                 .fill(LinearGradient(colors: [Color(white: 0.02), Color(white: 0.04)], startPoint: .top, endPoint: .bottom))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    RoundedRectangle(cornerRadius: Hud.Layout.tileRadius, style: .continuous)
                         .strokeBorder(Color.white.opacity(0.07), lineWidth: 0.5)
                 }
         }
@@ -318,33 +380,23 @@ struct HudDateTile: View {
     }
 }
 
-/// A list's group header in the row language: the name on the left, the count at the
-/// trailing edge, both quiet.
+/// A list's section label: the same "Name · n" as `HudGroupHeader`. Kept for the
+/// list call sites; spacing above comes from the list (`HudRowKind.sectionGap`).
 ///
-///     HudListHeader("September", count: 2)
+///     HudListHeader("September", count: 2, rows: .tile)
 struct HudListHeader: View {
     let title: String
     var count: Int?
-    var isFirst = false
+    var rows: HudRowKind = .tile
 
-    init(_ title: String, count: Int? = nil, isFirst: Bool = false) {
+    init(_ title: String, count: Int? = nil, rows: HudRowKind = .tile) {
         self.title = title
         self.count = count
-        self.isFirst = isFirst
+        self.rows = rows
     }
 
     var body: some View {
-        HStack {
-            Text(verbatim: title)
-            Spacer(minLength: 8)
-            if let count { Text(verbatim: "\(count)").monospacedDigit() }
-        }
-        .hud(.meta, Hud.Ink.ink4)
-        .padding(.horizontal, Hud.Row.inset)
-        .padding(.top, isFirst ? 2 : 10)
-        .padding(.bottom, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
+        HudGroupHeader(title: title, count: count, rows: rows)
     }
 }
 
@@ -363,7 +415,7 @@ struct HudGlide: ViewModifier {
         content
             .background {
                 if (forced ?? hovered) == id {
-                    RoundedRectangle(cornerRadius: Hud.Row.radius, style: .continuous)
+                    RoundedRectangle(cornerRadius: Hud.Layout.hitRadius, style: .continuous)
                         .fill(Hud.Ink.hover)
                         .matchedGeometryEffect(id: "hud.glide", in: namespace)
                 }
@@ -428,7 +480,7 @@ struct HudTabs<Tab: Hashable>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: Hud.Layout.edge) {
             ForEach(items, id: \.tab) { item in
                 let isSelected = item.tab == selection
                 Button {
@@ -664,7 +716,7 @@ struct HudSelect<Value: Hashable>: View {
 extension View {
     /// A field well behind an input: white 5.5 %, 9 % when focused.
     /// `.sfield` is 32 pt / radius 8; the task input is 44 pt / radius 12 (8 % focused).
-    func hudField(height: CGFloat = 32, radius: CGFloat = 8, isFocused: Bool = false, padding: CGFloat = 12) -> some View {
+    func hudField(height: CGFloat = Hud.Layout.field, radius: CGFloat = Hud.Layout.hitRadius, isFocused: Bool = false, padding: CGFloat = Hud.Layout.rowPad) -> some View {
         self
             .padding(.horizontal, padding)
             .frame(height: height)
@@ -679,8 +731,8 @@ extension View {
 struct HudTextField: View {
     @Binding var text: String
     var prompt: LocalizedStringKey = ""
-    var height: CGFloat = 32
-    var radius: CGFloat = 8
+    var height: CGFloat = Hud.Layout.field
+    var radius: CGFloat = Hud.Layout.hitRadius
     var onSubmit: () -> Void = {}
     @FocusState private var isFocused: Bool
 

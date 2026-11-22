@@ -33,8 +33,9 @@ final class HudFoundationGalleryTests: XCTestCase {
 
     func testTypeStylesMatchTheSpec() {
         let table: [(Hud.Style, CGFloat, Hud.Weight, CGFloat)] = [
-            (.hero, 17, .semibold, -0.204), (.title, 15, .semibold, -0.09), (.body, 13, .medium, 0),
-            (.label, 12.5, .medium, 0), (.meta, 11.5, .regular, 0), (.micro, 10, .medium, 0),
+            // C13 measure model: hero 18, meta 12, micro 10.5, section 12/500.
+            (.hero, 18, .semibold, -0.252), (.title, 15, .semibold, -0.09), (.body, 13, .medium, 0),
+            (.label, 12.5, .medium, 0), (.meta, 12, .regular, 0), (.section, 12, .medium, 0), (.micro, 10.5, .medium, 0),
             (.unit, 11, .medium, 0), (.read, 13, .regular, 0)
         ]
         for (style, size, weight, tracking) in table {
@@ -45,6 +46,9 @@ final class HudFoundationGalleryTests: XCTestCase {
         XCTAssertEqual(hex(Hud.Style.meta.defaultColor), "76736E")
         XCTAssertEqual(hex(Hud.Style.micro.defaultColor), "4C4A47")
         XCTAssertEqual(hex(Hud.Style.unit.defaultColor), "76736E")
+        XCTAssertEqual(hex(Hud.Style.section.defaultColor), "76736E")
+        // Geist's line box adds 0.295 em above the cap height and below the baseline.
+        XCTAssertEqual(Hud.Style.body.trim, 13 * 0.295, accuracy: 0.0001)
     }
 
     func testEveryGlyphHasLineArtAndLitGlyphsHaveSolidArt() {

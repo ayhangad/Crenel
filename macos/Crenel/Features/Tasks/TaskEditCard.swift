@@ -30,10 +30,14 @@ struct TaskEditCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        // The card is the row opened in place: the same 10 around its ink as a row, so
+        // the list keeps its 20 rhythm; groups inside are 20 apart, a label 10 above its
+        // control.
+        VStack(alignment: .leading, spacing: Hud.Layout.item) {
             HStack(alignment: .top, spacing: Hud.Row.gap) {
                 HudStateMark(state: task.status)
                     .frame(width: 16, height: 16)
+                    .padding(-Hud.Layout.glyphInset)
                     .padding(.top, 2)
                 TextField("Task", text: $title, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -45,25 +49,25 @@ struct TaskEditCard: View {
             }
 
             if task.status == .blocked {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Blocked").hud(.meta)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Blocked").hudTrimmed(.meta)
                     TextField("", text: $blockedReason, prompt: Text("Waiting on…").foregroundColor(Hud.Ink.ink3))
                         .textFieldStyle(.plain)
                         .hud(.body, Hud.Ink.ink2)
                         .lineLimit(1)
                         .focused($focus, equals: .blockedReason)
                         .onSubmit(close)
-                        .padding(.horizontal, 10)
-                        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(white: 1, opacity: 0.04)))
+                        .padding(.horizontal, Hud.Layout.rowPad)
+                        .frame(maxWidth: .infinity, minHeight: Hud.Layout.field, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: Hud.Layout.hitRadius, style: .continuous).fill(Color(white: 1, opacity: 0.04)))
                         .contentShape(Rectangle())
                         .onTapGesture { focus = .blockedReason }
                         .accessibilityLabel("Waiting on")
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("When").hud(.meta)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("When").hudTrimmed(.meta)
                 HStack(spacing: 4) {
                     whenOption("Today", date: startOfDay(0))
                     whenOption("Tomorrow", date: startOfDay(1))
@@ -85,8 +89,8 @@ struct TaskEditCard: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Priority").hud(.meta)
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Priority").hudTrimmed(.meta)
                 HudSegmented(
                     items: [TaskPriority.none, .low, .medium, .high].map { (value: $0, title: $0.shortText) },
                     selection: Binding(
@@ -108,9 +112,9 @@ struct TaskEditCard: View {
                 .hud(.body, Hud.Ink.ink2)
                 .lineLimit(1...8)
                 .focused($focus, equals: .notes)
-                .padding(10)
+                .padding(Hud.Layout.rowPad)
                 .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(white: 1, opacity: 0.04)))
+                .background(RoundedRectangle(cornerRadius: Hud.Layout.hitRadius, style: .continuous).fill(Color(white: 1, opacity: 0.04)))
                 .contentShape(Rectangle())
                 .onTapGesture { focus = .notes }
                 .accessibilityLabel("Note")
@@ -130,10 +134,8 @@ struct TaskEditCard: View {
                     .hudShortcut(.defaultAction)
             }
         }
-        .padding(.horizontal, Hud.Row.inset)
-        .padding(.vertical, 14)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(white: 1, opacity: 0.045)))
-        .padding(.vertical, 4)
+        .padding(Hud.Layout.rowPad)
+        .background(RoundedRectangle(cornerRadius: Hud.Layout.hitRadius + 2, style: .continuous).fill(Color(white: 1, opacity: 0.045)))
         .onExitCommand(perform: close)
         .onChange(of: focus) { previous, _ in
             if previous != nil { commit() }

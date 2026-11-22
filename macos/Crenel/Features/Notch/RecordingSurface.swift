@@ -40,12 +40,13 @@ struct RecordingSurface: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Three groups, 28 apart: control (state, clock, plan, knobs), signal (the
+            // chart and its scale), inputs (mic, call, mute or warnings at 20 apart).
             header
-                .padding(.horizontal, 10)
-                .padding(.top, 4)
+                .padding(.horizontal, Hud.Layout.rowPad)
                 .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
 
-            VStack(spacing: 6) {
+            VStack(spacing: Hud.Layout.pair) {
                 HudChartRecorder(samples: levels)
                 HStack {
                     Text(verbatim: "−2:00")
@@ -55,51 +56,40 @@ struct RecordingSurface: View {
                     Text("now")
                 }
                 .hud(.micro)
+                .hudTrim(.micro)
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 20)
+            .padding(.horizontal, Hud.Layout.rowPad)
+            .padding(.top, Hud.Layout.section)
             .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
             .accessibilityHidden(true)
 
-            VStack(spacing: 4) {
+            VStack(alignment: .leading, spacing: Hud.Layout.item) {
                 microphoneRow
                 callRow
-            }
-            .padding(.top, 16)
-            .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
-
-            if warnings.isEmpty, let muteFollows, microphone != nil, microphone != .unknown {
-                HStack(spacing: 12) {
-                    HudTelltale(.accessibility, .teal)
-                    Text("Your mic follows mute in \(muteFollows)").hud(.meta)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 10)
-                .frame(height: 32)
-                .padding(.top, 8)
-                .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
-                .accessibilityElement(children: .combine)
-            }
-
-            if !warnings.isEmpty {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(warnings) { warning in
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            HudStatusShape(warning.status)
-                                .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
-                            Text(verbatim: warning.text)
-                                .hud(.meta, Hud.Ink.ink2)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .accessibilityElement(children: .combine)
+                if warnings.isEmpty, let muteFollows, microphone != nil, microphone != .unknown {
+                    HStack(spacing: 12) {
+                        HudTelltale(.accessibility, .teal).padding(-Hud.Layout.glyphInset)
+                        Text("Your mic follows mute in \(muteFollows)").hudTrimmed(.meta)
+                        Spacer(minLength: 0)
                     }
+                    .accessibilityElement(children: .combine)
                 }
-                .padding(.top, 8)
-                .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
+                ForEach(warnings) { warning in
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        HudStatusShape(warning.status)
+                            .frame(width: 13)
+                            .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
+                        Text(verbatim: warning.text)
+                            .hud(.meta, Hud.Ink.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
             }
+            .padding(.horizontal, Hud.Layout.rowPad)
+            .padding(.top, Hud.Layout.section)
+            .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { appeared = true }
@@ -108,13 +98,13 @@ struct RecordingSurface: View {
     // MARK: Header
 
     private var header: some View {
-        HStack(alignment: .center, spacing: 16) {
-            VStack(alignment: .leading, spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: Hud.Layout.block) {
                 HStack(spacing: 8) {
                     HudLamp(.red, form: .dot, loop: .pulse)
-                    Text("Recording").hud(.label, Hud.Ink.ink1)
+                    Text("Recording").hudTrimmed(.label, Hud.Ink.ink1)
                     if let title, !title.isEmpty {
-                        Text(verbatim: title).hud(.meta).lineLimit(1).truncationMode(.tail)
+                        Text(verbatim: title).hudTrimmed(.meta, Hud.Ink.ink2).truncationMode(.tail)
                     }
                 }
                 clock { elapsed in
@@ -126,7 +116,7 @@ struct RecordingSurface: View {
                         let minutes = Int((plannedLength / 60).rounded())
                         HStack(alignment: .bottom, spacing: 10) {
                             HudRamp(elapsed: elapsed, plan: plannedLength)
-                            Text("of \(minutes) min").hud(.micro).padding(.bottom, -1)
+                            Text("of \(minutes) min").hudTrimmed(.micro, Hud.Ink.ink3)
                         }
                         .help("Planned length: \(minutes) min")
                         .accessibilityElement(children: .ignore)
@@ -152,10 +142,10 @@ struct RecordingSurface: View {
     @ViewBuilder
     private func clock<Content: View>(@ViewBuilder _ content: @escaping (TimeInterval) -> Content) -> some View {
         if let now {
-            VStack(alignment: .leading, spacing: 10) { content(max(0, now.timeIntervalSince(startedAt))) }
+            VStack(alignment: .leading, spacing: Hud.Layout.block) { content(max(0, now.timeIntervalSince(startedAt))) }
         } else {
             TimelineView(.periodic(from: startedAt, by: 1)) { context in
-                VStack(alignment: .leading, spacing: 10) { content(max(0, context.date.timeIntervalSince(startedAt))) }
+                VStack(alignment: .leading, spacing: Hud.Layout.block) { content(max(0, context.date.timeIntervalSince(startedAt))) }
             }
         }
     }
@@ -181,37 +171,41 @@ struct RecordingSurface: View {
     private var microphoneRow: some View {
         let isOn = microphone == nil || microphone == .open
         return HStack(spacing: 12) {
-            switch microphone {
-            case .closed:
-                HudTelltale(.micOff, .off)
-            case .unknown:
-                HudTelltale(.mic, .amber, paren: true).padding(.horizontal, -4)
-            default:
-                HudTelltale(.mic, .white)
+            Group {
+                switch microphone {
+                case .closed:
+                    HudTelltale(.micOff, .off)
+                case .unknown:
+                    HudTelltale(.mic, .amber, paren: true).padding(.horizontal, -4)
+                default:
+                    HudTelltale(.mic, .white)
+                }
             }
-            Text("Your mic").hud(.label, isOn ? Hud.Ink.ink2 : Hud.Ink.ink3)
+            .padding(.horizontal, -Hud.Layout.glyphInset)
+            Text("Your mic").hudTrimmed(.body, isOn ? Hud.Ink.ink2 : Hud.Ink.ink3)
                 .frame(width: 96, alignment: .leading)
             HudVUMeter(level: isOn ? microphoneLevel : 0, isOff: !isOn, ignite: ignite && isOn)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 32)
+        .padding(.vertical, -Hud.Layout.glyphInset)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(isOn ? "Your mic is on" : "Your mic is off")
     }
 
     private var callRow: some View {
         HStack(spacing: 12) {
-            if callFailed {
-                HudTelltale(.speaker, .red, badge: .bang)
-            } else {
-                HudTelltale(.speaker, .white)
+            Group {
+                if callFailed {
+                    HudTelltale(.speaker, .red, badge: .bang)
+                } else {
+                    HudTelltale(.speaker, .white)
+                }
             }
-            Text("The call").hud(.label, Hud.Ink.ink2)
+            .padding(.horizontal, -Hud.Layout.glyphInset)
+            Text("The call").hudTrimmed(.body, Hud.Ink.ink2)
                 .frame(width: 96, alignment: .leading)
             HudVUMeter(level: callLevel, ignite: ignite)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 32)
+        .padding(.vertical, -Hud.Layout.glyphInset)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(callFailed ? "The call’s audio dropped" : "The call’s audio is recording")
     }

@@ -23,16 +23,16 @@ struct DesktopDictationPage: View {
                     HudButton("Shortcut and language", glyph: .sliders, size: .small) { openSettings(.dictation) }
                 }
                 ScrollView {
-                    VStack(spacing: 16) {
+                    VStack(spacing: Hud.Layout.block) {
                         hero(now: now).desktopEnter(0)
-                        HStack(alignment: .top, spacing: 16) {
+                        HStack(alignment: .top, spacing: Hud.Layout.block) {
                             recent(now: now)
                             words.frame(width: 300)
                         }
                         .desktopEnter(1)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, DesktopPageLayout.gutter)
+                    .padding(.bottom, DesktopPageLayout.gutter)
                 }
                 .scrollIndicators(.never)
             }
@@ -53,12 +53,13 @@ struct DesktopDictationPage: View {
 
     private func hero(now: Date) -> some View {
         let today = DesktopStats.dictationToday(appState.dictationHistory, now: now)
-        return VStack(spacing: 16) {
-            HStack(spacing: 28) {
+        return VStack(alignment: .leading, spacing: Hud.Layout.block) {
+            HStack(spacing: Hud.Layout.section) {
                 HudBigKeycap(preferences.keyLabel, glyph: trigger.trigger == .fnHold ? .globe : .keyboard, lamp: keyLamp)
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Hud.Layout.pair) {
                     Text(verbatim: isToggle ? "Press \(preferences.keyPhrase) and speak" : "Hold \(preferences.keyPhrase) and speak")
                         .font(Hud.font(20, .semibold)).tracking(-0.28).foregroundStyle(Hud.Ink.ink1)
+                        .lineLimit(1).padding(.vertical, -20 * Hud.Layout.lineExcess)
                     Text(isToggle
                          ? "Words appear under the notch as you talk. Press again and they’re typed where your cursor is."
                          : "Words appear under the notch as you talk. Let go and they’re typed where your cursor is.")
@@ -66,6 +67,7 @@ struct DesktopDictationPage: View {
                         .lineSpacing(3)
                         .frame(maxWidth: 400, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
+                        .hudTrim(.read)
                     HStack(spacing: 16) {
                         HudAnnunciator(items: [.init(DictationTriggerMode.holdToTalk, "Hold to talk"), .init(DictationTriggerMode.toggle, "Toggle")],
                                        selection: Binding(get: { trigger.mode }, set: { mode in preferences.update { $0.dictationTrigger.mode = mode } }))
@@ -77,7 +79,7 @@ struct DesktopDictationPage: View {
                             }
                         }
                     }
-                    .padding(.top, 12)
+                    .padding(.top, Hud.Layout.block - Hud.Layout.pair)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 0) {
@@ -85,30 +87,29 @@ struct DesktopDictationPage: View {
                     HudWellDivider()
                     readout("\(today.count)", "dictations")
                 }
-                .padding(.vertical, 14)
+                .padding(.vertical, Hud.Layout.edge)
                 .fixedSize()
                 .hudWell()
             }
             if let problem = availabilityProblem {
                 HudActions {
-                    HudStatusShape(.off)
+                    HudStatusShape(.off).frame(width: 13)
                     Text(verbatim: problem.message)
                 } buttons: {
                     HudButton(problem.button, size: .small, action: problem.action)
                 }
-                .padding(.leading, 4)
             }
         }
-        .padding(24)
+        .padding(Hud.Layout.edge)
         .hudPanel()
     }
 
     private func readout(_ value: String, _ label: LocalizedStringKey) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Hud.Layout.pair) {
             HudSegmentDigits(value, height: 22)
-            Text(label).hud(.meta)
+            Text(label).hudTrimmed(.meta)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, Hud.Layout.edge)
         .accessibilityElement(children: .combine)
     }
 
@@ -143,44 +144,41 @@ struct DesktopDictationPage: View {
     // MARK: Recent
 
     private func recent(now: Date) -> some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text("Recent").hud(.label, Hud.Ink.ink2)
-                Spacer(minLength: 4)
-                Text("kept on this Mac").hud(.micro).padding(.trailing, 8)
+        let shown = appState.dictationHistory.prefix(20)
+        return VStack(alignment: .leading, spacing: 0) {
+            HudGroupHeader(title: "Recent", count: shown.isEmpty ? nil : shown.count) {
+                Text("kept on this Mac").hudTrimmed(.micro)
             }
-            .padding(.leading, 12)
-            .padding(.trailing, 4)
-            .frame(height: 36)
+            .padding(.top, Hud.Layout.rowPad)
             if appState.dictationHistory.isEmpty {
                 HStack {
-                    Text("Nothing dictated yet").hud(.body, Hud.Ink.ink2)
+                    Text("Nothing dictated yet").hudTrimmed(.body, Hud.Ink.ink2)
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 12)
-                .frame(height: Hud.Row.twoLine)
+                .hudRow(.icon)
             }
-            ForEach(appState.dictationHistory.prefix(20)) { entry in
+            ForEach(shown) { entry in
                 HStack(alignment: .top, spacing: Hud.Row.gap) {
-                    HudTimeColumn(DesktopFormat.clock(entry.createdAt), place(entry))
+                    DesktopTimeColumn(DesktopFormat.clock(entry.createdAt), place(entry))
                     Text(verbatim: entry.finalText)
                         .font(Hud.font(13, .regular)).foregroundStyle(Hud.Ink.ink1)
                         .lineSpacing(3.5)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
+                        .hudTrim(.read)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     HudIconButton(.copy, framed: true, small: true, tint: copiedEntry == entry.id ? Hud.Ink.ok : nil, help: "Copy") {
                         actions.copyText(entry.finalText)
                         copiedEntry = entry.id
                     }
                 }
-                .padding(.horizontal, Hud.Row.inset)
-                .padding(.vertical, 10)
+                .hudRow(.icon)
                 .opacity(entry.delivery == nil ? 0.6 : 1)
                 .hudGlide(entry.id, hovered: $hoveredEntry, in: recentSpace)
             }
         }
-        .padding(8)
+        // The rows sit `rowPad` inside the card and add theirs: text is `edge` in.
+        .padding(Hud.Layout.edge - Hud.Layout.rowPad)
         .frame(maxWidth: .infinity)
         .hudPanel()
     }
@@ -197,10 +195,10 @@ struct DesktopDictationPage: View {
     // MARK: Words to know
 
     private var words: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Words to know").hud(.label, Hud.Ink.ink1)
-                Text("Names and terms it should spell your way.").hud(.meta)
+        VStack(alignment: .leading, spacing: Hud.Layout.block) {
+            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                Text("Words to know").hudTrimmed(.label, Hud.Ink.ink1)
+                Text("Names and terms it should spell your way.").hudTrimmed(.meta)
             }
             HStack(spacing: 6) {
                 TextField("", text: $newTerm, prompt: Text(verbatim: "Crenel, SwiftUI, Ayhan").foregroundStyle(Hud.Ink.ink3))
@@ -208,7 +206,7 @@ struct DesktopDictationPage: View {
                     .hud(.body)
                     .focused($termFocused)
                     .onSubmit(addTerm)
-                    .hudField(height: 30, isFocused: termFocused)
+                    .hudField(isFocused: termFocused)
                     .accessibilityLabel("New word")
                 Button(action: addTerm) { HudIcon(.plus, size: 12) }
                     .buttonStyle(HudButtonStyle(kind: .iconFramed, size: .small))
@@ -231,7 +229,7 @@ struct DesktopDictationPage: View {
                 }
             }
         }
-        .padding(16)
+        .padding(Hud.Layout.edge)
         .frame(maxWidth: .infinity, alignment: .leading)
         .hudPanel()
     }

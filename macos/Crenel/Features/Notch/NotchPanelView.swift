@@ -92,7 +92,7 @@ struct NotchPanelView: View {
                         onBack: appState.dismissMeetingDetail,
                         onCopyText: onCopyText
                     )
-                    .padding(.horizontal, Hud.Notch.openInset)
+                    .padding(.horizontal, Hud.Layout.edge)
                     .frame(minHeight: max(notchMetrics.topInset, Hud.Notch.bandHeight))
                 } else {
                     NotchBand(onTogglePin: onTogglePin)
@@ -143,7 +143,7 @@ struct NotchPanelView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .top)
-                // `#nc.open`: content sits 14 pt from the walls; rows add their own inset.
+                // Content containers sit 10 from the walls; rows add their own 10, so ink is at 20.
                 .padding(.horizontal, Hud.Notch.openInset)
             }
             .padding(.top, NotchPanelLayout.bandGap)

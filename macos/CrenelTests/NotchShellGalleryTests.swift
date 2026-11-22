@@ -24,7 +24,7 @@ final class NotchShellGalleryTests: XCTestCase {
         XCTAssertEqual(CrenelNotchSize.strip.topRadius, 9)
         XCTAssertEqual(CrenelNotchSize.strip.bottomRadius, 18)
         XCTAssertEqual(CrenelNotchSize.open.topRadius, 14)
-        XCTAssertEqual(CrenelNotchSize.open.bottomRadius, 24)
+        XCTAssertEqual(CrenelNotchSize.open.bottomRadius, 20)  // C13: panel edge 20, slab 10
         XCTAssertEqual(Hud.Notch.stripWidth, 440)
         XCTAssertEqual(Hud.Notch.openWidth, 560)
         XCTAssertEqual(NotchPanelLayout.preferredWidth, 560)

@@ -122,9 +122,9 @@ struct MeetingDetailHeader: View {
     var now: Date = Date()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(meeting.title).hud(.hero).lineLimit(2).help(meeting.title)
-            Text(Self.meta(meeting: meeting, transcript: transcript, now: now)).hud(.meta).lineLimit(1)
+        VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+            Text(meeting.title).hud(.hero).lineLimit(2).help(meeting.title).hudTrim(.hero)
+            Text(Self.meta(meeting: meeting, transcript: transcript, now: now)).hudTrimmed(.meta)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Hud.Row.inset)
@@ -181,34 +181,21 @@ struct MeetingPlayerView: View {
             }
             .padding(.top, 2)
         }
-        .padding(.leading, 4)
-        .padding(.trailing, Hud.Row.inset)
+        .padding(.horizontal, Hud.Layout.rowPad)
     }
 }
 
 // MARK: - Section header
 
-/// A group header with something on its right edge, centred on a 32 pt line
-/// (`.group-h !h-8`): "Summary" + Rewrite.
+/// A section label with something on its right edge: "Summary" + Rewrite. The same
+/// "Name · n" label as `HudGroupHeader`, followed by plain text (label → text 20).
 struct MeetingSectionHeader<Trailing: View>: View {
     let title: LocalizedStringKey
     var count: Int?
     @ViewBuilder var trailing: () -> Trailing
 
     var body: some View {
-        HStack(spacing: 8) {
-            Text(title).hud(.label, Hud.Ink.ink3)
-            if let count {
-                Text(verbatim: "\(count)").hud(.label, Hud.Ink.ink4)
-            }
-            Spacer(minLength: 0)
-            trailing()
-        }
-        .lineLimit(1)
-        .padding(.horizontal, Hud.Row.inset)
-        .frame(height: 32)
-        .padding(.bottom, 2)
-        .accessibilityAddTraits(.isHeader)
+        HudGroupHeader(title: title, count: count, rows: .plain, trailing: trailing)
     }
 }
 
@@ -262,15 +249,15 @@ struct MeetingSummarySection: View {
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Hud.Row.inset)
-                    .padding(.top, 6)
+                    .hudTrim(.read)
+                    .padding(.horizontal, Hud.Layout.rowPad)
             } else {
                 Text(placeholder)
                     .hud(.read, Hud.Ink.ink3)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Hud.Row.inset)
-                    .padding(.top, 2)
+                    .hudTrim(.read)
+                    .padding(.horizontal, Hud.Layout.rowPad)
             }
         }
     }
@@ -347,23 +334,24 @@ struct MeetingDecidedSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HudGroupHeader(title: "Decided").accessibilityAddTraits(.isHeader)
-            VStack(alignment: .leading, spacing: 6) {
+            HudGroupHeader(title: "Decided", count: decisions.count, rows: .plain).accessibilityAddTraits(.isHeader)
+            // Plain items, 20 apart: the number and the sentence share the cap line.
+            VStack(alignment: .leading, spacing: Hud.Layout.item) {
                 ForEach(Array(decisions.enumerated()), id: \.offset) { index, decision in
-                    HStack(alignment: .top, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
                         Text(verbatim: "\(index + 1)")
                             .hud(.micro, Hud.Ink.ink3)
                             .frame(width: 12, alignment: .leading)
-                            .padding(.top, 5)
                         Text(decision)
                             .hud(.read)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .hudTrim(.read)
                 }
             }
-            .padding(.horizontal, Hud.Row.inset)
+            .padding(.horizontal, Hud.Layout.rowPad)
         }
     }
 }
@@ -581,14 +569,14 @@ struct MeetingTranscriptSection: View {
     @Namespace private var glide
 
     var body: some View {
-        HudGroupHeader(title: "Transcript").accessibilityAddTraits(.isHeader)
+        HudGroupHeader(title: "Transcript", rows: transcript.segments.isEmpty ? .plain : .icon).accessibilityAddTraits(.isHeader)
         if transcript.segments.isEmpty {
             Text(transcript.text)
                 .hud(.read)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Hud.Row.inset)
-                .padding(.vertical, 8)
+                .hudTrim(.read)
+                .padding(.horizontal, Hud.Layout.rowPad)
         } else {
             let selectable = TranscriptPresentationPolicy.allowsInlineTextSelection(segmentCount: transcript.segments.count)
             ForEach(transcript.segments) { segment in
@@ -687,7 +675,7 @@ struct MeetingRenameSpeakerSheet: View {
                 .hud(.body)
                 .focused($isFocused)
                 .onSubmit { if canSave { onSave() } }
-                .hudField(height: 36, radius: 10, isFocused: isFocused, padding: 10)
+                .hudField(isFocused: isFocused)
                 .accessibilityLabel("Speaker name")
 
             HudActions {

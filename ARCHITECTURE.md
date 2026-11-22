@@ -94,6 +94,14 @@ değerlerini `Hud`'dan alır. Ekranlar yeni dile aşamalı taşınıyor; o zaman
 490 pt'dir (hedef 560), alt köşe yarıçapı açıkken 20, kapalıyken 10'dur; şekil içeriği
 yayla kapsar, içerik şekilden sonra belirir.
 
+### Ölçü modeli (2026-11-22, C13)
+
+Boşluk, hiza ve tip ölçüleri `Hud.Layout`'tan gelir (`docs/DESIGN.md` › Ölçü modeli).
+Ekranlar sabit sayı yazmaz: satırlar `hudRow(.icon/.tile)`, bölüm etiketleri
+`HudGroupHeader(title:count:rows:)`, bölüm arası `HudRowKind.sectionGap`, metin
+`hudTrimmed`. Açık notch'ta içerik kapları duvardan 10 (`Hud.Notch.openInset`), satırlar
+kendi 10'unu ekler; mürekkep 20'de durur. Açık panelin alt köşesi 20.
+
 ### Kurulum ve izinler (C9)
 
 `SetupCoordinator` tüm izinleri (`SetupCapability`: takvim, hatırlatıcılar, mikrofon,

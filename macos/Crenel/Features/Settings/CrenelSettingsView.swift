@@ -75,72 +75,72 @@ struct DictationSettingsView: View {
             }
         }
 
-        SettingsGroup("Dictation", index: 1) {
-            SettingsRow(glyph: .waveform, title: "Dictation",
-                        detail: Text("Hold a key anywhere to type with your voice")) {
-                SettingsToggle("Dictation", isOn: binding(\.dictationEnabled))
+        SettingsCard {
+            SettingsGroup("Dictation") {
+                SettingsRow(glyph: .waveform, title: "Dictation",
+                            detail: Text("Hold a key anywhere to type with your voice")) {
+                    SettingsToggle("Dictation", isOn: binding(\.dictationEnabled))
+                }
+                permissionRows
+                SettingsRow(glyph: .keyboard, title: "Shortcut",
+                            detail: model.preferences.dictationTrigger.trigger == .fnHold
+                                ? Text("⌃Space still switches input languages") : nil) {
+                    HudSelect(selection: binding(\.dictationTrigger.trigger), options: [
+                        (DictationTrigger.fnHold, "Hold Fn (🌐)"),
+                        (DictationTrigger.rightOptionHold, "Hold right ⌥"),
+                        (DictationTrigger.rightCommandHold, "Hold right ⌘")
+                    ])
+                    .accessibilityLabel("Shortcut")
+                }
+                SettingsRow(title: "Mode") {
+                    HudSelect(selection: binding(\.dictationTrigger.mode), options: [
+                        (DictationTriggerMode.holdToTalk, "Hold to talk"),
+                        (DictationTriggerMode.toggle, "Press to start, press to stop")
+                    ])
+                    .accessibilityLabel("Mode")
+                }
+                SettingsRow(title: "Double-tap for hands-free") {
+                    SettingsToggle("Double-tap for hands-free", isOn: binding(\.dictationTrigger.allowsDoubleTapHandsFree))
+                }
+                SettingsRow(title: "Language") {
+                    HudSelect(selection: binding(\.dictationLanguage), options: [
+                        (DictationLanguage.automatic, "System language"),
+                        (DictationLanguage.turkish, "Turkish"),
+                        (DictationLanguage.english, "English")
+                    ])
+                    .accessibilityLabel("Language")
+                }
             }
-            permissionRows
-            SettingsRow(glyph: .keyboard, title: "Shortcut",
-                        detail: model.preferences.dictationTrigger.trigger == .fnHold
-                            ? Text("⌃Space still switches input languages") : nil) {
-                HudSelect(selection: binding(\.dictationTrigger.trigger), options: [
-                    (DictationTrigger.fnHold, "Hold Fn (🌐)"),
-                    (DictationTrigger.rightOptionHold, "Hold right ⌥"),
-                    (DictationTrigger.rightCommandHold, "Hold right ⌘")
-                ])
-                .accessibilityLabel("Shortcut")
-            }
-            SettingsRow(title: "Mode") {
-                HudSelect(selection: binding(\.dictationTrigger.mode), options: [
-                    (DictationTriggerMode.holdToTalk, "Hold to talk"),
-                    (DictationTriggerMode.toggle, "Press to start, press to stop")
-                ])
-                .accessibilityLabel("Mode")
-            }
-            SettingsRow(title: "Double-tap for hands-free") {
-                SettingsToggle("Double-tap for hands-free", isOn: binding(\.dictationTrigger.allowsDoubleTapHandsFree))
-            }
-            SettingsRow(title: "Language") {
-                HudSelect(selection: binding(\.dictationLanguage), options: [
-                    (DictationLanguage.automatic, "System language"),
-                    (DictationLanguage.turkish, "Turkish"),
-                    (DictationLanguage.english, "English")
-                ])
-                .accessibilityLabel("Language")
-            }
-        }
 
-        SettingsGroup("Speech model", index: 2) {
-            SettingsRow(glyph: .shield, title: "On this Mac", detail: Text("Speech recognition runs locally. AI clean-up follows your provider choice.")) {
-                HudButton("Download", glyph: .chevronDown, size: .small, action: crenelActions.dictation.prepareSpeechAssets)
-                    .accessibilityLabel("Download model")
-            }
-            SettingsRow(title: "Words to know", detail: Text(verbatim: wordsDetail)) {
-                HudButton(showsWords ? "Done" : "Edit", trailingGlyph: showsWords ? nil : .chevronDown, size: .small) {
-                    showsWords.toggle()
+            SettingsGroup("Speech model") {
+                SettingsRow(glyph: .shield, title: "On this Mac", detail: Text("Speech recognition runs locally. AI clean-up follows your provider choice.")) {
+                    HudButton("Download", glyph: .chevronDown, size: .small, action: crenelActions.dictation.prepareSpeechAssets)
+                        .accessibilityLabel("Download model")
                 }
-                .accessibilityLabel(showsWords ? "Done editing words" : "Edit words to know")
-            }
-            if showsWords {
-                SettingsFieldRow {
-                    HudTextField(text: $newTerm, prompt: "Crenel, SwiftUI, Ayhan", onSubmit: addTerm)
-                        .accessibilityLabel("New dictionary term")
-                    HudButton("Add", glyph: .plus, action: addTerm)
-                        .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-                if !model.preferences.dictationVocabulary.isEmpty {
-                    SettingsWordChips(items: model.preferences.dictationVocabulary) { term in
-                        model.preferences.dictationVocabulary.removeAll { $0 == term }
-                        model.save(actions)
+                SettingsRow(title: "Words to know", detail: Text(verbatim: wordsDetail)) {
+                    HudButton(showsWords ? "Done" : "Edit", trailingGlyph: showsWords ? nil : .chevronDown, size: .small) {
+                        showsWords.toggle()
                     }
-                    .padding(.leading, SettingsLayout.textInset)
-                    .padding(.trailing, SettingsLayout.rowInset)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
+                    .accessibilityLabel(showsWords ? "Done editing words" : "Edit words to know")
                 }
+                if showsWords {
+                    SettingsFieldRow {
+                        HudTextField(text: $newTerm, prompt: "Crenel, SwiftUI, Ayhan", onSubmit: addTerm)
+                            .accessibilityLabel("New dictionary term")
+                        HudButton("Add", glyph: .plus, action: addTerm)
+                            .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                    if !model.preferences.dictationVocabulary.isEmpty {
+                        SettingsWordChips(items: model.preferences.dictationVocabulary) { term in
+                            model.preferences.dictationVocabulary.removeAll { $0 == term }
+                            model.save(actions)
+                        }
+                        .padding(.leading, SettingsLayout.textInset)
+                        .hudRow(.icon)
+                    }
+                }
+                SettingsMessage(message: model.message, failed: model.failed)
             }
-            SettingsMessage(message: model.message, failed: model.failed)
         }
         .animation(reduceMotion ? nil : Hud.Motion.change, value: showsWords)
     }
@@ -204,67 +204,69 @@ struct AgentSettingsView<Extra: View>: View {
     var body: some View {
         SettingsPageHeader(glyph: .spark, title: "AI", sentence: "One provider for writing, one for voice.")
 
-        SettingsGroup("General AI", index: 1) {
-            SettingsRow(glyph: .spark, title: "Provider", detail: providerDetail) {
-                providerStatus
-                HudSelect(selection: providerBinding, options: providerOptions)
-                    .accessibilityLabel("General AI provider")
+        SettingsCard {
+            SettingsGroup("General AI") {
+                SettingsRow(glyph: .spark, title: "Provider", detail: providerDetail) {
+                    providerStatus
+                    HudSelect(selection: providerBinding, options: providerOptions)
+                        .accessibilityLabel("General AI provider")
+                }
+                switch provider {
+                case .anthropic:
+                    SettingsKeyField(
+                        name: "Anthropic", hasKey: hasAnthropicKey, saveTitle: "Save", saveHelp: "Saves the key to Keychain",
+                        save: { key in
+                            let result = await actions.saveAnthropicKey(key)
+                            hasAnthropicKey = await actions.hasAnthropicKey()
+                            show(result)
+                        },
+                        remove: {
+                            let result = await actions.deleteAnthropicKey()
+                            hasAnthropicKey = await actions.hasAnthropicKey()
+                            show(result)
+                        }
+                    )
+                case .openAI:
+                    SettingsKeyField(
+                        name: "OpenAI", hasKey: hasOpenAIKey, saveTitle: "Connect", saveHelp: "Sends a small paid test request",
+                        save: { key in
+                            let result = await openAI.save(key)
+                            hasOpenAIKey = await openAI.hasKey()
+                            show(result)
+                        },
+                        remove: {
+                            let result = await openAI.disconnect()
+                            hasOpenAIKey = await openAI.hasKey()
+                            show(result)
+                        }
+                    )
+                default:
+                    EmptyView()
+                }
+                SettingsMessage(message: keyMessage, failed: keyFailed)
+                SettingsRow(title: "Clean up dictation") {
+                    SettingsToggle("Clean up dictation", isOn: binding(\.agent.cleanupEnabled))
+                }
+                SettingsRow(title: "Voice commands on selected text") {
+                    SettingsToggle("Voice commands on selected text", isOn: binding(\.agent.commandModeEnabled))
+                }
+                SettingsMessage(message: model.message, failed: model.failed)
             }
-            switch provider {
-            case .anthropic:
-                SettingsKeyField(
-                    name: "Anthropic", hasKey: hasAnthropicKey, saveTitle: "Save", saveHelp: "Saves the key to Keychain",
-                    save: { key in
-                        let result = await actions.saveAnthropicKey(key)
-                        hasAnthropicKey = await actions.hasAnthropicKey()
-                        show(result)
-                    },
-                    remove: {
-                        let result = await actions.deleteAnthropicKey()
-                        hasAnthropicKey = await actions.hasAnthropicKey()
-                        show(result)
-                    }
-                )
-            case .openAI:
-                SettingsKeyField(
-                    name: "OpenAI", hasKey: hasOpenAIKey, saveTitle: "Connect", saveHelp: "Sends a small paid test request",
-                    save: { key in
-                        let result = await openAI.save(key)
-                        hasOpenAIKey = await openAI.hasKey()
-                        show(result)
-                    },
-                    remove: {
-                        let result = await openAI.disconnect()
-                        hasOpenAIKey = await openAI.hasKey()
-                        show(result)
-                    }
-                )
-            default:
-                EmptyView()
+            .task {
+                hasAnthropicKey = await actions.hasAnthropicKey()
+                hasOpenAIKey = await openAI.hasKey()
+                onDeviceStatus = await actions.onDeviceModelStatus()
             }
-            SettingsMessage(message: keyMessage, failed: keyFailed)
-            SettingsRow(title: "Clean up dictation") {
-                SettingsToggle("Clean up dictation", isOn: binding(\.agent.cleanupEnabled))
+            .task(id: provider) {
+                keyMessage = nil
+                let kind = provider
+                guard let tool = CLIAgentTool.allCases.first(where: { $0.kind == kind }) else { toolInstalled = nil; return }
+                toolInstalled = nil
+                toolInstalled = await Task.detached { CLIToolLocator.locate(tool) != nil }.value
             }
-            SettingsRow(title: "Voice commands on selected text") {
-                SettingsToggle("Voice commands on selected text", isOn: binding(\.agent.commandModeEnabled))
-            }
-            SettingsMessage(message: model.message, failed: model.failed)
-        }
-        .task {
-            hasAnthropicKey = await actions.hasAnthropicKey()
-            hasOpenAIKey = await openAI.hasKey()
-            onDeviceStatus = await actions.onDeviceModelStatus()
-        }
-        .task(id: provider) {
-            keyMessage = nil
-            let kind = provider
-            guard let tool = CLIAgentTool.allCases.first(where: { $0.kind == kind }) else { toolInstalled = nil; return }
-            toolInstalled = nil
-            toolInstalled = await Task.detached { CLIToolLocator.locate(tool) != nil }.value
-        }
 
-        extra()
+            extra()
+        }
     }
 
     // MARK: Provider
@@ -418,18 +420,20 @@ struct TaskStorageSettingsView: View {
     var body: some View {
         SettingsPageHeader(glyph: .queue, title: "Tasks", sentence: "Where your tasks live.")
 
-        SettingsGroup("Storage", index: 1) {
-            SettingsRow(glyph: .queue, title: "Keep tasks in",
-                        detail: model.preferences.taskStorage == .reminders
-                            ? Text("Also on iPhone, iPad and Watch") : Text("Only on this Mac")) {
-                HudSelect(selection: model.binding(\.taskStorage, actions: actions), options: [
-                    (TaskStorageBackend.reminders, "Apple Reminders"),
-                    (TaskStorageBackend.local, "This Mac only")
-                ])
-                .accessibilityLabel("Keep tasks in")
+        SettingsCard {
+            SettingsGroup("Storage") {
+                SettingsRow(glyph: .queue, title: "Keep tasks in",
+                            detail: model.preferences.taskStorage == .reminders
+                                ? Text("Also on iPhone, iPad and Watch") : Text("Only on this Mac")) {
+                    HudSelect(selection: model.binding(\.taskStorage, actions: actions), options: [
+                        (TaskStorageBackend.reminders, "Apple Reminders"),
+                        (TaskStorageBackend.local, "This Mac only")
+                    ])
+                    .accessibilityLabel("Keep tasks in")
+                }
+                statusRow
+                SettingsMessage(message: model.message, failed: model.failed)
             }
-            statusRow
-            SettingsMessage(message: model.message, failed: model.failed)
         }
     }
 

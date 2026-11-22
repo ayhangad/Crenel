@@ -27,6 +27,8 @@ struct OnboardingView: View {
         ("Sound", [.microphone, .systemAudio]),
         ("Keyboard", [.inputMonitoring, .accessibility])
     ]
+    /// Empty space inside `HudSchematic`'s 92 pt box above and below its strokes.
+    private static let schematicInk = (top: CGFloat(4 - 0.75), bottom: CGFloat(92 - 84 - 0.75))
     /// Top to bottom, the order lamps light in.
     private static let order = groups.flatMap(\.capabilities)
 
@@ -48,7 +50,7 @@ struct OnboardingView: View {
     var body: some View {
         VStack(spacing: 0) {
             stepLamps
-                .padding(.top, 20)
+                .padding(.top, Hud.Layout.edge)
 
             ZStack {
                 switch step {
@@ -90,7 +92,7 @@ struct OnboardingView: View {
 
     private var welcome: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 36) {
+            VStack(spacing: Hud.Layout.section) {
                 HudGauge(value: 1, ticks: 90, major: 15, size: 220, ignite: !SettingsLayout.isTesting) {
                     VStack(spacing: 12) {
                         HudMark(width: 46, glow: 6)
@@ -101,21 +103,19 @@ struct OnboardingView: View {
                 }
                 .accessibilityHidden(true)
 
-                VStack(spacing: 10) {
+                VStack(spacing: Hud.Layout.block) {
                     Text("A quiet instrument for your day")
-                        .font(Hud.font(24, .semibold))
-                        .tracking(-0.02 * 24)
-                        .foregroundStyle(Hud.Ink.ink1)
+                        .hudTrimmed(.page)
                         .accessibilityAddTraits(.isHeader)
                     Text("Crenel lives in the notch. It counts down to your meetings, keeps your tasks, types what you say and writes the notes.")
-                        .font(Hud.font(13, .regular))
-                        .foregroundStyle(Hud.Ink.ink3)
-                        .lineSpacing(3)
+                        .hud(.read, Hud.Ink.ink3)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .hudTrim(.read)
                         .frame(maxWidth: 380)
                 }
             }
-            .padding(.horizontal, 40)
+            .padding(.horizontal, Hud.Layout.edge)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             Button {
@@ -125,42 +125,42 @@ struct OnboardingView: View {
             }
             .buttonStyle(HudButtonStyle(kind: .primary, size: .large))
             .keyboardShortcut(.defaultAction)
-            .padding(.bottom, 36)
+            .padding(.bottom, Hud.Layout.edge)
         }
     }
 
     // MARK: Permissions (`ob-setup`, `ob-turning`, `ob-done`)
 
+    /// Window edge → ink 20 on every side; lamps → header → first label 28; the lists
+    /// sit 10 out so their rows pad themselves (label → row 20, row → row 20, section 28).
     private var setupScreen: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: Hud.Layout.edge) {
+                VStack(alignment: .leading, spacing: Hud.Layout.pair) {
                     Text("Switch on what you need")
-                        .font(Hud.font(22, .semibold))
-                        .tracking(-0.015 * 22)
-                        .foregroundStyle(Hud.Ink.ink1)
+                        .hudTrimmed(.hero)
                         .accessibilityAddTraits(.isHeader)
                     Text("Each switch turns on one feature. Skip any, the rest still work.")
-                        .font(Hud.font(13, .regular))
-                        .foregroundStyle(Hud.Ink.ink3)
-                        .lineSpacing(3)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .hudTrimmed(.meta)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 HudSchematic(lit: schematicParts, scanning: isTurningOn && !SettingsLayout.isTesting)
+                    // Laid out by its ink: the drawing spans y 4…84 of a 92 pt box
+                    // (1.5 pt strokes), so the 28s above and below are visible gaps.
+                    .padding(.top, -Self.schematicInk.top)
+                    .padding(.bottom, -Self.schematicInk.bottom)
                     .help("System check")
             }
-            .padding(.horizontal, 36)
-            .padding(.top, 36)
-            .padding(.bottom, 20)
+            .padding(.horizontal, Hud.Layout.edge)
+            .padding(.top, Hud.Layout.section)
+            .padding(.bottom, Hud.Layout.section)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: HudRowKind.icon.sectionGap) {
                     ForEach(Array(Self.groups.enumerated()), id: \.offset) { _, group in
                         VStack(alignment: .leading, spacing: 0) {
-                            HudGroupHeader(title: group.title)
-                                .accessibilityAddTraits(.isHeader)
+                            HudGroupHeader(title: group.title, rows: .icon)
                             ForEach(group.capabilities) { capability in
                                 OnboardingRow(
                                     capability: capability,
@@ -173,28 +173,31 @@ struct OnboardingView: View {
                             }
                         }
                     }
-                    HStack(alignment: .top, spacing: 10) {
-                        HudIcon(.shield, size: 12)
+                    // A note leads with its glyph in the 13 pt icon column; text on the
+                    // row titles' line.
+                    HStack(alignment: .top, spacing: Hud.Row.gap) {
+                        HudIcon(.shield, size: Hud.Size.smallIcon)
                             .foregroundStyle(Hud.Ink.ink4)
-                            .padding(.top, 2)
+                            .frame(width: OnboardingRow.iconColumn)
                         Text("Apple models process audio and text on your Mac. Choosing ElevenLabs or Deepgram sends meeting audio to that provider. Choosing OpenAI or Anthropic sends text to that provider. Claude Code sends meeting text to Anthropic.")
                             .hud(.meta)
                             .fixedSize(horizontal: false, vertical: true)
+                            .hudTrim(.meta)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.top, 4)
-                    .padding(.bottom, 12)
+                    // No slab: the stack's 18 + the last row's 10 already make the 28.
+                    .padding(.horizontal, Hud.Layout.rowPad)
+                    .padding(.bottom, Hud.Layout.rowPad)
                 }
-                .padding(.horizontal, 26)
+                .padding(.horizontal, Hud.Layout.edge - Hud.Layout.rowPad)
             }
             .scrollIndicators(.never)
 
             HudActions {
                 footerButtons
             }
-            .padding(.horizontal, 36)
-            .padding(.top, 12)
-            .padding(.bottom, 32)
+            .padding(.horizontal, Hud.Layout.edge)
+            .padding(.top, Hud.Layout.edge - Hud.Layout.rowPad)
+            .padding(.bottom, Hud.Layout.edge)
         }
         .onAppear {
             setup.refresh()
@@ -263,8 +266,8 @@ struct OnboardingView: View {
     }
 }
 
-/// One permission (`.row-1`): glyph, name and what it turns on, then Allow / Open — or
-/// its lamp once it is on.
+/// One permission: glyph, name and what it turns on 7 under it, then Allow / Open — or
+/// its lamp once it is on. 10 on every side, so row ink to row ink is 20.
 private struct OnboardingRow: View {
     let capability: SetupCapability
     let grant: SetupGrant
@@ -272,17 +275,21 @@ private struct OnboardingRow: View {
     let isTurningOn: Bool
     let action: () -> Void
 
+    /// A 16 pt glyph laid out by its 13 pt ink.
+    static let iconColumn: CGFloat = 16 - 2 * Hud.Layout.glyphInset
+
     private var showsLamp: Bool { isLit || isTurningOn }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .center, spacing: Hud.Row.gap) {
             HudIcon(capability.onboardingGlyph, size: 16)
                 .foregroundStyle(Hud.Ink.ink3)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(capability.onboardingTitle).hud(.body)
-                Text(capability.onboardingDetail).hud(.meta)
+                .frame(width: 16, height: 16)
+                .padding(-Hud.Layout.glyphInset)
+            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                Text(capability.onboardingTitle).hudTrimmed(.body)
+                Text(capability.onboardingDetail).hudTrimmed(.meta)
             }
-            .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             ZStack(alignment: .trailing) {
@@ -294,8 +301,7 @@ private struct OnboardingRow: View {
                 }
             }
         }
-        .padding(.horizontal, 10)
-        .frame(height: Hud.Row.oneLine)
+        .hudRow(.icon)
         .accessibilityElement(children: .contain)
         .accessibilityValue(isLit ? "On" : "Off")
     }

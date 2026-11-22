@@ -133,7 +133,10 @@ final class NotchPresentationTests: XCTestCase {
         XCTAssertEqual(viewport.availableSize, CGSize(width: 812, height: 704))
         XCTAssertEqual(
             NotchPanelLayout(availableSize: viewport.availableSize),
-            NotchPanelLayout(width: Hud.Notch.openWidth, maximumContentHeight: 600)
+            // C13: the tab lamp → content gap is 20 visible, so less of a 704 pt viewport is
+            // left for content than the preferred 600.
+            NotchPanelLayout(width: Hud.Notch.openWidth,
+                             maximumContentHeight: min(NotchPanelLayout.preferredContentHeight, 704 - NotchPanelLayout.fixedVerticalSpace))
         )
 
         let small = NotchHostViewport(windowSize: CGSize(width: 860, height: 612), topInset: 24)

@@ -24,6 +24,44 @@ enum Hud {
         static let x8: CGFloat = 32
     }
 
+    /// The measure model (2026-11-22, C13; study: `docs/design/notch-refine-study.html`).
+    /// Every gap is a VISIBLE gap: text is measured cap height to baseline (`hudTrim`),
+    /// icons by their ink (a 16 pt glyph is 13 pt of ink, 1.5 pt in from each side).
+    /// The rhythm follows the reference: item to item, label to its group and section to
+    /// section are close to each other, so the label — not a wide gap — separates sections.
+    enum Layout {
+        /// Panel edge → content, on every side.
+        static let edge: CGFloat = 20
+        /// Title ↔ its meta line.
+        static let pair: CGFloat = 7
+        /// Blocks inside one group (hero ↔ ruler, clock ↔ ramp).
+        static let block: CGFloat = 16
+        /// Item to item in a list.
+        static let item: CGFloat = 20
+        /// A section label to the first item under it.
+        static let label: CGFloat = 20
+        /// The last item of a section to the next section's label.
+        static let section: CGFloat = 28
+        /// Icon row: padding on every side, so the hover slab sits 10 pt around the ink.
+        static let rowPad: CGFloat = 10
+        /// Tile row: the tile already carries weight; the slab hugs it by 4 on top, left
+        /// and bottom, the trailing value keeps `rowPad`.
+        static let tilePad: CGFloat = 4
+        /// Space between tile rows: tile to tile 12 = 4 + 4 + 4.
+        static let tileGap: CGFloat = 4
+        /// Every hover slab: 10 (tile 6 + 4).
+        static let hitRadius: CGFloat = 10
+        /// A text field.
+        static let field: CGFloat = 34
+        /// The date/time tile of calendar and recording rows.
+        static let tile = CGSize(width: 56, height: 36)
+        static let tileRadius: CGFloat = 6
+        /// A 16 pt glyph's ink starts 1.5 pt inside its box.
+        static let glyphInset: CGFloat = 1.5
+        /// Geist's line box: 0.295 em above the cap height and 0.295 em below the baseline.
+        static let lineExcess: CGFloat = 0.295
+    }
+
     enum Size {
         /// Legacy two-line list row. New screens use `Hud.Row`.
         static let row: CGFloat = 48
@@ -53,8 +91,8 @@ enum Hud {
         static let twoLineTop: CGFloat = 9
         /// One-line row, vertically centred.
         static let oneLine: CGFloat = 48
-        /// Task row.
-        static let task: CGFloat = 38
+        /// Task row: an icon row, 33 = 10 + 13 (glyph ink) + 10.
+        static let task: CGFloat = Layout.rowPad * 2 + 16 - 2 * Layout.glyphInset
         /// Settings row (minimum).
         static let setting: CGFloat = 50
         static let gap: CGFloat = 12
@@ -79,8 +117,9 @@ enum Hud {
         static let stripInset: CGFloat = 8
         static let stripBottom: CGFloat = 10
         static let openWidth: CGFloat = 560
-        static let openInset: CGFloat = 14
-        static let openBottom: CGFloat = 16
+        /// Content containers sit here; rows add `Layout.rowPad`, so text is at `Layout.edge`.
+        static let openInset: CGFloat = Layout.edge - Layout.rowPad
+        static let openBottom: CGFloat = Layout.edge - Layout.rowPad
         static let bandHeight: CGFloat = 32
         /// The open panel's tab row, under the camera band.
         static let tabRowHeight: CGFloat = 30
@@ -88,7 +127,7 @@ enum Hud {
         /// Top (outward flare) radius: compact, strip, open.
         static let topRadius: (compact: CGFloat, strip: CGFloat, open: CGFloat) = (6, 9, 14)
         /// Bottom radius: compact, strip, open.
-        static let bottomRadius: (compact: CGFloat, strip: CGFloat, open: CGFloat) = (10, 18, 24)
+        static let bottomRadius: (compact: CGFloat, strip: CGFloat, open: CGFloat) = (10, 18, 20)
         /// The compact notch leans in by this much when the pointer enters.
         static let lean = CGSize(width: 14, height: 4)
     }
@@ -249,7 +288,7 @@ enum Hud {
     }
 
     enum Style {
-        /// 17 / 600, −0.012 em — the focused event, detail title.
+        /// 18 / 600, −0.014 em — the focused event, detail title.
         case hero
         /// 15 / 600, −0.006 em — card and result titles.
         case title
@@ -257,9 +296,11 @@ enum Hud {
         case body
         /// 12.5 / 500 — tabs, buttons, group headers.
         case label
-        /// 11.5 / 400, ink-3 — second line.
+        /// 12 / 400, ink-3 — second line.
         case meta
-        /// 10 / 500, ink-4 — scale labels, under-unit.
+        /// 12 / 500, ink-3 — a section label ("Today · 3").
+        case section
+        /// 10.5 / 500, ink-4 — scale labels, under-unit.
         case micro
         /// 11 / 500, ink-3 — the unit beside a segment number ("min", "left", "%").
         case unit
@@ -274,12 +315,12 @@ enum Hud {
 
         var size: CGFloat {
             switch self {
-            case .hero: 17
+            case .hero: 18
             case .title: 15
             case .body, .read, .value: 13
             case .label: 12.5
-            case .meta: 11.5
-            case .micro: 10
+            case .meta, .section: 12
+            case .micro: 10.5
             case .unit: 11
             case .page, .display: 22
             }
@@ -288,17 +329,20 @@ enum Hud {
         var weight: Weight {
             switch self {
             case .hero, .title, .page, .display: .semibold
-            case .body, .label, .micro, .unit, .value: .medium
+            case .body, .label, .section, .micro, .unit, .value: .medium
             case .meta, .read: .regular
             }
         }
 
         var font: Font { Hud.font(size, weight) }
 
+        /// What Geist's line box adds above the cap height and below the baseline (equal).
+        var trim: CGFloat { size * Layout.lineExcess }
+
         /// Tracking in points (CSS em × size).
         var tracking: CGFloat {
             switch self {
-            case .hero: -0.012 * 17
+            case .hero: -0.014 * 18
             case .title: -0.006 * 15
             case .page, .display: -0.02 * 22
             default: 0
@@ -311,7 +355,7 @@ enum Hud {
 
         var defaultColor: Color {
             switch self {
-            case .meta, .unit: Ink.ink3
+            case .meta, .unit, .section: Ink.ink3
             case .micro: Ink.ink4
             default: Ink.ink1
             }
@@ -458,6 +502,17 @@ extension View {
             .tracking(style.tracking)
             .lineSpacing(style.lineSpacing)
             .foregroundStyle(color ?? style.defaultColor)
+    }
+
+    /// Trims a one-line text to its cap height and baseline, so the gaps around it are
+    /// the gaps you see (CSS `text-box: trim-both cap alphabetic`). Descenders still draw.
+    func hudTrim(_ style: Hud.Style) -> some View {
+        padding(.vertical, -style.trim)
+    }
+
+    /// Type style and trim together: the usual form inside rows and labels.
+    func hudTrimmed(_ style: Hud.Style, _ color: Color? = nil) -> some View {
+        hud(style, color).lineLimit(1).hudTrim(style)
     }
 
     /// Declares the surface colour for icon cut-outs below this view.

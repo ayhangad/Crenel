@@ -183,9 +183,9 @@ struct SettingsView: View {
                         }
                     }
                     .frame(maxWidth: SettingsLayout.contentWidth, alignment: .leading)
-                    .padding(.leading, 20)
-                    .padding(.trailing, 32)
-                    .padding(.bottom, 32)
+                    .padding(.leading, Hud.Layout.edge)
+                    .padding(.trailing, Hud.Layout.edge)
+                    .padding(.bottom, Hud.Layout.edge)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .scrollIndicators(.hidden)
@@ -231,15 +231,17 @@ struct SettingsView: View {
     // MARK: Chrome
 
     private var toolbar: some View {
+        // The title's ink and the rail's icon ink share the window's 20 pt leading edge;
+        // the search field ends on the window's 20 pt trailing edge. The band is the
+        // app's toolbar height; the rail and the page both start right under it.
         HStack(spacing: 8) {
-            Text("Settings").hud(.hero).accessibilityAddTraits(.isHeader)
+            Text("Settings").hudTrimmed(.hero).accessibilityAddTraits(.isHeader)
             Spacer(minLength: 8)
             HudSearchField(text: $query, prompt: "Search settings")
                 .frame(width: 220)
                 .accessibilityLabel("Search settings")
         }
-        .padding(.leading, 24)
-        .padding(.trailing, 16)
+        .padding(.horizontal, Hud.Layout.edge)
         .frame(height: Hud.Window.toolbarHeight)
     }
 
@@ -304,43 +306,45 @@ struct SettingsView: View {
                 .filter { $0.localizedCaseInsensitiveContains(trimmedQuery) }
                 .map { (category: item, title: $0) }
         }
-        return VStack(alignment: .leading, spacing: SettingsLayout.groupSpacing) {
+        return Group {
             if matches.isEmpty {
-                HStack(spacing: 12) {
-                    HudIcon(.search, size: 16).foregroundStyle(Hud.Ink.ink3)
-                    Text("No setting matches “\(trimmedQuery)”").hud(.body, Hud.Ink.ink2)
+                SettingsCard(leadsWithLabel: false) {
+                    HStack(spacing: Hud.Row.gap) {
+                        HudIcon(.search, size: 16).foregroundStyle(Hud.Ink.ink3)
+                            .frame(width: 16, height: 16)
+                            .padding(-Hud.Layout.glyphInset)
+                        Text("No setting matches “\(trimmedQuery)”").hudTrimmed(.body, Hud.Ink.ink2)
+                    }
+                    .hudRow(.icon)
                 }
-                .padding(.horizontal, SettingsLayout.rowInset)
-                .frame(height: Hud.Row.oneLine)
-                .padding(.top, 4)
             } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    HudGroupHeader(title: "Results", count: matches.count)
-                    ForEach(matches, id: \.title) { match in
-                        Button {
-                            category = match.category
-                            query = ""
-                        } label: {
-                            HStack(spacing: 12) {
-                                HudIcon(match.category.hudGlyph, size: 16).foregroundStyle(Hud.Ink.ink3)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(verbatim: match.title).hud(.body)
-                                    Text(match.category.title).hud(.meta)
+                SettingsCard {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HudGroupHeader(title: "Results", count: matches.count, rows: .icon)
+                        ForEach(matches, id: \.title) { match in
+                            Button {
+                                category = match.category
+                                query = ""
+                            } label: {
+                                HStack(spacing: Hud.Row.gap) {
+                                    HudIcon(match.category.hudGlyph, size: 16).foregroundStyle(Hud.Ink.ink3)
+                                        .frame(width: 16, height: 16)
+                                        .padding(-Hud.Layout.glyphInset)
+                                    VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                                        Text(verbatim: match.title).hudTrimmed(.body)
+                                        Text(match.category.title).hudTrimmed(.meta)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    HudIcon(.chevronRight, size: Hud.Size.smallIcon).foregroundStyle(Hud.Ink.ink4)
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                HudIcon(.chevronRight, size: 12).foregroundStyle(Hud.Ink.ink4)
+                                .hudRow(.icon)
+                                .contentShape(Rectangle())
+                                .hudGlide(AnyHashable(match.title), hovered: $hoveredResult, in: resultSpace)
                             }
-                            .lineLimit(1)
-                            .padding(.horizontal, SettingsLayout.rowInset)
-                            .frame(height: SettingsLayout.rowHeight)
-                            .hudGlide(AnyHashable(match.title), hovered: $hoveredResult, in: resultSpace)
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .hudGroupCard()
-                .padding(.top, 4)
             }
         }
     }

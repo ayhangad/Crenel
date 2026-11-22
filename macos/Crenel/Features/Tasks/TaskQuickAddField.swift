@@ -64,7 +64,7 @@ struct TaskQuickAddField: View {
                     .hud(.micro, focused ? Hud.Ink.ink3 : Hud.Ink.ink4)
                     .accessibilityHidden(true)
             }
-            .hudField(height: 44, radius: 12, isFocused: focused, padding: Hud.Row.inset)
+            .hudField(isFocused: focused)
             .contentShape(Rectangle())
             .onTapGesture { focused = true }
             .onChange(of: text) { _, newValue in

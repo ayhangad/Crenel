@@ -24,6 +24,16 @@ Files: `HudTokens` · `HudSVGPath` · `HudIcons` · `HudLamps` · `HudButtons` �
 - All loops (`hudLoop`, `HudBusy`, `HudScanner`, `HudCaret`, ignition, lamp fire) already
   respect Reduce Motion.
 
+## Measure model (`Hud.Layout`, C13)
+
+Every gap is a visible gap. Text: `hudTrimmed(style)` (cap height to baseline). Glyphs:
+lay out by ink (`.padding(-Hud.Layout.glyphInset)` on a 16 pt glyph). Rhythm: pair 7,
+block 16, item 20, label → group 20, section 28, edge 20. Rows: `.hudRow(.icon)` (10 all
+round) or `.hudRow(.tile)` + `.hudGlide(…)` + `.hudTileOutset()` (4 around the 56 × 36
+tile, 10 at the trailing value, rows 4 apart). Section labels: `HudGroupHeader(title:
+count: rows:)` renders "Name · n"; the gap above the next label is `kind.sectionGap`.
+Hover slab radius 10, field 34. Spec: `docs/DESIGN.md` › Ölçü modeli.
+
 ## Tokens (`HudTokens.swift`)
 
 | Swift | Value | Prototype |

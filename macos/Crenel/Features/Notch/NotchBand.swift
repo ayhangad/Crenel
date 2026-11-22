@@ -48,7 +48,7 @@ struct NotchBand: View {
                 }
             }
             .frame(height: Hud.Notch.tabRowHeight, alignment: .bottom)
-            .padding(.horizontal, Hud.Notch.openInset)
+            .padding(.horizontal, Hud.Layout.edge)
         }
     }
 
@@ -92,7 +92,10 @@ struct NotchBandRow<Leading: View, Trailing: View>: View {
             Color.clear.frame(width: metrics.hasPhysicalNotch ? metrics.hardware.width : 0, height: 1)
             trailing.frame(maxWidth: .infinity, alignment: .trailing)
         }
-        .padding(.horizontal, Hud.Notch.openInset)
+        // Brand and tools on the content edge; the icon buttons' 28 pt boxes overhang so
+        // the glyph's ink, not its box, ends on the edge.
+        .padding(.leading, Hud.Layout.edge)
+        .padding(.trailing, Hud.Layout.edge - (28 - 16) / 2 - Hud.Layout.glyphInset)
         .frame(height: max(metrics.topInset, Hud.Notch.bandHeight))
     }
 }

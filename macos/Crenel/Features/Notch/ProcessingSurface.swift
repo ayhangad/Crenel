@@ -26,27 +26,25 @@ struct ProcessingSurface: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(verbatim: headline).hud(.title).lineLimit(1)
+                Text(verbatim: headline).hudTrimmed(.title)
                 if let recorded {
-                    Text("\(HudFormat.elapsed(recorded)) recorded").hud(.meta).fixedSize()
+                    Text("\(HudFormat.elapsed(recorded)) recorded").hudTrimmed(.meta).fixedSize()
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 4)
+            .padding(.horizontal, Hud.Layout.rowPad)
             .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
 
             HudStations(titles: stationTitles, current: station.rawValue)
-                .padding(.horizontal, 10)
-                .padding(.top, 20)
+                .padding(.horizontal, Hud.Layout.rowPad)
+                .padding(.top, Hud.Layout.block)
                 .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(Text(verbatim: stationTitles[station.rawValue]))
                 .accessibilityValue("Step \(station.rawValue + 1) of 4")
 
             detail
-                .padding(.horizontal, 10)
-                .padding(.top, 20)
+                .padding(.top, Hud.Layout.section)
                 .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
 
             HudActions {
@@ -59,10 +57,8 @@ struct ProcessingSurface: View {
                         .accessibilityLabel("Stop processing")
                 }
             }
-            .frame(minHeight: 26)
-            .padding(.leading, 10)
-            .padding(.trailing, 2)
-            .padding(.top, 12)
+            .padding(.horizontal, Hud.Layout.rowPad)
+            .padding(.top, Hud.Layout.section)
             .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -99,7 +95,7 @@ struct ProcessingSurface: View {
 
     private var detail: some View {
         HStack(spacing: 12) {
-            Text(verbatim: detailText).hud(.meta, Hud.Ink.ink2).lineLimit(1)
+            Text(verbatim: detailText).hudTrimmed(.meta, Hud.Ink.ink2)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if station == .uploading, let uploadProgress {
                 let percent = Int((min(1, max(0, uploadProgress)) * 100).rounded())
@@ -108,10 +104,11 @@ struct ProcessingSurface: View {
                     .accessibilityLabel("\(percent) percent uploaded")
             }
         }
-        .padding(.horizontal, 12)
-        .frame(height: 40)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color(white: 1, opacity: 0.04)))
-        .hudScanner(!(station == .uploading && uploadProgress != nil), radius: 10, fixedPhase: scannerPhase)
+        // A lit band: its text sits on the content edge, the band 10 out like a slab.
+        .padding(.horizontal, Hud.Layout.rowPad)
+        .frame(height: Hud.Layout.field)
+        .background(RoundedRectangle(cornerRadius: Hud.Layout.hitRadius, style: .continuous).fill(Color(white: 1, opacity: 0.04)))
+        .hudScanner(!(station == .uploading && uploadProgress != nil), radius: Hud.Layout.hitRadius, fixedPhase: scannerPhase)
     }
 }
 
@@ -127,9 +124,7 @@ struct PreparingSurface: View {
             HudButton("Cancel", key: "esc", size: .small, action: onCancel)
                 .hudShortcut(.cancelAction)
         }
-        .padding(.leading, 10)
-        .padding(.trailing, 2)
-        .padding(.top, 4)
+        .padding(.horizontal, Hud.Layout.rowPad)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
@@ -169,16 +164,16 @@ struct ReadySurface: View {
     @State private var appeared = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
-                HudLamp(.teal)
-                Text(stats?.hasNotes == false ? "Transcript is ready" : "Notes are ready").hud(.title)
+        VStack(alignment: .leading, spacing: Hud.Layout.block) {
+            HStack(spacing: 12) {
+                HudLamp(.teal).frame(width: 13)
+                Text(stats?.hasNotes == false ? "Transcript is ready" : "Notes are ready").hudTrimmed(.title)
                 if let title, !title.isEmpty {
-                    Text(verbatim: title).hud(.meta).lineLimit(1)
+                    Text(verbatim: title).hudTrimmed(.meta)
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, Hud.Layout.rowPad)
             .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
 
             HStack(spacing: 0) {
@@ -189,9 +184,8 @@ struct ReadySurface: View {
                 readout(stats?.actionItems.map { String($0) } ?? "-", "action items",
                         color: (stats?.actionItems ?? 0) > 0 ? Hud.Ink.signal : Hud.Ink.ink1)
             }
-            .padding(.vertical, 14)
-            .hudWell()
-            .padding(.horizontal, 2)
+            .padding(.vertical, Hud.Layout.edge - Hud.Layout.rowPad)
+            .hudWell(radius: Hud.Layout.hitRadius + 2)
             .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
 
             HudActions {
@@ -204,21 +198,21 @@ struct ReadySurface: View {
                         .hudShortcut(.defaultAction)
                 }
             }
-            .padding(.leading, 10)
-            .padding(.trailing, 2)
+            .padding(.horizontal, Hud.Layout.rowPad)
+            .padding(.top, Hud.Layout.section - Hud.Layout.block)
             .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
         }
-        .padding(.top, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { appeared = true }
     }
 
     private func readout(_ value: String, _ label: LocalizedStringKey, color: Color = Hud.Ink.ink1) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Hud.Layout.pair) {
             HudSegmentDigits(value, height: 20, color: color)
-            Text(label).hud(.meta)
+            Text(label).hudTrimmed(.meta)
         }
-        .padding(.horizontal, 16)
+        .padding(.vertical, Hud.Layout.rowPad)
+        .padding(.horizontal, Hud.Layout.rowPad)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: value) + Text(verbatim: " ") + Text(label))
@@ -246,11 +240,11 @@ struct FlowOutcomeSurface: View {
     @State private var appeared = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: Hud.Layout.section) {
             HStack(alignment: .top, spacing: 12) {
                 HudStatusWell(status, tint: tint)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(verbatim: title).hud(.title)
+                VStack(alignment: .leading, spacing: Hud.Layout.pair) {
+                    Text(verbatim: title).hudTrimmed(.title)
                     if let message, !message.isEmpty {
                         Text(verbatim: message).hud(.meta).fixedSize(horizontal: false, vertical: true)
                     }
@@ -269,11 +263,9 @@ struct FlowOutcomeSurface: View {
                         .hudShortcut(.defaultAction)
                 }
             }
-            .padding(.trailing, 2)
             .hudStagger(1, shown: appeared, reduceMotion: reduceMotion)
         }
-        .padding(.horizontal, 10)
-        .padding(.top, 4)
+        .padding(.horizontal, Hud.Layout.rowPad)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear { appeared = true }
     }

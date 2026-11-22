@@ -197,25 +197,26 @@ struct DesktopMeetingDetail: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-                .padding(.horizontal, 28)
-                .padding(.top, 24)
+                .padding(.horizontal, Hud.Layout.edge)
+                .padding(.top, Hud.Layout.edge)
             DesktopPlayerWell(player: player, audioURL: content.audioURL,
                               lane: stored.map { DesktopStats.lane($0.transcript, duration: meeting.duration) } ?? [])
-                .padding(.horizontal, 28)
-                .padding(.top, 20)
+                .padding(.horizontal, Hud.Layout.edge)
+                .padding(.top, Hud.Layout.block)
             ScrollView {
-                HStack(alignment: .top, spacing: 32) {
+                HStack(alignment: .top, spacing: Hud.Space.x8) {
+                    // Rows bleed `rowPad` past the text, which stays on the sheet's edge.
                     notes
-                        .padding(.horizontal, -Hud.Row.inset)
+                        .padding(.horizontal, -Hud.Layout.rowPad)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .desktopEnter(0)
                     rail
                         .frame(width: Hud.Window.detailRailWidth)
                         .desktopEnter(1)
                 }
-                .padding(.horizontal, 28)
-                .padding(.top, 20)
-                .padding(.bottom, 32)
+                .padding(.horizontal, Hud.Layout.edge)
+                .padding(.top, Hud.Layout.section)
+                .padding(.bottom, Hud.Layout.edge)
             }
             .scrollIndicators(.never)
         }
@@ -239,9 +240,9 @@ struct DesktopMeetingDetail: View {
     // MARK: Header
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(verbatim: meeting.title).hud(.page).lineLimit(1).truncationMode(.tail)
+        HStack(alignment: .top, spacing: Hud.Layout.block) {
+            VStack(alignment: .leading, spacing: Hud.Layout.block) {
+                Text(verbatim: meeting.title).hudTrimmed(.page).truncationMode(.tail)
                     .help(meeting.title)
                     .accessibilityAddTraits(.isHeader)
                 DesktopFlow(spacing: 6) {
@@ -267,7 +268,8 @@ struct DesktopMeetingDetail: View {
                 .keyboardShortcut("c", modifiers: [.command, .shift])
                 .disabled(notesText == nil)
             }
-            .padding(.top, 2)
+            // The buttons centre on the title's line without making it taller.
+            .frame(height: Hud.Style.page.size - 2 * Hud.Style.page.trim)
         }
     }
 
@@ -367,40 +369,43 @@ struct DesktopMeetingDetail: View {
                     } buttons: {
                         HudButton("AI settings", size: .small) { openSettings(.ai) }
                     }
-                    .padding(.horizontal, Hud.Row.inset)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, Hud.Layout.rowPad)
+                    .padding(.bottom, Hud.Layout.block)
                 }
                 if let summary {
                     Text(verbatim: summary.overview.isEmpty ? "The transcript doesn’t have enough content to summarize." : summary.overview)
                         .hud(.read, summary.overview.isEmpty ? Hud.Ink.ink3 : Hud.Ink.ink1)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, Hud.Row.inset)
-                        .padding(.top, 4)
+                        .hudTrim(.read)
+                        .padding(.horizontal, Hud.Layout.rowPad)
                     if !summary.decisions.isEmpty {
-                        HudGroupHeader(title: "Decided").padding(.top, 16).accessibilityAddTraits(.isHeader)
-                        VStack(alignment: .leading, spacing: 6) {
+                        HudGroupHeader(title: "Decided", count: summary.decisions.count, rows: .plain)
+                            .padding(.top, HudRowKind.plain.sectionGap)
+                        VStack(alignment: .leading, spacing: HudRowKind.plain.spacing) {
                             ForEach(Array(summary.decisions.enumerated()), id: \.offset) { offset, decision in
-                                HStack(alignment: .top, spacing: 12) {
-                                    Text(verbatim: "\(offset + 1)").hud(.micro, Hud.Ink.ink3)
-                                        .frame(width: 12, alignment: .leading).padding(.top, 5)
+                                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                    Text(verbatim: "\(offset + 1)").hudTrimmed(.micro, Hud.Ink.ink3)
+                                        .frame(width: 13, alignment: .leading)
                                     Text(verbatim: decision).hud(.read)
                                         .textSelection(.enabled)
                                         .fixedSize(horizontal: false, vertical: true)
+                                        .hudTrim(.read)
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
                         }
-                        .padding(.horizontal, Hud.Row.inset)
+                        .padding(.horizontal, Hud.Layout.rowPad)
                     }
                 } else if stored.summaryFailure == nil {
                     Text("The transcript is ready; notes will appear once a model is set.")
                         .hud(.read, Hud.Ink.ink3)
-                        .padding(.horizontal, Hud.Row.inset)
-                        .padding(.top, 4)
+                        .hudTrim(.read)
+                        .padding(.horizontal, Hud.Layout.rowPad)
                 }
-                HudGroupHeader(title: "Transcript").padding(.top, 16).accessibilityAddTraits(.isHeader)
+                HudGroupHeader(title: "Transcript", count: stored.transcript.segments.isEmpty ? nil : stored.transcript.segments.count,
+                               rows: stored.transcript.segments.isEmpty ? .plain : .icon)
+                    .padding(.top, HudRowKind.plain.sectionGap)
                 transcript(stored.transcript)
             }
         } else {
@@ -409,19 +414,18 @@ struct DesktopMeetingDetail: View {
     }
 
     private func summaryHeader(_ stored: StoredTranscription) -> some View {
-        HStack(spacing: 8) {
-            Text("Summary").hud(.label, Hud.Ink.ink3).accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 4)
-            if isProcessing { HudBusy() }
-            Button { actions.retryProcessing(meeting) } label: {
-                HudButtonLabel(stored.summary == nil ? "Write notes" : "Rewrite", glyph: .spark)
+        HudGroupHeader(title: "Summary", rows: .plain) {
+            HStack(spacing: 8) {
+                if isProcessing { HudBusy() }
+                Button { actions.retryProcessing(meeting) } label: {
+                    HudButtonLabel(stored.summary == nil ? "Write notes" : "Rewrite", glyph: .spark)
+                }
+                .buttonStyle(HudButtonStyle(kind: .secondary, size: .mini))
+                .disabled(isProcessing || savingSpeaker)
+                .help("Write the notes again")
             }
-            .buttonStyle(HudButtonStyle(kind: .secondary, size: .mini))
-            .disabled(isProcessing || savingSpeaker)
-            .help("Write the notes again")
+            .desktopInline()
         }
-        .padding(.horizontal, Hud.Row.inset)
-        .frame(height: 32)
     }
 
     @ViewBuilder private func transcript(_ transcript: Transcript) -> some View {
@@ -429,9 +433,9 @@ struct DesktopMeetingDetail: View {
             Text(verbatim: transcript.text)
                 .hud(.read)
                 .textSelection(.enabled)
+                .hudTrim(.read)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, Hud.Row.inset)
-                .padding(.vertical, 8)
+                .padding(.horizontal, Hud.Layout.rowPad)
         } else {
             let selectable = transcript.segments.count <= Self.inlineSelectionLimit
             let order = speakerOrder(transcript)
@@ -452,16 +456,18 @@ struct DesktopMeetingDetail: View {
         let text = segment.text.trimmingCharacters(in: .whitespacesAndNewlines)
         return HStack(alignment: .top, spacing: 12) {
             Button { player.play(from: segment.startTime) } label: {
-                Text(verbatim: stamp).hud(.micro, Hud.Ink.ink3)
-                    .frame(width: 36, alignment: .leading).padding(.top, 4)
+                // Cap-aligned with the speaker's name.
+                Text(verbatim: stamp).hudTrimmed(.micro, Hud.Ink.ink3)
+                    .padding(.top, Hud.Style.label.size * (1 - 2 * Hud.Layout.lineExcess) - Hud.Style.micro.size * (1 - 2 * Hud.Layout.lineExcess))
+                    .frame(width: 36, alignment: .leading)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Play from here")
             .accessibilityLabel(Text(verbatim: "Play from \(stamp)"))
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
                 Text(verbatim: DesktopFormat.speakerName(segment))
-                    .hud(.label, speaker == 0 ? Hud.Ink.ink1 : (speaker == 1 ? Hud.Ink.ink2 : Hud.Ink.ink3))
+                    .hudTrimmed(.label, speaker == 0 ? Hud.Ink.ink1 : (speaker == 1 ? Hud.Ink.ink2 : Hud.Ink.ink3))
                 Group {
                     if selectable {
                         Text(verbatim: text).textSelection(.enabled)
@@ -471,11 +477,12 @@ struct DesktopMeetingDetail: View {
                 }
                 .hud(.read)
                 .fixedSize(horizontal: false, vertical: true)
+                .hudTrim(.read)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, Hud.Row.inset)
-        .padding(.vertical, 10)
+        .hudRow(.icon)
+        .contentShape(Rectangle())
         .hudGlide(segment.id, hovered: $hoveredSegment, in: transcriptSpace)
         .contextMenu {
             Button("Copy") { actions.copyText(text) }
@@ -487,12 +494,15 @@ struct DesktopMeetingDetail: View {
     private var pendingRow: some View {
         let status = isProcessing ? StoredMeeting.ProcessingStatus.processing : meeting.processingStatus
         return HudActions {
-            switch status {
-            case .failed: HudStatusShape(.err)
-            case .recorded: HudStatusShape(.wait)
-            case .processing: HudBusy()
-            case .completed: HudStatusShape(.warn)
+            Group {
+                switch status {
+                case .failed: HudStatusShape(.err)
+                case .recorded: HudStatusShape(.wait)
+                case .processing: HudBusy()
+                case .completed: HudStatusShape(.warn)
+                }
             }
+            .frame(width: 13)
             Text(verbatim: {
                 switch status {
                 case .failed: "Transcription didn’t finish"
@@ -511,13 +521,13 @@ struct DesktopMeetingDetail: View {
         .frame(height: 44)
         .background(RoundedRectangle(cornerRadius: Hud.Radius.console, style: .continuous).fill(Color(white: 1, opacity: 0.035)))
         .hudScanner(status == .processing, radius: Hud.Radius.console)
-        .padding(.horizontal, Hud.Row.inset)
+        .padding(.horizontal, Hud.Layout.rowPad)
     }
 
     // MARK: Rail
 
     private var rail: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: Hud.Layout.section) {
             if let summary {
                 forYou(summary.actionItems)
             }
@@ -530,25 +540,22 @@ struct DesktopMeetingDetail: View {
     }
 
     private func forYou(_ items: [ActionItem]) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text("For you").hud(.label, Hud.Ink.ink3).accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 4)
-                HudSegmentDigits("\(items.count)", height: 11, color: items.isEmpty ? Hud.Ink.ink3 : Hud.Ink.signal)
-            }
-            .frame(height: 28)
+        VStack(alignment: .leading, spacing: 0) {
+            // The rail has no slabs: its text sits on the content edge.
+            HudGroupHeader(title: "For you", count: items.count, rows: .plain)
+                .padding(.horizontal, -Hud.Layout.rowPad)
             if items.isEmpty {
-                Text("Nothing for you from this meeting.").hud(.meta)
+                Text("Nothing for you from this meeting.").hudTrimmed(.meta)
             }
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: HudRowKind.plain.spacing) {
                 ForEach(items) { item in actionRow(item) }
             }
             if let message {
-                HStack(spacing: 8) {
-                    if messageFailed { HudStatusShape(.err) } else { HudLamp(.teal) }
-                    Text(verbatim: message).hud(.meta, Hud.Ink.ink2).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 12) {
+                    Group { if messageFailed { HudStatusShape(.err) } else { HudLamp(.teal) } }.frame(width: 13)
+                    Text(verbatim: message).hud(.meta, Hud.Ink.ink2).fixedSize(horizontal: false, vertical: true).hudTrim(.meta)
                 }
-                .padding(.top, 8)
+                .padding(.top, Hud.Layout.item)
                 .transition(.opacity)
             }
         }
@@ -563,12 +570,13 @@ struct DesktopMeetingDetail: View {
             Button {
                 if let time = item.sourceTime { player.play(from: time) }
             } label: {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: Hud.Layout.pair) {
                     Text(verbatim: item.title).hud(.label, imported ? Hud.Ink.ink2 : Hud.Ink.ink1)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
+                        .hudTrim(.label)
                     if !meta.isEmpty {
-                        Text(verbatim: meta.joined(separator: " · ")).hud(.meta)
+                        Text(verbatim: meta.joined(separator: " · ")).hudTrimmed(.meta)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -577,8 +585,9 @@ struct DesktopMeetingDetail: View {
             .buttonStyle(.plain)
             .disabled(item.sourceTime == nil)
             .help(item.sourceTime == nil ? "" : "Play where this was said")
+            // The button's box centres on the title's first line.
             if imported {
-                HudStatusWord(.ok, "In Tasks").frame(height: 22)
+                HudStatusWord(.ok, "In Tasks").frame(height: Hud.Style.label.size - 2 * Hud.Style.label.trim)
             } else {
                 Button {
                     importing.insert(item.id)
@@ -591,6 +600,7 @@ struct DesktopMeetingDetail: View {
                     HudButtonLabel("Add", glyph: .plus)
                 }
                 .buttonStyle(HudButtonStyle(kind: .secondary, size: .mini))
+                .frame(height: Hud.Style.label.size - 2 * Hud.Style.label.trim)
                 .disabled(importing.contains(item.id) || isProcessing)
                 .accessibilityLabel(Text(verbatim: "Add to tasks: \(item.title)"))
             }
@@ -598,10 +608,8 @@ struct DesktopMeetingDetail: View {
     }
 
     private func talkTime(_ shares: [DesktopStats.TalkShare]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Talk time").hud(.label, Hud.Ink.ink3).accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 4)
+        VStack(alignment: .leading, spacing: HudRowKind.plain.spacing) {
+            HudGroupHeader(title: "Talk time", count: shares.count, rows: .plain) {
                 Menu {
                     ForEach(shares.sorted { $0.index < $1.index }) { share in
                         Button(share.name) {
@@ -618,15 +626,18 @@ struct DesktopMeetingDetail: View {
                 .fixedSize()
                 .disabled(isProcessing)
                 .accessibilityLabel("Rename a speaker")
+                .desktopInline()
             }
-            .frame(height: 28)
+            .padding(.horizontal, -Hud.Layout.rowPad)
+            // The header already carries `label` under it.
+            .padding(.bottom, -HudRowKind.plain.spacing)
             ForEach(shares) { share in
                 let ink = share.index == 0 ? Hud.Ink.ink1 : (share.index == 1 ? Hud.Ink.ink2 : Hud.Ink.ink3)
-                VStack(spacing: 6) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text(verbatim: share.name).hud(.label, ink).lineLimit(1)
+                VStack(spacing: Hud.Layout.pair) {
+                    HStack(alignment: .lastTextBaseline) {
+                        Text(verbatim: share.name).hudTrimmed(.label, ink)
                         Spacer(minLength: 4)
-                        Text(verbatim: "\(DesktopFormat.minutes(share.seconds)) · \(Int((share.share * 100).rounded()))%").hud(.meta)
+                        Text(verbatim: "\(DesktopFormat.minutes(share.seconds)) · \(Int((share.share * 100).rounded()))%").hudTrimmed(.meta)
                     }
                     HudTrack(value: share.share, tint: share.index == 0 ? Hud.Ink.ink1 : (share.index == 1 ? Hud.Ink.ink2 : Hud.Ink.ink4),
                              glows: share.index == 0)
@@ -684,13 +695,13 @@ struct DesktopMeetingDetail: View {
     // MARK: Rename speaker
 
     private var renameSheet: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Rename speaker").hud(.title)
+        VStack(alignment: .leading, spacing: Hud.Layout.block) {
+            Text("Rename speaker").hudTrimmed(.title)
             TextField("", text: $editingSpeakerName, prompt: Text("Name").foregroundStyle(Hud.Ink.ink3))
                 .textFieldStyle(.plain)
                 .hud(.body)
                 .focused($speakerFieldFocused)
-                .hudField(height: 36, radius: 10, isFocused: speakerFieldFocused, padding: 10)
+                .hudField(isFocused: speakerFieldFocused)
                 .accessibilityLabel("Speaker name")
             HudActions {
                 if savingSpeaker { HudBusy() }
@@ -704,7 +715,7 @@ struct DesktopMeetingDetail: View {
                     .disabled(savingSpeaker || isProcessing || editingSpeakerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(24)
+        .padding(Hud.Layout.edge)
         .frame(width: 380)
         .background(Color.black)
         .preferredColorScheme(.dark)
@@ -749,9 +760,9 @@ private struct DesktopPlayerWell: View {
     var body: some View {
         HStack(spacing: 16) {
             HudKnob(player.isPlaying ? .pause : .play, help: player.isPlaying ? "Pause" : "Play", action: player.togglePlayback)
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: Hud.Layout.pair) {
                 HudSegmentDigits(DesktopFormat.length(position), height: 14)
-                Text(verbatim: "of \(DesktopFormat.length(player.duration))").hud(.micro)
+                Text(verbatim: "of \(DesktopFormat.length(player.duration))").hudTrimmed(.micro)
             }
             .frame(width: player.duration >= 3_600 ? 76 : 58, alignment: .leading)
             VStack(spacing: 8) {

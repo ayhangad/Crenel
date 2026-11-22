@@ -121,7 +121,7 @@ struct DesktopSidebar: View {
             .padding(.trailing, 10)
             .frame(height: Hud.Window.railItem)
             .background {
-                let shape = RoundedRectangle(cornerRadius: 9, style: .continuous)
+                let shape = RoundedRectangle(cornerRadius: Hud.Layout.hitRadius, style: .continuous)
                 if isSelected {
                     shape.fill(LinearGradient(colors: [Color(white: 1, opacity: 0.075), Color(white: 1, opacity: 0.04)],
                                               startPoint: .leading, endPoint: .trailing))
@@ -142,14 +142,14 @@ struct DesktopSidebar: View {
     private var systems: some View {
         let all = DesktopSystem.all(appState)
         let needsUser = all.contains(where: \.needsUser)
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("Systems").hud(.label, Hud.Ink.ink3)
+        return VStack(alignment: .leading, spacing: Hud.Layout.label) {
+            HStack(alignment: .lastTextBaseline) {
+                Text("Systems").hudTrimmed(.section)
                 Spacer(minLength: 4)
                 if needsUser {
-                    Text("needs you").hud(.micro, Hud.Ink.signal)
+                    Text("needs you").hudTrimmed(.micro, Hud.Ink.signal)
                 } else {
-                    Text(verbatim: "\(all.filter(\.isOn).count) of \(all.count) on").hud(.micro)
+                    Text(verbatim: "\(all.filter(\.isOn).count) of \(all.count) on").hudTrimmed(.micro)
                 }
             }
             HStack(spacing: 0) {
@@ -158,6 +158,7 @@ struct DesktopSidebar: View {
                     Button { openSettings(system.category) } label: {
                         HudTelltale(system.glyph, system.state, paren: system.paren, badge: system.badge)
                             .frame(height: 16)
+                            .padding(.vertical, -Hud.Layout.glyphInset)
                             .contentShape(Rectangle().inset(by: -4))
                     }
                     .buttonStyle(.plain)
@@ -167,7 +168,7 @@ struct DesktopSidebar: View {
             }
             .padding(.trailing, 2)
         }
-        .padding(12)
+        .padding(Hud.Space.x3)
         .accessibilityElement(children: .contain)
     }
 }
@@ -180,18 +181,18 @@ private struct DesktopRecordingCard: View {
     @Environment(\.desktopFixedNow) private var fixedNow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                HudLamp(.red, form: .dot, loop: fixedNow == nil ? .pulse : .steady)
-                Text("Recording").hud(.label, Hud.Ink.ink1)
+        VStack(alignment: .leading, spacing: Hud.Layout.block) {
+            HStack(spacing: 12) {
+                HudLamp(.red, form: .dot, loop: fixedNow == nil ? .pulse : .steady).frame(width: 13)
+                Text("Recording").hudTrimmed(.label, Hud.Ink.ink1)
                 Spacer(minLength: 4)
-                HudLadder(level: level, quiet: !micOpen && level < 0.02)
+                HudLadder(level: level, quiet: !micOpen && level < 0.02).desktopInline()
             }
             HStack(alignment: .firstTextBaseline) {
                 elapsed
                 Spacer(minLength: 8)
                 if let title {
-                    Text(verbatim: title).hud(.meta).lineLimit(1).truncationMode(.tail)
+                    Text(verbatim: title).hudTrimmed(.meta).truncationMode(.tail)
                 }
             }
             HStack(spacing: 8) {
@@ -209,7 +210,7 @@ private struct DesktopRecordingCard: View {
                 .accessibilityLabel("Stop recording")
             }
         }
-        .padding(12)
+        .padding(Hud.Layout.edge)
         .hudWell()
     }
 
