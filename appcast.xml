@@ -3,6 +3,25 @@
     <channel>
         <title>Crenel</title>
         <item>
+            <title>1.3</title>
+            <pubDate>Sun, 22 Nov 2026 22:09:42 +0300</pubDate>
+            <sparkle:version>168</sparkle:version>
+            <sparkle:shortVersionString>1.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Crenel 1.3
+
+- **A cleaner, calmer layout everywhere.** The notch, the desktop window and Settings now
+  share one spacing system: lists have room to scan, related things sit together, and
+  every screen lines up on the same edges.
+- **Easier lists.** Task rows are taller, calendar and recording rows keep their time tile
+  as one tidy column, and section labels show their count beside the name ("Today · 3").
+- **Settings on one card per page.** Each setting reads as a title with a short line under
+  it and its control on the right, without a box around every row.
+- **Roomier task input.** The "Add a task" field is easier to type in.
+]]></description>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.3/Crenel-1.3.dmg" length="9577215" type="application/octet-stream" sparkle:edSignature="nkSnuuOCfEmNZYtu6A8OnhWRTlv849q9E/GehHDXWefvwnhjwe26L3BXOZleNgB0zMFmJfXrphlWwryeVPdqBg=="/>
+        </item>
+        <item>
             <title>1.2</title>
             <pubDate>Fri, 20 Nov 2026 15:28:15 +0300</pubDate>
             <sparkle:version>157</sparkle:version>
@@ -24,7 +43,7 @@
   Crenel or choosing another key restores your "Press 🌐 key to" setting immediately. Before,
   it took a restart.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.2/Crenel-1.2.dmg" length="9496320" type="application/octet-stream" sparkle:edSignature="HpqEP/l1VDQCM0Sx1WiD3z9AiQalo5Vq1tuxhMuL3UsFfGPkkM1/zD8XEt/oTr6Kyd2NLphn8y6kOkbtDbNuDQ=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.3/Crenel-1.2.dmg" length="9496320" type="application/octet-stream" sparkle:edSignature="HpqEP/l1VDQCM0Sx1WiD3z9AiQalo5Vq1tuxhMuL3UsFfGPkkM1/zD8XEt/oTr6Kyd2NLphn8y6kOkbtDbNuDQ=="/>
         </item>
         <item>
             <title>1.1</title>
@@ -42,37 +61,7 @@
 - **Markdown export.** Exported notes no longer name a transcription service, since the
   transcript doesn't record which one wrote it.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.2/Crenel-1.1.dmg" length="9481472" type="application/octet-stream" sparkle:edSignature="496oShZBSzpQhKmWPBI0s4guzeKcgV2mB5PSaOgpHIxK+Gy1TGNJJfTTYNY0V48VYGSYEoie8iq9d/5Nc0XDBg=="/>
-        </item>
-        <item>
-            <title>1.0</title>
-            <pubDate>Wed, 18 Nov 2026 19:21:25 +0300</pubDate>
-            <sparkle:version>150</sparkle:version>
-            <sparkle:shortVersionString>1.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# Crenel 1.0
-
-The first release. Crenel lives in the notch: your calendar, dictation, tasks and meeting
-notes in one place. Recordings and meeting notes are stored on your Mac.
-
-- **Calendar in the notch.** The next event and how long until it starts, or how long is
-  left in the one you're in. Join a call with one key; invites waiting for a reply are marked.
-- **Dictation.** Hold fn (🌐) and talk; the words go where your cursor is. Speech is turned
-  into text on your Mac and never saved as audio. Long dictation grows into a live view, and
-  you can take it back with Undo.
-- **Tasks.** Type one line: "tomorrow 3pm", "next Monday", "every Monday" are understood as
-  you write. Tasks live in a "Crenel" list in Apple Reminders, so they're on your iPhone too.
-- **Meeting notes.** Crenel offers to record Zoom and Google Meet calls, then writes a
-  transcript with speakers, a summary, decisions and action items. Export as Markdown, PDF
-  or plain text.
-- **Your keys, your choice.** Apple Speech transcribes meeting audio on your Mac by default. Choosing
-  ElevenLabs sends it the combined recording. Apple’s model handles notes locally. Choosing
-  OpenAI or Anthropic sends transcript text to that provider. Claude Code sends text to
-  Anthropic using your existing sign-in. OpenAI and Anthropic API providers can also clean up
-  dictated text.
-- **Updates.** Crenel checks for updates itself and installs them when you're not on a call.
-]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.2/Crenel-1.0.dmg" length="9449216" type="application/octet-stream" sparkle:edSignature="CsWg2Y3KkVVzXSSTg5Rw4I67W9b7NoaZwJHrdStQ8SH10WrxD9kR6kxXFGG3GTyqfUugcIXEYM7Fmgywtph0CA=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.3/Crenel-1.1.dmg" length="9481472" type="application/octet-stream" sparkle:edSignature="496oShZBSzpQhKmWPBI0s4guzeKcgV2mB5PSaOgpHIxK+Gy1TGNJJfTTYNY0V48VYGSYEoie8iq9d/5Nc0XDBg=="/>
         </item>
     </channel>
 </rss>
