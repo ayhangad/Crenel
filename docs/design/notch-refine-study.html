@@ -321,7 +321,7 @@
         <div class="ruler" id="today-ruler" data-span="8-20" data-now="10.7" data-events="14.5-15.25:focus|16-17|17.5-18:invite|19-20:dim"></div>
 
         <!-- Bugün: etiket → ilk karo 20, karo → karo 20 -->
-        <div class="lbl" id="today-l1"><span class="t-sec">Today</span><span class="c">3</span></div>
+        <div class="lbl" id="today-l1"><span class="hstack" style="gap:6px"><span class="t-sec">Today</span><span class="t-sec" style="color:var(--ink-4)">·</span><span class="t-sec">3</span></span></div>
         <div class="stack">
           <div class="hit hov" style="gap:12px">
             <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="16:00" data-h="12"></span></div>
@@ -341,7 +341,7 @@
           </div>
         </div>
 
-        <div class="lbl after-hit"><span class="t-sec">Later</span><span class="c">2</span></div>
+        <div class="lbl after-hit"><span class="hstack" style="gap:6px"><span class="t-sec">Later</span><span class="t-sec" style="color:var(--ink-4)">·</span><span class="t-sec">2</span></span></div>
         <div class="stack">
           <div class="hit" style="gap:12px">
             <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="18" data-h="12"></span><span class="wd">Wed</span></div>
@@ -389,7 +389,7 @@
         <!-- Sekme çizgisinin altından alana 20 (çizgi: etiket + 8 + 2) -->
         <div class="hit field" style="margin-top:calc(8px + 2px + var(--E));min-height:34px"><svg class="i"><use href="#i-plus"/></svg><span class="ph">Add a task, like <q>call mom tomorrow 3pm</q></span><span class="t-micro">↩</span></div>
 
-        <div class="lbl" style="margin-top:var(--out)"><span class="t-sec">Today</span>
+        <div class="lbl" style="margin-top:var(--out)"><span class="hstack" style="gap:6px"><span class="t-sec">Today</span><span class="t-sec" style="color:var(--ink-4)">·</span><span class="t-sec">4</span></span>
           <span class="hstack" style="gap:3px"><span class="lamp on-w"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span><span class="lamp"></span></span></div>
         <div class="stack">
           <div class="hit" style="gap:12px">
@@ -421,14 +421,14 @@
           </div>
         </div>
 
-        <div class="lbl after-hit"><span class="t-sec">Later</span><span class="c">1</span></div>
+        <div class="lbl after-hit"><span class="hstack" style="gap:6px"><span class="t-sec">Later</span><span class="t-sec" style="color:var(--ink-4)">·</span><span class="t-sec">1</span></span></div>
         <div class="hit" style="gap:12px">
           <svg class="i"><use href="#m-open"/></svg>
           <span class="hstack" style="flex:1"><span class="t-body">Reading list</span></span>
           <div class="tail"><span class="k k-timer"></span><span class="k k-pri"></span><span class="k k-rep"></span><span class="k k-due"><span class="t-value">Mon 30</span></span></div>
         </div>
 
-        <div class="lbl after-hit"><span class="t-sec">Done</span><span class="c">1</span></div>
+        <div class="lbl after-hit"><span class="hstack" style="gap:6px"><span class="t-sec">Done</span><span class="t-sec" style="color:var(--ink-4)">·</span><span class="t-sec">1</span></span></div>
         <div class="hit" style="gap:12px">
           <svg class="i"><use href="#m-done"/></svg>
           <span class="hstack" style="flex:1"><span class="t-body" style="color:var(--ink-4)">Share sprint notes</span></span>
@@ -504,10 +504,10 @@
   <!--AUDIT--><table class="audit"><tr><th>Ekran</th><th>Geçiş (mürekkepten mürekkebe)</th><th>Hedef</th><th>Ölçülen</th><th>Not</th></tr>
 <tr><td>Today</td><td>panel üstü → kahraman</td><td>20</td><td class="ok">20</td><td></td></tr>
 <tr><td>Today</td><td>kahraman → cetvel</td><td>16</td><td class="ok">16</td><td>halkanın gerçek alt ucundan</td></tr>
-<tr><td>Today</td><td>cetvel → Today 3</td><td>28</td><td class="ok">28</td><td></td></tr>
-<tr><td>Today</td><td>Today 3 → Lunch with Deniz Karaköy L</td><td>20</td><td class="ok">20</td><td></td></tr>
-<tr><td>Today</td><td>Lunch with Deniz Karaköy L → Later 2</td><td>28</td><td class="ok">28</td><td></td></tr>
-<tr><td>Today</td><td>Later 2 → Wed Weekly sync 10:00 · Zo</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Today</td><td>cetvel → Today · 3</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Today</td><td>Today · 3 → Lunch with Deniz Karaköy L</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Today</td><td>Lunch with Deniz Karaköy L → Later · 2</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Today</td><td>Later · 2 → Wed Weekly sync 10:00 · Zo</td><td>20</td><td class="ok">20</td><td></td></tr>
 <tr><td>Today</td><td>Wed Weekly sync 10:00 · Zo → panel altı</td><td>20</td><td class="ok">20</td><td></td></tr>
 <tr><td>Today</td><td>grup içi: Lunch with Deniz → Partner call</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
 <tr><td>Today</td><td>grup içi: Partner call → Gym</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
@@ -522,12 +522,12 @@
 <tr><td>Tasks</td><td>panel üstü → Crenel</td><td>12</td><td class="ok">12</td><td>kamera bandı</td></tr>
 <tr><td>Tasks</td><td>Crenel → Today Recordings Tasks 5</td><td>12</td><td class="ok">12</td><td></td></tr>
 <tr><td>Tasks</td><td>Today Recordings Tasks 5 → Add a task, like call mom </td><td>30</td><td class="ok">30</td><td>sekme çizgisinden 20 (etiket + 8 + çizgi 2 + 20)</td></tr>
-<tr><td>Tasks</td><td>Add a task, like call mom  → Today</td><td>28</td><td class="ok">28</td><td></td></tr>
-<tr><td>Tasks</td><td>Today → Finish onboarding flow min</td><td>20</td><td class="ok">20</td><td></td></tr>
-<tr><td>Tasks</td><td>Finish onboarding flow min → Later 1</td><td>28</td><td class="ok">28</td><td></td></tr>
-<tr><td>Tasks</td><td>Later 1 → Reading list Mon 30</td><td>20</td><td class="ok">20</td><td></td></tr>
-<tr><td>Tasks</td><td>Reading list Mon 30 → Done 1</td><td>28</td><td class="ok">28</td><td></td></tr>
-<tr><td>Tasks</td><td>Done 1 → Share sprint notes</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Tasks</td><td>Add a task, like call mom  → Today · 4</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Tasks</td><td>Today · 4 → Finish onboarding flow min</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Tasks</td><td>Finish onboarding flow min → Later · 1</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Tasks</td><td>Later · 1 → Reading list Mon 30</td><td>20</td><td class="ok">20</td><td></td></tr>
+<tr><td>Tasks</td><td>Reading list Mon 30 → Done · 1</td><td>28</td><td class="ok">28</td><td></td></tr>
+<tr><td>Tasks</td><td>Done · 1 → Share sprint notes</td><td>20</td><td class="ok">20</td><td></td></tr>
 <tr><td>Tasks</td><td>Share sprint notes → Synced with Reminders Fini</td><td>28</td><td class="ok">28</td><td></td></tr>
 <tr><td>Tasks</td><td>Synced with Reminders Fini → panel altı</td><td>20</td><td class="ok">20</td><td></td></tr>
 <tr><td>Tasks</td><td>grup içi: Finish onboarding flow → Legal sign-off</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
