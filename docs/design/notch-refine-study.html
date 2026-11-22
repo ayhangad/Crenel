@@ -98,6 +98,12 @@
   /* Etkileşim zemini: içerik kenarının dışına S kadar taşar, içeriği S ile sarar. */
   .hit { margin: 0 calc(-1 * var(--S)); padding: var(--S); border-radius: var(--r-hit); display: flex; align-items: center; }
   .hit.hov { background: rgba(255,255,255,.055); }
+  /* Takvim satırı: ağırlığı karo veriyor. Zemin karoyu üst/sol/altta yalnız 4 ile sarar,
+     sağdaki değer görev satırındaki gibi 10 içeride. Zemin köşesi = karo 6 + 4 = 10 (bütün listelerde 10). */
+  .hit.tiled { margin: 0 -10px 0 -4px; padding: 4px 10px 4px 4px; }
+  .stack:not(.panel):has(> .hit.tiled) { gap: 4px; }   /* karodan karoya 12 = 4 + 4 + 4 */
+  .lbl.for-tiled { margin-bottom: 16px; }               /* etiket → karo 20 = 16 + 4 */
+  .after-tiled { margin-top: 24px; }                    /* son karo → etiket 28 = 4 + 24 */
   .stack:not(.panel):has(> .hit) { gap: var(--rowgap); }
 
   /* Etiket satırı: etiket ile grubun ilk öğesi arası 10 = 4 + S(6) */
@@ -115,7 +121,7 @@
   .k-timer { width: 52px; } .k-pri { width: 10px; } .k-rep { width: 12px; } .k-due { width: 60px; } .k-dur { width: 56px; }
 
   /* Saat karosu: 54×28, segment 12 → içerden yatay ≈ 8, dikey 8. Tarih karosunda gün ve hafta günü yan yana. */
-  .tile { position: relative; width: 54px; height: 28px; flex: none; border-radius: var(--r-tile); display: flex; align-items: center; justify-content: center; gap: 5px;
+  .tile { position: relative; width: 56px; height: 36px; flex: none; border-radius: 6px; display: flex; align-items: center; justify-content: center; gap: 5px;
     background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
   .tile .lamp { position: absolute; top: -3px; right: -3px; }
   .tile .wd { font-size: 10px; font-weight: 500; color: var(--ink-3); text-box: trim-both cap alphabetic; }
@@ -305,7 +311,7 @@
       <div class="shot" style="height:516px;background-image:url(../../macos/artifacts/ui-audit/today/o-today.png)"></div>
     </div>
     <div class="col"><div class="cap"><b>Rafine</b></div>
-      <div class="panel stack" id="p-today" style="padding-bottom:calc(var(--E) - var(--S))">
+      <div class="panel stack" id="p-today" style="padding-bottom:calc(var(--E) - 4px)">
         <!-- Şimdi grubu: kahraman + cetvel, arası 16 -->
         <div class="hstack" style="gap:20px;margin-top:-.9px" data-m="hero">
           <div class="gauge-box">
@@ -321,35 +327,35 @@
         <div class="ruler" id="today-ruler" data-span="8-20" data-now="10.7" data-events="14.5-15.25:focus|16-17|17.5-18:invite|19-20:dim"></div>
 
         <!-- Bugün: etiket → ilk karo 20, karo → karo 20 -->
-        <div class="lbl" id="today-l1"><span class="hstack" style="gap:6px"><span class="t-sec">Today</span><span class="t-sec" style="color:var(--ink-4)">·</span><span class="t-sec">3</span></span></div>
+        <div class="lbl for-tiled" id="today-l1"><span class="hstack" style="gap:6px"><span class="t-sec">Today</span><span class="t-sec" style="color:var(--ink-4)">·</span><span class="t-sec">3</span></span></div>
         <div class="stack">
-          <div class="hit hov" style="gap:12px">
-            <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="16:00" data-h="12"></span></div>
+          <div class="hit tiled hov" style="gap:12px">
+            <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="16:00" data-h="13"></span></div>
             <div class="stack" style="flex:1;min-width:0;gap:var(--pair)"><span class="t-body">Lunch with Deniz</span><span class="t-meta">Karaköy Lokantası</span></div>
             <div class="tail"><span class="k k-dur"><span class="t-value">1h 00m</span></span></div>
           </div>
-          <div class="hit" style="gap:12px">
-            <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="17:30" data-h="12"></span><span class="lamp dot on-a"></span></div>
+          <div class="hit tiled" style="gap:12px">
+            <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="17:30" data-h="13"></span><span class="lamp dot on-a"></span></div>
             <div class="stack" style="flex:1;min-width:0;gap:var(--pair)"><span class="t-body">Partner call</span>
               <span class="hstack" style="gap:6px"><span class="t-meta">Zoom</span><span class="t-meta">·</span><svg class="i12" style="color:var(--amber)"><use href="#s-warn"/></svg><span class="t-meta" style="color:var(--amber)">Invite</span></span></div>
             <div class="tail"><span class="k k-dur"><span class="t-value">30m</span></span></div>
           </div>
-          <div class="hit" style="gap:12px">
-            <div class="tile" style="opacity:.55"><span class="segd" style="color:var(--ink-2)" data-seg="19:00" data-h="12"></span></div>
+          <div class="hit tiled" style="gap:12px">
+            <div class="tile" style="opacity:.55"><span class="segd" style="color:var(--ink-2)" data-seg="19:00" data-h="13"></span></div>
             <div class="stack" style="flex:1;min-width:0;gap:var(--pair)"><span class="t-body" style="color:var(--ink-3)">Gym</span><span class="t-meta" style="color:var(--ink-4)">Personal</span></div>
             <div class="tail"><span class="k k-dur"><span class="t-value" style="color:var(--ink-4)">1h 00m</span></span></div>
           </div>
         </div>
 
-        <div class="lbl after-hit"><span class="hstack" style="gap:6px"><span class="t-sec">Later</span><span class="t-sec" style="color:var(--ink-4)">·</span><span class="t-sec">2</span></span></div>
+        <div class="lbl for-tiled after-tiled"><span class="hstack" style="gap:6px"><span class="t-sec">Later</span><span class="t-sec" style="color:var(--ink-4)">·</span><span class="t-sec">2</span></span></div>
         <div class="stack">
-          <div class="hit" style="gap:12px">
-            <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="18" data-h="12"></span><span class="wd">Wed</span></div>
+          <div class="hit tiled" style="gap:12px">
+            <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="18" data-h="13"></span><span class="wd">Wed</span></div>
             <div class="stack" style="flex:1;min-width:0;gap:var(--pair)"><span class="t-body">Weekly sync</span><span class="hstack" style="gap:6px"><span class="t-meta">10:00</span><span class="t-meta">·</span><span class="t-meta">Zoom</span></span></div>
             <div class="tail"><span class="k k-dur"><span class="t-value">30m</span></span></div>
           </div>
-          <div class="hit" style="gap:12px">
-            <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="19" data-h="12"></span><span class="wd">Thu</span></div>
+          <div class="hit tiled" style="gap:12px">
+            <div class="tile"><span class="segd" style="color:var(--ink-1)" data-seg="19" data-h="13"></span><span class="wd">Thu</span></div>
             <div class="stack" style="flex:1;min-width:0;gap:var(--pair)"><span class="t-body">Company offsite</span><span class="hstack" style="gap:6px"><span class="t-meta">All day</span><span class="t-meta">·</span><span class="t-meta">Work</span></span></div>
             <div class="tail"><span class="k k-dur"></span></div>
           </div>
@@ -358,12 +364,12 @@
     </div>
   </div>
   <ul class="notes">
-    <li><b>Referansın ritmi.</b> Karodan karoya 20 (satır payı 10 + 10), etiketten ilk karoya 20, son satırdan sonraki etikete 28. Üçü birbirine yakın; bölümü boşluk değil etiket ayırıyor. Tur 5'te etiket 12'de yapışıktı, bölümler arası 40'tı.</li>
-    <li><b>Satır 48 = 10 + 28 + 10.</b> Hover zemini karoyu dört yönden 10 ile sarıyor; satırlar arasında ek boşluk yok, zeminler birbirine dayanıyor. Referanstaki iki satırlık öğe 46–48.</li>
-    <li><b>Başlık ↔ meta 7.</b> Referansta 0.58 × gövde yazısı.</li>
-    <li><b>Kahraman ↔ cetvel 16, cetvelden "Today"e 28.</b> Cetvel kahramanın parçası; liste bir sonraki bölüm.</li>
-    <li><b>Panel kenarı her yönde 20.</b> Altta 20 = padding 10 + son satırın payı 10.</li>
-    <li><b>Karo 54×28.</b> 12'lik segmentin etrafında yatayda ve dikeyde 8. Tarih karosunda gün ve hafta günü yan yana.</li>
+    <li><b>İki satır tipi.</b> Görev satırı ikon taşır, iç payı 10. Takvim satırını karo taşır; karo zaten ağırlık veriyor, bu yüzden zemin onu üst, sol ve altta yalnız 4 ile sarıyor. Sağdaki süre görev satırındaki gibi 10 içeride.</li>
+    <li><b>Köşeler küçük ve tek.</b> Karo 6 + 4 = zemin 10; görev satırlarının zemini de 10. Bütün listelerde hover köşesi 10, panel 20.</li>
+    <li><b>Satır 44 = 4 + 36 + 4.</b> Satırlar arası 4; karodan karoya 12 = 4 + 4 + 4. Karolar bir takvim şeridi gibi alt alta, başlıklar arası yaklaşık 20.</li>
+    <li><b>Etiket → karo 20, son karo → etiket 28.</b> 20 = 16 + 4, 28 = 4 + 24. Referanstaki ritim.</li>
+    <li><b>Karo 56×36.</b> 13'lük segment ortada. Tarih karosunda gün ve hafta günü yan yana.</li>
+    <li><b>Kahraman ↔ cetvel 16, panel kenarı her yönde 20.</b> Altta 20 = padding 16 + son satırın payı 4.</li>
   </ul>
 </section>
 
@@ -509,15 +515,15 @@
 <tr><td>Today</td><td>Lunch with Deniz Karaköy L → Later · 2</td><td>28</td><td class="ok">28</td><td></td></tr>
 <tr><td>Today</td><td>Later · 2 → Wed Weekly sync 10:00 · Zo</td><td>20</td><td class="ok">20</td><td></td></tr>
 <tr><td>Today</td><td>Wed Weekly sync 10:00 · Zo → panel altı</td><td>20</td><td class="ok">20</td><td></td></tr>
-<tr><td>Today</td><td>grup içi: Lunch with Deniz → Partner call</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
-<tr><td>Today</td><td>grup içi: Partner call → Gym</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
-<tr><td>Today</td><td>grup içi: Wed → Thu</td><td>20</td><td class="ok">20</td><td>öğeden öğeye: 10 + 10</td></tr>
+<tr><td>Today</td><td>grup içi: Lunch with Deniz → Partner call</td><td>12</td><td class="ok">12</td><td>karodan karoya: 4 + 4 + 4</td></tr>
+<tr><td>Today</td><td>grup içi: Partner call → Gym</td><td>12</td><td class="ok">12</td><td>karodan karoya: 4 + 4 + 4</td></tr>
+<tr><td>Today</td><td>grup içi: Wed → Thu</td><td>12</td><td class="ok">12</td><td>karodan karoya: 4 + 4 + 4</td></tr>
 <tr><td>Today</td><td>blok içi: Design review → 14:30 · Google Mee</td><td>7</td><td class="ok">7</td><td>başlık ↔ meta / dalga ↔ etiket</td></tr>
-<tr><td>Today</td><td>satır payı: Lunch with Deniz (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
-<tr><td>Today</td><td>satır payı: Partner call (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
-<tr><td>Today</td><td>satır payı: Gym (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
-<tr><td>Today</td><td>satır payı: Wed (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · 9.5 · 10</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
-<tr><td>Today</td><td>satır payı: Thu (sol · üst · sağ · alt)</td><td>10</td><td class="ok">10 · 10 · — · 10</td><td>sağda değer yok</td></tr>
+<tr><td>Today</td><td>satır payı: Lunch with Deniz (sol · üst · sağ · alt)</td><td>4 · 4 · 10 · 4</td><td class="ok">4 · 4 · 9.5 · 4</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Today</td><td>satır payı: Partner call (sol · üst · sağ · alt)</td><td>4 · 4 · 10 · 4</td><td class="ok">4 · 4 · 9.5 · 4</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Today</td><td>satır payı: Gym (sol · üst · sağ · alt)</td><td>4 · 4 · 10 · 4</td><td class="ok">4 · 4 · 9.5 · 4</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Today</td><td>satır payı: Wed (sol · üst · sağ · alt)</td><td>4 · 4 · 10 · 4</td><td class="ok">4 · 4 · 9.5 · 4</td><td>sağ: metin kutusu 9.6, son harfin mürekkebi 10 (optik kenar −0.4)</td></tr>
+<tr><td>Today</td><td>satır payı: Thu (sol · üst · sağ · alt)</td><td>4 · 4 · 10 · 4</td><td class="ok">4 · 4 · — · 4</td><td>sağda değer yok</td></tr>
 <tr><td>Today</td><td>içerik kenarı (sol · sağ)</td><td>20 · 20</td><td class="ok">20 · 19.5</td><td></td></tr>
 <tr><td>Tasks</td><td>panel üstü → Crenel</td><td>12</td><td class="ok">12</td><td>kamera bandı</td></tr>
 <tr><td>Tasks</td><td>Crenel → Today Recordings Tasks 5</td><td>12</td><td class="ok">12</td><td></td></tr>
@@ -551,7 +557,7 @@
 <tr><td>Kayıt</td><td>blok içi: Your mic → The call</td><td>20</td><td class="ok">20</td><td>liste öğeleri</td></tr>
 <tr><td>Kayıt</td><td>blok içi: The call → Your mic follows m</td><td>20</td><td class="ok">20</td><td>liste öğeleri</td></tr>
 <tr><td>Kayıt</td><td>içerik kenarı (sol · sağ)</td><td>20 · 20</td><td class="ok">20 · 20</td><td></td></tr>
-<tr><td>piksel</td><td>hover zemini: Lunch with Deniz (sol · üst · sağ · alt)</td><td>10</td><td>10 · 11 · 10.5 · 10</td><td>render’dan, 4x; alt kenarda komşu lambanın ışığı ölçüme girer</td></tr>
+<tr><td>piksel</td><td>hover zemini: Lunch with Deniz (sol · üst · sağ · alt)</td><td>10</td><td>4 · 5 · 10.5 · 4</td><td>render’dan, 4x; alt kenarda komşu lambanın ışığı ölçüme girer</td></tr>
 <tr><td>piksel</td><td>hover zemini: Write weekly report (sol · üst · sağ · alt)</td><td>10</td><td>10.5 · 10.5 · 10 · 10</td><td>render’dan, 4x; alt kenarda komşu lambanın ışığı ölçüme girer</td></tr>
 </table><!--/AUDIT-->
 </section>
