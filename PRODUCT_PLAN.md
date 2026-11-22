@@ -252,6 +252,7 @@ ritmi (başlık ↔ meta 7, öğeden öğeye 20, etiket → grup 20, bölüm 28,
   Ayarlar ekranlarını bu modele taşımak; galeri render'larıyla doğrulamak. — ✅ 2026-11-22
   (tam macOS koşusu 691 test, 5 atlama, 0 hata; galeriler piksel ölçümüyle kontrol edildi)
 - [ ] Kullanıcının uygulamada gözden geçirmesi.
+- [x] 1.3 yayını: imzalı ve noter onaylı DMG, GitHub Release (`Crenel.dmg` dahil), appcast. — ✅ 2026-11-22 (v1.3 Latest; `release-availability-test.py 1.3` geçti)
 
 ### C8 — Gerçek cihaz kabulü
 
