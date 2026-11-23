@@ -11,6 +11,10 @@ final class AppUpdateTests: XCTestCase {
         NotchClosedResolver.state(NotchClosedInput(status: status, update: update, updateNotices: notices, justUpdatedTo: justUpdated))
     }
 
+    func testWhatsNewOpensThisVersionOnTheWebsiteTimeline() {
+        XCTAssertEqual(CrenelReleaseNotes.url(for: "1.3").absoluteString, "https://crenel.ayhan.fyi/releases#v1.3")
+    }
+
     func testDownloadingIsQuietAndNeverHidesAMeetingOrTasks() {
         XCTAssertEqual(state(.idle, .downloading(version, progress: 0.3)), .updating(progress: 0.3))
         XCTAssertEqual(state(.idle, .preparing(version)), .updating(progress: nil))

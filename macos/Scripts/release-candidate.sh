@@ -4,6 +4,7 @@
 #
 #   Scripts/release-candidate.sh 1.0                # signed release candidate
 #   Scripts/release-candidate.sh 1.0 --publish      # …and publish: GitHub Release + appcast on gh-pages
+#                                                   #    + website redeploy (Dokploy)
 #   Scripts/release-candidate.sh 1.0 --unsigned     # local DMG to look at; no signing, no notarization
 #
 # Needs: xcodegen; for signed builds a "Developer ID Application" identity and the
@@ -210,6 +211,17 @@ git -C "${pages}" add appcast.xml .nojekyll
 if ! git -C "${pages}" diff --cached --quiet; then
     git -C "${pages}" commit -m "Appcast: Crenel ${version}"
     git -C "${pages}" push origin HEAD:gh-pages
+fi
+
+# MARK: Website
+
+print "Redeploying the website…"
+if redeploy_website; then
+    if wait_for_website_version "${version}"; then
+        print "      crenel.ayhan.fyi shows ${version}."
+    else
+        print -u2 "WARN: crenel.ayhan.fyi does not show ${version} yet; check the Dokploy deployment."
+    fi
 fi
 
 print "PASS: Crenel ${version} released."

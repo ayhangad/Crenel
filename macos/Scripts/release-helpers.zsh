@@ -49,3 +49,45 @@ upload_release_assets() {
     rm -rf -- "${stable_dir}"
     gh release edit "v${version}" --repo "${repo}" --draft=false
 }
+
+# The website (crenel.ayhan.fyi) reads "Latest" from GitHub Releases at build time, so it
+# is rebuilt once the release is public. Credentials: CRENEL_DOKPLOY_URL and
+# CRENEL_DOKPLOY_API_KEY, or the host.gad.works pair in ~/.config/dokploy/.env.
+crenel_website_application_id="GaZUfqz9xrA_0kQ06yb1z"
+
+dokploy_credentials() {
+    local url="${CRENEL_DOKPLOY_URL:-}" key="${CRENEL_DOKPLOY_API_KEY:-}" file="${HOME}/.config/dokploy/.env" line candidate=""
+    if [[ -z "${url}" || -z "${key}" ]] && [[ -f "${file}" ]]; then
+        url="" key=""
+        while IFS= read -r line; do
+            case "${line}" in
+                DOKPLOY_URL=*) candidate="${line#DOKPLOY_URL=}" ;;
+                DOKPLOY_API_KEY=*) [[ "${candidate}" == *host.gad.works* ]] && { url="${candidate}"; key="${line#DOKPLOY_API_KEY=}"; } ;;
+            esac
+        done < "${file}"
+    fi
+    [[ -n "${url}" && -n "${key}" ]] || return 1
+    print -r -- "${url%/}"
+    print -r -- "${key}"
+}
+
+redeploy_website() {
+    local credentials url key
+    credentials="$(dokploy_credentials)" || { print -u2 "WARN: no Dokploy credentials; redeploy the website by hand."; return 1; }
+    url="${credentials%%$'\n'*}"
+    key="${credentials#*$'\n'}"
+    curl -sf -X POST "${url}/api/application.redeploy" \
+        -H "x-api-key: ${key}" -H 'Content-Type: application/json' \
+        -d "{\"applicationId\":\"${crenel_website_application_id}\"}" >/dev/null \
+        || { print -u2 "WARN: website redeploy request failed; redeploy it by hand."; return 1; }
+}
+
+# Waits (up to ~5 min) until the live home page names this version.
+wait_for_website_version() {
+    local version="$1" attempt
+    for attempt in {1..30}; do
+        curl -sf https://crenel.ayhan.fyi/ | grep -q "Crenel ${version} is here" && return 0
+        sleep 10
+    done
+    return 1
+}

@@ -57,7 +57,7 @@ final class SparkleAppUpdater: NSObject, AppUpdater, SPUUserDriver {
         }
         let found = AppUpdateVersion(
             shortVersion: appcastItem.displayVersionString,
-            releaseNotesURL: appcastItem.fullReleaseNotesURL ?? appcastItem.releaseNotesURL ?? appcastItem.infoURL
+            releaseNotesURL: CrenelReleaseNotes.url(for: appcastItem.displayVersionString)
         )
         version = found
         switch state.stage {

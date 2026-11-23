@@ -68,8 +68,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppLogger.updateFailed(error)
         }
     }
-    /// Release notes for every version.
-    static let releaseNotesURL = URL(string: "https://github.com/ayhangad/Crenel/releases")
     private(set) lazy var taskCoordinator = TaskCoordinator.live(appState: appState)
     private let notificationAuthorization = NotificationAuthorizationCache()
     private(set) lazy var setupCoordinator: SetupCoordinator = {
@@ -353,7 +351,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         installPerformanceProbe()
         installSimulatedUpdater()
         #endif
-        updateCoordinator.announceIfUpdated(releaseNotesURL: Self.releaseNotesURL)
+        updateCoordinator.announceIfUpdated()
         #if !DEBUG
         // Debug builds run from DerivedData on purpose.
         ApplicationsMover.offerIfNeeded()

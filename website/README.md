@@ -17,8 +17,9 @@ Needs Node 22.23 or later (see `.nvmrc`).
 
 - **Releases** come from `../docs/releases/<version>.md`, the same notes the release
   script puts into Sparkle's appcast. Adding a file adds a release to `/releases`. The date
-  and the "Latest" mark come from GitHub Releases at build time (git is the fallback), so
-  rebuild the site after publishing a release. A version without a GitHub release shows
+  and the "Latest" mark come from GitHub Releases at build time (git is the fallback).
+  `macos/Scripts/release-candidate.sh <version> --publish` redeploys the site through the
+  Dokploy API once the release is public and waits until the home page shows the version. A version without a GitHub release shows
   as "Coming soon".
 - **Media** in `public/media/` are WebP copies of the renders in `../docs/media/`.
   Regenerate them when the renders change.

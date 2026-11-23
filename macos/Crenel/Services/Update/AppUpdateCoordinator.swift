@@ -70,11 +70,11 @@ final class AppUpdateCoordinator {
     }
 
     /// On launch: if this is a newer version than last time, say so for a few seconds.
-    func announceIfUpdated(releaseNotesURL: URL?) {
+    func announceIfUpdated() {
         let current = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
         guard let version = AppLaunchVersion.updatedVersion(current: current, build: build) else { return }
-        showUpdated(AppUpdateVersion(shortVersion: version, releaseNotesURL: releaseNotesURL))
+        showUpdated(AppUpdateVersion(shortVersion: version, releaseNotesURL: CrenelReleaseNotes.url(for: version)))
     }
 
     func showUpdated(_ version: AppUpdateVersion) {
@@ -106,7 +106,7 @@ final class SimulatedAppUpdater: AppUpdater {
     var onRelaunched: ((AppUpdateVersion) -> Void)?
     private let version = AppUpdateVersion(
         shortVersion: "1.2",
-        releaseNotesURL: URL(string: "https://github.com/ayhangad/Crenel/releases"),
+        releaseNotesURL: CrenelReleaseNotes.url(for: "1.2"),
         changeCount: 3
     )
     private var run: Task<Void, Never>?

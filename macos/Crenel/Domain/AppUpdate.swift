@@ -4,10 +4,22 @@ import Foundation
 struct AppUpdateVersion: Equatable, Sendable {
     /// "1.2".
     let shortVersion: String
-    /// The release notes page, when the feed names one.
+    /// This version on the website's release timeline (`CrenelReleaseNotes`).
     var releaseNotesURL: URL?
     /// How many changes the notes list, when known ("3 changes").
     var changeCount: Int?
+}
+
+/// Release notes on the Crenel website: one timeline, one anchor per version.
+enum CrenelReleaseNotes {
+    static let pageURL = URL(string: "https://crenel.ayhan.fyi/releases")!
+
+    /// "https://crenel.ayhan.fyi/releases#v1.3".
+    static func url(for shortVersion: String) -> URL {
+        var components = URLComponents(url: pageURL, resolvingAgainstBaseURL: false)!
+        components.fragment = "v\(shortVersion)"
+        return components.url ?? pageURL
+    }
 }
 
 /// Where an update is. The update itself is installed by the updater while Crenel is
