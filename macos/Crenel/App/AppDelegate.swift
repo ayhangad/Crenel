@@ -427,6 +427,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidBecomeActive(_ notification: Notification) {
         refreshAudioPermissions(recheckingFor: .seconds(3))
         refreshAccessibilityPermission()
+        // Coming back from System Settings: show a calendar grant now, not at the next poll.
+        setupCoordinator.refresh()
+        Task { await meetingMonitor.refresh() }
     }
 
     private func configureWorkspacePowerEvents() {
@@ -1503,7 +1506,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         recordingTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let systemAudioScope = try MeetingAudioCaptureScopeResolver(
+                let systemAudioScope = MeetingAudioCaptureScopeResolver(
                     browserAudioAvailable: { [weak self] in
                         self?.browserAudioBroker.hasActiveSession ?? false
                     }
@@ -1991,12 +1994,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 "Couldn't safely verify the meeting audio. Try again with the meeting app open."
             )
         case .browserMeetingAudioIsolationUnavailable:
-            return AppFailure(
-                category: .recording,
-                title: "Couldn't safely isolate Google Meet audio",
-                message: "To protect your privacy, Crenel didn't fall back to recording all system audio and started no recording. Continue the call without recording, or use the Zoom desktop app.",
-                recoveryAction: .dismiss
-            )
+            // The Chrome bridge dropped while recording started; a retry records system audio.
+            return .recording("The Chrome extension stopped sharing the Meet tab. Try again to record.")
         case .sourceDidNotProduceAudio(let source), .sourceFailed(let source, _):
             return .recording("Couldn't finish recording \(source.displayName). Check the connection and try again.")
         }

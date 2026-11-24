@@ -24,12 +24,12 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            try resolver.resolve(detection: detection, meeting: nil),
+            resolver.resolve(detection: detection, meeting: nil),
             .meetingProcesses([81])
         )
     }
 
-    func testZoomDetectionFailsClosedWhenProcessDoesNotMatchSession() {
+    func testZoomRecordsSystemAudioWhenProcessDoesNotMatchSession() {
         let process = AudioProcessSnapshot(
             audioObjectID: 81,
             processID: 4_201,
@@ -43,12 +43,10 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
             client: nil
         )
 
-        XCTAssertThrowsError(try resolver.resolve(detection: detection, meeting: nil)) {
-            XCTAssertEqual($0 as? RecordingCaptureError, .meetingProcessUnavailable)
-        }
+        XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
     }
 
-    func testGoogleMeetNeverFallsBackToChromeProcessWideCapture() {
+    func testGoogleMeetWithoutBridgeRecordsSystemAudioNotChromeProcess() {
         let process = AudioProcessSnapshot(
             audioObjectID: 91,
             processID: 5_200,
@@ -62,12 +60,7 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
             client: nil
         )
 
-        XCTAssertThrowsError(try resolver.resolve(detection: detection, meeting: nil)) {
-            XCTAssertEqual(
-                $0 as? RecordingCaptureError,
-                .browserMeetingAudioIsolationUnavailable
-            )
-        }
+        XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
     }
 
     func testGoogleMeetUsesBrowserTabOnlyWhenNativeBridgeIsActive() throws {
@@ -85,7 +78,7 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
         )
 
         XCTAssertEqual(
-            try resolver.resolve(detection: detection, meeting: nil),
+            resolver.resolve(detection: detection, meeting: nil),
             .browserTab
         )
     }
@@ -105,8 +98,8 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
             meetingURL: URL(string: "https://meet.google.com/abc-defg-hij")
         )
 
-        XCTAssertEqual(try resolver.resolve(detection: nil, meeting: zoomMeeting), .explicitManualGlobal)
-        XCTAssertEqual(try resolver.resolve(detection: nil, meeting: meetMeeting), .explicitManualGlobal)
+        XCTAssertEqual(resolver.resolve(detection: nil, meeting: zoomMeeting), .explicitManualGlobal)
+        XCTAssertEqual(resolver.resolve(detection: nil, meeting: meetMeeting), .explicitManualGlobal)
     }
 
     func testEndedSessionNoLongerScopesTheNextRecording() throws {
@@ -116,7 +109,7 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
             client: nil
         )
 
-        XCTAssertEqual(try resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
+        XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
     }
 
     func testIdleZoomInTheBackgroundIsNotACall() throws {
@@ -133,7 +126,7 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
             client: clientSnapshot(.zoom, processID: process.processID, inCall: false)
         )
 
-        XCTAssertEqual(try resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
+        XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
     }
 
     func testChromePlayingAudioWithoutAMeetCallUsesGlobalScope() throws {
@@ -151,22 +144,25 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
             client: clientSnapshot(.googleMeetChrome, processID: process.processID, inCall: false)
         )
 
-        XCTAssertEqual(try resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
+        XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
     }
 
-    func testVisibleMeetCallStillFailsClosedWithoutTheBridge() {
+    func testVisibleMeetCallWithoutTheBridgeStillRecords() {
         let detection = MeetingSessionDetectionSnapshot(
             session: MeetingSession(state: .ready, clientID: .googleMeetChrome, processID: 5_200),
             audioProcess: nil,
             client: clientSnapshot(.googleMeetChrome, processID: 5_200, inCall: true)
         )
 
-        XCTAssertThrowsError(try resolver.resolve(detection: detection, meeting: nil)) {
-            XCTAssertEqual($0 as? RecordingCaptureError, .browserMeetingAudioIsolationUnavailable)
-        }
+        XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
+        XCTAssertEqual(
+            MeetingAudioCaptureScopeResolver(browserAudioAvailable: { true })
+                .resolve(detection: detection, meeting: nil),
+            .browserTab
+        )
     }
 
-    func testUnreadableChromeFailsClosedOnlyWhenTheCalendarSaysMeet() throws {
+    func testUnreadableChromeUsesTheBridgeOnlyWhenTheCalendarSaysMeet() throws {
         let unreadable = MeetingClientSnapshot(
             clientID: .googleMeetChrome,
             processID: 5_200,
@@ -187,10 +183,10 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
             meetingURL: URL(string: "https://meet.google.com/abc-defg-hij")
         )
 
-        XCTAssertEqual(try resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
-        XCTAssertThrowsError(try resolver.resolve(detection: detection, meeting: meetMeeting)) {
-            XCTAssertEqual($0 as? RecordingCaptureError, .browserMeetingAudioIsolationUnavailable)
-        }
+        let bridged = MeetingAudioCaptureScopeResolver(browserAudioAvailable: { true })
+        XCTAssertEqual(bridged.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
+        XCTAssertEqual(bridged.resolve(detection: detection, meeting: meetMeeting), .browserTab)
+        XCTAssertEqual(resolver.resolve(detection: detection, meeting: meetMeeting), .explicitManualGlobal)
     }
 
     private func clientSnapshot(_ client: MeetingClientID, processID: Int32, inCall: Bool) -> MeetingClientSnapshot {
@@ -206,7 +202,7 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
 
     func testExplicitManualRecordingWithoutSupportedMeetingUsesGlobalScope() throws {
         XCTAssertEqual(
-            try resolver.resolve(detection: nil, meeting: nil),
+            resolver.resolve(detection: nil, meeting: nil),
             .explicitManualGlobal
         )
     }

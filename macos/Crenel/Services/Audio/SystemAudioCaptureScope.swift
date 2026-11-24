@@ -17,19 +17,18 @@ enum SystemAudioCaptureScope: Equatable, Sendable {
 
 /// Picks what a recording captures besides the microphone.
 ///
-/// A Zoom or Google Meet call that is actually live is captured on its own: Zoom's process,
-/// or the Meet tab through the Chrome bridge, and never all system audio instead. Anything
-/// else the user explicitly records (a Slack huddle, Teams, FaceTime, a Chrome tab that is
-/// not Meet) uses the whole system mix. A stale detection, a Chrome window that shows no
-/// Meet call, or a calendar link alone must not block that: those blocked recording a
-/// Slack huddle while a Zoom event sat in the calendar or Chrome played other audio.
+/// Recording is never blocked. A Zoom call whose process can be verified is captured on its
+/// own, and a Google Meet call whose tab the Chrome extension is streaming is captured
+/// through that bridge. Everything else (a Meet call without the extension, a Zoom process
+/// that can't be matched, a Slack huddle, Teams, FaceTime, any other audio) records the
+/// whole system mix. Decision 2026-11-24: the user may want to record anything at any time.
 struct MeetingAudioCaptureScopeResolver: Sendable {
     var browserAudioAvailable: @Sendable () -> Bool = { false }
 
     func resolve(
         detection: MeetingSessionDetectionSnapshot?,
         meeting: Meeting?
-    ) throws -> SystemAudioCaptureScope {
+    ) -> SystemAudioCaptureScope {
         let scheduledClient = inferredClient(from: meeting?.meetingURL)
         guard let detection, detection.session.state != .ended else {
             return .explicitManualGlobal
@@ -43,15 +42,13 @@ struct MeetingAudioCaptureScopeResolver: Sendable {
             guard let process = detection.audioProcess,
                   process.processID == detection.session.processID,
                   process.audioObjectID != 0 else {
-                throw RecordingCaptureError.meetingProcessUnavailable
+                return .explicitManualGlobal
             }
             return .meetingProcesses([process.audioObjectID])
         case .googleMeetChrome:
-            guard Self.chromeMayHostMeetCall(detection.client, scheduledClient: scheduledClient) else {
+            guard Self.chromeMayHostMeetCall(detection.client, scheduledClient: scheduledClient),
+                  browserAudioAvailable() else {
                 return .explicitManualGlobal
-            }
-            guard browserAudioAvailable() else {
-                throw RecordingCaptureError.browserMeetingAudioIsolationUnavailable
             }
             return .browserTab
         case .unsupported, nil:
@@ -64,7 +61,7 @@ struct MeetingAudioCaptureScopeResolver: Sendable {
            client.meetingWindowPresent || client.callControlsPresent {
             return true
         }
-        // Without a process snapshot nothing is known; keep failing closed.
+        // Without a process snapshot nothing is known; try the process tap first.
         guard let process = detection.audioProcess else { return true }
         return process.hasActiveIO
     }

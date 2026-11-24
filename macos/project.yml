@@ -64,7 +64,7 @@ targets:
     info:
       path: Crenel/Info.plist
       properties:
-        CFBundleDisplayName: Crenel
+        CFBundleDisplayName: $(CRENEL_DISPLAY_NAME)
         LSApplicationCategoryType: public.app-category.productivity
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -95,6 +95,14 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
+        CRENEL_DISPLAY_NAME: Crenel
+      configs:
+        # Development builds are signed with a different certificate than the shipped app.
+        # Sharing gad.Crenel made macOS keep one privacy record for both, so every Xcode run
+        # or test pass took microphone, calendar and other access away from the installed app.
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: gad.Crenel.dev
+          CRENEL_DISPLAY_NAME: Crenel Dev
     dependencies:
       - target: CrenelBrowserAudioHost
         link: false

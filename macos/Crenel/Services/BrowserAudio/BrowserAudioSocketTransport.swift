@@ -54,7 +54,11 @@ enum BrowserAudioSocketPeer {
               let ownStaticCode else { return nil }
         if let team = signingInfo(ownStaticCode)?[kSecCodeInfoTeamIdentifier as String] as? String,
            team.range(of: "^[A-Z0-9]{10}$", options: .regularExpression) != nil {
+            #if DEBUG
+            let identifier = self == .nativeHost ? "gad.Crenel.BrowserAudioHost" : "gad.Crenel.dev"
+            #else
             let identifier = self == .nativeHost ? "gad.Crenel.BrowserAudioHost" : "gad.Crenel"
+            #endif
             #if DEBUG
             return Self.teamRule(identifier: identifier, team: team, requireDeveloperID: false)
             #else

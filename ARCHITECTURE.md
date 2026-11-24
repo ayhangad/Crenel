@@ -193,12 +193,21 @@ Bu alt bölüm aşağıdaki eski mikrofon gate ve kayıt kapsamı kurallarının
   süreç değişimi gate'i değiştirmez. Sistem uykusu hâlâ `unknown` üretir (kayıt zaten biter).
   Kapsamsız (`explicitManualGlobal`) kayıtta gate algılanan başka bir Zoom/Chrome penceresinin
   mute durumunu izlemez. Kapalı ve `unknown` aralıklarında PCM yine sıfırlanır.
-- **Kayıt kapsamı.** `MeetingAudioCaptureScopeResolver` yalnız gerçekten süren bir Zoom
-  (çağrı penceresi veya ses IO'su) için süreç tap'i, görünen bir Meet çağrısı için sekme
-  köprüsü ister; köprü yoksa Meet kaydı yine başlamaz. Bitmiş oturum, Meet göstermeyen Chrome,
-  arka planda boşta Zoom veya takvimdeki link tek başına kaydı engellemez; kayıt sistem sesinin
-  tamamıyla başlar (Slack huddle, Teams, FaceTime). Chrome okunamıyorsa yalnız takvim Meet
-  diyorsa kapalı kalınır.
+- **Kayıt kapsamı (2026-11-24).** Kayıt hiçbir zaman engellenmez. `MeetingAudioCaptureScopeResolver`
+  hata atmaz: gerçekten süren ve süreci eşleşen bir Zoom çağrısı için süreç tap'i, uzantının
+  aktardığı bir Meet çağrısı için sekme köprüsü seçer; geri kalan her durumda (köprüsüz Meet,
+  eşleşmeyen Zoom süreci, bitmiş oturum, Slack huddle, Teams, FaceTime) sistem sesinin
+  tamamıyla kaydeder. Köprü kayıt başlarken koparsa tekrar denenebilir hata gösterilir;
+  tekrar deneme sistem sesine düşer.
+- **Geliştirme kimliği (2026-11-24).** Debug yapılandırması `gad.Crenel.dev` ("Crenel Dev")
+  kimliğiyle derlenir. Apple Development ile Developer ID imzaları farklı designated
+  requirement üretir; aynı bundle ID'de TCC tek kayıt tuttuğu için her Xcode koşusu veya test
+  yayın sürümünün mikrofon/takvim iznini düşürüyordu. Debug ayrı UserDefaults ve izinlerle
+  çalışır. Tarayıcı soket kuralı Debug'da `gad.Crenel.dev` bekler.
+- **Takvim store'u (2026-11-24).** `EventKitMeetingProvider` izin varken hiç takvim görmeyen
+  store'u her sorguda yeniden kurar; izinden hemen sonra açılan store takvim servisi
+  hesapları yüklerken boş kalabiliyordu. `applicationDidBecomeActive` kurulum izinlerini ve
+  `MeetingMonitor`'ü hemen yeniler.
 - **İptal onayı notch içinde.** Kayıt hazırlığını iptal, kaydı silme ve işlemeyi durdurma
   onayı `CancelConfirmationSurface` satırıdır. Etkinleşmeyen notch paneline bağlı SwiftUI
   `alert` imleç dışında açılıp tıklanamıyor ya da panel katlanınca kayboluyordu.

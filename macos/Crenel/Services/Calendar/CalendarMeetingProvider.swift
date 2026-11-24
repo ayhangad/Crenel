@@ -35,9 +35,12 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
         status == .fullAccess || status == .authorized
     }
 
+    /// A store made right after the grant can also come up empty while the calendar daemon
+    /// loads its accounts, which kept the agenda blank for minutes. With access granted, a
+    /// store that sees no calendars is replaced on every query until one shows up.
     private func replaceStoreIfCreatedWithoutAccess() {
-        guard !storeCreatedWithAccess,
-              Self.hasFullAccess(EKEventStore.authorizationStatus(for: .event)) else { return }
+        guard Self.hasFullAccess(EKEventStore.authorizationStatus(for: .event)) else { return }
+        guard !storeCreatedWithAccess || eventStore.calendars(for: .event).isEmpty else { return }
         eventStore = EKEventStore()
         storeCreatedWithAccess = true
     }

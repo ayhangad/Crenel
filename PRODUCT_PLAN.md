@@ -231,6 +231,18 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
 - [x] Slack huddle'da “toplantı yok” deyip kayıt başlamıyordu: eski oturum, Meet olmayan
   Chrome sesi, boşta Zoom ve takvim linki kaydı engellemesin; sistem sesinin tamamıyla
   kaydetsin. — ✅ 2026-11-20 (otomatik test)
+- [x] Kayıt hiçbir zaman engellenmez (karar 2026-11-24, V1 "Chrome'da global sese düşmez"
+  kuralının yerine geçer): Meet sekmesi uzantıyla bağlı değilse veya Zoom süreci
+  eşleşmiyorsa kayıt sistem sesinin tamamıyla başlar. — ✅ 2026-11-24 (otomatik test; tam koşu 692 test, 5 atlama, 0 hata)
+- [x] Mikrofon ve diğer izinler sürekli düşüyordu: Debug build ve testler aynı `gad.Crenel`
+  kimliğini farklı sertifikayla kullanıp yayın sürümünün TCC kaydını eziyordu. Debug artık
+  `gad.Crenel.dev` / "Crenel Dev". — ✅ 2026-11-24 (build ayarları doğrulandı; tam koşu geçti)
+- [x] Takvim izni verildikten sonra ajanda dakikalarca boş kalıyordu: izin varken takvim
+  görmeyen EventKit store'u her sorguda yeniden kurmak; uygulama öne gelince izinleri ve
+  takvimi hemen yenilemek. — ✅ 2026-11-24 (tam koşu geçti)
+- [ ] Cihaz kabulü: Meet sekmesi uzantıya bağlı değilken kayıt sistem sesiyle başlıyor;
+  Xcode koşusundan sonra yüklü Crenel'in mikrofon izni duruyor; takvim izni verilince ajanda
+  yeniden açmadan doluyor. Kullanıcı doğrulayacak.
 - [x] Notch'taki Cancel/Stop işe yaramıyordu: onayı sistem alert'i yerine notch içinde
   sormak. — ✅ 2026-11-20 (otomatik test; tam koşu 691 test, 5 atlama, 0 hata)
 - [x] Kayıt mikrofonu varsayılan açık; mute sinyali kapatır, belirsizlik değiştirmez. — ✅ 2026-11-20 (otomatik test)
