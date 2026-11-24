@@ -269,7 +269,7 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
   kök neden log ile doğrulanacak.
 - [x] Recording ayarı her açılışta "Needs checking / Call audio off": sistem sesi
   doğrulaması yalnız bellekteydi; artık kalıcı, kayıt tap'i reddedilince siliniyor. — ✅ 2026-11-24
-- [ ] 1.4.2 yayını. — 🚧 Devam ediyor: 2026-11-24
+- [x] 1.4.2 yayını. — ✅ 2026-11-24 (`release-availability-test.py 1.4.2` geçti)
 - [x] 1.4.1 yayını. — ✅ 2026-11-24 (`release-availability-test.py 1.4.1` geçti; site ilk denemede 1.4.1 gösterdi)
 - [x] 1.4 yayını: imzalı ve noter onaylı DMG, GitHub Release, appcast, site. — ✅ 2026-11-24 (`release-availability-test.py 1.4` geçti; site 1.4 ve yeni SSS'yi gösteriyor)
 - [ ] Cihaz kabulü: Meet görüşmesi eklentisiz sistem sesiyle kaydediliyor;
