@@ -3,6 +3,29 @@
     <channel>
         <title>Crenel</title>
         <item>
+            <title>1.4</title>
+            <pubDate>Tue, 24 Nov 2026 14:45:06 +0300</pubDate>
+            <sparkle:version>175</sparkle:version>
+            <sparkle:shortVersionString>1.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Crenel 1.4
+
+- **Record anything, any time.** One Record button always sits on the top row of Today,
+  with or without a meeting. It also works right after a recording finished, failed or is
+  still being processed.
+- **Google Meet records without the Chrome extension.** Meet calls are recorded from your
+  Mac's audio and your mic, like any other call. Nothing to click in the Meet tab and
+  nothing to install in the browser; the extension is retired.
+- **Your mic stays out while you're muted.** Muting yourself in Zoom or Google Meet keeps
+  your mic out of the recording, as before.
+- **Calendar and Reminders show up as soon as you allow them.** Crenel no longer keeps
+  showing "Allow" after access was granted until you quit and reopen it.
+- **A local tool.** Crenel records what your Mac plays and your mic, and doesn't notify
+  anyone on the call. Whether you may record, and asking the others, is up to you.
+]]></description>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4/Crenel-1.4.dmg" length="9388246" type="application/octet-stream" sparkle:edSignature="Sj6lS8U4ZnZsnojc4Ky512SD3vgyG1S008OmElxRv7wTGSQXAANJWHVJ7rjgZX4cI84/i7OE1aw14lDYgzUaBA=="/>
+        </item>
+        <item>
             <title>1.3</title>
             <pubDate>Sun, 22 Nov 2026 22:09:42 +0300</pubDate>
             <sparkle:version>168</sparkle:version>
@@ -19,7 +42,7 @@
   it and its control on the right, without a box around every row.
 - **Roomier task input.** The "Add a task" field is easier to type in.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.3/Crenel-1.3.dmg" length="9577215" type="application/octet-stream" sparkle:edSignature="nkSnuuOCfEmNZYtu6A8OnhWRTlv849q9E/GehHDXWefvwnhjwe26L3BXOZleNgB0zMFmJfXrphlWwryeVPdqBg=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4/Crenel-1.3.dmg" length="9577215" type="application/octet-stream" sparkle:edSignature="nkSnuuOCfEmNZYtu6A8OnhWRTlv849q9E/GehHDXWefvwnhjwe26L3BXOZleNgB0zMFmJfXrphlWwryeVPdqBg=="/>
         </item>
         <item>
             <title>1.2</title>
@@ -43,25 +66,7 @@
   Crenel or choosing another key restores your "Press 🌐 key to" setting immediately. Before,
   it took a restart.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.3/Crenel-1.2.dmg" length="9496320" type="application/octet-stream" sparkle:edSignature="HpqEP/l1VDQCM0Sx1WiD3z9AiQalo5Vq1tuxhMuL3UsFfGPkkM1/zD8XEt/oTr6Kyd2NLphn8y6kOkbtDbNuDQ=="/>
-        </item>
-        <item>
-            <title>1.1</title>
-            <pubDate>Wed, 18 Nov 2026 20:33:20 +0300</pubDate>
-            <sparkle:version>154</sparkle:version>
-            <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# Crenel 1.1
-
-- **Deepgram for meeting transcripts.** Choose Deepgram in Settings › AI › Voice as an
-  alternative to ElevenLabs. Transcripts use Nova-3 with speaker labels, in Turkish, English
-  or a detected language. Your Deepgram key is checked without uploading audio and kept in
-  Keychain, separate from your ElevenLabs key. Choosing Deepgram sends the combined meeting
-  recording to Deepgram.
-- **Markdown export.** Exported notes no longer name a transcription service, since the
-  transcript doesn't record which one wrote it.
-]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.3/Crenel-1.1.dmg" length="9481472" type="application/octet-stream" sparkle:edSignature="496oShZBSzpQhKmWPBI0s4guzeKcgV2mB5PSaOgpHIxK+Gy1TGNJJfTTYNY0V48VYGSYEoie8iq9d/5Nc0XDBg=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4/Crenel-1.2.dmg" length="9496320" type="application/octet-stream" sparkle:edSignature="HpqEP/l1VDQCM0Sx1WiD3z9AiQalo5Vq1tuxhMuL3UsFfGPkkM1/zD8XEt/oTr6Kyd2NLphn8y6kOkbtDbNuDQ=="/>
         </item>
     </channel>
 </rss>
