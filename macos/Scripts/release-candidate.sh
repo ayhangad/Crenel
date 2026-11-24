@@ -123,8 +123,6 @@ else
 fi
 
 app_path="${export_path}/Crenel.app"
-browser_host_path="${app_path}/Contents/Library/LaunchServices/CrenelBrowserAudioHost"
-[[ -x "${browser_host_path}" ]] || { print -u2 "FAIL: browser audio native host is missing from the app."; exit 1; }
 [[ -d "${app_path}/Contents/Frameworks/Sparkle.framework" ]] || { print -u2 "FAIL: Sparkle.framework is missing."; exit 1; }
 
 if (( signed )); then

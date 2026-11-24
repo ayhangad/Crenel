@@ -93,7 +93,9 @@ meeting, tasks, dictation history and settings.
 
 - **On your Mac.** Recordings, transcripts, notes and tasks are stored locally. Dictation
   runs on Apple's on-device speech model and never saves audio.
-- **Your keys, your choice.** The optional extension sends Meet tab audio to your Mac. Apple Speech
+- **A local tool.** Crenel records your Mac's audio and your mic, and keeps your mic out while
+  you're muted in the call. What you record, and who you tell, is up to you.
+- **Your keys, your choice.** Apple Speech
   transcribes combined meeting audio locally. Selecting ElevenLabs or Deepgram sends that provider the audio. Apple’s model
   processes transcript text locally. Selecting OpenAI sends text to OpenAI. Selecting Anthropic
   or Claude Code sends it to Anthropic. Claude Code uses your existing sign-in for notes and tasks.
@@ -138,7 +140,6 @@ The repository is a monorepo:
 | Folder | What's inside |
 |---|---|
 | `macos/` | The Mac app: project, sources, tests, scripts |
-| `browser-extension/` | Chrome extension that brings Google Meet audio to Crenel |
 | `docs/` | Design language, the clickable prototype, release notes |
 | `promo/` | The Remotion source of the video above |
 | `website/` | The Astro site, with the release timeline built from `docs/releases` |

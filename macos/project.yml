@@ -32,26 +32,6 @@ settings:
       SWIFT_OPTIMIZATION_LEVEL: -O
 
 targets:
-  CrenelBrowserAudioHost:
-    type: tool
-    platform: macOS
-    deploymentTarget: "26.0"
-    sources:
-      - path: CrenelBrowserAudioHost
-      - path: Crenel/Services/BrowserAudio/BrowserAudioProtocol.swift
-      - path: Crenel/Services/BrowserAudio/BrowserAudioSocketTransport.swift
-    settings:
-      base:
-        GENERATE_INFOPLIST_FILE: YES
-        CREATE_INFOPLIST_SECTION_IN_BINARY: YES
-        PRODUCT_BUNDLE_IDENTIFIER: gad.Crenel.BrowserAudioHost
-        PRODUCT_NAME: CrenelBrowserAudioHost
-        CODE_SIGN_STYLE: Automatic
-        ENABLE_HARDENED_RUNTIME: YES
-        # Embedded in Crenel.app; installing it on its own makes the archive a generic
-        # one that Developer ID export refuses.
-        SKIP_INSTALL: YES
-
   Crenel:
     type: application
     platform: macOS
@@ -104,17 +84,7 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: gad.Crenel.dev
           CRENEL_DISPLAY_NAME: Crenel Dev
     dependencies:
-      - target: CrenelBrowserAudioHost
-        link: false
-        embed: false
       - package: Sparkle
-    postBuildScripts:
-      - name: Embed browser audio native host
-        basedOnDependencyAnalysis: false
-        script: |
-          destination="${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchServices"
-          mkdir -p "${destination}"
-          cp "${BUILT_PRODUCTS_DIR}/CrenelBrowserAudioHost" "${destination}/CrenelBrowserAudioHost"
 
   CrenelTests:
     type: bundle.unit-test
@@ -133,13 +103,6 @@ targets:
       - target: Crenel
 
 schemes:
-  CrenelBrowserAudioHost:
-    build:
-      targets:
-        CrenelBrowserAudioHost: all
-    run:
-      config: Debug
-
   Crenel:
     build:
       targets:

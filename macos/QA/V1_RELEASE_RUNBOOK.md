@@ -37,18 +37,6 @@ Scripts/audio-integration-tests.sh
 Betiğin `/tmp` opt-in işareti `trap` ile her çıkış yolunda kaldırılır; test çıktıları da
 test teardown'unda silinir.
 
-Google Meet extension protokolü için:
-
-```sh
-browser-extension/scripts/chrome-extension-tests.sh
-browser-extension/scripts/chrome-web-store-package.sh
-```
-
-İkinci komut extension testlerinden sonra `artifacts/chrome-store/` altında Store'a
-yüklenecek kök-manifestli ZIP ve SHA-256 üretir. Store metni, gizlilik politikası taslağı ve
-görsel varlıklar `browser-extension/chrome-web-store/` altındadır; dashboard item ID/public key
-eşleştirmesi, public HTTPS politika adresi ve gerçek Chrome ekran görüntüsü manuel kapıdır.
-
 ## 2. Session detector kabulü
 
 Zoom Workplace ve Google Meet/Chrome için aşağıdaki senaryoları ayrı ayrı beş ardışık kez
@@ -105,17 +93,8 @@ PASS ölçütleri:
 - ElevenLabs Scribe v2 yüklemesi, diarization, yerel özet ve notch içi detay tamamlanır.
 - Uygulama yeniden açıldığında toplantı, transkript, Markdown ve playback kullanılabilir kalır.
 
-Google Meet/Chrome koşusundan önce Debug/RC uygulamasını bir kez açın. Uygulama, gömülü native
-host manifestini kullanıcı hesabına kurar. Development doğrulamasında `chrome://extensions`
-üzerinden Developer mode'u açıp `browser-extension/chrome` klasörünü `Load unpacked`
-ile yükleyin. Görüşme sekmesini aktif edip uzantı action'ını açın; veri kullanımı açıklamasını
-okuyup `Meet sekmesini bağla` düğmesine basın. Badge `REC`, Ayarlar'daki `Meet sekme bağlantısı`
-ise `Sekme bağlı` olmalıdır. Bağlantı yoksa kayıt
-`browserMeetingAudioIsolationUnavailable` ile fail-closed kalmalıdır.
-
-Bu extension yolu Chrome `tabCapture` kullansa da fiziksel canary geçmeden izolasyon kanıtlanmış
-sayılmaz. Chrome Web Store paketi ve gerçek iki sekmeli koşu tamamlanana kadar Google Meet
-60+ dakika maddesi release blocker'dır.
+Google Meet/Chrome için kurulacak bir şey yoktur (2026-11-24'te Chrome uzantısı kaldırıldı).
+Meet görüşmesi sistem sesi ve mikrofonla kaydedilir; mikrofon Meet'te kapalıyken kayda girmez.
 
 ## 4. Privacy canary
 

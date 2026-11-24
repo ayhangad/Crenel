@@ -28,7 +28,6 @@ Bu depo bir monorepo'dur:
 | Klasör | İçerik |
 | --- | --- |
 | `macos/` | macOS uygulaması: `project.yml`, kaynak (`Crenel/`), testler, betikler, QA |
-| `browser-extension/` | Google Meet sesi için Chrome uzantısı, Store paketi ve betikleri |
 | `docs/` | Tasarım dili ve prototip |
 | `website/` | Crenel web sitesi (Astro; ayrıntı `website/README.md`) |
 
@@ -136,17 +135,6 @@ xcodebuild \
   CODE_SIGNING_ALLOWED=NO \
   build test
 ```
-
-Google Meet extension protokolü ve Chrome Web Store kod paketi için:
-
-```sh
-browser-extension/scripts/chrome-extension-tests.sh
-browser-extension/scripts/chrome-web-store-package.sh
-```
-
-İkinci komut checksum'lı Store ZIP'ini `artifacts/chrome-store/` altında üretir. Listeleme
-metni, gizlilik politikası taslağı, ikon/promosyon varlıkları ve yayın checklist'i
-`browser-extension/chrome-web-store/` altındadır.
 
 Gerçek privacy canary çıktılarını 997 Hz, minimum süre ve yasaklı transcript cümlesi için
 denetlemek üzere `macos/Scripts/privacy-canary-audit.sh --help` kullanılabilir. Araç 65+ dakikalık

@@ -344,16 +344,4 @@ final class AppStateTests: XCTestCase {
         XCTAssertTrue(state.tasks.isEmpty)
         XCTAssertEqual(state.activeTaskCount, 0)
     }
-
-    func testBrowserAudioConnectionStatusIsPublishedForVisibleFallbackUI() {
-        let state = AppState()
-
-        XCTAssertEqual(state.browserAudioConnectionStatus, .unavailable)
-        state.updateBrowserAudioConnectionStatus(.waitingForMeetTab)
-        XCTAssertEqual(state.browserAudioConnectionStatus, .waitingForMeetTab)
-        state.updateBrowserAudioConnectionStatus(.tabConnected)
-        XCTAssertEqual(state.browserAudioConnectionStatus, .tabConnected)
-        state.updateBrowserAudioConnectionStatus(.recording)
-        XCTAssertEqual(state.browserAudioConnectionStatus, .recording)
-    }
 }

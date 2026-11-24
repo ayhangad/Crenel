@@ -41,7 +41,6 @@ final class SettingsGalleryTests: XCTestCase {
                         CalendarChoice(id: "family", title: "Family")]
         ))
         state.updateAudioCapturePermissions(AudioCapturePermissionSnapshot(microphone: .authorized, systemAudio: .authorized))
-        state.updateBrowserAudioConnectionStatus(.waitingForMeetTab)
         state.replaceStoredMeetings((0..<12).map { index in
             StoredMeeting(id: UUID(), title: "Design review \(index)", startedAt: Date().addingTimeInterval(-3_600 * Double(index + 2)),
                           endedAt: Date().addingTimeInterval(-3_600 * Double(index + 1)), sourceMeeting: nil,

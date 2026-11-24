@@ -246,32 +246,10 @@ extension SettingsView {
             }
 
             SettingsGroup("Privacy guard") {
-                SettingsRow(glyph: .shield, title: "Meet tab") {
-                    switch appState.browserAudioConnectionStatus {
-                    case .unavailable: HudStatusWord(.dim, "Unavailable")
-                    case .waitingForMeetTab: HudStatusWord(.dim, "Waiting for a call tab")
-                    case .tabConnected: HudStatusWord(.ok, "Connected")
-                    case .recording:
-                        HStack(spacing: 8) {
-                            HudLamp(.red, form: .dot, loop: .pulse)
-                            Text("Recording").hud(.label, Hud.Ink.ink2)
-                        }
-                    }
-                }
-                SettingsExpand(title: "How your mic is handled", isExpanded: $showsPrivacyDetails)
-                    .accessibilityLabel("Advanced recording details")
-                if showsPrivacyDetails {
-                    Group {
-                        SettingsRow(title: "Your mic") { SettingsValue("Starts muted") }
-                        SettingsRow(title: "Mute state unknown") { SettingsValue("Not recorded") }
-                        SettingsRow(title: "By hand") { SettingsValue("Notch or ⌥⌘M") }
-                        SettingsRow(title: "Google Meet") { SettingsValue("Connected call tab only") }
-                    }
-                    .transition(.opacity)
-                }
+                SettingsRow(title: "Muted in Zoom or Meet") { SettingsValue("Your mic isn’t recorded") }
+                SettingsRow(title: "By hand") { SettingsValue("Notch or ⌥⌘M") }
             }
         }
-        .animation(reduceMotion ? nil : Hud.Motion.change, value: showsPrivacyDetails)
     }
 
     @ViewBuilder private var recordingReadout: some View {

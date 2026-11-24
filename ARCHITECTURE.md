@@ -193,12 +193,13 @@ Bu alt bölüm aşağıdaki eski mikrofon gate ve kayıt kapsamı kurallarının
   süreç değişimi gate'i değiştirmez. Sistem uykusu hâlâ `unknown` üretir (kayıt zaten biter).
   Kapsamsız (`explicitManualGlobal`) kayıtta gate algılanan başka bir Zoom/Chrome penceresinin
   mute durumunu izlemez. Kapalı ve `unknown` aralıklarında PCM yine sıfırlanır.
-- **Kayıt kapsamı (2026-11-24).** Kayıt hiçbir zaman engellenmez. `MeetingAudioCaptureScopeResolver`
-  hata atmaz: gerçekten süren ve süreci eşleşen bir Zoom çağrısı için süreç tap'i, uzantının
-  aktardığı bir Meet çağrısı için sekme köprüsü seçer; geri kalan her durumda (köprüsüz Meet,
-  eşleşmeyen Zoom süreci, bitmiş oturum, Slack huddle, Teams, FaceTime) sistem sesinin
-  tamamıyla kaydeder. Köprü kayıt başlarken koparsa tekrar denenebilir hata gösterilir;
-  tekrar deneme sistem sesine düşer.
+- **Kayıt kapsamı (2026-11-24).** Kayıt hiçbir zaman engellenmez ve Chrome uzantısı yoktur.
+  `MeetingAudioCaptureScopeResolver` yalnız gerçekten süren ve süreci eşleşen bir Zoom çağrısı
+  için süreç tap'i seçer; geri kalan her şey (Google Meet dahil) sistem sesinin tamamıyla
+  kaydedilir. Tek gizlilik kuralı mikrofon gate'idir: çağrıda mikrofon kapalıyken kullanıcının
+  mikrofonu kayda girmez. Crenel yerel bir araçtır; başkalarının rızası kullanıcıya aittir.
+  `BrowserBridgeCleanup` eski sürümlerin Chrome native-host manifestini ve socket dizinini
+  açılışta siler.
 - **Geliştirme kimliği (2026-11-24).** Debug yapılandırması `gad.Crenel.dev` ("Crenel Dev")
   kimliğiyle derlenir. Apple Development ile Developer ID imzaları farklı designated
   requirement üretir; aynı bundle ID'de TCC tek kayıt tuttuğu için her Xcode koşusu veya test
@@ -441,6 +442,9 @@ yayınlar. Zoom meeting/end/microphone kontrolleri istemci penceresinde, Google 
 `meet.google.com`/Google Meet bağlamı bulunan Chrome penceresinde aranır. Sıradan Chrome
 penceresi veya yalnız “mute” benzeri ilgisiz bir web kontrolü meeting kanıtı sayılmaz.
 
+> 2026-11-24: Aşağıdaki Meet sekme izolasyonu, Chrome uzantısı, native host ve IPC köprüsü
+> kaldırıldı; tarihsel kayıt olarak duruyor. Güncel kural "Kayıt kapsamı (2026-11-24)".
+
 V1'in zorunlu kalite kapıları Zoom Workplace native istemcisi ve Google Meet/Chrome'dur.
 Her ikisi için gerçek başlangıç/bitiş, call controls ve mute durumu normalize adapter
 kanıtlarıyla üretilir. Chrome process'i birden fazla sekmenin sesini taşıyabildiğinden,
@@ -667,9 +671,8 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
 
 - Mevcut global system tap V1 hedefinde gerçek toplantı kaydı için kullanılmaz. Zoom meeting
   session bir bundle ID/PID setine çözüldüğünde private `CATapDescription` yalnız bu process
-  nesnelerinin output sesini yakalar. Google Meet system audio yalnız yukarıdaki extension
-  tab stream'inden gelir. Crenel kendi sesi ve diğer uygulama/Chrome sekmesi sesleri
-  capture dışında kalır.
+  nesnelerinin output sesini yakalar. Google Meet ve diğer her şey sistem sesinin tamamıyla
+  kaydedilir (2026-11-24; uzantı kaldırıldı).
 - Meeting process'i restart olur veya child process değiştirirse session detector yeni PID
   setini doğrular. Yeniden bağlama sırasında uygulama sessizce global tap'e düşmez; kullanıcı
   uyarılır ve gerekiyorsa kayıt güvenli biçimde finalize edilir.
@@ -799,14 +802,9 @@ bitiş yalnız kullanıcıya sorulur. Manuel başlat/durdur her durumda kullanı
   queue restore/idempotency, transport retry, cihaz/gate kesintisi, pipeline heartbeat,
   drift/limiter ve privacy canary testlerini tek koşuda toplar; log ile sonuç özetini
   `artifacts/qa/` altında üretir.
-- Browser audio otomasyonu extension origin/URL/backpressure testlerine ek olarak gerçek gömülü
-  native-host executable'ını framed stdin/stdout, kullanıcı socket'i, broker ve M4A writer
-  üzerinden uçtan uca çalıştırır. Bu test gerçek Chrome `tabCapture` ve iki sekmeli fiziksel
-  privacy canary'nin yerine geçmez.
 - Gerçek client privacy testleri opt-in çalışır: Zoom ile Google Meet/Chrome çağrılarında
   mute/unmute ve hang-up geçişlerini, güvenli system-audio kapsamını, canary phrase
-  sızıntısını ve Google Meet için toplantı dışı sekme canary-audio izolasyonunu birlikte
-  doğrular.
+  sızıntısını birlikte doğrular.
 
 ## Dil
 

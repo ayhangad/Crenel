@@ -69,8 +69,6 @@ final class SystemAudioCaptureSource: AudioCaptureSource {
                     outputURL: outputURL,
                     includedProcessObjectIDs: objectIDs.map(NSNumber.init(value:))
                 )
-            case .browserTab:
-                throw RecordingCaptureError.browserMeetingAudioIsolationUnavailable
             case .explicitManualGlobal:
                 try recorder.prepare(outputURL: outputURL)
             }

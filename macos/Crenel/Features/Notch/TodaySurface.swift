@@ -41,14 +41,6 @@ enum TodayCalendarState: Equatable, Sendable {
     }
 }
 
-/// The Google Meet audio bridge, when a Meet call is detected and it is not connected.
-enum TodayMeetBridge: Equatable, Sendable {
-    case none
-    /// The extension has to be clicked in the call's tab.
-    case waiting
-    /// The bridge cannot be reached; recording cannot start.
-    case unavailable
-}
 
 /// The single fix of each calendar empty state.
 struct TodayCalendarFixes {
@@ -85,7 +77,6 @@ struct TodaySurface: View {
     let onStartRecording: () -> Void
     /// nil: derived from `canRequestCalendarAccess` (older call sites).
     var calendar: TodayCalendarState?
-    var meetBridge: TodayMeetBridge = .none
     var fixes: TodayCalendarFixes?
     /// A fixed clock, for renders and tests.
     var now: Date?
@@ -104,7 +95,6 @@ struct TodaySurface: View {
         onOpenMeetingURL: @escaping (URL) -> Void,
         onStartRecording: @escaping () -> Void,
         calendar: TodayCalendarState? = nil,
-        meetBridge: TodayMeetBridge = .none,
         fixes: TodayCalendarFixes? = nil,
         now: Date? = nil,
         ignite: Bool = false,
@@ -117,7 +107,6 @@ struct TodaySurface: View {
         self.onOpenMeetingURL = onOpenMeetingURL
         self.onStartRecording = onStartRecording
         self.calendar = calendar
-        self.meetBridge = meetBridge
         self.fixes = fixes
         self.now = now
         self.ignite = ignite
@@ -141,7 +130,7 @@ struct TodaySurface: View {
     private func content(now: Date) -> some View {
         let agenda = TodayAgenda(events: events, now: now)
         let state = calendar ?? (canRequestCalendarAccess ? .connect : .ready)
-        let console = TodayConsoleModel(focus: agenda.focus, now: now, bridge: meetBridge)
+        let console = TodayConsoleModel(focus: agenda.focus, now: now)
 
         VStack(alignment: .leading, spacing: 0) {
             if let focus = agenda.focus {
@@ -593,26 +582,17 @@ struct TodayConsoleModel: Equatable {
         case willAsk
         /// The meeting runs and nothing is being recorded.
         case notRecorded
-        case meetWaiting
-        case meetUnavailable
     }
 
     let note: Note
     let canJoin: Bool
 
-    /// nil when the console stays closed: the event is further than 10 minutes away and
-    /// no Meet call is waiting for its bridge.
-    init?(focus: Meeting?, now: Date, bridge: TodayMeetBridge) {
-        let near = focus.map { $0.startDate.timeIntervalSince(now) <= 10 * 60 && $0.endDate > now } ?? false
-        let callLike = focus.map { $0.isMeetingLike || $0.meetingURL != nil } ?? false
-        let hasFocusConsole = near && callLike
-        guard hasFocusConsole || bridge != .none else { return nil }
-        switch bridge {
-        case .waiting: note = .meetWaiting
-        case .unavailable: note = .meetUnavailable
-        case .none: note = (focus?.startDate ?? now) <= now ? .notRecorded : .willAsk
-        }
-        canJoin = hasFocusConsole && focus?.meetingURL != nil
+    /// nil when the console stays closed: the event is further than 10 minutes away.
+    init?(focus: Meeting?, now: Date) {
+        guard let focus, focus.startDate.timeIntervalSince(now) <= 10 * 60, focus.endDate > now,
+              focus.isMeetingLike || focus.meetingURL != nil else { return nil }
+        note = focus.startDate <= now ? .notRecorded : .willAsk
+        canJoin = focus.meetingURL != nil
     }
 }
 
@@ -631,12 +611,6 @@ private struct TodayConsole: View {
             case .notRecorded:
                 HudLamp(.off)
                 Text("Not being recorded")
-            case .meetWaiting:
-                HudStatusShape(.warn, loop: .blink)
-                Text("Click Crenel in the Meet tab")
-            case .meetUnavailable:
-                HudStatusShape(.err)
-                Text("Meet audio bridge unavailable")
             }
         } buttons: {
             if model.canJoin, let onJoin {

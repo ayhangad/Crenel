@@ -30,8 +30,6 @@ xcodebuild test \
   -only-testing:CrenelTests/MeetingMicrophoneGateTests \
   -only-testing:CrenelTests/SystemAudioCaptureScopeTests \
   -only-testing:CrenelTests/AudioTrackMixerTests \
-  -only-testing:CrenelTests/BrowserAudioProtocolTests \
-  -only-testing:CrenelTests/BrowserAudioBridgeTests \
   -only-testing:CrenelTests/PrivacyCanaryAuditTests \
   -only-testing:CrenelTests/PrivacyCanaryFileAuditorTests \
   -only-testing:CrenelTests/MeetingSessionAcceptanceAuditTests \

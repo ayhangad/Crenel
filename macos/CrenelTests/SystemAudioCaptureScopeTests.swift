@@ -46,7 +46,7 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
         XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
     }
 
-    func testGoogleMeetWithoutBridgeRecordsSystemAudioNotChromeProcess() {
+    func testGoogleMeetRecordsSystemAudioNotChromeProcess() {
         let process = AudioProcessSnapshot(
             audioObjectID: 91,
             processID: 5_200,
@@ -61,26 +61,6 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
         )
 
         XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
-    }
-
-    func testGoogleMeetUsesBrowserTabOnlyWhenNativeBridgeIsActive() throws {
-        let resolver = MeetingAudioCaptureScopeResolver(browserAudioAvailable: { true })
-        let detection = MeetingSessionDetectionSnapshot(
-            session: MeetingSession(clientID: .googleMeetChrome, processID: 5_200),
-            audioProcess: AudioProcessSnapshot(
-                audioObjectID: 91,
-                processID: 5_200,
-                bundleIdentifier: "com.google.Chrome",
-                isRunningInput: true,
-                isRunningOutput: true
-            ),
-            client: nil
-        )
-
-        XCTAssertEqual(
-            resolver.resolve(detection: detection, meeting: nil),
-            .browserTab
-        )
     }
 
     func testCalendarLinkAloneDoesNotBlockRecordingAnotherCall() throws {
@@ -147,7 +127,7 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
         XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
     }
 
-    func testVisibleMeetCallWithoutTheBridgeStillRecords() {
+    func testVisibleMeetCallRecordsSystemAudio() {
         let detection = MeetingSessionDetectionSnapshot(
             session: MeetingSession(state: .ready, clientID: .googleMeetChrome, processID: 5_200),
             audioProcess: nil,
@@ -155,38 +135,6 @@ final class SystemAudioCaptureScopeTests: XCTestCase {
         )
 
         XCTAssertEqual(resolver.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
-        XCTAssertEqual(
-            MeetingAudioCaptureScopeResolver(browserAudioAvailable: { true })
-                .resolve(detection: detection, meeting: nil),
-            .browserTab
-        )
-    }
-
-    func testUnreadableChromeUsesTheBridgeOnlyWhenTheCalendarSaysMeet() throws {
-        let unreadable = MeetingClientSnapshot(
-            clientID: .googleMeetChrome,
-            processID: 5_200,
-            availability: .accessibilityPermissionRequired,
-            meetingWindowPresent: false,
-            callControlsPresent: false,
-            microphoneState: .unknown
-        )
-        let detection = MeetingSessionDetectionSnapshot(
-            session: MeetingSession(state: .candidate, clientID: .googleMeetChrome, processID: 5_200),
-            audioProcess: nil,
-            client: unreadable
-        )
-        let meetMeeting = Meeting(
-            title: "Meet",
-            startDate: .now,
-            endDate: .now.addingTimeInterval(1_800),
-            meetingURL: URL(string: "https://meet.google.com/abc-defg-hij")
-        )
-
-        let bridged = MeetingAudioCaptureScopeResolver(browserAudioAvailable: { true })
-        XCTAssertEqual(bridged.resolve(detection: detection, meeting: nil), .explicitManualGlobal)
-        XCTAssertEqual(bridged.resolve(detection: detection, meeting: meetMeeting), .browserTab)
-        XCTAssertEqual(resolver.resolve(detection: detection, meeting: meetMeeting), .explicitManualGlobal)
     }
 
     private func clientSnapshot(_ client: MeetingClientID, processID: Int32, inCall: Bool) -> MeetingClientSnapshot {

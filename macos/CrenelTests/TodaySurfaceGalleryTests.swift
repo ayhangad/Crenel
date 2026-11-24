@@ -40,27 +40,20 @@ final class TodaySurfaceGalleryTests: XCTestCase {
 
     func testConsoleOpensOnlyWhenTheCallIsNearOrOn() {
         let far = Self.event("Design review", 11.25, 12, url: "https://meet.google.com/a")
-        XCTAssertNil(TodayConsoleModel(focus: far, now: Self.now, bridge: .none))
+        XCTAssertNil(TodayConsoleModel(focus: far, now: Self.now))
 
         let near = Self.event("Design review", 10.83, 11.5, url: "https://meet.google.com/a")
-        let nearModel = TodayConsoleModel(focus: near, now: Self.now, bridge: .none)
+        let nearModel = TodayConsoleModel(focus: near, now: Self.now)
         XCTAssertEqual(nearModel?.note, .willAsk)
         XCTAssertEqual(nearModel?.canJoin, true)
 
         let live = Self.event("Design review", 10, 11, url: "https://meet.google.com/a")
-        XCTAssertEqual(TodayConsoleModel(focus: live, now: Self.now, bridge: .none)?.note, .notRecorded)
-
-        let unavailable = TodayConsoleModel(focus: near, now: Self.now, bridge: .unavailable)
-        XCTAssertEqual(unavailable?.note, .meetUnavailable)
-
-        // A Meet call without a calendar event still gets its bridge state.
-        let adHoc = TodayConsoleModel(focus: nil, now: Self.now, bridge: .waiting)
-        XCTAssertEqual(adHoc?.note, .meetWaiting)
-        XCTAssertEqual(adHoc?.canJoin, false)
+        XCTAssertEqual(TodayConsoleModel(focus: live, now: Self.now)?.note, .notRecorded)
+        XCTAssertNil(TodayConsoleModel(focus: nil, now: Self.now))
 
         // A personal event without a link has nothing to join or record.
         let personal = Self.event("Gym", 10.75, 11.5, kind: .event)
-        XCTAssertNil(TodayConsoleModel(focus: personal, now: Self.now, bridge: .none))
+        XCTAssertNil(TodayConsoleModel(focus: personal, now: Self.now))
     }
 
     func testRulerWidensOnlyWhenSomethingFallsOutsideTheDay() {
@@ -123,8 +116,6 @@ final class TodaySurfaceGalleryTests: XCTestCase {
         try export(today(Self.events(focusAt: 11.25)), "o-today-hour")
         try export(today(Self.events(focusAt: 10.83, focusEnd: 11.5)), "o-today-urgent")
         try export(today(Self.events(focusAt: 10, focusEnd: 11)), "o-today-live")
-        try export(today(Self.events(focusAt: 10.83, focusEnd: 11.5), bridge: .waiting), "o-today-meet-waiting")
-        try export(today(Self.events(focusAt: 10.83, focusEnd: 11.5), bridge: .unavailable), "o-today-meet-unavailable")
         let events = Self.events(focusAt: 14.5)
         try export(today(events, hover: TodaySurface.heroHoverID), "o-today-hover-hero")
         try export(today(events, hover: AnyHashable(events[2].id)), "o-today-hover-row")
@@ -272,11 +263,11 @@ final class TodaySurfaceGalleryTests: XCTestCase {
         }
     }
 
-    private func today(_ events: [Meeting], calendar: TodayCalendarState = .ready, bridge: TodayMeetBridge = .none,
+    private func today(_ events: [Meeting], calendar: TodayCalendarState = .ready,
                        hover: AnyHashable? = nil) -> some View {
         TodaySurface(
             events: events, emptyMessage: "", canRequestCalendarAccess: false, onRequestCalendarAccess: {},
-            onOpenMeetingURL: { _ in }, onStartRecording: {}, calendar: calendar, meetBridge: bridge,
+            onOpenMeetingURL: { _ in }, onStartRecording: {}, calendar: calendar,
             fixes: TodayCalendarFixes(), now: Self.now, previewHover: hover
         )
     }

@@ -74,7 +74,6 @@ struct SettingsView: View {
     @State var isSavingMicrophone = false
     @State var microphoneSettingsMessage: String?
     @State var microphoneSettingsFailed = false
-    @State var showsPrivacyDetails = false
 
     @State var languageCode: String?
     @State var apiKey = ""

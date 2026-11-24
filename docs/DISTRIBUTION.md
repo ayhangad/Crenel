@@ -14,7 +14,7 @@ devam edebilir.
   dosyada ve testinde geçer.
 - Sistem izinleri (mikrofon, takvim, hatırlatıcılar, erişilebilirlik) yeni kimlik için bir kez
   yeniden verilir.
-- Depo monorepo oldu: `macos/`, `browser-extension/`, `docs/`, `website/` (yakında).
+- Depo monorepo oldu: `macos/`, `docs/`, `website/` (Chrome uzantısı 2026-11-24'te kaldırıldı).
   GitHub: `ayhangad/Crenel` (private). Yerel klasör: `~/projects/Crenel`.
 - 576 test geçti; uzantı, gizlilik ve oturum betik testleri geçti.
 - **Henüz denenmedi:** migration'ın kullanıcının gerçek verisiyle ilk açılışı. İlk açılışta
@@ -35,10 +35,8 @@ devam edebilir.
 
 DMG'yi açıp ikona çift tıklayan kullanıcıda uygulama `/Volumes/Crenel/` içinden çalışır:
 
-1. Chrome köprüsü (`BrowserAudioNativeHostInstaller`) Chrome'a bu yolu yazar; DMG
-   çıkarılınca Meet kaydı bozulur.
-2. Sparkle salt okunur diskteki uygulamayı güncelleyemez.
-3. DMG çıkarılınca uygulama kaybolur.
+1. Sparkle salt okunur diskteki uygulamayı güncelleyemez.
+2. DMG çıkarılınca uygulama kaybolur.
 
 ## Sıradaki adımlar
 

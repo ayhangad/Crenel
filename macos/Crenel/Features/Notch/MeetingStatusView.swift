@@ -103,7 +103,6 @@ struct MeetingStatusView: View {
                     onStartRecording: onStartRecording,
                     calendar: TodayCalendarState(enabled: appState.isCalendarEnabled, access: appState.calendarAccessState,
                                                  snapshot: appState.calendarIntegrationSnapshot),
-                    meetBridge: meetBridge,
                     ignite: ignite
                 )
 
@@ -179,16 +178,6 @@ struct MeetingStatusView: View {
             (lhs.isAllDay ? 1 : 0, lhs.startDate) < (rhs.isAllDay ? 1 : 0, rhs.startDate)
         }
         return Array(sorted.prefix(8))
-    }
-
-    /// The Meet bridge only matters while a Meet call is detected.
-    private var meetBridge: TodayMeetBridge {
-        guard appState.meetingSessionDetection?.session.clientID == .googleMeetChrome else { return .none }
-        switch appState.browserAudioConnectionStatus {
-        case .unavailable: return .unavailable
-        case .waitingForMeetTab: return .waiting
-        case .tabConnected, .recording: return .none
-        }
     }
 
     // MARK: Processing

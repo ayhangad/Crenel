@@ -63,7 +63,6 @@ final class AppState: ObservableObject {
     @Published private(set) var meetingMicrophoneGate: MeetingMicrophoneGate?
     @Published private(set) var recordingSafetyMessage: String?
     @Published private(set) var accessibilityPermissionGranted = false
-    @Published private(set) var browserAudioConnectionStatus = BrowserAudioConnectionStatus.unavailable
 
     private var flowMachine: MeetingFlowMachine
     private var suppressedReminderKey: String?
@@ -249,10 +248,6 @@ final class AppState: ObservableObject {
     ) {
         updateNotchPanelAvailableSize(availableSize)
         notchPanelHasPhysicalNotch = hasPhysicalNotch
-    }
-
-    func updateBrowserAudioConnectionStatus(_ status: BrowserAudioConnectionStatus) {
-        browserAudioConnectionStatus = status
     }
 
     @discardableResult

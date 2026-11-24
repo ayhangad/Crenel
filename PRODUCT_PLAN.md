@@ -150,7 +150,7 @@ birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
   takımını verebileceği yerel bir ayara taşınması (`macos/Config/Signing.local.xcconfig`, git dışı). — ✅ 2026-11-17
 - [x] Bundle kimliği (`gad.Crenel`), veri klasörü, defaults, Keychain servisleri ve Chrome
   native host adının Crenel'e taşınması; ilk açılışta tek seferlik migration
-  (`LegacyIdentityMigration`). Depo monorepo yapısına geçti: `macos/`, `browser-extension/`,
+  (`LegacyIdentityMigration`). Depo monorepo yapısına geçti: `macos/`, `browser-extension/` (2026-11-24'te kaldırıldı),
   `website/` (yakında). — ✅ 2026-11-17
 - [x] Web sitesi (`website/`, Astro): ana sayfa (canlı notch, boyut seçici, özellik hikâyesi,
   gizlilik, SSS) ve `docs/releases/*.md`'den beslenen sürüm sayfası. Dokploy'da (host.gad.works,
@@ -203,7 +203,7 @@ Applications dışından (ör. DMG içinden) açılırsa Applications'a taşıma
 - [x] Notch hover düzeltmesini ve 01-07, 09-25 bulgularının kod düzeltmelerini davranış testleriyle doğrulamak. 18 Kasım 2026. Tam macOS koşusunda 666 test, 5 atlama, 0 hata. Chrome uzantısında 10, sitede 4 tarayıcı testi geçti. Bulgulara karşılık gelen testler ve performans ölçümü [denetim raporunda](docs/DENETIM-2026-11-18.md).
 - [ ] A. Gerçek imleçle, notch’tan hızla listenin altına indikten ve içerik kısaldıktan sonra kapanma kabulü. Kullanıcı doğrulayacak.
 - [ ] 01. İzinli gerçek toplantıda dikte, sessize alma, erişim kaybı ve kayıt başlangıcı sırasında ham mikrofon ve birleşik ses kabulü.
-- [ ] 05 ve 06. Gerçek Chrome'da Meet sekmesini yenileme, başka kökene geçiş ve yakalama başlarken durdurma kabulü.
+- [ ] 05 ve 06. Gerçek Chrome'da Meet sekmesini yenileme, başka kökene geçiş ve yakalama başlarken durdurma kabulü. — İptal (2026-11-24): Chrome uzantısı kaldırıldı.
 - [x] 08. Herkese açık 1.0 DMG ve Sparkle beslemesi. 18 Kasım 2026: v1.0 (150) GitHub Releases'ta, appcast gh-pages'te yayında, `release-availability-test.py 1.0` geçti. Kullanıcı 87 → 148 → 149 → 150 yerel Sparkle güncellemesini, izinleri ve pencere davranışını kendi Mac'inde doğruladı.
 - [ ] 08, 15, 16 ve 19. Dağıtım imzasıyla temiz Mac'te noter, Applications'a taşıma, yerel yardımcı ve iki imzalı sürüm arasında güncelleme kabulü.
 - [x] Astra düzeltmelerinin incelemesinde çıkan ikinci tur: 04, 06, 07, 11, 14, 15, 18, 19, 20, 21, 23. 18 Kasım 2026. Tam macOS koşusu 672 test, 5 atlama, 0 hata. Uzantı 10, site 5 test geçti. Claude Code argümanları gerçek CLI'de doğrulandı. [Denetim raporu](docs/DENETIM-2026-11-18.md)
@@ -231,9 +231,8 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
 - [x] Slack huddle'da “toplantı yok” deyip kayıt başlamıyordu: eski oturum, Meet olmayan
   Chrome sesi, boşta Zoom ve takvim linki kaydı engellemesin; sistem sesinin tamamıyla
   kaydetsin. — ✅ 2026-11-20 (otomatik test)
-- [x] Kayıt hiçbir zaman engellenmez (karar 2026-11-24, V1 "Chrome'da global sese düşmez"
-  kuralının yerine geçer): Meet sekmesi uzantıyla bağlı değilse veya Zoom süreci
-  eşleşmiyorsa kayıt sistem sesinin tamamıyla başlar. — ✅ 2026-11-24 (otomatik test; tam koşu 692 test, 5 atlama, 0 hata)
+- [x] Kayıt hiçbir zaman engellenmez: Zoom süreci eşleşmiyorsa kayıt sistem sesinin
+  tamamıyla başlar. — ✅ 2026-11-24 (otomatik test; tam koşu 692 test, 5 atlama, 0 hata)
 - [x] Mikrofon ve diğer izinler sürekli düşüyordu: Debug build ve testler aynı `gad.Crenel`
   kimliğini farklı sertifikayla kullanıp yayın sürümünün TCC kaydını eziyordu. Debug artık
   `gad.Crenel.dev` / "Crenel Dev". — ✅ 2026-11-24 (build ayarları doğrulandı; tam koşu geçti)
@@ -246,7 +245,14 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
 - [x] Tek Record: Today'de sayaç satırının sağında her zaman aynı buton (toplantı olsun
   olmasın); Meet konsolu ayrı Record göstermez. Kayıt tamamlandı, hata, iptal ve işleme
   durumlarından da başlıyor. — ✅ 2026-11-24 (otomatik test)
-- [ ] Cihaz kabulü: Meet sekmesi uzantıya bağlı değilken kayıt sistem sesiyle başlıyor;
+- [x] Chrome uzantısı ve Meet sekme köprüsü kaldırıldı (kullanıcı kararı 2026-11-24).
+  Crenel yerel bir araçtır: sistem sesi + mikrofon kaydeder; tek gizlilik kuralı, Zoom/Meet'te
+  mikrofon kapalıyken kullanıcının mikrofonunun kayda girmemesidir. Başkalarının
+  gizliliği/rızası kullanıcının sorumluluğudur; sitede ve README'de açıkça yazar. Eski
+  kurulumların Chrome native-host dosyası açılışta silinir. Bu karar 2026-07-25 V1
+  "Chrome'da global sese düşmez / sekme izolasyonu" kurallarının yerine geçer. — ✅ 2026-11-24
+  (tam koşu 675 test, 5 atlama, 0 hata; site 6 test)
+- [ ] Cihaz kabulü: Meet görüşmesi eklentisiz sistem sesiyle kaydediliyor;
   Xcode koşusundan sonra yüklü Crenel'in mikrofon izni duruyor; takvim izni verilince ajanda
   yeniden açmadan doluyor ve "Connected" görünüyor; Today'deki tek Record her durumda
   sayaç satırında. Kullanıcı doğrulayacak.
@@ -533,7 +539,8 @@ maddeler korunur; aşağıdaki sıra, numaralı faz sırasından daha yüksek ö
   geliştirilmez.
 - **Dar destek yüzeyi:** V1'in iki zorunlu kalite kapısı Zoom Workplace native istemcisi ve
   Google Meet/Chrome'dur. Her ikisi için başlangıç/bitiş algılama, mute durumu ve yalnızca
-  toplantı sesini kapsayan privacy-first kayıt doğrulanır. Chrome'da toplantı sekmesi
+  toplantı sesini kapsayan privacy-first kayıt doğrulanır. (2026-11-24: sekme izolasyonu ve
+  uzantı kaldırıldı; Meet sistem sesiyle kaydedilir.) Chrome'da toplantı sekmesi
   güvenle izole edilemiyorsa kayıt global sese sessizce düşmez; kullanıcıya açıkça gösterilen
   güvenli fallback uygulanır. Microsoft Teams ve diğer istemciler V1'i bloke etmez.
 - **Gizli otomasyon yok:** Algılama kaydı kendiliğinden ve habersiz başlatmaz. Güçlü
@@ -734,23 +741,23 @@ kontroller klavye ve VoiceOver ile kullanılabilir kalır.
   değişimi recovery matrisini geçirmek.
   — ⛔ Bloke: Automation 102/102 + canary/session CLI + 3/3 physical audio smoke geçti;
   ağ/uyku/force-quit ve disposable volume testleri için kullanıcı onayı bekleniyor
-- [ ] Google Meet/Chrome'da toplantı sekmesi dışındaki tarayıcı sesinin kalıcı sistem
+- [ ] Google Meet/Chrome'da toplantı sekmesi dışındaki tarayıcı sesinin kalıcı sistem *(İptal 2026-11-24: uzantı kaldırıldı)*
   kaydına veya transkripte girmediğini canary-audio privacy testiyle doğrulamak; izolasyon
   kaybolduğunda kaydı fail-closed duruma geçirmek ve görünür güvenli fallback sunmak.
   — ⛔ Bloke: MV3/native bridge hazır; gerçek Meet görüşmesi ve ikinci sekme sesli canary
   koşusu kullanıcı etkileşimi bekliyor
-  - [ ] Kullanıcının extension action tıklamasıyla yalnız aktif `meet.google.com` sekmesini
+  - [ ] Kullanıcının extension action tıklamasıyla yalnız aktif `meet.google.com` sekmesini *(İptal 2026-11-24: uzantı kaldırıldı)*
     alan MV3 `tabCapture` + offscreen audio katmanını uygulamak; tab sesini kullanıcıya geri
     oynatmak ve başka origin/tab için fail-closed davranmak.
     — ⛔ Bloke: static+protocol+consent 6/6; gerçek Chrome/Meet tab koşusu bekliyor
   - [x] Sabit extension origin allowlist'i, session nonce, sequence/backpressure ve PCM
     doğrulaması olan native messaging helper + uygulama IPC köprüsünü uygulamak.
     — ✅ Tamamlandı: 2026-08-11 / embedded host + user-scoped IPC + M4A source; 9/9
-  - [ ] Extension kurulum/onboarding, canlı bağlantı durumu, kopmada görünür güvenli durdurma
+  - [ ] Extension kurulum/onboarding, canlı bağlantı durumu, kopmada görünür güvenli durdurma *(İptal 2026-11-24: uzantı kaldırıldı)*
     ve Chrome Web Store dağıtım yolunu tamamlamak.
     — ⛔ Bloke: disclosure popup, onboarding/status ve Store ZIP/metin/varlık hazır;
     publisher hesabı, dashboard ID, public HTTPS policy/support bilgileri ve review bekliyor
-  - [ ] Toplantı sekmesi + ikinci Chrome sekmesi canary-audio koşusunu ham system, final M4A
+  - [ ] Toplantı sekmesi + ikinci Chrome sekmesi canary-audio koşusunu ham system, final M4A *(İptal 2026-11-24: uzantı kaldırıldı)*
     ve transkriptte fiziksel olarak doğrulamak.
     — ⛔ Bloke: Swift 4/4 + CLI auditor hazır; fiziksel iki sekmeli koşu bekliyor
 - [ ] İmzalı/notarize release candidate'ı temiz kullanıcı hesabında notch ve harici ekranda
@@ -1145,7 +1152,7 @@ kanalı değildir.
   uygulamanın açık kalması senaryolarını gerçek cihazda doğrulamak.
 - [ ] Google Meet/Chrome: planlı/plansız, erken/geç katılım, mute/unmute, hang-up ve
   uygulamanın açık kalması senaryolarını gerçek cihazda doğrulamak.
-- [ ] Google Meet/Chrome'da toplantı sekmesi dışındaki tarayıcı sesini canary-audio ile
+- [ ] Google Meet/Chrome'da toplantı sekmesi dışındaki tarayıcı sesini canary-audio ile *(İptal 2026-11-24: uzantı kaldırıldı)*
   doğrulamak; izolasyon kaybolduğunda global kayda düşmeyen fail-closed fallback'i test etmek.
 - [ ] Desteklenmeyen istemcide “otomatik algılandı” iddiası yerine açık manuel mod sunmak.
 

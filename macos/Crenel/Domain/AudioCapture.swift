@@ -90,7 +90,6 @@ enum RecordingCaptureError: LocalizedError, Equatable, Sendable {
     case insufficientDiskSpace
     case diskSpaceBecameLow
     case meetingProcessUnavailable
-    case browserMeetingAudioIsolationUnavailable
     case sourceDidNotProduceAudio(AudioSourceKind)
     case sourceFailed(AudioSourceKind, String)
 
@@ -112,8 +111,6 @@ enum RecordingCaptureError: LocalizedError, Equatable, Sendable {
             "Disk space is critically low. Stopping to protect the recording."
         case .meetingProcessUnavailable:
             "Couldn’t safely verify the meeting audio process. Try again with the meeting app open."
-        case .browserMeetingAudioIsolationUnavailable:
-            "Couldn’t safely separate Google Meet tab audio from other browser audio. System audio recording didn’t start."
         case .sourceDidNotProduceAudio(let source):
             "\(source.displayName) produced no audio."
         case .sourceFailed(let source, let message):

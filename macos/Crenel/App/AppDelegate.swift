@@ -43,8 +43,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let microphoneDeviceService = MicrophoneDeviceService()
     private let applicationRelauncher = ApplicationRelauncher()
     private let microphoneGateHotKey = GlobalHotKeyMonitor()
-    private let browserAudioBroker = BrowserAudioStreamBroker()
-    private lazy var browserAudioIPCServer = BrowserAudioIPCServer(broker: browserAudioBroker)
     private let launchAtLoginService: any LaunchAtLoginServicing = LaunchAtLoginService()
     private let calendarProvider = EventKitMeetingProvider()
     private lazy var meetingMonitor = MeetingMonitor(provider: calendarProvider)
@@ -129,14 +127,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         repository: meetingRepository
     )
     private lazy var recordingCoordinator: RecordingCoordinator = {
-        let coordinator = RecordingCoordinator(systemAudioFactory: { [weak self] scope in
-            guard let self else { return SystemAudioCaptureSource(scope: scope) }
-            switch scope {
-            case .browserTab:
-                return BrowserAudioCaptureSource(broker: self.browserAudioBroker)
-            case .meetingProcesses, .explicitManualGlobal:
-                return SystemAudioCaptureSource(scope: scope)
-            }
+        let coordinator = RecordingCoordinator(systemAudioFactory: { scope in
+            SystemAudioCaptureSource(scope: scope)
         })
         coordinator.onStatusChange = { [weak self] status in
             self?.appState.updateRecordingCaptureStatus(status)
@@ -367,7 +359,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             forName: .openDesktopWorkspace, object: nil, queue: .main
         ) { [weak self] _ in Task { @MainActor in self?.showDesktop() } }
         MultipartFormFileBuilder.removeStaleUploadBodies()
-        configureBrowserAudioBridge()
+        BrowserBridgeCleanup.removeLeftovers()
         configureMeetingSessionCoordinator()
         microphoneGateHotKey.start { [weak self] in
             self?.toggleMeetingMicrophoneGate()
@@ -417,7 +409,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { await meetingSessionCoordinator.stop() }
         microphoneDeviceService.stopMonitoring()
         microphoneGateHotKey.stop()
-        browserAudioIPCServer.stop()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -1506,24 +1497,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         recordingTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let systemAudioScope = MeetingAudioCaptureScopeResolver(
-                    browserAudioAvailable: { [weak self] in
-                        self?.browserAudioBroker.hasActiveSession ?? false
-                    }
-                ).resolve(
+                let systemAudioScope = MeetingAudioCaptureScopeResolver().resolve(
                     detection: self.appState.meetingSessionDetection,
                     meeting: sourceMeeting
                 )
-                let permissions: AudioCapturePermissionSnapshot
-                switch systemAudioScope {
-                case .browserTab:
-                    permissions = await self.audioPermissionService.requestMicrophoneAccess()
-                case .meetingProcesses, .explicitManualGlobal:
-                    permissions = await self.audioPermissionService.verifyAccessForRecording()
-                }
+                let permissions = await self.audioPermissionService.verifyAccessForRecording()
                 self.appState.updateAudioCapturePermissions(permissions)
                 let hasRequiredPermissions = permissions.microphone == .authorized
-                    && (systemAudioScope == .browserTab || permissions.canRecord)
+                    && permissions.canRecord
                 guard hasRequiredPermissions else {
                     self.presentRecordingFailure(self.permissionFailure(from: permissions))
                     return
@@ -1552,27 +1533,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 AppLogger.recordingOperationFailed(operation: "start", error: error)
                 self.presentRecordingFailure(self.recordingFailure(from: error))
             }
-        }
-    }
-
-    private func configureBrowserAudioBridge() {
-        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else {
-            return
-        }
-        do {
-            browserAudioBroker.setStatusHandler { [weak self] status in
-                Task { @MainActor [weak self] in
-                    self?.appState.updateBrowserAudioConnectionStatus(status)
-                }
-            }
-            try browserAudioIPCServer.start()
-            _ = try BrowserAudioNativeHostInstaller().install(bundleURL: Bundle.main.bundleURL)
-            appState.updateBrowserAudioConnectionStatus(.waitingForMeetTab)
-        } catch {
-            browserAudioIPCServer.stop()
-            browserAudioBroker.setStatusHandler(nil)
-            appState.updateBrowserAudioConnectionStatus(.unavailable)
-            AppLogger.recordingOperationFailed(operation: "browser-audio-bridge-start", error: error)
         }
     }
 
@@ -1993,9 +1953,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return .recording(
                 "Couldn't safely verify the meeting audio. Try again with the meeting app open."
             )
-        case .browserMeetingAudioIsolationUnavailable:
-            // The Chrome bridge dropped while recording started; a retry records system audio.
-            return .recording("The Chrome extension stopped sharing the Meet tab. Try again to record.")
         case .sourceDidNotProduceAudio(let source), .sourceFailed(let source, _):
             return .recording("Couldn't finish recording \(source.displayName). Check the connection and try again.")
         }
