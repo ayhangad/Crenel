@@ -262,7 +262,7 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
   Konuşma modeli dikte açılınca iniyor; dolu dil rezervasyonu serbest bırakılıyor; dikte ve
   model hataları `dictation` kategorisinde loglanıyor. — ✅ 2026-11-24 (tam koşu 676 test)
 - [x] Site: yayın sonrası "Coming soon" takılması (Docker önbelleği) giderildi. — ✅ 2026-11-24
-- [ ] 1.4.1 yayını. — 🚧 Devam ediyor: 2026-11-24
+- [x] 1.4.1 yayını. — ✅ 2026-11-24 (`release-availability-test.py 1.4.1` geçti; site ilk denemede 1.4.1 gösterdi)
 - [x] 1.4 yayını: imzalı ve noter onaylı DMG, GitHub Release, appcast, site. — ✅ 2026-11-24 (`release-availability-test.py 1.4` geçti; site 1.4 ve yeni SSS'yi gösteriyor)
 - [ ] Cihaz kabulü: Meet görüşmesi eklentisiz sistem sesiyle kaydediliyor;
   Xcode koşusundan sonra yüklü Crenel'in mikrofon izni duruyor; takvim izni verilince ajanda
