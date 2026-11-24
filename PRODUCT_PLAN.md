@@ -243,12 +243,13 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
 - [x] Takvim/Hatırlatıcılar izni verildiği halde uygulama "Allow" göstermeye devam ediyordu:
   `EKEventStore.authorizationStatus` süreç içinde önbellekte kalıyor; `EventKitAccess` bu
   oturumda alınan izni ve yeni store ile okuma denemesini de sayıyor. — ✅ 2026-11-24 (tam koşu 693 test)
-- [x] Her zaman görünen Record: sekme satırının sağında, kayıt sürmüyorsa hep var; kayıt
-  tamamlandı, hata, iptal ve işleme ekranlarından da başlıyor. — ✅ 2026-11-24 (otomatik test)
+- [x] Tek Record: Today'de sayaç satırının sağında her zaman aynı buton (toplantı olsun
+  olmasın); Meet konsolu ayrı Record göstermez. Kayıt tamamlandı, hata, iptal ve işleme
+  durumlarından da başlıyor. — ✅ 2026-11-24 (otomatik test)
 - [ ] Cihaz kabulü: Meet sekmesi uzantıya bağlı değilken kayıt sistem sesiyle başlıyor;
   Xcode koşusundan sonra yüklü Crenel'in mikrofon izni duruyor; takvim izni verilince ajanda
-  yeniden açmadan doluyor ve "Connected" görünüyor; sekme satırındaki Record her ekranda
-  var. Kullanıcı doğrulayacak.
+  yeniden açmadan doluyor ve "Connected" görünüyor; Today'deki tek Record her durumda
+  sayaç satırında. Kullanıcı doğrulayacak.
 - [x] Notch'taki Cancel/Stop işe yaramıyordu: onayı sistem alert'i yerine notch içinde
   sormak. — ✅ 2026-11-20 (otomatik test; tam koşu 691 test, 5 atlama, 0 hata)
 - [x] Kayıt mikrofonu varsayılan açık; mute sinyali kapatır, belirsizlik değiştirmez. — ✅ 2026-11-20 (otomatik test)

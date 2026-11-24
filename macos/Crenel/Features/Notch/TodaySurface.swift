@@ -147,18 +147,24 @@ struct TodaySurface: View {
             if let focus = agenda.focus {
                 TodayHero(
                     event: focus, now: now, ignite: ignite,
-                    // The open console carries Record and Join itself.
-                    onRecord: console == nil ? onStartRecording : nil,
+                    // Record never moves: the console under the hero only carries Join.
+                    onRecord: onStartRecording,
                     onJoin: console == nil ? join(focus) : nil,
                     forcedHover: previewHover == Self.heroHoverID
                 )
                 .modifier(EventActions(event: focus, join: join(focus), onStartRecording: onStartRecording))
                     .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
             }
+            // Without a hero, the row that carries Record moves to the top whenever something
+            // (the console or the agenda) would otherwise sit above it.
+            let recordRowFirst = agenda.focus == nil && (console != nil || agenda.hasRows)
+            if recordRowFirst {
+                recordRow(state: state, now: now, agenda: agenda)
+                    .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
+            }
             if let console {
                 TodayConsole(
                     model: console,
-                    onRecord: onStartRecording,
                     onJoin: agenda.focus.flatMap { event in event.meetingURL.map { url in { onOpenMeetingURL(url) } } }
                 )
                 .padding(.top, Hud.Layout.block)
@@ -167,33 +173,46 @@ struct TodaySurface: View {
 
             if agenda.hasRows || agenda.focus != nil {
                 ruler(agenda, now: now)
-                    .padding(.top, agenda.focus == nil ? 0 : TodayLayout.heroToRuler)
+                    .padding(.top, agenda.focus == nil && !recordRowFirst ? 0 : TodayLayout.heroToRuler)
                     .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
                 timetable(agenda, now: now)
                     .padding(.top, TodayLayout.rulerToLabel)
                     .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
             } else if state == .ready {
                 ruler(agenda, now: now)
+                    .padding(.top, recordRowFirst ? Hud.Layout.block : 0)
                     .hudStagger(2, shown: appeared, reduceMotion: reduceMotion)
-                nothingElseRow(agenda, now: now, canRecord: console == nil)
-                    .padding(.top, TodayLayout.rulerToLabel - Hud.Layout.rowPad)
-                    .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
+                if !recordRowFirst {
+                    nothingElseRow(agenda, now: now)
+                        .padding(.top, TodayLayout.rulerToLabel - Hud.Layout.rowPad)
+                        .hudStagger(3, shown: appeared, reduceMotion: reduceMotion)
+                }
                 if !agenda.later.isEmpty {
                     group(String(localized: "Later"), agenda.later, now: now, isFirst: false)
                         .padding(.top, HudRowKind.icon.sectionGap)
                         .hudStagger(4, shown: appeared, reduceMotion: reduceMotion)
                 }
-            } else {
-                TodayEmptyState(
-                    state: state,
-                    onConnect: onRequestCalendarAccess,
-                    fixes: fixes ?? .live,
-                    onRecord: console == nil ? onStartRecording : nil
-                )
-                .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
+            } else if !recordRowFirst {
+                recordRow(state: state, now: now, agenda: agenda)
+                    .hudStagger(0, shown: appeared, reduceMotion: reduceMotion)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The top row when no meeting is in focus; it ends with the one Record.
+    @ViewBuilder
+    private func recordRow(state: TodayCalendarState, now: Date, agenda: TodayAgenda) -> some View {
+        if state == .ready {
+            nothingElseRow(agenda, now: now)
+        } else {
+            TodayEmptyState(
+                state: state,
+                onConnect: onRequestCalendarAccess,
+                fixes: fixes ?? .live,
+                onRecord: onStartRecording
+            )
+        }
     }
 
     // MARK: Ruler
@@ -225,14 +244,12 @@ struct TodaySurface: View {
     }
 
     /// Calendars are connected and today is clear: say so, and name what comes next.
-    private func nothingElseRow(_ agenda: TodayAgenda, now: Date, canRecord: Bool) -> some View {
+    private func nothingElseRow(_ agenda: TodayAgenda, now: Date) -> some View {
         HStack(spacing: 12) {
             HudLamp(.teal)
             Text("Nothing else today").hudTrimmed(.body, Hud.Ink.ink2)
             Spacer(minLength: 8)
-            if canRecord {
-                TodayRecordButton(action: onStartRecording)
-            }
+            TodayRecordButton(action: onStartRecording)
         }
         .hudRow(.icon)
         .accessibilityElement(children: .contain)
@@ -421,8 +438,8 @@ private struct EventActions: ViewModifier {
     }
 }
 
-/// Record, always within reach on Today: the hero's free trailing edge, or the empty
-/// state's. Hidden while the console is open, which has its own.
+/// The one Record on Today. It always ends the top row (the hero's, the empty state's or
+/// "Nothing else today"), with or without a meeting, and stays there when the console opens.
 private struct TodayRecordButton: View {
     let action: () -> Void
 
@@ -581,7 +598,6 @@ struct TodayConsoleModel: Equatable {
     }
 
     let note: Note
-    let canRecord: Bool
     let canJoin: Bool
 
     /// nil when the console stays closed: the event is further than 10 minutes away and
@@ -596,15 +612,14 @@ struct TodayConsoleModel: Equatable {
         case .unavailable: note = .meetUnavailable
         case .none: note = (focus?.startDate ?? now) <= now ? .notRecorded : .willAsk
         }
-        canRecord = bridge != .unavailable
         canJoin = hasFocusConsole && focus?.meetingURL != nil
     }
 }
 
-/// The console (`.console`): state on the left, Record ⌘R and Join ⌘J on the right.
+/// The console (`.console`): state on the left, Join ⌘J on the right. Record stays on the
+/// row above it.
 private struct TodayConsole: View {
     let model: TodayConsoleModel
-    let onRecord: () -> Void
     let onJoin: (() -> Void)?
 
     var body: some View {
@@ -624,11 +639,6 @@ private struct TodayConsole: View {
                 Text("Meet audio bridge unavailable")
             }
         } buttons: {
-            if model.canRecord {
-                HudButton("Record", lamp: .red, key: "⌘R", size: .small, action: onRecord)
-                    .hudShortcut("r")
-                    .accessibilityLabel("Record")
-            }
             if model.canJoin, let onJoin {
                 HudButton("Join", key: "⌘J", kind: .primary, size: .small, action: onJoin)
                     .hudShortcut("j")

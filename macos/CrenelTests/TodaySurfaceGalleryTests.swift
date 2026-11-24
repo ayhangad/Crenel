@@ -46,14 +46,12 @@ final class TodaySurfaceGalleryTests: XCTestCase {
         let nearModel = TodayConsoleModel(focus: near, now: Self.now, bridge: .none)
         XCTAssertEqual(nearModel?.note, .willAsk)
         XCTAssertEqual(nearModel?.canJoin, true)
-        XCTAssertEqual(nearModel?.canRecord, true)
 
         let live = Self.event("Design review", 10, 11, url: "https://meet.google.com/a")
         XCTAssertEqual(TodayConsoleModel(focus: live, now: Self.now, bridge: .none)?.note, .notRecorded)
 
         let unavailable = TodayConsoleModel(focus: near, now: Self.now, bridge: .unavailable)
         XCTAssertEqual(unavailable?.note, .meetUnavailable)
-        XCTAssertEqual(unavailable?.canRecord, false)
 
         // A Meet call without a calendar event still gets its bridge state.
         let adHoc = TodayConsoleModel(focus: nil, now: Self.now, bridge: .waiting)

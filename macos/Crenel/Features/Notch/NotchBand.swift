@@ -3,13 +3,12 @@ import SwiftUI
 /// The camera band of the open notch (`.band`): the row beside the camera housing is the
 /// panel's chrome. Brand on the left, window · pin on the right; the middle belongs to the
 /// camera. The tabs (Today · Recordings · Tasks) sit on their own row under it, so they
-/// never crowd the housing; Record ends that row whenever no recording is under way. Both stay put while the content scrolls.
+/// never crowd the housing. Both stay put while the content scrolls.
 struct NotchBand: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.crenelActions) private var actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let onTogglePin: () -> Void
-    var onStartRecording: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -45,13 +44,6 @@ struct NotchBand: View {
                 if appState.updatePhase.isReady, !isRecording {
                     HudButton("Restart to update", lamp: .teal, size: .mini, action: actions.restartToUpdate)
                         .help("Crenel \(appState.updatePhase.version?.shortVersion ?? "") is ready")
-                        .transition(.opacity)
-                }
-                // Recording is always one click away, whatever the tab, meeting or state.
-                if appState.meetingFlow.canStartRecording {
-                    HudButton("Record", lamp: .red, size: .mini, action: onStartRecording)
-                        .help("Record now")
-                        .accessibilityLabel("Record now")
                         .transition(.opacity)
                 }
             }
