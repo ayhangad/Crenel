@@ -3,6 +3,23 @@
     <channel>
         <title>Crenel</title>
         <item>
+            <title>1.4.2</title>
+            <pubDate>Tue, 24 Nov 2026 15:24:45 +0300</pubDate>
+            <sparkle:version>180</sparkle:version>
+            <sparkle:shortVersionString>1.4.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Crenel 1.4.2
+
+- **Turkish dictation on more Macs.** When one of macOS's speech engines can't handle the
+  language, Crenel now tries the other one instead of stopping with "language isn't
+  supported". If neither can, the notch names the language and points to Dictation settings.
+- **Recording settings stop asking to check system audio.** Once system audio access is
+  confirmed, Settings no longer shows "Needs checking" and "Call audio off" after every
+  restart.
+]]></description>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.2/Crenel-1.4.2.dmg" length="9407189" type="application/octet-stream" sparkle:edSignature="IRjs5qDi0MUhV8lxmR6v/T0MRUtwk2ZJvGF6vil5mG3JPLJmuFXYxJ44l8DRzyfhFJ0XWkHugQfq3hyuoLVcAA=="/>
+        </item>
+        <item>
             <title>1.4.1</title>
             <pubDate>Tue, 24 Nov 2026 15:11:56 +0300</pubDate>
             <sparkle:version>178</sparkle:version>
@@ -19,7 +36,7 @@
 - **The download can't get stuck.** If macOS had no room left for another dictation
   language, the model never downloaded; Crenel now frees the languages it no longer uses.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.1/Crenel-1.4.1.dmg" length="9403606" type="application/octet-stream" sparkle:edSignature="NARDdG/e0jOFftHW+clY8c11vbEpmFUx5W2Hq/o4LUgBJYF6ifEOCx5rOvXML98rXo1V1wShEVmoEVpVHqtCAA=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.2/Crenel-1.4.1.dmg" length="9403606" type="application/octet-stream" sparkle:edSignature="NARDdG/e0jOFftHW+clY8c11vbEpmFUx5W2Hq/o4LUgBJYF6ifEOCx5rOvXML98rXo1V1wShEVmoEVpVHqtCAA=="/>
         </item>
         <item>
             <title>1.4</title>
@@ -42,26 +59,7 @@
 - **A local tool.** Crenel records what your Mac plays and your mic, and doesn't notify
   anyone on the call. Whether you may record, and asking the others, is up to you.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.1/Crenel-1.4.dmg" length="9388246" type="application/octet-stream" sparkle:edSignature="Sj6lS8U4ZnZsnojc4Ky512SD3vgyG1S008OmElxRv7wTGSQXAANJWHVJ7rjgZX4cI84/i7OE1aw14lDYgzUaBA=="/>
-        </item>
-        <item>
-            <title>1.3</title>
-            <pubDate>Sun, 22 Nov 2026 22:09:42 +0300</pubDate>
-            <sparkle:version>168</sparkle:version>
-            <sparkle:shortVersionString>1.3</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# Crenel 1.3
-
-- **A cleaner, calmer layout everywhere.** The notch, the desktop window and Settings now
-  share one spacing system: lists have room to scan, related things sit together, and
-  every screen lines up on the same edges.
-- **Easier lists.** Task rows are taller, calendar and recording rows keep their time tile
-  as one tidy column, and section labels show their count beside the name ("Today · 3").
-- **Settings on one card per page.** Each setting reads as a title with a short line under
-  it and its control on the right, without a box around every row.
-- **Roomier task input.** The "Add a task" field is easier to type in.
-]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.1/Crenel-1.3.dmg" length="9577215" type="application/octet-stream" sparkle:edSignature="nkSnuuOCfEmNZYtu6A8OnhWRTlv849q9E/GehHDXWefvwnhjwe26L3BXOZleNgB0zMFmJfXrphlWwryeVPdqBg=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.2/Crenel-1.4.dmg" length="9388246" type="application/octet-stream" sparkle:edSignature="Sj6lS8U4ZnZsnojc4Ky512SD3vgyG1S008OmElxRv7wTGSQXAANJWHVJ7rjgZX4cI84/i7OE1aw14lDYgzUaBA=="/>
         </item>
     </channel>
 </rss>
