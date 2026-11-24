@@ -27,6 +27,16 @@ enum MeetingFlowState: Equatable {
         case failed
     }
 
+    /// A new recording can start from anything but a recording already under way.
+    var canStartRecording: Bool {
+        switch self {
+        case .preparingRecording, .recording, .finalizingAudio:
+            false
+        case .idle, .upcomingMeeting, .uploading, .transcribing, .summarizing, .completed, .cancelled, .failed:
+            true
+        }
+    }
+
     var phase: Phase {
         switch self {
         case .idle: .idle
@@ -122,9 +132,11 @@ struct MeetingFlowMachine {
         case (.upcomingMeeting, .dismissedUpcomingMeeting):
             state = .idle
 
-        case (.idle, .requestedRecording),
-             (.upcomingMeeting, .requestedRecording):
+        case (_, .requestedRecording) where state.canStartRecording:
+            // Recording is never blocked by what the panel shows: a finished, failed or
+            // cancelled flow, or an earlier meeting still processing in the queue.
             state = .preparingRecording
+            retryState = nil
 
         case (.preparingRecording, .recordingStarted(let startedAt)):
             state = .recording(startedAt: startedAt)

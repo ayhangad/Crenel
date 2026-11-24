@@ -51,12 +51,11 @@ actor EventKitReminderStore: ReminderStore {
     init(calendar: Calendar = .current) {
         self.eventStore = EKEventStore()
         self.calendar = calendar
-        let status = EKEventStore.authorizationStatus(for: .reminder)
-        self.hasSeenAccess = status == .fullAccess || status == .authorized
+        self.hasSeenAccess = EventKitAccess.hasFullAccess(.reminder)
     }
 
     func accessState() -> ReminderAccessState {
-        switch EKEventStore.authorizationStatus(for: .reminder) {
+        switch EventKitAccess.status(for: .reminder) {
         case .notDetermined: .notDetermined
         case .fullAccess, .authorized: .authorized
         case .restricted: .restricted
@@ -68,6 +67,7 @@ actor EventKitReminderStore: ReminderStore {
     func requestAccess() async throws -> Bool {
         let granted = try await eventStore.requestFullAccessToReminders()
         if granted {
+            EventKitAccess.markGranted(.reminder)
             refreshAfterGrant()
         }
         return granted

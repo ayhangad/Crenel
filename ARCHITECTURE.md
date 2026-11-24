@@ -208,6 +208,14 @@ Bu alt bölüm aşağıdaki eski mikrofon gate ve kayıt kapsamı kurallarının
   store'u her sorguda yeniden kurar; izinden hemen sonra açılan store takvim servisi
   hesapları yüklerken boş kalabiliyordu. `applicationDidBecomeActive` kurulum izinlerini ve
   `MeetingMonitor`'ü hemen yeniler.
+- **EventKit izni (2026-11-24).** `EKEventStore.authorizationStatus(for:)` süreç boyunca
+  önbellekte kalır ve izin sonrası yeniden açılışa kadar eski değeri döndürür. Bütün okumalar
+  `EventKitAccess.status(for:)` üzerinden yapılır: sistem değeri, bu süreçte
+  `requestFullAccess…` ile alınan izin ve yeni bir store'un liste görebilmesi.
+- **Her zaman Record (2026-11-24).** `NotchBand` sekme satırının sonunda, akış
+  `canStartRecording` iken Record gösterir. `requestedRecording` hazırlık, kayıt ve ses
+  sonlandırma dışında her durumdan kabul edilir; işlemedeki önceki toplantı kuyrukta sürer,
+  işleme olayları duruma bağlı korunduğu için yeni kayda dokunmaz.
 - **İptal onayı notch içinde.** Kayıt hazırlığını iptal, kaydı silme ve işlemeyi durdurma
   onayı `CancelConfirmationSurface` satırıdır. Etkinleşmeyen notch paneline bağlı SwiftUI
   `alert` imleç dışında açılıp tıklanamıyor ya da panel katlanınca kayboluyordu.

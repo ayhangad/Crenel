@@ -191,8 +191,8 @@ extension SetupSystem {
         return SetupSystem(
             grant: { capability in
                 switch capability {
-                case .calendar: return Self.grant(EKEventStore.authorizationStatus(for: .event))
-                case .reminders: return Self.grant(EKEventStore.authorizationStatus(for: .reminder))
+                case .calendar: return Self.grant(EventKitAccess.status(for: .event))
+                case .reminders: return Self.grant(EventKitAccess.status(for: .reminder))
                 case .microphone:
                     switch AVCaptureDevice.authorizationStatus(for: .audio) {
                     case .authorized: return .granted
@@ -219,8 +219,10 @@ extension SetupSystem {
             },
             request: { capability in
                 switch capability {
-                case .calendar: _ = try? await store.requestFullAccessToEvents()
-                case .reminders: _ = try? await store.requestFullAccessToReminders()
+                case .calendar:
+                    if (try? await store.requestFullAccessToEvents()) == true { EventKitAccess.markGranted(.event) }
+                case .reminders:
+                    if (try? await store.requestFullAccessToReminders()) == true { EventKitAccess.markGranted(.reminder) }
                 case .microphone: _ = await AVCaptureDevice.requestAccess(for: .audio)
                 case .notifications:
                     _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])

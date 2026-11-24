@@ -47,6 +47,30 @@ final class MeetingFlowMachineTests: XCTestCase {
         XCTAssertEqual(machine.state, .preparingRecording)
     }
 
+    func testRecordingStartsFromAnyStateExceptARecordingUnderWay() throws {
+        let startable: [MeetingFlowState] = [
+            .completed(meetingID: UUID()),
+            .cancelled,
+            .failed(.recording("Couldn't finish the recording.")),
+            .uploading(progress: 0.4),
+            .transcribing,
+            .summarizing
+        ]
+        for state in startable {
+            var machine = MeetingFlowMachine(initialState: state)
+            try machine.send(.requestedRecording)
+            XCTAssertEqual(machine.state, .preparingRecording, "from \(state.phase)")
+        }
+
+        let busy: [MeetingFlowState] = [.preparingRecording, .recording(startedAt: Date()), .finalizingAudio]
+        for state in busy {
+            var machine = MeetingFlowMachine(initialState: state)
+            XCTAssertFalse(state.canStartRecording)
+            XCTAssertThrowsError(try machine.send(.requestedRecording))
+            XCTAssertEqual(machine.state, state)
+        }
+    }
+
     func testInvalidTransitionDoesNotChangeState() {
         var machine = MeetingFlowMachine()
 

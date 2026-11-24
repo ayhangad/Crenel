@@ -1387,7 +1387,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func requestCalendarAccess() {
         // A refused permission can no longer be prompted; send the user to the pane.
-        switch EKEventStore.authorizationStatus(for: .event) {
+        switch EventKitAccess.status(for: .event) {
         case .denied, .restricted, .writeOnly:
             openCalendarPrivacySettings()
             setupCoordinator.watch()

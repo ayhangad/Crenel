@@ -240,9 +240,15 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
 - [x] Takvim izni verildikten sonra ajanda dakikalarca boş kalıyordu: izin varken takvim
   görmeyen EventKit store'u her sorguda yeniden kurmak; uygulama öne gelince izinleri ve
   takvimi hemen yenilemek. — ✅ 2026-11-24 (tam koşu geçti)
+- [x] Takvim/Hatırlatıcılar izni verildiği halde uygulama "Allow" göstermeye devam ediyordu:
+  `EKEventStore.authorizationStatus` süreç içinde önbellekte kalıyor; `EventKitAccess` bu
+  oturumda alınan izni ve yeni store ile okuma denemesini de sayıyor. — ✅ 2026-11-24 (tam koşu 693 test)
+- [x] Her zaman görünen Record: sekme satırının sağında, kayıt sürmüyorsa hep var; kayıt
+  tamamlandı, hata, iptal ve işleme ekranlarından da başlıyor. — ✅ 2026-11-24 (otomatik test)
 - [ ] Cihaz kabulü: Meet sekmesi uzantıya bağlı değilken kayıt sistem sesiyle başlıyor;
   Xcode koşusundan sonra yüklü Crenel'in mikrofon izni duruyor; takvim izni verilince ajanda
-  yeniden açmadan doluyor. Kullanıcı doğrulayacak.
+  yeniden açmadan doluyor ve "Connected" görünüyor; sekme satırındaki Record her ekranda
+  var. Kullanıcı doğrulayacak.
 - [x] Notch'taki Cancel/Stop işe yaramıyordu: onayı sistem alert'i yerine notch içinde
   sormak. — ✅ 2026-11-20 (otomatik test; tam koşu 691 test, 5 atlama, 0 hata)
 - [x] Kayıt mikrofonu varsayılan açık; mute sinyali kapatır, belirsizlik değiştirmez. — ✅ 2026-11-20 (otomatik test)

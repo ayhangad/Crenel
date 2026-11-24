@@ -28,7 +28,7 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
     init(urlMatcher: MeetingURLMatcher = MeetingURLMatcher()) {
         self.eventStore = EKEventStore()
         self.urlMatcher = urlMatcher
-        self.storeCreatedWithAccess = Self.hasFullAccess(EKEventStore.authorizationStatus(for: .event))
+        self.storeCreatedWithAccess = EventKitAccess.hasFullAccess(.event)
     }
 
     static func hasFullAccess(_ status: EKAuthorizationStatus) -> Bool {
@@ -39,14 +39,14 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
     /// loads its accounts, which kept the agenda blank for minutes. With access granted, a
     /// store that sees no calendars is replaced on every query until one shows up.
     private func replaceStoreIfCreatedWithoutAccess() {
-        guard Self.hasFullAccess(EKEventStore.authorizationStatus(for: .event)) else { return }
+        guard EventKitAccess.hasFullAccess(.event) else { return }
         guard !storeCreatedWithAccess || eventStore.calendars(for: .event).isEmpty else { return }
         eventStore = EKEventStore()
         storeCreatedWithAccess = true
     }
 
     func authorizationState() -> CalendarAccessState {
-        switch EKEventStore.authorizationStatus(for: .event) {
+        switch EventKitAccess.status(for: .event) {
         case .notDetermined:
             .notDetermined
         case .restricted:
@@ -63,6 +63,7 @@ actor EventKitMeetingProvider: CalendarMeetingProviding {
     func requestAccess() async throws -> Bool {
         let granted = try await eventStore.requestFullAccessToEvents()
         if granted {
+            EventKitAccess.markGranted(.event)
             replaceStoreIfCreatedWithoutAccess()
         }
         return granted

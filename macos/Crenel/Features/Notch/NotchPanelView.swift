@@ -95,7 +95,7 @@ struct NotchPanelView: View {
                     .padding(.horizontal, Hud.Layout.edge)
                     .frame(minHeight: max(notchMetrics.topInset, Hud.Notch.bandHeight))
                 } else {
-                    NotchBand(onTogglePin: onTogglePin)
+                    NotchBand(onTogglePin: onTogglePin, onStartRecording: onStartRecording)
                 }
             }
             .transition(.opacity)

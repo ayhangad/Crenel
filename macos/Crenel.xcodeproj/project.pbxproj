@@ -139,6 +139,7 @@
 		749A9C89AA5A09ED8AE1AF66 /* RecordingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70A90B6E4BAFD1F3CA126AE9 /* RecordingSession.swift */; };
 		7593C1E9EDA6ACBF637AB469 /* DictationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BF49A822461E06B3B981A3E /* DictationState.swift */; };
 		75B7817FAF9B9078CC7CDB05 /* CrenelApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD38E3D86B9FB4E3465A0581 /* CrenelApp.swift */; };
+		76308DD4E51AB9F993D53EC3 /* EventKitAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 554677AAD686D0FA71319BB4 /* EventKitAccess.swift */; };
 		78FEC3F49B6F9C5A8FF3C709 /* RecordingRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07FD450292631DB5C7D53D69 /* RecordingRow.swift */; };
 		798D2A6FEB889A03C3F73D5B /* LocalSpeechTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = 984DBABFA8817CF5358F2D6D /* LocalSpeechTranscriber.swift */; };
 		7C076B6636A862674AE95EBA /* CLIAgentProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E00352784D2077F703222D5A /* CLIAgentProviderTests.swift */; };
@@ -381,6 +382,7 @@
 		5351DE074A51DE175C26856F /* NotchClosedState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchClosedState.swift; sourceTree = "<group>"; };
 		54B07295D01C6EB9DFF784F8 /* RecordingCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingCoordinatorTests.swift; sourceTree = "<group>"; };
 		553D94FA415E9FACB38DEC23 /* TaskInputParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskInputParserTests.swift; sourceTree = "<group>"; };
+		554677AAD686D0FA71319BB4 /* EventKitAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventKitAccess.swift; sourceTree = "<group>"; };
 		5748E33CDC07027548DF6B87 /* BrowserAudioProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserAudioProtocol.swift; sourceTree = "<group>"; };
 		57F8CB8EBEADBFF8EA28CC74 /* NotchClosedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchClosedView.swift; sourceTree = "<group>"; };
 		58467CBD6F73B025B3CA0839 /* AnthropicProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicProvider.swift; sourceTree = "<group>"; };
@@ -1122,6 +1124,7 @@
 			isa = PBXGroup;
 			children = (
 				32247315BB956B6477E46B30 /* CalendarMeetingProvider.swift */,
+				554677AAD686D0FA71319BB4 /* EventKitAccess.swift */,
 				909CBB1292BDD3EB1B070316 /* LegacyGoogleCalendarCleanup.swift */,
 				EE4C13E2519876A02CCA16E3 /* MeetingMonitor.swift */,
 				51C941F17B8D59EC359C9A90 /* MeetingNotificationService.swift */,
@@ -1457,6 +1460,7 @@
 				3AD622E2ADC39CB358ED3D59 /* DictationTrigger.swift in Sources */,
 				A63676AFECFC85B305EEF0DD /* DictationTriggerMatcher.swift in Sources */,
 				2FF90426F023DB2E10EF1BBE /* ElevenLabsTranscriptionService.swift in Sources */,
+				76308DD4E51AB9F993D53EC3 /* EventKitAccess.swift in Sources */,
 				A7D7CAD4F064F6664184504A /* EventKitReminderStore.swift in Sources */,
 				2E0D44C5F2367006403C02DA /* FileMeetingRepository.swift in Sources */,
 				00D3B5C1B693C7FF22473C49 /* FileProcessingJobRepository.swift in Sources */,
