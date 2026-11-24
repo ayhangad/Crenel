@@ -2,6 +2,7 @@
 // and state of each version taken from GitHub at build time (git as the fallback).
 import { getCollection, type CollectionEntry } from 'astro:content';
 import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export type Release = {
@@ -25,6 +26,16 @@ const compare = (a: string, b: string) => {
 };
 
 async function githubReleases(): Promise<GitHubRelease[]> {
+  // The Docker build downloads the list once (see Dockerfile); read that copy when present.
+  const file = process.env.GITHUB_RELEASES_FILE;
+  if (file && existsSync(file)) {
+    try {
+      const list = JSON.parse(readFileSync(file, 'utf8'));
+      if (Array.isArray(list)) return list as GitHubRelease[];
+    } catch {
+      // Fall through to the API.
+    }
+  }
   try {
     const headers: Record<string, string> = { Accept: 'application/vnd.github+json', 'User-Agent': 'crenel-website-build' };
     if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
