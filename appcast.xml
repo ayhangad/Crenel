@@ -3,6 +3,25 @@
     <channel>
         <title>Crenel</title>
         <item>
+            <title>1.4.1</title>
+            <pubDate>Tue, 24 Nov 2026 15:11:56 +0300</pubDate>
+            <sparkle:version>178</sparkle:version>
+            <sparkle:shortVersionString>1.4.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
+            <description sparkle:format="markdown"><![CDATA[# Crenel 1.4.1
+
+- **Dictation asks for the access it needs.** Without Accessibility, Crenel could only copy
+  what you said and pointed to its own Settings. Now macOS asks right away, and the notch
+  shows Allow, which opens the right permission for Accessibility, the microphone or Input
+  Monitoring.
+- **The speech model downloads before your first dictation.** On a new Mac the first tries
+  no longer fail with "isn't installed" or "Downloading".
+- **The download can't get stuck.** If macOS had no room left for another dictation
+  language, the model never downloaded; Crenel now frees the languages it no longer uses.
+]]></description>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.1/Crenel-1.4.1.dmg" length="9403606" type="application/octet-stream" sparkle:edSignature="NARDdG/e0jOFftHW+clY8c11vbEpmFUx5W2Hq/o4LUgBJYF6ifEOCx5rOvXML98rXo1V1wShEVmoEVpVHqtCAA=="/>
+        </item>
+        <item>
             <title>1.4</title>
             <pubDate>Tue, 24 Nov 2026 14:45:06 +0300</pubDate>
             <sparkle:version>175</sparkle:version>
@@ -23,7 +42,7 @@
 - **A local tool.** Crenel records what your Mac plays and your mic, and doesn't notify
   anyone on the call. Whether you may record, and asking the others, is up to you.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4/Crenel-1.4.dmg" length="9388246" type="application/octet-stream" sparkle:edSignature="Sj6lS8U4ZnZsnojc4Ky512SD3vgyG1S008OmElxRv7wTGSQXAANJWHVJ7rjgZX4cI84/i7OE1aw14lDYgzUaBA=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.1/Crenel-1.4.dmg" length="9388246" type="application/octet-stream" sparkle:edSignature="Sj6lS8U4ZnZsnojc4Ky512SD3vgyG1S008OmElxRv7wTGSQXAANJWHVJ7rjgZX4cI84/i7OE1aw14lDYgzUaBA=="/>
         </item>
         <item>
             <title>1.3</title>
@@ -42,31 +61,7 @@
   it and its control on the right, without a box around every row.
 - **Roomier task input.** The "Add a task" field is easier to type in.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4/Crenel-1.3.dmg" length="9577215" type="application/octet-stream" sparkle:edSignature="nkSnuuOCfEmNZYtu6A8OnhWRTlv849q9E/GehHDXWefvwnhjwe26L3BXOZleNgB0zMFmJfXrphlWwryeVPdqBg=="/>
-        </item>
-        <item>
-            <title>1.2</title>
-            <pubDate>Fri, 20 Nov 2026 15:28:15 +0300</pubDate>
-            <sparkle:version>157</sparkle:version>
-            <sparkle:shortVersionString>1.2</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# Crenel 1.2
-
-- **Your mic is on when a recording starts.** Turn it off in the notch or with the shortcut.
-  Muting yourself in Zoom or Google Meet still turns it off, and unmuting turns it back on.
-  If Crenel can't read the call app's mute button, it leaves your mic as it is.
-- **Record Slack huddles and other calls.** Recording no longer stops with "couldn't verify
-  the meeting audio" because the calendar has a Zoom or Meet link, Zoom is open in the
-  background, or Chrome is playing something else. Calls in apps Crenel doesn't track
-  directly (Slack, Teams, FaceTime) are recorded from all system audio.
-- **Cancel and Stop work in the notch.** Deleting a recording, cancelling setup and stopping
-  processing are confirmed right in the notch, not in a system alert that could open out of reach.
-- **Calendar works right after you allow it.** No relaunch needed; Reminders too.
-- **The 🌐 key comes back as soon as you quit.** With fn as the dictation key, quitting
-  Crenel or choosing another key restores your "Press 🌐 key to" setting immediately. Before,
-  it took a restart.
-]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4/Crenel-1.2.dmg" length="9496320" type="application/octet-stream" sparkle:edSignature="HpqEP/l1VDQCM0Sx1WiD3z9AiQalo5Vq1tuxhMuL3UsFfGPkkM1/zD8XEt/oTr6Kyd2NLphn8y6kOkbtDbNuDQ=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.1/Crenel-1.3.dmg" length="9577215" type="application/octet-stream" sparkle:edSignature="nkSnuuOCfEmNZYtu6A8OnhWRTlv849q9E/GehHDXWefvwnhjwe26L3BXOZleNgB0zMFmJfXrphlWwryeVPdqBg=="/>
         </item>
     </channel>
 </rss>
