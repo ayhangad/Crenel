@@ -5,10 +5,9 @@ import Base from '../layouts/Base.astro';
 import Seg from '../components/Seg.astro';
 import Lamp from '../components/Lamp.astro';
 import Icon from '../components/Icon.astro';
-import AppleLogo from '../components/AppleLogo.astro';
 import XLogo from '../components/XLogo.astro';
 import { getReleases, formatDate } from '../lib/releases';
-import { REPO, X_HANDLE, X_URL, dmgUrl, releaseUrl } from '../lib/site';
+import { REPO, X_HANDLE, X_URL, releaseUrl } from '../lib/site';
 
 const releases = await Promise.all(
   (await getReleases()).map(async (r) => ({ ...r, Content: (await render(r.entry)).Content })),
@@ -44,7 +43,6 @@ const releases = await Promise.all(
                   <span class="meta"><Lamp on="g" />Signed and notarized</span>
                   <span class="grow"></span>
                   <a class="key dark sm" href={releaseUrl(r.version)}>On GitHub<Icon id="i-link" size={13} /></a>
-                  <a class="key light sm" href={dmgUrl(r.version)}><AppleLogo size={14} />Download {r.version}</a>
                 </div>
               )}
             </div>

@@ -50,6 +50,19 @@ upload_release_assets() {
     gh release edit "v${version}" --repo "${repo}" --draft=false
 }
 
+# Only the newest release keeps its files. Earlier releases stay on GitHub with their notes,
+# but their DMGs and checksums are deleted: Sparkle and the site only ever fetch the newest.
+prune_earlier_release_assets() {
+    local version="$1" repo="ayhangad/Crenel" tag asset failed=0
+    for tag in $(gh release list --repo "${repo}" --limit 100 --json tagName --jq '.[].tagName'); do
+        [[ "${tag}" == "v${version}" ]] && continue
+        for asset in $(gh release view "${tag}" --repo "${repo}" --json assets --jq '.assets[].name'); do
+            gh release delete-asset "${tag}" "${asset}" --repo "${repo}" --yes || failed=1
+        done
+    done
+    return ${failed}
+}
+
 # The website (crenel.ayhan.fyi) reads "Latest" from GitHub Releases at build time, so it
 # is rebuilt once the release is public. Credentials: CRENEL_DOKPLOY_URL and
 # CRENEL_DOKPLOY_API_KEY, or the host.gad.works pair in ~/.config/dokploy/.env.

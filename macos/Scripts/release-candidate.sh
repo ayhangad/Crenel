@@ -169,10 +169,12 @@ fi
 # MARK: Appcast
 
 print "Updating the appcast…"
-if [[ ! -f "${updates_dir}/appcast.xml" ]]; then
-    # Keep earlier versions: start from the published feed when there is one.
-    curl -sfL "${feed_url}" -o "${updates_dir}/appcast.xml" || rm -f "${updates_dir}/appcast.xml"
-fi
+# Only the newest version is offered and kept on GitHub: the feed lists this release alone.
+# Earlier DMGs left here would be listed under this release's download URL, where they
+# don't exist.
+for stale in "${updates_dir}"/*(N); do
+    [[ "${stale:t}" == Crenel-${version}.* ]] || rm -rf -- "${stale}"
+done
 [[ -f "${notes_source}" ]] && cp "${notes_source}" "${updates_dir}/Crenel-${version}.md"
 "${sparkle_tools}/bin/generate_appcast" --account gad.Crenel \
     --download-url-prefix "${download_prefix}" \
@@ -210,6 +212,9 @@ if ! git -C "${pages}" diff --cached --quiet; then
     git -C "${pages}" commit -m "Appcast: Crenel ${version}"
     git -C "${pages}" push origin HEAD:gh-pages
 fi
+
+print "Removing earlier DMGs from GitHub…"
+prune_earlier_release_assets "${version}" || print -u2 "WARN: couldn't remove every earlier DMG; delete them by hand."
 
 # MARK: Website
 
