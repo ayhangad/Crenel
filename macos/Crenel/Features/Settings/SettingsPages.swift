@@ -374,8 +374,7 @@ extension SettingsView {
     private var versionLine: String {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "Unknown"
-        guard let build = info?["CFBundleVersion"] as? String else { return "Crenel \(version)" }
-        return "Crenel \(version) · build \(build)"
+        return "Crenel \(version)"
     }
 
     // MARK: Voice (AI page)
