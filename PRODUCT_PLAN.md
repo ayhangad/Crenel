@@ -255,7 +255,7 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
 - [x] Yayın öncesi inceleme düzeltmeleri: `EventKitAccess` deneme okuması tür başına 10 sn'de
   bir (kurulum yoklamasında ana iş parçacığı takılmıyordu); İptal'den hemen sonra Record
   önceki temizliği bekliyor. — ✅ 2026-11-24 (tam koşu 675 test; Release derlemesi)
-- [ ] 1.4 yayını: imzalı ve noter onaylı DMG, GitHub Release, appcast, site. — 🚧 Devam ediyor: 2026-11-24
+- [x] 1.4 yayını: imzalı ve noter onaylı DMG, GitHub Release, appcast, site. — ✅ 2026-11-24 (`release-availability-test.py 1.4` geçti; site 1.4 ve yeni SSS'yi gösteriyor)
 - [ ] Cihaz kabulü: Meet görüşmesi eklentisiz sistem sesiyle kaydediliyor;
   Xcode koşusundan sonra yüklü Crenel'in mikrofon izni duruyor; takvim izni verilince ajanda
   yeniden açmadan doluyor ve "Connected" görünüyor; Today'deki tek Record her durumda
