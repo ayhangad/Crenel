@@ -431,6 +431,14 @@ final class AppState: ObservableObject {
     /// Set for a few seconds after launching a new version: the "Updated" strip.
     @Published private(set) var justUpdatedTo: AppUpdateVersion?
 
+    /// "Check for Updates" in Settings: checking, up to date, or couldn't check.
+    @Published private(set) var updateCheck: AppUpdateCheck = .idle
+
+    func updateUpdateCheck(_ check: AppUpdateCheck) {
+        guard updateCheck != check else { return }
+        updateCheck = check
+    }
+
     func updateUpdatePhase(_ phase: AppUpdatePhase) {
         guard updatePhase != phase else { return }
         updatePhase = phase

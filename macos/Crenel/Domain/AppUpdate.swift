@@ -49,6 +49,15 @@ enum AppUpdatePhase: Equatable, Sendable {
     }
 }
 
+/// A check the user started from Settings. Kept apart from `AppUpdatePhase` so it never
+/// shows in the notch; a found update moves on to `AppUpdatePhase.downloading`.
+enum AppUpdateCheck: Equatable, Sendable {
+    case idle
+    case checking
+    case upToDate
+    case failed
+}
+
 /// Which update notices the user has already answered, per version: "Later" on the
 /// ready strip, "OK" on the strip shown during a recording.
 struct AppUpdateNotices: Equatable, Sendable {

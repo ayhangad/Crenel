@@ -36,6 +36,22 @@ final class AppUpdateCoordinator {
     func attach(_ updater: AppUpdater) {
         self.updater = updater
         updater.onPhaseChange = { [weak self] phase in self?.appState.updateUpdatePhase(phase) }
+        (updater as? SparkleAppUpdater)?.onCheckChange = { [weak self] check in self?.showCheck(check) }
+    }
+
+    /// "Up to date" and "Couldn't check" stay a few seconds, then the button returns.
+    static let checkResultDuration: TimeInterval = 4
+    private var clearCheck: Task<Void, Never>?
+
+    private func showCheck(_ check: AppUpdateCheck) {
+        clearCheck?.cancel()
+        appState.updateUpdateCheck(check)
+        guard check == .upToDate || check == .failed else { return }
+        clearCheck = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.checkResultDuration))
+            guard !Task.isCancelled else { return }
+            self?.appState.updateUpdateCheck(.idle)
+        }
     }
 
     func checkForUpdates() {

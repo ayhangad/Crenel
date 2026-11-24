@@ -11,6 +11,9 @@ import Sparkle
 @MainActor
 final class SparkleAppUpdater: NSObject, AppUpdater, SPUUserDriver {
     var onPhaseChange: ((AppUpdatePhase) -> Void)?
+    /// A user-started check: checking, nothing new, or an error.
+    var onCheckChange: ((AppUpdateCheck) -> Void)?
+    private var userCheckRunning = false
 
     private var updater: SPUUpdater?
     private var version: AppUpdateVersion?
@@ -27,7 +30,12 @@ final class SparkleAppUpdater: NSObject, AppUpdater, SPUUserDriver {
     }
 
     func checkForUpdates() {
-        guard let updater, updater.canCheckForUpdates else { return }
+        guard let updater, updater.canCheckForUpdates else {
+            onCheckChange?(.idle)
+            return
+        }
+        userCheckRunning = true
+        onCheckChange?(.checking)
         updater.checkForUpdates()
     }
 
@@ -48,13 +56,25 @@ final class SparkleAppUpdater: NSObject, AppUpdater, SPUUserDriver {
         reply(SUUpdatePermissionResponse(automaticUpdateChecks: true, sendSystemProfile: false))
     }
 
-    func showUserInitiatedUpdateCheck(cancellation: @escaping () -> Void) {}
+    func showUserInitiatedUpdateCheck(cancellation: @escaping () -> Void) {
+        userCheckRunning = true
+        onCheckChange?(.checking)
+    }
+
+    private func endUserCheck(_ result: AppUpdateCheck) {
+        guard userCheckRunning else { return }
+        userCheckRunning = false
+        onCheckChange?(result)
+    }
 
     func showUpdateFound(with appcastItem: SUAppcastItem, state: SPUUserUpdateState, reply: @escaping (SPUUserUpdateChoice) -> Void) {
         guard !appcastItem.isInformationOnlyUpdate else {
+            endUserCheck(.upToDate)
             reply(.dismiss)
             return
         }
+        // The download progress takes over from "Checking".
+        endUserCheck(.idle)
         let found = AppUpdateVersion(
             shortVersion: appcastItem.displayVersionString,
             releaseNotesURL: CrenelReleaseNotes.url(for: appcastItem.displayVersionString)
@@ -78,11 +98,13 @@ final class SparkleAppUpdater: NSObject, AppUpdater, SPUUserDriver {
     func showUpdateReleaseNotesFailedToDownloadWithError(_ error: any Error) {}
 
     func showUpdateNotFoundWithError(_ error: any Error, acknowledgement: @escaping () -> Void) {
+        endUserCheck(.upToDate)
         acknowledgement()
     }
 
     func showUpdaterError(_ error: any Error, acknowledgement: @escaping () -> Void) {
         AppLogger.updateFailed(error)
+        endUserCheck(.failed)
         version = nil
         installReply = nil
         publish(.idle)

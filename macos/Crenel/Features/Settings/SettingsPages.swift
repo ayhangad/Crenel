@@ -347,12 +347,27 @@ extension SettingsView {
             HudAppTile(size: 22)
             Text(verbatim: versionLine).hudTrimmed(.meta)
             Spacer(minLength: 8)
-            if case .ready(let version) = appState.updatePhase {
+            switch (appState.updatePhase, appState.updateCheck) {
+            case (.ready(let version), _):
                 HudButton("Restart to update to \(version.shortVersion)", lamp: .teal, size: .small,
                           action: appActions.restartToUpdate)
-            } else {
+            case (.downloading(let version, _), _), (.preparing(let version), _), (.restarting(let version), _):
+                HStack(spacing: 8) {
+                    HudSpinner()
+                    Text("Downloading \(version.shortVersion)").hud(.label, Hud.Ink.ink2)
+                }
+            case (.idle, .checking):
+                HStack(spacing: 8) {
+                    HudSpinner()
+                    Text("Checking").hud(.label, Hud.Ink.ink2)
+                }
+            case (.idle, .upToDate):
+                HudStatusWord(.ok, "Up to date")
+            case (.idle, .failed):
+                HudStatusWord(.err, "Couldn’t check")
+                HudButton("Try again", size: .small, action: appActions.checkForUpdates)
+            case (.idle, .idle):
                 HudButton("Check for Updates", size: .small, action: appActions.checkForUpdates)
-                    .disabled(appState.updatePhase != .idle)
             }
         }
         // Tile and key on the card's content edges.
