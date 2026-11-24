@@ -12,6 +12,9 @@ import Foundation
 enum EventKitAccess {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var grantedTypes: Set<UInt> = []
+    nonisolated(unsafe) private static var lastProbe: [UInt: Date] = [:]
+    /// A fresh store costs ~25 ms and setup polls every second; probe at most this often.
+    static let probeInterval: TimeInterval = 10
 
     static func markGranted(_ type: EKEntityType) {
         lock.withLock { _ = grantedTypes.insert(type.rawValue) }
@@ -26,7 +29,13 @@ enum EventKitAccess {
             return .fullAccess
         }
         // A store made now reads with the current grant even when the cached status is stale.
-        if !EKEventStore().calendars(for: type).isEmpty {
+        let now = Date()
+        let shouldProbe = lock.withLock { () -> Bool in
+            if let last = lastProbe[type.rawValue], now.timeIntervalSince(last) < probeInterval { return false }
+            lastProbe[type.rawValue] = now
+            return true
+        }
+        if shouldProbe, !EKEventStore().calendars(for: type).isEmpty {
             markGranted(type)
             return .fullAccess
         }

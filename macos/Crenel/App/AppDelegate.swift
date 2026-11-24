@@ -1493,8 +1493,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         guard appState.prepareForRecording() else { return }
 
-        recordingTask?.cancel()
+        // Record can follow Cancel at once; let the previous cleanup finish so the
+        // coordinator is free, or it would answer "already recording".
+        let previousTask = recordingTask
         recordingTask = Task { [weak self] in
+            await previousTask?.value
             guard let self else { return }
             do {
                 let systemAudioScope = MeetingAudioCaptureScopeResolver().resolve(
