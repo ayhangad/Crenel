@@ -408,6 +408,8 @@ enum NotchClosedText {
         enum Fix: Equatable {
             case none
             case settings
+            /// Ask macOS for the missing permission (its own dialog or exact pane).
+            case allowAccess
             case downloadModel
         }
 
@@ -424,16 +426,16 @@ enum NotchClosedText {
         switch failure {
         case .microphonePermissionDenied:
             .init(reason: String(localized: "Can’t hear you"), accessWord: String(localized: "Mic off"),
-                  sentence: String(localized: "Crenel needs the microphone"), fix: .settings)
+                  sentence: String(localized: "Crenel needs the microphone"), fix: .allowAccess)
         case .microphoneUnavailable:
             .init(reason: String(localized: "Can’t hear you"), accessWord: nil,
                   sentence: failure.message, fix: .settings)
         case .inputMonitoringPermissionMissing:
             .init(reason: String(localized: "Needs access"), accessWord: String(localized: "Access off"),
-                  sentence: String(localized: "The shortcut needs Input Monitoring"), fix: .settings)
+                  sentence: String(localized: "The shortcut needs Input Monitoring"), fix: .allowAccess)
         case .accessibilityPermissionMissing:
             .init(reason: String(localized: "Copied"), accessWord: String(localized: "Access off"),
-                  sentence: String(localized: "Crenel needs Accessibility to type for you"), fix: .settings)
+                  sentence: String(localized: "Crenel needs Accessibility to type for you"), fix: .allowAccess)
         case .speechAssetsMissing:
             .init(reason: String(localized: "Downloading model"), accessWord: nil,
                   sentence: String(localized: "The speech model isn’t on this Mac yet"), fix: .downloadModel)

@@ -1,5 +1,6 @@
 import os
 import AppKit
+import AVFoundation
 import EventKit
 import Combine
 import SwiftUI
@@ -88,6 +89,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let coordinator = DictationCoordinator(appState: appState, taskCoordinator: taskCoordinator)
         coordinator.onListeningChange = { [weak self] listening in
             self?.recordingCoordinator.setDictationHeld(listening)
+        }
+        // Without Accessibility dictation can only copy. Show macOS's own dialog right away
+        // (it also lists Crenel in Privacy > Accessibility) instead of leaving it to a hint.
+        coordinator.onAccessibilityMissing = { [weak self] in
+            NSApp.activate()
+            self?.requestAccessibilityAccess()
         }
         return coordinator
     }()
@@ -256,6 +263,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.presentNotch(followPointer: false)
             },
             recoverFromFailure: { [weak self] failure in self?.recover(from: failure) },
+            allowDictationAccess: { [weak self] failure in self?.allowDictationAccess(for: failure) },
             restartToUpdate: { [weak self] in self?.updateCoordinator.restartToUpdate() },
             dismissUpdateReady: { [weak self] in self?.appState.dismissUpdateReady() },
             acknowledgeUpdateDuringRecording: { [weak self] in self?.appState.acknowledgeUpdateDuringRecording() },
@@ -571,6 +579,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let granted = SystemAccessibilityAuthorizer().isTrusted(prompt: true)
         appState.updateAccessibilityPermission(granted: granted)
         refreshAccessibilityPermission(recheckingFor: .seconds(5))
+    }
+
+    /// The dictation strip's Allow: the system dialog when macOS still can ask, otherwise the
+    /// exact Privacy pane. Accessibility's prompt also adds Crenel to that pane's list, which
+    /// is missing until the app has asked once.
+    func allowDictationAccess(for failure: DictationFailure) {
+        NSApp.activate()
+        switch failure {
+        case .accessibilityPermissionMissing:
+            requestAccessibilityAccess()
+            openAccessibilitySettings()
+        case .microphonePermissionDenied:
+            if AVCaptureDevice.authorizationStatus(for: .audio) == .notDetermined {
+                Task { _ = await AVCaptureDevice.requestAccess(for: .audio); self.refreshAudioPermissions() }
+            } else {
+                openSystemSettings(for: .microphone)
+            }
+        case .inputMonitoringPermissionMissing:
+            dictationCoordinator.requestInputMonitoringAccess()
+        default:
+            showDesktop(section: .settings, category: .dictation)
+        }
     }
 
     func openAccessibilitySettings() {

@@ -525,6 +525,7 @@ final class DictationController: ObservableObject {
             enqueueTranscriberCancel()
         }
         if failure == .secureTextField { partialTranscript = "" }
+        AppLogger.dictationFailed(failure)
         state = .failed(failure)
         level = 0
         scheduleReset(after: configuration.resultDisplayDuration)
@@ -587,7 +588,12 @@ final class DictationController: ObservableObject {
         guard let assets, assetTask == nil else { return }
         assetPreparationLocale = localeIdentifier
         assetTask = Task { [weak self] in
-            try? await assets.prepareAssets(localeIdentifier: localeIdentifier)
+            do {
+                try await assets.prepareAssets(localeIdentifier: localeIdentifier)
+                AppLogger.speechAssetsReady(localeIdentifier: localeIdentifier)
+            } catch {
+                AppLogger.speechAssetsFailed(localeIdentifier: localeIdentifier, step: "download", error: error)
+            }
             self?.assetTask = nil
             self?.assetPreparationLocale = nil
         }

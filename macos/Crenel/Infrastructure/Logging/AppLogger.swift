@@ -15,6 +15,21 @@ enum AppLogger {
     private static let audio = Logger(subsystem: subsystem, category: "audio")
     private static let persistence = Logger(subsystem: subsystem, category: "persistence")
     private static let meetingSession = Logger(subsystem: subsystem, category: "meeting-session")
+    private static let dictation = Logger(subsystem: subsystem, category: "dictation")
+
+    /// Which dictation failure the user saw; never the dictated text.
+    static func dictationFailed(_ failure: DictationFailure) {
+        dictation.error("Dictation failed: \(String(describing: failure), privacy: .public)")
+    }
+
+    static func speechAssetsFailed(localeIdentifier: String, step: String, error: Error) {
+        let nsError = error as NSError
+        dictation.error("Speech model \(step, privacy: .public) failed for \(localeIdentifier, privacy: .public): \(nsError.domain, privacy: .public) \(nsError.code, privacy: .public)")
+    }
+
+    static func speechAssetsReady(localeIdentifier: String) {
+        dictation.notice("Speech model ready for \(localeIdentifier, privacy: .public)")
+    }
 
     static func transitioned(from: MeetingFlowState.Phase, to: MeetingFlowState.Phase) {
         flow.debug("Flow transition: \(from.rawValue, privacy: .public) -> \(to.rawValue, privacy: .public)")

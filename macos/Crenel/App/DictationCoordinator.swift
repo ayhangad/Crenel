@@ -13,6 +13,9 @@ final class DictationCoordinator {
     private let fnKeyGuard: FnKeySystemActionGuard
     /// Called when the microphone starts or stops listening for dictation.
     var onListeningChange: ((Bool) -> Void)?
+    /// The first time dictation can't type for lack of Accessibility in this launch.
+    var onAccessibilityMissing: (() -> Void)?
+    private var promptedForAccessibility = false
 
     init(
         appState: AppState,
@@ -103,6 +106,10 @@ final class DictationCoordinator {
         }
         let started = controller.startTriggerMonitoring()
         appState.updateDictationAvailability(started ? .ready : .needsInputMonitoring)
+        // Have the speech model ready before the first press; on a new Mac the first
+        // dictations otherwise failed with "isn't installed" and then "Downloading".
+        // Nothing is downloaded when it is already installed.
+        if started { controller.prepareSpeechAssets() }
     }
 
     private func mirrorStateIntoAppState() {
@@ -123,6 +130,14 @@ final class DictationCoordinator {
         controller.$partialTranscript
             .removeDuplicates()
             .sink { [weak self] text in self?.appState.updateDictationPartialTranscript(text) }
+            .store(in: &cancellables)
+        controller.$state
+            .sink { [weak self] state in
+                guard let self, state == .failed(.accessibilityPermissionMissing),
+                      !self.promptedForAccessibility else { return }
+                self.promptedForAccessibility = true
+                self.onAccessibilityMissing?()
+            }
             .store(in: &cancellables)
         controller.$history
             .sink { [weak self] history in self?.appState.updateDictationHistory(history) }

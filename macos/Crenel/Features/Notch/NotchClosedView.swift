@@ -24,6 +24,8 @@ struct NotchStripActions {
     var openSettings: () -> Void = {}
     /// Download on a dictation strip that needs the speech model.
     var downloadSpeechModel: () -> Void = {}
+    /// Requests the permission a dictation failure names.
+    var allowDictationAccess: (DictationFailure) -> Void = { _ in }
     /// Undo ⌘Z on "Inserted", while the result can still be taken back.
     var undoDictation: () -> Void = {}
     /// Restart ↩ on "Crenel 1.2 is ready".
@@ -345,6 +347,8 @@ struct NotchClosedView: View {
             switch words.fix {
             case .settings:
                 NotchStripKey("Settings", glyph: .sliders, size: .small, action: actions.openSettings)
+            case .allowAccess:
+                NotchStripKey("Allow", kind: .primary, size: .small) { actions.allowDictationAccess(failure) }
             case .downloadModel:
                 NotchStripKey("Download", size: .small, action: actions.downloadSpeechModel)
             case .none:

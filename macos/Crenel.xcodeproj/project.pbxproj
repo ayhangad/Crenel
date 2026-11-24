@@ -243,6 +243,7 @@
 		E294C70485DF86A407C1194D /* MeetingURLMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 956260675ACC12A80A6ED0B7 /* MeetingURLMatcher.swift */; };
 		E32DCDA1D6ABF4C0C8EE083B /* AudioLevelMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D42AA9D30EB57EFBB5FBECC /* AudioLevelMeter.swift */; };
 		E430338657D8217EC370E6BB /* DesktopGalleryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C221AAECFAF8B6A2FDAE50A /* DesktopGalleryTests.swift */; };
+		E55FA99738EE9D2010A05610 /* DictationPermissionStripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FD96713DE208F137A98021 /* DictationPermissionStripTests.swift */; };
 		E661691D482EE8D559FC9FA3 /* Geist-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 939FACABC38A627446C007D5 /* Geist-Medium.ttf */; };
 		E695A61F19D7536E6FCF7E6E /* CrenelTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9C475339896A668663F451B /* CrenelTokens.swift */; };
 		E7CD6FBC0BA174A0AE2E6F60 /* AudioCapturePermissionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F7A9B808F5782C92938B1B /* AudioCapturePermissionServiceTests.swift */; };
@@ -468,6 +469,7 @@
 		B7CA3899DADB1DE619B64DE4 /* KeychainAPIKeyRepository+Anthropic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KeychainAPIKeyRepository+Anthropic.swift"; sourceTree = "<group>"; };
 		B8585FAEF5D730A1A6786568 /* TranscriptionProcessingWorkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionProcessingWorkerTests.swift; sourceTree = "<group>"; };
 		B8757DEEB0F68C04D22C7384 /* MicrophoneDeviceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneDeviceService.swift; sourceTree = "<group>"; };
+		B8FD96713DE208F137A98021 /* DictationPermissionStripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationPermissionStripTests.swift; sourceTree = "<group>"; };
 		B975B07402B33D446BFE8EC7 /* AudioTrackMixerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioTrackMixerTests.swift; sourceTree = "<group>"; };
 		B9C475339896A668663F451B /* CrenelTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrenelTokens.swift; sourceTree = "<group>"; };
 		B9F7FF1643C04094C5A617FF /* SettingsGalleryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsGalleryTests.swift; sourceTree = "<group>"; };
@@ -577,6 +579,7 @@
 				8C221AAECFAF8B6A2FDAE50A /* DesktopGalleryTests.swift */,
 				4A34DDBCA7FE55DDC52E0B40 /* DesktopWorkspaceTests.swift */,
 				08742B0F2B6D0231DFE9D087 /* DictationControllerTests.swift */,
+				B8FD96713DE208F137A98021 /* DictationPermissionStripTests.swift */,
 				6A6F4B76D12CF1D3D4A569C6 /* DictationRefinerTests.swift */,
 				442E083DBC8A8E012D8BB03B /* DictationTriggerMatcherTests.swift */,
 				ACD52826F886FAF4CF37675D /* DomainModelTests.swift */,
@@ -1229,6 +1232,7 @@
 				E430338657D8217EC370E6BB /* DesktopGalleryTests.swift in Sources */,
 				CD1A07D4B1F1493327B04E34 /* DesktopWorkspaceTests.swift in Sources */,
 				3D618A995C3B8926F5D2E420 /* DictationControllerTests.swift in Sources */,
+				E55FA99738EE9D2010A05610 /* DictationPermissionStripTests.swift in Sources */,
 				FEDAB3FD729359B7B38BE9B4 /* DictationRefinerTests.swift in Sources */,
 				A86C9CA288BB8F86F1DD3459 /* DictationTriggerMatcherTests.swift in Sources */,
 				EA746F10F3541746C5A82A5E /* DomainModelTests.swift in Sources */,

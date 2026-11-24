@@ -70,7 +70,7 @@ final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetM
         guard let module = await makeModule(localeIdentifier: localeIdentifier) else {
             throw DictationFailure.unsupportedLocale(localeIdentifier: localeIdentifier)
         }
-        _ = try? await AssetInventory.reserve(locale: module.locale)
+        await Self.reserve(module.locale)
         guard let request = try await AssetInventory.assetInstallationRequest(supporting: [module.module]) else {
             return // Already installed.
         }
@@ -254,6 +254,25 @@ final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetM
         let module: any SpeechModule
         let locale: Locale
         let results: () -> AsyncThrowingStream<(text: String, isFinal: Bool), Error>
+    }
+
+    /// macOS keeps only a few speech locales reserved per app. Someone who switched languages
+    /// could fill them; then the reservation failed silently, the model never downloaded and
+    /// every dictation said "Download started". Free the other locales and try again.
+    private static func reserve(_ locale: Locale) async {
+        do {
+            if try await AssetInventory.reserve(locale: locale) { return }
+        } catch {
+            AppLogger.speechAssetsFailed(localeIdentifier: locale.identifier, step: "reserve", error: error)
+        }
+        for reserved in await AssetInventory.reservedLocales where reserved.identifier != locale.identifier {
+            await AssetInventory.release(reservedLocale: reserved)
+        }
+        do {
+            _ = try await AssetInventory.reserve(locale: locale)
+        } catch {
+            AppLogger.speechAssetsFailed(localeIdentifier: locale.identifier, step: "reserve", error: error)
+        }
     }
 
     private func makeModule(localeIdentifier: String) async -> ModuleHandle? {
