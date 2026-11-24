@@ -78,9 +78,11 @@ export function getReleases(): Promise<Release[]> {
         } satisfies Release;
       })
       .sort((a, b) => compare(b.version, a.version));
-    const newestPublished = list.find((r) => r.published);
-    if (newestPublished) newestPublished.latest = true;
-    return list;
+    // Notes are written before a release goes out; a version shows only once it is public.
+    // If GitHub couldn't be read at all, keep every version rather than an empty page.
+    const shown = remote.length > 0 ? list.filter((r) => r.published) : list;
+    if (shown[0]?.published) shown[0].latest = true;
+    return shown;
   })();
   return cached;
 }

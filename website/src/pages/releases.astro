@@ -31,7 +31,7 @@ const releases = await Promise.all(
               <div class="rail-sticky">
                 <a class="ver" href={`#v${r.version}`} aria-label={`Crenel ${r.version}`}><Seg text={r.version} h={34} /></a>
                 <div class="when">
-                  {r.latest ? <span class="state"><Lamp on="g" />Latest</span> : r.published ? <span class="state"><Lamp />Earlier</span> : <span class="state"><Lamp on="a" />Coming soon</span>}
+                  {r.latest ? <span class="state"><Lamp on="g" />Latest</span> : <span class="state"><Lamp />Earlier</span>}
                   {r.date && <time datetime={r.date.toISOString()}>{formatDate(r.date)}</time>}
                 </div>
               </div>
