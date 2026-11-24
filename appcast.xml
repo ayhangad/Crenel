@@ -3,63 +3,18 @@
     <channel>
         <title>Crenel</title>
         <item>
-            <title>1.4.2</title>
-            <pubDate>Tue, 24 Nov 2026 15:24:45 +0300</pubDate>
-            <sparkle:version>180</sparkle:version>
-            <sparkle:shortVersionString>1.4.2</sparkle:shortVersionString>
+            <title>1.4.3</title>
+            <pubDate>Tue, 24 Nov 2026 16:35:03 +0300</pubDate>
+            <sparkle:version>186</sparkle:version>
+            <sparkle:shortVersionString>1.4.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# Crenel 1.4.2
+            <description sparkle:format="markdown"><![CDATA[# Crenel 1.4.3
 
-- **Turkish dictation on more Macs.** When one of macOS's speech engines can't handle the
-  language, Crenel now tries the other one instead of stopping with "language isn't
-  supported". If neither can, the notch names the language and points to Dictation settings.
-- **Recording settings stop asking to check system audio.** Once system audio access is
-  confirmed, Settings no longer shows "Needs checking" and "Call audio off" after every
-  restart.
+- **Check for Updates answers.** Settings shows Checking while it looks, then Up to date,
+  the download of a new version, or Couldn't check with Try again.
+- **A simpler version line.** Settings shows just the version, without the build number.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.2/Crenel-1.4.2.dmg" length="9407189" type="application/octet-stream" sparkle:edSignature="IRjs5qDi0MUhV8lxmR6v/T0MRUtwk2ZJvGF6vil5mG3JPLJmuFXYxJ44l8DRzyfhFJ0XWkHugQfq3hyuoLVcAA=="/>
-        </item>
-        <item>
-            <title>1.4.1</title>
-            <pubDate>Tue, 24 Nov 2026 15:11:56 +0300</pubDate>
-            <sparkle:version>178</sparkle:version>
-            <sparkle:shortVersionString>1.4.1</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# Crenel 1.4.1
-
-- **Dictation asks for the access it needs.** Without Accessibility, Crenel could only copy
-  what you said and pointed to its own Settings. Now macOS asks right away, and the notch
-  shows Allow, which opens the right permission for Accessibility, the microphone or Input
-  Monitoring.
-- **The speech model downloads before your first dictation.** On a new Mac the first tries
-  no longer fail with "isn't installed" or "Downloading".
-- **The download can't get stuck.** If macOS had no room left for another dictation
-  language, the model never downloaded; Crenel now frees the languages it no longer uses.
-]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.2/Crenel-1.4.1.dmg" length="9403606" type="application/octet-stream" sparkle:edSignature="NARDdG/e0jOFftHW+clY8c11vbEpmFUx5W2Hq/o4LUgBJYF6ifEOCx5rOvXML98rXo1V1wShEVmoEVpVHqtCAA=="/>
-        </item>
-        <item>
-            <title>1.4</title>
-            <pubDate>Tue, 24 Nov 2026 14:45:06 +0300</pubDate>
-            <sparkle:version>175</sparkle:version>
-            <sparkle:shortVersionString>1.4</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# Crenel 1.4
-
-- **Record anything, any time.** One Record button always sits on the top row of Today,
-  with or without a meeting. It also works right after a recording finished, failed or is
-  still being processed.
-- **Google Meet records without the Chrome extension.** Meet calls are recorded from your
-  Mac's audio and your mic, like any other call. Nothing to click in the Meet tab and
-  nothing to install in the browser; the extension is retired.
-- **Your mic stays out while you're muted.** Muting yourself in Zoom or Google Meet keeps
-  your mic out of the recording, as before.
-- **Calendar and Reminders show up as soon as you allow them.** Crenel no longer keeps
-  showing "Allow" after access was granted until you quit and reopen it.
-- **A local tool.** Crenel records what your Mac plays and your mic, and doesn't notify
-  anyone on the call. Whether you may record, and asking the others, is up to you.
-]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.2/Crenel-1.4.dmg" length="9388246" type="application/octet-stream" sparkle:edSignature="Sj6lS8U4ZnZsnojc4Ky512SD3vgyG1S008OmElxRv7wTGSQXAANJWHVJ7rjgZX4cI84/i7OE1aw14lDYgzUaBA=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.3/Crenel-1.4.3.dmg" length="9419989" type="application/octet-stream" sparkle:edSignature="rCpIsWWCLmhJPQ1pvikaL0XWNhwiM6TYPCwzPLvgeBbCTSDmg19PV8RzbvevpRDvO5stMvhskTFCnpdJLwvcAg=="/>
         </item>
     </channel>
 </rss>
