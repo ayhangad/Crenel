@@ -124,6 +124,20 @@ final class AudioCapturePermissionServiceTests: XCTestCase {
         XCTAssertFalse(service.currentSnapshot().canRecord)
     }
 
+    func testVerifiedSystemAudioSurvivesRelaunchUntilATapFails() async {
+        let first = makeService(hasSystemAudioAccess: { false }, requestSystemAudioAccess: { true })
+        _ = await first.requestSystemAudioAccess()
+        XCTAssertEqual(first.currentSnapshot().systemAudio, .authorized)
+
+        // A new launch: nothing verified in memory, the stored proof still counts.
+        let relaunched = makeService(hasSystemAudioAccess: { false })
+        XCTAssertEqual(relaunched.currentSnapshot().systemAudio, .authorized)
+
+        relaunched.systemAudioAccessFailed()
+        XCTAssertEqual(relaunched.currentSnapshot().systemAudio, .denied)
+        XCTAssertNotEqual(makeService(hasSystemAudioAccess: { false }).currentSnapshot().systemAudio, .authorized)
+    }
+
     private func makeService(
         microphoneStatus: @escaping () -> AVAuthorizationStatus = { .notDetermined },
         requestMicrophoneAccess: @escaping () async -> Bool = { false },

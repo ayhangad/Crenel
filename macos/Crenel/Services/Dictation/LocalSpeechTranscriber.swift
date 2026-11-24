@@ -275,20 +275,35 @@ final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetM
         }
     }
 
+    /// Picks the engine for this language. `SpeechTranscriber` first (it has no Turkish on
+    /// any Mac today), then `DictationTranscriber`. An engine that names the locale but whose
+    /// model macOS reports as unsupported is skipped; before, that ended dictation with
+    /// "language isn't supported" without trying the other engine. Every check is logged so
+    /// a Mac where neither works can be told apart from a missing download.
     private func makeModule(localeIdentifier: String) async -> ModuleHandle? {
         let requested = Locale(identifier: localeIdentifier)
-        if SpeechTranscriber.isAvailable,
-           let locale = await SpeechTranscriber.supportedLocale(equivalentTo: requested) {
-            let transcriber = SpeechTranscriber(
-                locale: locale,
-                transcriptionOptions: [],
-                reportingOptions: [.volatileResults, .fastResults],
-                attributeOptions: []
-            )
-            return ModuleHandle(module: transcriber, locale: locale) {
-                Self.mapResults(transcriber.results) { (String($0.text.characters), $0.isFinal) }
+        var notes: [String] = ["speechAvailable=\(SpeechTranscriber.isAvailable)"]
+
+        if SpeechTranscriber.isAvailable {
+            if let locale = await SpeechTranscriber.supportedLocale(equivalentTo: requested) {
+                let transcriber = SpeechTranscriber(
+                    locale: locale,
+                    transcriptionOptions: [],
+                    reportingOptions: [.volatileResults, .fastResults],
+                    attributeOptions: []
+                )
+                let status = await AssetInventory.status(forModules: [transcriber])
+                notes.append("speech=\(locale.identifier):\(status)")
+                if status != .unsupported {
+                    return ModuleHandle(module: transcriber, locale: locale) {
+                        Self.mapResults(transcriber.results) { (String($0.text.characters), $0.isFinal) }
+                    }
+                }
+            } else {
+                notes.append("speech=noLocale")
             }
         }
+
         if let locale = await DictationTranscriber.supportedLocale(equivalentTo: requested) {
             let transcriber = DictationTranscriber(
                 locale: locale,
@@ -297,10 +312,18 @@ final class LocalSpeechTranscriber: DictationTranscribing, DictationSpeechAssetM
                 reportingOptions: [.volatileResults, .frequentFinalization],
                 attributeOptions: []
             )
-            return ModuleHandle(module: transcriber, locale: locale) {
-                Self.mapResults(transcriber.results) { (String($0.text.characters), $0.isFinal) }
+            let status = await AssetInventory.status(forModules: [transcriber])
+            notes.append("dictation=\(locale.identifier):\(status)")
+            if status != .unsupported {
+                return ModuleHandle(module: transcriber, locale: locale) {
+                    Self.mapResults(transcriber.results) { (String($0.text.characters), $0.isFinal) }
+                }
             }
+        } else {
+            notes.append("dictation=noLocale")
         }
+
+        AppLogger.speechEngineUnavailable(localeIdentifier: localeIdentifier, details: notes.joined(separator: " "))
         return nil
     }
 

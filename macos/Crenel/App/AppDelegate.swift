@@ -1972,7 +1972,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         switch captureError {
-        case .microphonePermissionDenied, .systemAudioPermissionDenied:
+        case .systemAudioPermissionDenied:
+            audioPermissionService.systemAudioAccessFailed()
+            appState.updateAudioCapturePermissions(audioPermissionService.currentSnapshot())
+            return .permission("Turn on audio access for recording in System Settings.", settings: true)
+        case .microphonePermissionDenied:
             return .permission("Turn on audio access for recording in System Settings.", settings: true)
         case .insufficientDiskSpace, .diskSpaceBecameLow:
             return .fileSystem("Not enough free disk space to record.", diskFull: true)

@@ -19,6 +19,10 @@ final class AudioCapturePermissionService {
 
     private enum Key {
         static let requestedSystemAudioAccess = "permissions.requestedSystemAudioAccess"
+        /// macOS has no API to read the System Audio Recording grant; only a short tap proves
+        /// it. That proof lived in memory, so every launch showed "Needs checking" and "Call
+        /// audio off" although access was fine. It is kept until a tap fails again.
+        static let verifiedSystemAudioAccess = "permissions.verifiedSystemAudioAccess"
     }
 
     private let dependencies: Dependencies
@@ -55,8 +59,17 @@ final class AudioCapturePermissionService {
             let granted = await dependencies.requestSystemAudioAccess()
             verifiedSystemAudioAccess = granted
             rejectedSystemAudioAccess = !granted
+            defaults.set(granted, forKey: Key.verifiedSystemAudioAccess)
         }
         return currentSnapshot()
+    }
+
+    /// A recording's system-audio tap was refused: forget the stored proof so the next
+    /// recording asks again.
+    func systemAudioAccessFailed() {
+        verifiedSystemAudioAccess = false
+        rejectedSystemAudioAccess = true
+        defaults.set(false, forKey: Key.verifiedSystemAudioAccess)
     }
 
     func verifyAccessForRecording() async -> AudioCapturePermissionSnapshot {
@@ -86,7 +99,8 @@ final class AudioCapturePermissionService {
     }
 
     private func systemAudioPermissionStatus() -> AudioCapturePermissionStatus {
-        if dependencies.hasSystemAudioAccess() || verifiedSystemAudioAccess {
+        if dependencies.hasSystemAudioAccess() || verifiedSystemAudioAccess
+            || (!rejectedSystemAudioAccess && defaults.bool(forKey: Key.verifiedSystemAudioAccess)) {
             defaults.set(true, forKey: Key.requestedSystemAudioAccess)
             return .authorized
         }

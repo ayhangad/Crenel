@@ -27,6 +27,10 @@ enum AppLogger {
         dictation.error("Speech model \(step, privacy: .public) failed for \(localeIdentifier, privacy: .public): \(nsError.domain, privacy: .public) \(nsError.code, privacy: .public)")
     }
 
+    static func speechEngineUnavailable(localeIdentifier: String, details: String) {
+        dictation.error("No speech engine for \(localeIdentifier, privacy: .public): \(details, privacy: .public)")
+    }
+
     static func speechAssetsReady(localeIdentifier: String) {
         dictation.notice("Speech model ready for \(localeIdentifier, privacy: .public)")
     }

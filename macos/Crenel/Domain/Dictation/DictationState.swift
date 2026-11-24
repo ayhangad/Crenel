@@ -91,8 +91,9 @@ enum DictationFailure: Error, Equatable, Sendable {
             return "The on-device speech model for this language isn’t installed. Download started."
         case .speechAssetsDownloading:
             return "Downloading the speech model. Try again when it finishes."
-        case .unsupportedLocale:
-            return "The selected language isn’t supported for on-device dictation."
+        case .unsupportedLocale(let localeIdentifier):
+            let language = Locale(identifier: "en").localizedString(forLanguageCode: String(localeIdentifier.prefix(2))) ?? localeIdentifier
+            return "This Mac has no on-device \(language) dictation. Try English in Dictation settings."
         case .clipboardSnapshotUnavailable:
             return "Couldn’t temporarily save your clipboard. Dictation copied for you to paste."
         case .targetChanged:
