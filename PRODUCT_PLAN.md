@@ -124,6 +124,10 @@ birleşir; her biri az girdi ve sıfır ek uğraş ilkesine uyar:
 - [x] İsteyen kullanıcı Ayarlar'dan bilgisayarındaki Claude Code veya Codex
   oturumunu sağlayıcı olarak seçebilsin (API anahtarı gerekmeden). Süreç başına saniyeler
   sürdüğü için yalnız özet ve agent işleri; dikte deterministik temizlikle kalır. — ✅ 2026-11-17 (otomatik test + gerçek Claude Code CLI duman testi; Codex komutu elle doğrulandı)
+- [x] Codex sağlayıcısını geri eklemek (2026-11-25, kullanıcı isteği; denetim 07 şartıyla):
+  Codex ≥ 0.170, kullanıcı ayarları/kuralları kapalı, araç özellikleri `--disable` ile kapalı,
+  her çalıştırmadan önce `codex features list` ile `code_mode_host` ve `shell_tool` kapısının
+  kapalı olduğu doğrulanır; doğrulanamazsa Codex çalıştırılmaz. — ✅ 2026-11-25 (otomatik test + gerçek Codex 0.170 duman testi + sahte transkriptle araç denemesi)
 
 ### C3.1 — Dikte düzeltmeleri (2026-11-16 kararları)
 

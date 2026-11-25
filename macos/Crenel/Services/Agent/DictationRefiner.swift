@@ -119,6 +119,8 @@ enum AgentProviderFactory {
             )
         case .claudeCode:
             return CLIAgentProvider(tool: .claudeCode)
+        case .codex:
+            return CLIAgentProvider(tool: .codex)
         }
     }
 }

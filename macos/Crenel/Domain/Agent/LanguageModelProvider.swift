@@ -73,6 +73,8 @@ enum AgentError: Error, LocalizedError, Equatable, Sendable {
     case onDeviceUnavailable(OnDeviceUnavailableReason)
     /// The command-line tool for this provider isn't installed (or can't be found).
     case toolNotFound(AgentProviderKind)
+    /// The installed tool can't confirm that its own tools are switched off, so it isn't run.
+    case toolUnsafe(AgentProviderKind)
 
     var errorDescription: String? {
         switch self {
@@ -81,7 +83,7 @@ enum AgentError: Error, LocalizedError, Equatable, Sendable {
         case .missingKey(let kind):
             "No \(kind.displayName) API key. Add one in Settings."
         case .authentication(let kind) where kind.usesLocalCLI:
-            "\(kind.displayName) isn’t signed in. Open Terminal, run “claude” and sign in."
+            "\(kind.displayName) isn’t signed in. Open Terminal, run “\(kind == .codex ? "codex" : "claude")” and sign in."
         case .authentication(let kind):
             "Couldn’t verify the \(kind.displayName) key. Check it in Settings."
         case .modelUnavailable(let kind):
@@ -110,6 +112,8 @@ enum AgentError: Error, LocalizedError, Equatable, Sendable {
             reason.message
         case .toolNotFound(let kind):
             "\(kind.displayName) isn’t installed on this Mac."
+        case .toolUnsafe(let kind):
+            "This \(kind.displayName) version can’t run with its tools turned off. Update it or choose another provider."
         }
     }
 }

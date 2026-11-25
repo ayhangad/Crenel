@@ -292,6 +292,7 @@ struct AgentSettingsView<Extra: View>: View {
             (.anthropic, "Claude (API key)"),
             (.openAI, "OpenAI (API key)"),
             (.claudeCode, "Claude Code"),
+            (.codex, "Codex"),
             (.onDevice, "On this Mac (Apple)")
         ]
         // Choices from older versions stay visible only while they are the saved one.
@@ -304,6 +305,7 @@ struct AgentSettingsView<Extra: View>: View {
         switch provider {
         case .anthropic, .openAI: Text("Sends text to your provider for notes, tasks and dictation clean-up")
         case .claudeCode: Text("Sends transcript text to Anthropic using your Claude Code sign-in for notes and tasks")
+        case .codex: Text("Sends transcript text to OpenAI using your Codex sign-in for notes and tasks")
         case .onDevice: onDeviceStatus.map { Text(verbatim: $0) } ?? Text("Apple’s model · free, stays on this Mac")
         case .automatic: Text("Anthropic, then OpenAI, then this Mac")
         case .off: Text("Raw text only")
@@ -315,7 +317,7 @@ struct AgentSettingsView<Extra: View>: View {
         switch provider {
         case .anthropic: keyStatus(hasAnthropicKey)
         case .openAI: keyStatus(hasOpenAIKey)
-        case .claudeCode:
+        case .claudeCode, .codex:
             switch toolInstalled {
             case .some(true): HudStatusWord(.ok, "Installed")
             case .some(false): HudStatusWord(.warn, "Not installed")

@@ -28,7 +28,7 @@ Domain/
   NotchAgenda          Geri sayım çözümü, biçimlendirme, Takvim deep link
 Services/
   Dictation/           CGEventTap tetik, bellek içi ses, SpeechAnalyzer, imlece yazma
-  Agent/               Foundation Models / OpenAI / Anthropic / Claude Code sağlayıcıları, DictationRefiner
+  Agent/               Foundation Models / OpenAI / Anthropic / Claude Code / Codex sağlayıcıları, DictationRefiner
 Infrastructure/Persistence/Reminders/
   EventKitReminderStore, ReminderTaskMapping, RemindersTaskRepository, TaskRepositoryRouter
 Features/Shared/CrenelActions  Yeni özelliklerin aksiyonları (SwiftUI environment)
@@ -173,8 +173,21 @@ deterministik sonuca düşülür; komut başarısızsa seçili metin değiştiri
 Claude Code sağlayıcısı, bu Mac'teki Claude oturumuyla toplantı metnini Anthropic'e gönderir.
 Her istek ayrı bir geçici klasörde çalışır. Araçlar, kullanıcı ayarları ve kullanıcı hook'ları
 kapalıdır (`--tools ""`, `--setting-sources ""`, `--strict-mcp-config`). Oturum kaydı
-kapalıdır. Dikte deterministik temizliği kullanır. Codex 1.0'da sunulmaz ve önceki Codex
-tercihi cihazdaki Apple modeline taşınır.
+kapalıdır. Dikte deterministik temizliği kullanır.
+
+Codex sağlayıcısı (2026-11-25), bu Mac'teki Codex oturumuyla toplantı metnini OpenAI'ye
+gönderir. Codex araçları modelden gizleyemez; komut, dosya, görsel, patch ve web araçlarının
+hepsi code-mode host üzerinden çalışır. Bu yüzden `codex exec` kullanıcı ayarları ve kuralları
+olmadan (`--ignore-user-config`, `--ignore-rules`), salt okunur sandbox'ta, oturum kaydı
+olmadan ve `CodexSafety.disabledFeatures` listesindeki tüm araç özellikleri `--disable` ile
+kapalı çalışır. Sistem talimatı `developer_instructions` olarak TOML dizgisiyle verilir,
+transkript standart girdiden gider. Her kurulum (yol + değişiklik tarihi) için ilk istekten
+önce Codex ≥ 0.170 olduğu ve aynı bayraklarla `codex features list` çıktısında
+`code_mode_host` ve `shell_tool` değerinin `false` olduğu doğrulanır. Doğrulanamazsa metin
+gönderilmez, `AgentError.toolUnsafe` döner. Bilinmeyen özellik adı Codex'i hata ile
+durdurduğu için yeniden adlandırılan bir özellik de kapalı kalır. Sahte transkriptle yapılan
+denemede model komut, `write_stdin`, `view_image`, `apply_patch` ve web aramasını denedi,
+hepsi “code-mode host is disabled” ile reddedildi, dosya okunmadı ve yazılmadı.
 
 Toplantı aksiyon maddeleri yalnızca kaydı yapan kişiye aittir (`MeetingOwner`). Özet
 istemine sahip satırı (macOS hesap adı, yerel transkriptte mikrofon izi “You”) eklenir ve
