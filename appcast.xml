@@ -3,18 +3,18 @@
     <channel>
         <title>Crenel</title>
         <item>
-            <title>1.4.3</title>
-            <pubDate>Tue, 24 Nov 2026 16:35:03 +0300</pubDate>
-            <sparkle:version>186</sparkle:version>
-            <sparkle:shortVersionString>1.4.3</sparkle:shortVersionString>
+            <title>1.4.4</title>
+            <pubDate>Wed, 25 Nov 2026 13:56:02 +0300</pubDate>
+            <sparkle:version>189</sparkle:version>
+            <sparkle:shortVersionString>1.4.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>26.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# Crenel 1.4.3
+            <description sparkle:format="markdown"><![CDATA[# Crenel 1.4.4
 
-- **Check for Updates answers.** Settings shows Checking while it looks, then Up to date,
-  the download of a new version, or Couldn't check with Try again.
-- **A simpler version line.** Settings shows just the version, without the build number.
+- **Codex is back.** Settings › AI can use the Codex you're signed in to on this Mac for meeting
+  notes and tasks, like Claude Code. Codex runs with its tools off; if an installed version
+  can't confirm that, Crenel doesn't send it any text.
 ]]></description>
-            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.3/Crenel-1.4.3.dmg" length="9419989" type="application/octet-stream" sparkle:edSignature="rCpIsWWCLmhJPQ1pvikaL0XWNhwiM6TYPCwzPLvgeBbCTSDmg19PV8RzbvevpRDvO5stMvhskTFCnpdJLwvcAg=="/>
+            <enclosure url="https://github.com/ayhangad/Crenel/releases/download/v1.4.4/Crenel-1.4.4.dmg" length="9440982" type="application/octet-stream" sparkle:edSignature="+md59MH0oFnxYinLgxBIjqRRMnhs+PnZz6iiJdY1AHYi9FWGHcCv0hHYyE6l1cM2qxS3D1wZ48q/TdOEAaEiBA=="/>
         </item>
     </channel>
 </rss>
