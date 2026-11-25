@@ -273,7 +273,7 @@ aşağıdaki “Mikrofon gizlilik sözleşmesi”ndeki varsayılan kapalı kural
   kök neden log ile doğrulanacak.
 - [x] Recording ayarı her açılışta "Needs checking / Call audio off": sistem sesi
   doğrulaması yalnız bellekteydi; artık kalıcı, kayıt tap'i reddedilince siliniyor. — ✅ 2026-11-24
-- [ ] 1.4.4 yayını: Codex sağlayıcısı. — 🚧 Devam ediyor: 2026-11-25
+- [x] 1.4.4 yayını: Codex sağlayıcısı. — ✅ 2026-11-25 (`release-availability-test.py 1.4.4` geçti)
 - [x] 1.4.3 yayını: Check for Updates durumu, sürüm satırında build numarası yok; eski DMG temizliği ve yalnız yayınlanmış sürümü gösteren site. — ✅ 2026-11-24 (`release-availability-test.py 1.4.3` geçti)
 - [x] 1.4.2 yayını. — ✅ 2026-11-24 (`release-availability-test.py 1.4.2` geçti)
 - [x] 1.4.1 yayını. — ✅ 2026-11-24 (`release-availability-test.py 1.4.1` geçti; site ilk denemede 1.4.1 gösterdi)
